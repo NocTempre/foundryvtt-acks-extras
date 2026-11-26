@@ -8,8 +8,9 @@
  * 0th-level hire records nothing; a bonus paid through the Player seat's
  * Recruit button on the location sheet owes nothing. An owed bonus is tagged on
  * the employer's roster; the Service tab's Pay refuses against an empty purse
- * and changes nothing, the GM's Forgive clears it and leaves the arrears, and
- * the Player's Pay moves the coin and clears it. It also measures, without
+ * and changes nothing, the GM's Forgive clears it and leaves the arrears, the
+ * Player's Forgive does the same and moves no coin, and the Player's Pay moves
+ * the coin and clears it. It also measures, without
  * writing, how many of the world's candidate class keys resolve to an imported
  * class through the lookup a hire uses. Step 24, on the GM seat alone: an
  * Irrefusable Offer to a captured monster, made through the influence-hosted
@@ -279,6 +280,13 @@ const P = {
     const drop = Math.round((H.purse0 - H.MO.spendableGp(a)) * 100) / 100;
     return { made: a.items.filter((i) => i.type === "money" && !H.money0.has(i.id)).map((i) => i.uuid), bonusSet: bonus > 0, dropIsBonus: bonus > 0 && Math.abs(drop - bonus) < 0.01 };
   },
+  /** Whether the purse and its coin rows are as `purse` left them: no coin moved, no row made. */
+  purseUnmoved: async ({ actorId }) => {
+    const H = globalThis.__ht;
+    const a = game.actors.get(actorId);
+    const drop = Math.round((H.purse0 - H.MO.spendableGp(a)) * 100) / 100;
+    return { unchanged: Math.abs(drop) < 0.01, made: a.items.filter((i) => i.type === "money" && !H.money0.has(i.id)).map((i) => i.uuid) };
+  },
   /** Player seat: open the place's sheet, press the candidate's Recruit button, and read the hosted hiring page. */
   recruit: async ({ placeId, candidateId, employerId }) => {
     const H = globalThis.__ht;
@@ -338,6 +346,13 @@ const P = {
     return { found: true, confirms: yes, chat: H.chat.splice(0) };
   },
   closeSheet: async ({ actorId }) => { await game.actors.get(actorId)?.sheet?.close(); return true; },
+  /** GM seat: put `gp` back on a hire's record as owed, for a second Forgive to clear; answers whether the read-back holds it. */
+  setOwed: async ({ actorId, gp }) => {
+    const a = game.actors.get(actorId);
+    const r = a.getFlag("acks-extras", "record") ?? {};
+    await a.setFlag("acks-extras", "record", { ...r, terms: { ...(r.terms ?? {}), signingBonusOwedGp: gp } });
+    return a.getFlag("acks-extras", "record")?.terms?.signingBonusOwedGp === gp;
+  },
   /** Write an invented wage arrears onto a hire's record, for Forgive to leave alone. */
   setArrears: async ({ actorId, gp }) => {
     const a = game.actors.get(actorId);
@@ -722,12 +737,25 @@ try {
   }
   await run(player, P.closeSheet, { actorId: place.id });
 
+  section("20: the Player forgives an owed bonus from the Service tab");
+  check("20: the 0th-level hire owes its bonus again, written on the GM seat", await run(gm, P.setOwed, { actorId: h3Id, gp: BONUS }));
+  await run(gm, P.purse, { actorId: employer.id });
+  const forgaveP = await run(player, P.pressSigning, { actorId: h3Id, which: "forgive" });
+  for (const uuid of await run(player, P.ownCards, { ids: forgaveP.chat, actorIds: [employer.id, h3Id] })) await track(uuid, "ChatMessage");
+  for (const uuid of await run(gm, P.ownCards, { ids: await run(gm, P.takeChat), actorIds: [employer.id, h3Id] })) await track(uuid, "ChatMessage");
+  const r3c = await run(gm, P.readHire, { actorId: h3Id, level: 0 });
+  const unmoved = await run(gm, P.purseUnmoved, { actorId: employer.id });
+  for (const uuid of unmoved.made) await track(uuid, "Item");
+  check("20: the Player's Service tab offers Pay and Forgive as named buttons", forgaveP.rendered && forgaveP.pay && forgaveP.forgive && forgaveP.named, { pay: forgaveP.pay, forgive: forgaveP.forgive, named: forgaveP.named });
+  check("20: the Player's Forgive zeroes the owed bonus, logs signingBonusForgiven, leaves the arrears and the calamity", forgaveP.pressed && forgaveP.changed && forgaveP.warns === 0 && r3c.owed === 0 && r3c.events.at(-1) === "signingBonusForgiven" && r3c.arrears === ARREARS && r3c.calamities === 1, { pressed: forgaveP.pressed, changed: forgaveP.changed, warns: forgaveP.warns, owed: r3c.owed, last: r3c.events.at(-1), arrearsKept: r3c.arrears === ARREARS, calamities: r3c.calamities });
+  check("20: the Player's Forgive moved no coin on the employer", unmoved.unchanged && unmoved.made.length === 0, { unchanged: unmoved.unchanged, rows: unmoved.made.length });
+
   section("20: the Player pays the owed bonus from the Service tab");
   await run(gm, P.purse, { actorId: employer.id });
   const paid = await run(player, P.pressSigning, { actorId: h1Id, which: "pay" });
   for (const uuid of await run(player, P.ownCards, { ids: paid.chat, actorIds: [employer.id, h1Id] })) await track(uuid, "ChatMessage");
   for (const uuid of await run(gm, P.ownCards, { ids: await run(gm, P.takeChat), actorIds: [employer.id, h1Id] })) await track(uuid, "ChatMessage");
-  check("20: the Player's Service tab offers Pay and not Forgive", paid.rendered && paid.pay && !paid.forgive && paid.named, { pay: paid.pay, forgive: paid.forgive, named: paid.named });
+  check("20: the Player's Service tab offers Pay and Forgive", paid.rendered && paid.pay && paid.forgive && paid.named, { pay: paid.pay, forgive: paid.forgive, named: paid.named });
   const paidPurse = await run(gm, P.purseAfter, { actorId: employer.id, hireId: h1Id });
   for (const uuid of paidPurse.made) await track(uuid, "Item");
   const r1c = await run(gm, P.readHire, { actorId: h1Id, level: 2 });

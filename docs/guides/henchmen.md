@@ -114,6 +114,8 @@ dismissal — sit on the row.*
 **A hireling's own sheet carries a Service tab**: the same record from the
 hireling's side — loyalty and its parts, morale, the terms, the wage clock,
 the employer, the ledger and the events — with the Judge's throws beside it.
+A signing bonus the employer could not pay stays owed on the Signing bonus row,
+where the hireling's owner can **Pay** it or **Forgive** it.
 A calamity still owing its loyalty throw marks the tab and the sheet's
 in-service chip until the Judge rolls it.
 

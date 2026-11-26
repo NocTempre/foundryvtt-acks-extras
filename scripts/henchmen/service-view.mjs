@@ -157,7 +157,7 @@ export function clockLine(clock) {
  * The Service panel's context for `actor`. `inService` false when the actor
  * serves nobody, and the template then renders its empty hint alone.
  * @param {Actor} actor the hireling
- * @param {{isGM?: boolean, pins?: string[]}} viewer `pins` are the sheet's pinned roll ids, so the Loyalty and Morale rows show their star
+ * @param {{isGM?: boolean, pins?: string[]}} viewer `isGM` feeds the class pick's offer; `pins` are the sheet's pinned roll ids, so the Loyalty and Morale rows show their star
  */
 export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
   const retainer = adapter.getRetainer(actor);
@@ -227,7 +227,7 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
     signingBonus: terms.signingOwed > 0 ? loc("signingOwedValue", { gp: terms.signingOwed }) : loc("gp", { gp: terms.signingBonus }),
     signingTip: terms.signingOwed > 0 ? loc("tip.signingOwed", { gp: terms.signingBonus || terms.signingOwed }) : loc("tip.signing"),
     signingOwed: terms.signingOwed > 0,
-    signingControls: signingControls(terms, { isOwner: !!actor.isOwner, isGM }),
+    signingControls: signingControls(terms, { isOwner: !!actor.isOwner }),
     signingWhere: record.settlementName
       ? loc(terms.signingOwed > 0 ? "signingOwedWhere" : "signingWhere", { where: record.settlementName })
       : "",
@@ -259,7 +259,7 @@ export function buildServicePanel(actor, { isGM = false, pins = [] } = {}) {
   const rolled = rolledOf(record);
   return {
     inService: true,
-    isGM,
+    canCompensate: !!actor.isOwner,
     pending,
     badge: serviceBadge(record),
     category: game.i18n.localize(`ACKS-HENCHMEN.category.${category}`),

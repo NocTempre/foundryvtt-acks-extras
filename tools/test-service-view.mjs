@@ -325,11 +325,12 @@ test("a signing bonus refused at hire reads as owed, apart from the arrears", ()
   assert.equal(termsOf({ terms: { signingBonusGp: 40 } }).signingOwed, 0, "a record from before the field owes nothing");
 });
 
-test("an owed bonus offers Pay to whoever may edit the hireling and Forgive to a GM alone", () => {
+test("an owed bonus offers Pay and Forgive to whoever may edit the hireling, and to no one else", () => {
   const owed = termsOf({ terms: { signingBonusGp: 40, signingBonusOwedGp: 40 } });
-  assert.deepEqual(signingControls(owed, { isOwner: true, isGM: false }), { pay: true, forgive: false }, "an owning player pays, never forgives");
-  assert.deepEqual(signingControls(owed, { isOwner: true, isGM: true }), { pay: true, forgive: true }, "a GM may do either");
+  assert.deepEqual(signingControls(owed, { isOwner: true, isGM: false }), { pay: true, forgive: true }, "an owning player pays or forgives");
+  assert.deepEqual(signingControls(owed, { isOwner: true, isGM: true }), { pay: true, forgive: true }, "an owning GM may do either");
   assert.deepEqual(signingControls(owed, { isOwner: false, isGM: false }), { pay: false, forgive: false }, "an onlooker gets neither");
+  assert.deepEqual(signingControls(owed, { isOwner: false, isGM: true }), { pay: false, forgive: false }, "the role does not grant it, ownership does");
   const paid = termsOf({ terms: { signingBonusGp: 40, signingBonusOwedGp: 0, arrearsGp: 3 } });
   assert.deepEqual(signingControls(paid, { isOwner: true, isGM: true }), { pay: false, forgive: false }, "nothing owed: no control, arrears or not");
   assert.deepEqual(signingControls(null), { pay: false, forgive: false }, "no terms: no control");

@@ -5517,7 +5517,6 @@
   "ACKS-HENCHMEN.service.signingPayRefused": "{name}: the employer's coin cannot cover the owed signing bonus; nothing changed.",
   "ACKS-HENCHMEN.service.signingForgive": "Forgive the owed signing bonus",
   "ACKS-HENCHMEN.service.signingForgiveHint": "Clear the owed signing bonus without payment; arrears stay as they are",
-  "ACKS-HENCHMEN.service.signingForgiveGmOnly": "Only the Judge can forgive an owed signing bonus.",
   "ACKS-HENCHMEN.service.hitPoints": "Hit points",
   "ACKS-HENCHMEN.service.hpJudgePick":"not rolled",
   "ACKS-HENCHMEN.service.judgePick": "Judge's pick",

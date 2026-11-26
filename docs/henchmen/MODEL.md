@@ -221,9 +221,10 @@ downed watcher's. It is kept apart from `arrearsGp`, which
 a payday bills and `forgiveWageDebts` zeroes as wages. It is cleared by
 `payOwedSigningBonus` (the employer pays the hireling through `spendGold`;
 paid, the figure is zeroed and `signingBonusPaid` logged, refused, nothing
-changes and the seat is warned) or by the GM-only `forgiveSigningBonus`
-(zeroed with `signingBonusForgiven`, no coin moved, `arrearsGp` untouched);
-both are on the api and the Service panel (§4d). Neither touches the
+changes and the seat is warned) or by `forgiveSigningBonus` (zeroed with
+`signingBonusForgiven`, no coin moved, `arrearsGp` untouched); both run on a
+seat that may edit the hireling, refusing any other silently, and both are on
+the api and the Service panel (§4d). Neither touches the
 calamity recorded at hire: it has already happened, and a later payment does
 not undo it.
 - `loyalty {start, permanents[]}` / `morale {base, permanents[]}` — the
@@ -688,9 +689,8 @@ calamity, **Obedience**) and the compensated toggle render and run on
 wages** renders for a GM or an owner of the employer and calls
 `payWagesFor(employer)` (§4c); the employer's name opens the employer for any
 viewer. An owed signing bonus carries two controls on its row
-(`signingControls`): **Pay** for whoever may edit the hireling, calling
-`payOwedSigningBonus`, and **Forgive** for a GM, calling
-`forgiveSigningBonus` (§3). The panel is hosted by two sheets, so these are
+(`signingControls`), both for whoever may edit the hireling: **Pay**, calling
+`payOwedSigningBonus`, and **Forgive**, calling `forgiveSigningBonus` (§3). The panel is hosted by two sheets, so these are
 not host actions: they carry `data-signing` and are wired by the henchmen
 module's own `renderActorSheetV2` hook (`module.mjs`).
 

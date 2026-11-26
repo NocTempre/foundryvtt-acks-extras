@@ -1301,13 +1301,19 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
 
     await hireling.setFlag("acks-extras", "record", { ...rec(), terms: { ...rec().terms, signingBonusOwedGp: 6, arrearsGp: 3 } });
     game.user.isGM = false;
-    assert.strictEqual(await hire.forgiveSigningBonus(hireling), false, "a player cannot forgive the debt");
+    hireling.isOwner = false;
+    const eventsBefore = rec().events.length;
+    const warnedBefore = warned.length;
+    assert.strictEqual(await hire.forgiveSigningBonus(hireling), false, "a seat that does not own the hireling cannot forgive the debt");
     assert.strictEqual(rec().terms.signingBonusOwedGp, 6, "and nothing changes");
-    game.user.isGM = true;
-    assert.strictEqual(await hire.forgiveSigningBonus(hireling), true, "the Judge forgives it");
+    assert.strictEqual(rec().events.length, eventsBefore, "nothing is logged");
+    assert.strictEqual(warned.length, warnedBefore, "and the refusal is silent");
+    hireling.isOwner = true;
+    assert.strictEqual(await hire.forgiveSigningBonus(hireling), true, "a player who owns the hireling forgives it");
     assert.strictEqual(rec().terms.signingBonusOwedGp, 0, "the debt is cleared");
     assert.strictEqual(rec().terms.arrearsGp, 3, "the arrears are not");
     assert.strictEqual(rec().events.at(-1).type, "signingBonusForgiven", "and the forgiveness logged");
+    game.user.isGM = true;
     assert.strictEqual(rec().counters.calamities, 1, "the calamity stands");
 
     // A calamity whose figure is not imported is counted and logged, and records no change.

@@ -175,16 +175,15 @@ export function termsOf(record, { sheetWage = null, ladder = 0, category = "henc
 }
 
 /**
- * Which owed-bonus controls the Service panel offers: paying it to whoever
- * may edit the hireling, forgiving it to a GM alone, and neither once nothing
- * is owed.
+ * Which owed-bonus controls the Service panel offers: paying it and forgiving
+ * it, both to whoever may edit the hireling, and neither once nothing is owed.
  * @param {{signingOwed?: number}} terms `termsOf`'s answer
- * @param {{isOwner?: boolean, isGM?: boolean}} viewer
+ * @param {{isOwner?: boolean}} viewer
  * @returns {{pay: boolean, forgive: boolean}}
  */
-export function signingControls(terms, { isOwner = false, isGM = false } = {}) {
+export function signingControls(terms, { isOwner = false } = {}) {
   const owed = num(terms?.signingOwed) > 0;
-  return { pay: owed && !!isOwner, forgive: owed && !!isGM };
+  return { pay: owed && !!isOwner, forgive: owed && !!isOwner };
 }
 
 /** The six scores a hire records, in the order `rolledOf` prints them. */

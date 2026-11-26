@@ -106,18 +106,15 @@ export async function payOwedSigningBonus(hireling) {
 }
 
 /**
- * The Judge's forgiveness of a hireling's owed signing bonus: zeroed with a
+ * Forgive a hireling's owed signing bonus: zeroed with a
  * `signingBonusForgiven` event, no coin moved and the wage arrears untouched.
- * GM-only, enforced here.
+ * Runs on a seat that may edit the hireling; any other seat, and a hireling
+ * owed nothing, changes nothing and is not told.
  * @returns {Promise<boolean>} whether anything changed
  */
 export async function forgiveSigningBonus(hireling) {
-  if (!game.user.isGM) {
-    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.service.signingForgiveGmOnly"));
-    return false;
-  }
   const owed = owedOf(hireling);
-  if (!(owed > 0)) return false;
+  if (!(owed > 0) || !hireling.isOwner) return false;
   await clearOwed(hireling, owed, "signingBonusForgiven");
   return true;
 }

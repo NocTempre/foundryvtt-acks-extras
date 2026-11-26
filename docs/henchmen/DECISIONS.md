@@ -51,7 +51,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-05 — [A directed search applies imported steps or none (2026-11-05)](DECISIONS-through-v11.14.5.md#a-directed-search-applies-imported-steps-or-none-2026-11-05)
 - 2026-11-05 — [The Random Henchman Level die is read off the table's own bands (2026-11-05)](DECISIONS-through-v11.14.5.md#the-random-henchman-level-die-is-read-off-the-tables-own-bands-2026-11-05)
 - 2026-11-10 — [A search fee the purse refuses buys no search (2026-11-10)](DECISIONS-through-v11.14.5.md#a-search-fee-the-purse-refuses-buys-no-search-2026-11-10)
-- 2026-11-11 — [A signing bonus the employer cannot pay is owed, a calamity, and the hire stands (2026-11-11)](DECISIONS-through-v11.14.5.md#a-signing-bonus-the-employer-cannot-pay-is-owed-a-calamity-and-the-hire-stands-2026-11-11)
+- 2026-11-11 — [A signing bonus the employer cannot pay is owed, a calamity, and the hire stands (2026-11-11)](DECISIONS-through-v11.14.5.md#a-signing-bonus-the-employer-cannot-pay-is-owed-a-calamity-and-the-hire-stands-2026-11-11) — qualified in part 2026-11-25 (the Forgive entry below: Forgive on an owed bonus follows the hireling's ownership, where this entry gave it to the GM)
 - 2026-11-11 — [A henchman's shares are printed values, and arrive through the importer (2026-11-11)](DECISIONS-through-v11.14.5.md#a-henchmans-shares-are-printed-values-and-arrive-through-the-importer-2026-11-11)
 
 ## 2026-11-14 — A market hire's morale base is a troop's imported figure or none — SUPERSEDED IN PART 2026-11-14
@@ -362,3 +362,44 @@ evidence is `acks` 14.2.0's `AcksActor.create`.
 **Rejected.** `Actor.implementation.create` for the prototype, with the flag and
 the coin rows cleared in a second write: a parallel path around what the base
 call already avoids.
+
+## 2026-11-25 — Forgive on the Service panel follows the hireling's ownership (T-0792, B5)
+
+The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server
+role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule". On T-0793: "Spell owner can setup the spell as needed.
+Trusted players own their sheet and instances of items within. I guess regular
+Player only gets ownership of the sheet itself and not subitems they don't own?
+In either case the approach is follow foundry permissions, don't invent new
+ones." Severity keeps reading the role ("players get blocks, judges get
+warnings"); permission reads ownership. Who forgives is the release hub's call
+(B5 decision 3), made under the owner's instruction of the same day: "make the
+call yourself and build, as long as it follows the repo's design rules".
+
+- **Forgive is the owner's, beside Pay.** `signingControls` offers both
+  controls to whoever may edit the hireling, and `forgiveSigningBonus` refuses
+  silently (nothing changes, no notice) on a hireling the seat does not own,
+  as `payOwedSigningBonus` does. The `signingForgiveGmOnly` notice and its lang
+  key are gone. A GM owns every document, so a Judge's seat is unchanged.
+- **The panel carries `canCompensate`**, the hireling's `isOwner`, in place of
+  the `isGM` field it returned. Nothing read that field: the Service partial's
+  `@root.isGM` reads the host sheet's context.
+- **Why.** The owed figure is a flag on the hireling's own record, and the
+  employer's players own the hireling (`employerOwnership`), so the write is one
+  Foundry already lets the seat make. A role gate in front of it guards nothing
+  Foundry guards.
+
+**Supersedes, in part,** "A signing bonus the employer cannot pay is owed, a
+calamity, and the hire stands" (2026-11-11, DECISIONS-through-v11.14.5.md, In
+force row above), in its words "and the GM's Forgive". Owed, the calamity, Pay
+and the owed tag on the roster stand. The entry is 14 days old, and the
+evidence it did not have is the owner's rule above.
+
+**Counter (medium).** Forgiving a debt is the creditor's act, and the creditor
+is an NPC the Judge plays. *Answer:* the module prints no Forgive; it is a
+control the 2026-11-11 session added, and the debt it clears is a flag on a
+document the player owns and can already edit. Keeping it the Judge's would
+keep a gate Foundry does not have.
+
+**Rejected.** Keeping Forgive the Judge's while Pay opens to the owner: two
+controls on one flag under two rules, and the second is the one the owner named.

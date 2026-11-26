@@ -877,11 +877,21 @@ a step it does not name is walked by hand.
       the purse drops by the bonus, `signingBonusOwedGp` is 0, no
       `signingBonusOwed` event, and the Signing bonus row reads the figure
       in the plain tone with "paid at <place>".
+    - As the GM seat, write `signingBonusOwedGp` 40 back onto the third hire
+      (`setFlag` on its record), then as the Player seat open its Service
+      tab. *Observable:* Pay and Forgive both render as named `<button>`s.
+      Press **Forgive**: `signingBonusOwedGp` 0, the events end
+      `signingBonusForgiven`, `arrearsGp` unchanged, `counters.calamities`
+      still 1, no warning, and no coin moved on the employer.
     - As the Player seat, open the first hire's Service tab. *Observable:*
-      Pay renders and Forgive does not. Press Pay: the employer's purse
+      Pay and Forgive both render. Press Pay: the employer's purse
       drops by 40 with no warning, `signingBonusOwedGp` 0, the events end
       `signingBonusPaid`, and the calamity and its ledger entry stay.
       The Player's hire, paid in full, records no calamity.
+    - Offline only: a seat that does not own the hireling gets neither
+      control (`signingControls`) and `forgiveSigningBonus` changes
+      nothing and warns nothing (`tools/test-service-view.mjs`,
+      `tools/test-henchmen.mjs`).
     The walk also measures, writing nothing, how many `classKey` values the
     world's market candidates and the imported rarity tables name resolve
     through `classForActorAsync`, and prints the unresolved by shape;
