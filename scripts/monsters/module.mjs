@@ -96,7 +96,7 @@ Hooks.once("init", () => {
     getExtras: (actor) => MonsterExtras.fromActor(actor),
     /** Roll an organisation into a chart row (docs/monsters/MODEL.md, "The organisation roll"). */
     rollOrganisation,
-    /** Open the recipe editor onto a monster, a template's variant option or a chart's host (docs/monsters/MODEL.md, "The encounter recipe"). Loaded on first use. */
+    /** Open the recipe editor onto a monster, a template's variant option or a chart's host (docs/monsters/MODEL.md, "The recipe editor"). Loaded on first use. */
     openRecipeEditor: async (subject, options) => (await import("./recipe-editor.mjs")).openRecipeEditor(subject, options),
   };
   acksExtras.monsters = api;

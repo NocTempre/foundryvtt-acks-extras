@@ -9,6 +9,7 @@
  * Run: npm test
  */
 import assert from "node:assert";
+import { readFileSync } from "node:fs";
 import {
   hdRating, bodyFormIcon, BODY_FORM_ICONS, DEFAULT_GLYPH, feet, moveReading, sensesReading, loadReading, statblockColumns, rollRows, attackReading, attackRowOf,
 } from "../scripts/monsters/statblock.mjs";
@@ -373,6 +374,21 @@ test("the row carries the weapon's own damage bonus, none where the weapon holds
   assert.equal(attackRowOf(weaponDoc({ bonus: { attack: 0, damage: -2 } }), asKey).bonusDamage, -2);
   assert.equal(attackRowOf(weaponDoc(), asKey).bonusDamage, 0);
   assert.equal(attackRowOf(weaponDoc({ bonus: 0 }), asKey).bonusDamage, 0);
+});
+
+console.log("monster sheet: the Ecology tab's recipe door");
+test("the Encounter legend holds an Organisation button that names its action, carries a label and shows it as its tooltip", () => {
+  const hbs = readFileSync(new URL("../templates/monsters/tab-ecology.hbs", import.meta.url), "utf8");
+  const legend = hbs.match(/<legend>\{\{localize "ACKS-MONSTERS\.section\.encounter"\}\}([\s\S]*?)<\/legend>/)?.[1] ?? "";
+  assert.match(legend, /data-action="organisation"/);
+  assert.match(legend, /aria-label="\{\{localize 'ACKS-MONSTERS\.recipe\.door\.ecologyAria'\}\}"/);
+  assert.match(legend, /data-tooltip=""/);
+  assert.doesNotMatch(hbs, /isGM/, "shown to every seat that can see the tab");
+});
+test("the sheet registers the action and keeps it for a read-only seat", () => {
+  const src = readFileSync(new URL("../scripts/monsters/monster-sheet.mjs", import.meta.url), "utf8");
+  assert.match(src, /organisation: FullMonsterSheet\.#onOrganisation/);
+  assert.match(src, /VIEW_ACTIONS = new Set\([^)]*"organisation"/);
 });
 
 console.log(`\nmonster sheet: ${passed} passed`);

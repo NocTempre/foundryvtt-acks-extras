@@ -265,11 +265,13 @@ Three doors open it, and each edits a different copy:
    Ecology tab → Encounter → Organisation…`. This edits the monster's own
    recipe. A Roll on an organisation chart does not read it.
 2. **A variant of a family.** `Actors sidebar tab → a family template → its
-   sheet → Edit structure → an option of the variant axis → Recipe…`. This
+   sheet → Edit structure → an option of the Variant axis → Recipe…`. This
    edits that option's recipe, the copy a Roll reads. The window's title names
-   the template and the option.
+   the template and the option. A template you cannot edit shows no **Edit
+   structure**, so it has no such door.
 3. **What a chart's Roll reads.** `Actors sidebar tab → a faction or a group →
-   Org chart tab → Recipe…`, beside **Roll**. It opens the variant the
+   Org chart tab → Recipe…`, beside **Roll at random**, where you can edit the
+   chart and it has a unit. It opens the variant the
    chart's Roll recorded, so it edits the copy the next Roll will read. Groups
    already rolled keep the recipe they were rolled with.
 

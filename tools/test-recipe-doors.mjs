@@ -56,21 +56,6 @@ t("the door's words exist in the language file", () => {
   }
 });
 
-t("the Ecology tab's button names its action, carries a label and shows it as its tooltip", () => {
-  const hbs = readFileSync(new URL("../templates/monsters/tab-ecology.hbs", import.meta.url), "utf8");
-  const legend = hbs.match(/<legend>\{\{localize "ACKS-MONSTERS\.section\.encounter"\}\}([\s\S]*?)<\/legend>/)?.[1] ?? "";
-  assert.match(legend, /data-action="organisation"/);
-  assert.match(legend, /aria-label="\{\{localize 'ACKS-MONSTERS\.recipe\.door\.ecologyAria'\}\}"/);
-  assert.match(legend, /data-tooltip=""/);
-  assert.doesNotMatch(hbs, /isGM/, "shown to every seat that can see the tab");
-});
-
-t("the monster sheet registers the action and keeps it for a read-only seat", () => {
-  const src = readFileSync(new URL("../scripts/monsters/monster-sheet.mjs", import.meta.url), "utf8");
-  assert.match(src, /organisation: FullMonsterSheet\.#onOrganisation/);
-  assert.match(src, /VIEW_ACTIONS = new Set\([^)]*"organisation"/);
-});
-
 let failed = 0;
 for (const [name, fn] of tests) {
   try { fn(); console.log(`  ✓ ${name}`); } catch (err) { failed++; console.log(`  ✗ ${name}\n    ${err.message}`); }

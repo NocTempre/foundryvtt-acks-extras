@@ -625,17 +625,7 @@ checkbox per unit word; Found in is a view filter and stores nothing; a share is
 a Mount or Beast word the import resolved is written into the part only on Link; unticking and
 reticking a unit word reorders `when.units` and reads as a hand change.
 
-**Three doors, one document each.** The Ecology tab's Organisation… writes the actor's own
-recipe; a template's variant option writes that option's; the chart's Recipe… writes the option
-the host's roll record names, which is what a roll reads. The template door is added from
-`scripts/monsters/recipe-doors.mjs` by a render hook on lib's option rows, so lib's template sheet
-is unchanged; it is offered where lib's edit mode lists the rows.
+**The doors.** Which document each of the three writes is `MODEL.md`, "The recipe editor".
 
-Rejected: a preview roll in the editor (canvas 3's answer 2); a derived unit chain; one door
-writing the actor's recipe and the option's together.
-
-Strongest counter-argument to departure 4 (medium): a Judge who edits a monster's Ecology tab
-may expect a roll to change. The rating is medium because the header names the document each
-door edits and `MODEL.md` says which one a roll reads, so the surprise is answered where it is
-met; it stays real because a Judge who never reads the header still edits a recipe nothing rolls.
-Cost: two stored recipes for one family can differ, and only the option's is rolled.
+Strongest counter-argument to departure 4 (medium): a Judge who edits a monster's Ecology tab may
+expect a roll to change. The header names the document, and `MODEL.md` says which one a roll reads.

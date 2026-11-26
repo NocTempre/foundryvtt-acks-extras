@@ -148,8 +148,8 @@ one document it opens from, never a second (`recipe-editor-view.mjs`
 | Door | Where it is | Writes |
 |---|---|---|
 | Organisation… | the monster's Ecology tab, in the Encounter section | the actor's own recipe |
-| Recipe… on a variant option | the family template's edit mode, on each option of the variant axis (`recipe-doors.mjs`) | that option's recipe |
-| Recipe… on the chart | the org chart's Roll panel | the option the host's Roll record names |
+| Recipe… on a variant option | the family template's edit mode (**Edit structure**), on each option of the variant axis (`recipe-doors.mjs`) | that option's recipe |
+| Recipe… on the chart | the org chart's tool row, beside Roll at random | the option the host's Roll record names |
 
 The variant axis is the template axis `rollOrganisation` reads through
 `variantOptionOf` (`organisation-run.mjs`), named by its key. A roll reads the
