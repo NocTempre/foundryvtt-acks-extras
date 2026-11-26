@@ -32,12 +32,15 @@ by hand.
   Player at the level the step names, written one document at a time with
   `doc.update({"ownership.<playerId>": level})`. The fixtures are kept. The
   storage group of step 29 adds `location/owner-hero`, a character created with
-  the same ownership, whose rope row on place A is its claimant fixture.
+  the same ownership, whose rope row on place A is its claimant fixture, and the
+  administration group adds `location/owner-hire-mine` (same ownership) and
+  `location/owner-hire-theirs` (`{default: 0, [playerId]: 2}`), the two actors a
+  special-hire drop offers.
 
 ## Core drive mechanics (non-obvious, learned live)
 
 - **A location starts with no market, and most of its sheet with it.** A fresh
-  location shows only Contents / Storage / GM Settings / GM View. Pressing
+  location shows only Contents / Storage / Settings / GM View. Pressing
   **Add a market** (`data-action="addMarket"`) is what raises the Recruitment,
   Henchmen, Mercenaries, Specialists, Trade and Ventures tabs — so any henchmen or
   markets check against a location has to add the market first or its tabs are
@@ -620,7 +623,7 @@ by hand.
     ownership gate, and it is only the control and the reader of what landed.
     `tools/live/location-place-owner.mjs`
     (`node tools/live/run.mjs location-place-owner`) holds the steps as groups;
-    each later slice of the place work adds its own. Fixtures:
+    each slice of the place work adds its own. Fixtures:
     `location/owner-scene`, `location/owner-place-a`, `location/owner-place-b`
     (Fixtures above).
     *The scene's link.* Linking writes the scene's flag, the place's mirror,
@@ -643,10 +646,9 @@ by hand.
       written, no mirror) and is refused where the seat does not own the scene.
     - *The sheet's Unlink map control:* the sheet's context
       (`await sheet._prepareContext({})`) carries `canUnlinkScene` true with the
-      scene and the place owned, false with the scene only observed. Where the
-      Settings tab is reachable for the seat (it is a Judge's tab until the
-      place work that follows this one), the button is on screen exactly when
-      the flag is true.
+      scene and the place owned, false with the scene only observed. The
+      Settings tab is the owner's, so the button is on screen exactly when the
+      flag is true.
     - *Scene config's Place row:* open the scene's configuration on the Player
       seat (`scene.sheet.render({force: true})`; a Player has no Scenes tab, so
       no sidebar route reaches it). **Whether a Player OWNER can open it:** as
@@ -666,7 +668,8 @@ by hand.
     the hero, both tagged `flags.world.fixtureItem` so the next start clears them.
     - *Player at OBSERVER, storage on:* open place A's sheet. *Observable:* the
       Storage tab is in the nav and its body is drawn, and Things, Settings and
-      GM View are not; Hold goods, the house lock and Open manager are absent;
+      GM View are not (Settings follows ownership, and the observer has none);
+      Hold goods, the house lock and Open manager are absent;
       Deposit is on screen and not disabled (a non-owner's sheet disables its
       controls, and the Storage controls are re-enabled); exactly one *Take* is
       on the tab, on the hero's row, not disabled. Press it. *Observable:* the
@@ -678,6 +681,59 @@ by hand.
     - *Judge seat as control:* Hold goods and Open manager with storage off; the
       house lock and a *Take* on both rows with it on; Settings and GM View on
       screen.
+    *A place's owner administers it* (the `groupOwnerAdmin` steps; fixtures
+    `location/owner-hero`, `location/owner-hire-mine`, a character the Player
+    owns, and `location/owner-hire-theirs`, a character the Player only
+    observes). Each step starts by bringing place A to its shape from the Judge
+    seat (the Player's level on A and B, the market with N slander rows or none,
+    the role, whether the hero is a stored occupant, whether B is nested under
+    A, storage on with one locked house row, or off), and waits for the Player
+    seat to hold that shape before it presses anything. The house row and the
+    rope it carries are tagged `flags.world.fixtureItem`, so the next start
+    clears them; the rope a Take lands on a character, and any item a drop files,
+    are swept by the ids the step read back.
+    - *Player OWNER of A, A with a market, two slander rows and the hero as an
+      occupant:* open the sheet. *Observable:* Settings is a tab and on screen,
+      Things and GM View are not; Settings has no slander section, no
+      `addSlander` control and no `system.market.slander` field; Remove market
+      is on it; Split follows `Actor.canUserCreate` and the demographics export
+      follows `RollTable.canUserCreate`; Contents has the role select and the
+      occupant's note edit and no hidden toggle.
+    - *Add market, with none:* the control is drawn; pressed, the place holds a
+      market.
+    - *The role select:* choosing the gate role writes `system.role`. A gate with
+      no market and nothing above it: the context carries the no-market hint and
+      the Contents tab draws it.
+    - *An occupant's note:* press the pen on the hero's row, type into the
+      prompt and confirm. *Observable:* the roster row's `notes` is the text.
+    - *A special hire:* drop `location/owner-hire-mine` on the Recruitment tab
+      (`sheet._onDropActor(new DragEvent("drop"), actor)` with that tab active).
+      *Observable:* one special hire names it. Drop `location/owner-hire-theirs`
+      (OBSERVER): none.
+    - *Remove market:* with two slander rows, the Judge seat's confirm lists a
+      slander line and the Player's lists none (read the `li` lines, then
+      decline: the market stays). Confirmed on the Player seat the market goes
+      whole, `system.market` null.
+    - *Nest and Detach:* the Player owns A and B. Dropping B on A sets B's
+      `system.parentUuid` to A's; with B nested the row carries Detach and
+      pressing it clears the pointer. With B at OBSERVER the drop changes
+      nothing and the nested row has no Detach.
+    - *The house row:* A holds goods with one locked house row. *Observable:*
+      the lock and Take are on the row; pressing the lock sets the row's
+      `retrievable` flag, and Take moves the rope to a character the seat owns
+      and off the place.
+    - *Hold goods, and a drop on the sheet:* with storage off the control is on
+      the Storage tab and pressing it switches storage on. A compendium item
+      dropped on the sheet (`sheet._onDropItem`) is filed under the house.
+    - *Player at OBSERVER of A* (market, slander, an occupant and a locked house
+      row): the context says not editable and Settings is neither a tab nor on
+      screen; no role select, note edit, hidden toggle or Add market; the house
+      row has no lock and no Take; Hold goods is not on the tab; a drop of the
+      seat's own character on Recruitment and a compendium item on the sheet
+      change nothing (the handlers are called directly, since core's own drag
+      gate would stop the real drag first).
+    - *Judge seat as control:* Settings with its slander section, the hidden
+      toggle and the role select, and the GM View tab.
     *Not walked live:* the Region functions, whose Player-seat picker is the
     formation feature's (`tools/live/formation-seat-heads.mjs`); they are pinned
     offline in `tools/test-scene-part.mjs`. A Region carries an ownership of

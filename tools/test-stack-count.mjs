@@ -99,7 +99,7 @@ const checkList = (html, label) => {
 ok(() => {
   const template = read("templates/location/location-sheet.hbs");
   const from = template.indexOf('data-tab="storage"');
-  const to = template.lastIndexOf("{{#if isGM}}", template.indexOf('data-tab="gmSettings"', from));
+  const to = template.indexOf("{{#if tabs.gmSettings}}", from);
   const storage = hb.compile(template.slice(template.lastIndexOf("{{#if tabs.storage}}", from), to));
   const html = storage({ isGM: true, holdsGoods: true, tabs: { storage: { cssClass: "" } }, groups: [{ ownerUuid: "o", name: "Owner", canTake: true, rows }] });
   checkList(html, "location sheet");

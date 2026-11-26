@@ -34,9 +34,9 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-01 — [Banked is not a state coin can be in](DECISIONS-through-v11.14.5.md#2026-10-01--banked-is-not-a-state-coin-can-be-in)
 - undated — [One length for the market ledger, and a hire is stamped to its employer (2026-10-15)](DECISIONS-through-v11.14.5.md#one-length-for-the-market-ledger-and-a-hire-is-stamped-to-its-employer-2026-10-15)
 - 2026-10-24 — [A place another place sits in is not empty](DECISIONS-through-v11.14.5.md#2026-10-24--a-place-another-place-sits-in-is-not-empty)
-- 2026-11-05 — [Storage is switched on by intent](DECISIONS-through-v11.14.5.md#2026-11-05--storage-is-switched-on-by-intent) — superseded in part by "2026-11-14 — 32. Four one-time conversions go, one slice per feature" (docs/DECISIONS.md)
+- 2026-11-05 — [Storage is switched on by intent](DECISIONS-through-v11.14.5.md#2026-11-05--storage-is-switched-on-by-intent) — superseded in part by "2026-11-14 — 32. Four one-time conversions go, one slice per feature" (docs/DECISIONS.md); superseded in part 2026-11-25 by "A place's owner administers it" (the GM-only switch: Hold goods and an item dropped on the sheet are the place's owner's)
 - 2026-11-05 — [A place's notes have a tab of their own, and notes keep a place](DECISIONS-through-v11.14.5.md#2026-11-05--a-places-notes-have-a-tab-of-their-own-and-notes-keep-a-place)
-- 2026-11-11 — [A spoil is released by the Judge, not claimed by a throw](DECISIONS-through-v11.14.5.md#2026-11-11--a-spoil-is-released-by-the-judge-not-claimed-by-a-throw)
+- 2026-11-11 — [A spoil is released by the Judge, not claimed by a throw](DECISIONS-through-v11.14.5.md#2026-11-11--a-spoil-is-released-by-the-judge-not-claimed-by-a-throw) — superseded in part 2026-11-25 by "A place's owner administers it" (the retrievable lock is the place's owner's)
 
 ## 2026-11-13 — A Judge named as an owner is not one
 
@@ -420,3 +420,84 @@ read Foundry's own level.
 date), so every Player's seat of one now has the tab, along with the places a Judge has set to
 OBSERVER and every ground pile, which is Observer to every seat. A Judge's seat of a pile loses
 the deposit control it had on one.
+
+## 2026-11-25 — A place's owner administers it
+
+**Authority** (owner, 2026-11-25, verbatim): "Tool permissions are hardcoded (e.g. summons)
+by server role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule". With it (T-0793): "Spell owner can setup the spell as needed.
+Trusted players own their sheet and instances of items within. I guess regular Player only
+gets ownership of the sheet itself and not subitems they don't own? In either case the
+approach is follow foundry permissions, don't invent new ones." The owner's standing line on
+automation stays: "players get blocks, judges get warnings". The release hub ruled on the
+places batch: a hand-made place keeps OWNER as its default, so ownership is Foundry's and the
+Judge's manual override is Configure Ownership; Remove market is allowed to a Player owner,
+the market going whole, the slander included; and a special-hire drop needs OWNER of the
+place and of the dropped actor.
+
+**Ruled.** What a place's owner writes on it answers to `isOwner` on the place (the sheet's
+`isEditable`), and not to the seat's role. For example: Bran, a Player, owns a market town a
+Judge made at the table. He adds the market to a second place, picks its role, edits a
+garrison's note, takes the coin the house holds, locks and unlocks a row, switches storage on
+at a third place and nests a fourth under it, all from the place's sheet from the Actors
+sidebar tab. The Judge's seat passes every test, as Foundry answers OWNER on every document
+for a Judge.
+
+- **Settings** is a tab for a seat that can edit the place (`tabs.gmSettings`; its label is
+  "Settings"). Split is drawn for a seat that can create an actor (`canSplit`), and `splitPlace`
+  asks the same and lowers the count only once the new member exists; the demographics export
+  is drawn for a seat that can create a table (`canExportTable`). Unlink scene keeps slice 3's
+  `canUnlinkScene`.
+- **Market administration**: Add market, Remove market, the role select, the candidate,
+  special-hire and occupant-note controls and the demographics drop answer to the place's
+  owner. A hire is offered only by dropping an actor the seat owns onto a place it owns, since
+  a hire rewrites the actor's ownership toward the employer (`hireExistingActor`).
+- **Nesting**: a place dropped on a place nests when the seat owns both, and Detach is drawn
+  on a row whose child the seat owns (`canDetach`); the no-market hint on a gate is for the
+  place's owner.
+- **The house bucket**: the owner takes freely and holds the retrievable lock (`houseControls`,
+  `#onHouseRetrievable`); a seat that does not own the place takes a house row only once it
+  is marked retrievable. The lock's label is "Retrievable" and a spoil row says it is released
+  by the place's owner.
+- **Hold goods** and an item dropped from a compendium or the sidebar onto the sheet (filed
+  under the house) are the owner's.
+
+**Stays the Judge's.** The Judge's secrets are hidden as before: the slander section is
+drawn whole or not at all, so an owner's form carries no slander path and the stored rows are
+left as they are; the hidden-occupant toggle; the Things and GM View tabs; the details mask on
+a posting; and a lied level. Open manager stays the Judge's until its own slice.
+
+**Known and accepted: the default makes this every player's.** A hand-made place opens to the
+table at OWNER (the two table-default entries of this date), so on one, every player can take
+the till (which the month sweep tops back up to `tillTargetGp`, so the draw refills), add or
+remove a market, nest places and hold goods. The hub ruled this on 2026-11-25 and flagged it
+to the owner. The strongest counter is that the 2026-07-22
+direction ("new location actors default to OWNER ownership so players can post searches, run
+due processing and hire without a GM logged in") named the hidden tabs as its guard, and
+reading it as consent to every player emptying a till overreads it. The Judge's manual
+override is Configure Ownership on the place, which lowers a seat to OBSERVER and takes all
+of the above away at once; an importer-stamped place already starts below OWNER.
+
+**Remove market.** A Player owner's Remove market removes the market whole, slander
+included. The slander is part of the market's record, and it goes with it; the confirm on a
+seat that is not a Judge's tallies postings, candidates and special hires, and carries no
+slander line, which the Judge's confirm keeps. A Judge who wants to keep a market takes the
+place's ownership back from the seat in Configure Ownership.
+
+**Supersedes in part** the archived
+[Storage is switched on by intent](DECISIONS-through-v11.14.5.md#2026-11-05--storage-is-switched-on-by-intent):
+its sentence that a place holds goods once a GM turns that on (Hold goods here, a GM's drop of
+an item on its sheet) becomes the place's owner. The intent rule stands: the create hook still
+sets no flag. And the archived
+[A spoil is released by the Judge, not claimed by a throw](DECISIONS-through-v11.14.5.md#2026-11-11--a-spoil-is-released-by-the-judge-not-claimed-by-a-throw):
+the retrievable lock is the place's owner's, a Judge on a Judge's place. A spoil still has no
+claim control. Neither was under 7 days.
+
+**Rejected.** A role test beside the ownership test, which invents a permission Foundry does
+not have. A refusal of Remove market while slander is held: its only purpose would be to
+protect a Judge's record on a document the Player owns, and Foundry gates no read, so only
+the display ever hid the rows. A new module setting or flag for who administers a place.
+
+**Cost.** Settings reaches a seat that never had it, so the market's configuration (urban
+families, rarity overrides, blocked classes) is open to every owner of a place. Where a Judge
+needs a place left alone, Configure Ownership is the whole of the override.

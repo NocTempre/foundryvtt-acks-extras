@@ -9,6 +9,7 @@
  * ends.
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 globalThis.acksExtras ??= {};
 
@@ -125,4 +126,26 @@ ok("isGate reads the role on a location and nothing else", () => {
   assert.equal(isGate(null), false);
 });
 
-console.log(`\ntest-location-gate: OK (${passed} checks — nearest market, self excluded, none, loop, the world map)`);
+ok("the sheet's no-market hint is for whoever owns the gate, and nothing else changes for a Judge", () => {
+  const src = readFileSync("scripts/location/apps/location-sheet.mjs", "utf8");
+  // The gate block of `#preparePlace`, cut out of the source and run over a mock sheet.
+  const from = src.indexOf("context.gateEntry = null;");
+  const to = src.indexOf("\n  }\n", from);
+  assert.ok(from > 0 && to > from, "the gate block was found");
+  const build = new Function("gateMarketOf", "GATE_ROLE", "LANG_PREFIX", "game", `return function (context, actor, index, role) {${src.slice(from, to)}\n}`);
+  const hint = ({ isEditable, isGM = false, withMarket = false }) => {
+    const city = place("City", { market: withMarket });
+    city.testUserPermission = () => true;
+    const gate = place("Gate", { parent: city, role: GATE_ROLE });
+    const context = {};
+    const mockGame = { user: { isGM }, i18n: { format: (k) => k } };
+    build(gateMarketOf, GATE_ROLE, "ACKS-LOCATION", mockGame).call({ isEditable }, context, gate, placeIndex(), GATE_ROLE);
+    return context.gateEntry;
+  };
+  assert.deepEqual(hint({ isEditable: true }), { none: true }, "the gate's owner is told it has no market above it");
+  assert.equal(hint({ isEditable: false }), null, "a seat that only observes the gate is told nothing");
+  assert.deepEqual(hint({ isEditable: true, isGM: true }), { none: true }, "a Judge's seat owns every place, so it reads as it did");
+  assert.match(String(hint({ isEditable: true, withMarket: true }).entryFor), /entryFor/, "a gate with a market above it still names it");
+});
+
+console.log(`\ntest-location-gate: OK (${passed} checks — nearest market, self excluded, none, loop, the world map, the owner's hint)`);

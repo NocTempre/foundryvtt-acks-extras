@@ -51,7 +51,7 @@
             <i class="fas fa-forward"></i> {{localize "ACKS-HENCHMEN.location.advanceWeek"}}
           </button>
           {{/if}}
-        {{else if isGM}}
+        {{else if editable}}
         <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="addMarket" data-tooltip="{{localize 'ACKS-LOCATION.place.addMarketHint'}}">
           <i class="fas fa-store"></i> {{localize "ACKS-LOCATION.place.addMarket"}}
         </button>
@@ -77,7 +77,7 @@
         {{localize "ACKS-HENCHMEN.location.region"}}
         <input type="text" name="system.region" value="{{system.region}}" />
       </label>
-      {{#if isGM}}
+      {{#if editable}}
       <label data-tooltip="{{localize 'ACKS-LOCATION.place.roleHint'}}">
         {{localize "ACKS-LOCATION.place.roleLabel"}}
         <select name="system.role">
@@ -146,11 +146,11 @@
           <span class="acks-extras-place-name">{{this.name}}</span>
           {{#if this.ownerName}}<span class="acks-extras-place-owner">{{this.ownerName}}</span>{{/if}}
           {{/if}}
-          {{#if @root.isGM}}{{#if this.isPlace}}
+          {{#if this.canDetach}}
           <a class="acks-extras-place-detach" data-action="detachPlace" data-tooltip="{{localize 'ACKS-LOCATION.place.detachHint'}}">
             <i class="fas fa-link-slash"></i>
           </a>
-          {{/if}}{{/if}}
+          {{/if}}
         </li>
         {{/each}}
       </ul>
@@ -184,10 +184,12 @@
               {{#if this.derived}}
               <a data-action="keepOccupant" data-tooltip="{{localize 'ACKS-LOCATION.place.keepHint'}}"><i class="fas fa-thumbtack"></i></a>
               {{else}}
-                {{#if @root.isGM}}
+                {{#if @root.editable}}
                 {{!-- Only a STORED row can hold a note: a derived scene-token row
                       is a live observation that leaves when the token does. --}}
                 <a data-action="editOccupantNote" data-tooltip="{{localize 'ACKS-LOCATION.place.noteHint'}}"><i class="fas fa-pen"></i></a>
+                {{/if}}
+                {{#if @root.isGM}}
                 <a data-action="toggleOccupantHidden" data-tooltip="{{localize 'ACKS-LOCATION.place.hideHint'}}">
                   <i class="fas {{#if this.hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
                 </a>
@@ -382,7 +384,7 @@
               {{#if isAvailable}}
               <a data-action="recruit" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.recruit'}}"><i class="fas fa-handshake"></i></a>
               {{/if}}
-              {{#if @root.isGM}}
+              {{#if @root.editable}}
               <a data-action="removeCandidate" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.remove'}}"><i class="fas fa-trash"></i></a>
               {{/if}}
             </td>
@@ -419,7 +421,7 @@
               {{#if isAvailable}}
               <a data-action="recruitSpecial" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.recruit'}}"><i class="fas fa-handshake"></i></a>
               {{/if}}
-              {{#if @root.isGM}}
+              {{#if @root.editable}}
               <a data-action="editSpecialNote" data-tooltip="{{localize 'ACKS-LOCATION.place.noteHint'}}"><i class="fas fa-pen"></i></a>
               <a data-action="setSpecialLimit" data-tooltip="{{localize 'ACKS-HENCHMEN.special.setLimit'}}"><i class="fas fa-hourglass-half"></i></a>
               <a data-action="removeSpecial" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.remove'}}"><i class="fas fa-trash"></i></a>
@@ -470,7 +472,7 @@
             {{#if isAvailable}}
             <a data-action="recruit" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.recruit'}}"><i class="fas fa-handshake"></i></a>
             {{/if}}
-            {{#if @root.isGM}}
+            {{#if @root.editable}}
             <a data-action="removeCandidate" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.remove'}}"><i class="fas fa-trash"></i></a>
             {{/if}}
           </td>
@@ -512,7 +514,7 @@
             {{#if isAvailable}}
             <a data-action="recruit" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.recruit'}}"><i class="fas fa-handshake"></i></a>
             {{/if}}
-            {{#if @root.isGM}}
+            {{#if @root.editable}}
             <a data-action="removeCandidate" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.remove'}}"><i class="fas fa-trash"></i></a>
             {{/if}}
           </td>
@@ -559,7 +561,7 @@
             {{#if isAvailable}}
             <a data-action="recruit" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.recruit'}}"><i class="fas fa-handshake"></i></a>
             {{/if}}
-            {{#if @root.isGM}}
+            {{#if @root.editable}}
             <a data-action="removeCandidate" data-tooltip="{{localize 'ACKS-HENCHMEN.candidate.remove'}}"><i class="fas fa-trash"></i></a>
             {{/if}}
           </td>
@@ -626,7 +628,7 @@
       {{/if}}
     {{else}}
       <p class="acks-location-empty">{{localize "ACKS-LOCATION.storage.storageOff"}}</p>
-      {{#if isGM}}
+      {{#if editable}}
       <button type="button" class="acks-location-btn" data-action="holdGoods"
               data-tooltip="{{localize 'ACKS-LOCATION.storage.holdGoodsHint'}}">
         <i class="fas fa-box-open"></i> {{localize "ACKS-LOCATION.storage.holdGoods"}}
@@ -689,7 +691,9 @@
   </section>
   {{/if}}
 
-  {{#if isGM}}
+  {{!-- Settings writes the place, so it is drawn for a seat that owns it
+        (`tabs.gmSettings`, which `#prepareVisibleTabs` leaves out below that). --}}
+  {{#if tabs.gmSettings}}
   <section class="tab location-tab {{tabs.gmSettings.cssClass}}" data-group="primary" data-tab="gmSettings">
 
     {{!-- ---- The place itself: true of a chest and of a duchy alike ---- --}}
@@ -704,11 +708,11 @@
       </div>
     </div>
     <div class="acks-extras-place-admin">
-      {{#if isStacked}}
+      {{#if isStacked}}{{#if canSplit}}
       <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="splitStack" data-tooltip="{{localize 'ACKS-LOCATION.place.splitHint'}}">
         <i class="fas fa-layer-group"></i> {{localize "ACKS-LOCATION.place.split"}}
       </button>
-      {{/if}}
+      {{/if}}{{/if}}
       {{#if scene}}
       {{#if canUnlinkScene}}
       <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="unlinkScene">
@@ -833,7 +837,9 @@
       <label class="block-label" data-tooltip="{{localize 'ACKS-HENCHMEN.location.demographicsHint'}}">
         {{localize "ACKS-HENCHMEN.location.demographics"}}
         <a class="inline-add" data-action="addDemographic"><i class="fas fa-plus"></i></a>
+        {{#if canExportTable}}
         <a class="inline-add" data-action="exportDemographics" data-tooltip="{{localize 'ACKS-HENCHMEN.location.mixExport'}}"><i class="fas fa-file-export"></i></a>
+        {{/if}}
       </label>
       {{#each demographics}}
       <div class="demographic-row" data-demographic-index="{{index}}">
@@ -850,6 +856,10 @@
       {{/each}}
     </div>
 
+    {{!-- The Judge's record. The section is drawn whole or not at all: the
+          form rebuilds `system.market.slander` from the rows it carries, and
+          an owner's render holds none of them. --}}
+    {{#if isGM}}
     <details class="section">
       <summary>{{localize "ACKS-HENCHMEN.location.slander"}} ({{slander.length}})</summary>
       <div class="section-actions">
@@ -870,6 +880,7 @@
       </div>
       {{/each}}
     </details>
+    {{/if}}
 
     <div class="acks-extras-place-admin">
       <button type="button" class="acks-btn acks-btn--danger acks-btn--sm" data-action="removeMarket" data-tooltip="{{localize 'ACKS-LOCATION.place.removeMarketHint'}}">
@@ -878,8 +889,10 @@
     </div>
     {{/unless}}
   </section>
+  {{/if}}
 
   {{!-- ------------------------- GM view ------------------------- --}}
+  {{#if tabs.gmView}}
   <section class="tab location-tab {{tabs.gmView.cssClass}}" data-group="primary" data-tab="gmView">
     <p class="hint">{{localize "ACKS-HENCHMEN.market.hint"}}</p>
     {{#if marketPools.length}}

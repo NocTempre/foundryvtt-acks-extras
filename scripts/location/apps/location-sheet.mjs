@@ -15,7 +15,7 @@
  * rows a user can claim (their own characters' goods; everything for a GM), a
  * UI convention and not a security boundary.
  */
-import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
+import { makeLoc, docOf, libStorage as storage } from "../../lib/util.mjs";
 import * as places from "../../lib/place.mjs";
 import { droppedGoods } from "../../lib/bundles.mjs";
 import { countView } from "../../lib/stack-count.mjs";
@@ -213,6 +213,10 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     // Storage lists whose goods sit here and the till's total, so it shows to
     // a seat that observes the place; every write on it has its own test.
     context.canSeeStorage = actor.testUserPermission(game.user, "OBSERVER");
+    // Split and the demographics export each create a world document, which
+    // core asks the seat's own create permission for.
+    context.canSplit = this.isEditable && Actor.canUserCreate(game.user);
+    context.canExportTable = RollTable.canUserCreate(game.user);
     context.hasMarket = sys.hasMarket;
     // Owners may run due processing (idempotent) so arrivals reveal
     // without waiting on a GM click; the clock itself is the GM's.
@@ -226,7 +230,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     if (sys.hasMarket) await prepareTradeTab(this, context);
 
     // Tabs: labels carry live counts. The market tabs exist only where there is
-    // a market, and the GM tabs only for GMs.
+    // a market, Settings only for a seat that can edit the place, and Things
+    // and GM View only for GMs.
     context.tabs = this.#prepareVisibleTabs(context);
     await this.#prepareStorage(context);
     await prepareKeyingTab(this, context);
@@ -263,9 +268,12 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     const tabs = this._prepareTabs("primary");
     if (!context.hasMarket) for (const id of MARKET_TABS) delete tabs[id];
     if (!context.canSeeStorage) delete tabs.storage;
+    // Settings writes the place, so it follows ownership of it (a locked pack's
+    // place still shows it, its fields disabled by core); Things and GM View
+    // hold the Judge's secrets and stay the Judge's.
+    if (!this.actor.isOwner) delete tabs.gmSettings;
     if (!game.user.isGM) {
       delete tabs.things;
-      delete tabs.gmSettings;
       delete tabs.gmView;
     }
     if (!Object.values(tabs).some((tab) => tab.active)) {
@@ -304,8 +312,11 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
 
     // Contents: sub-places first, then goods; `contentRows` folds a container
     // item and a sub-location into one row shape.
+    // Detach rewrites the child's parent pointer, which needs the child's
+    // owner as well as this place's.
     context.contentRows = places.contentRows(actor, nodes).map((row) => ({
       ...row,
+      canDetach: row.isPlace && this.isEditable && !!docOf(row.uuid)?.isOwner,
       icon: row.isPlace ? (row.kind === "container" ? "fa-box" : "fa-map-location-dot") : "fa-cube",
     }));
 
@@ -350,7 +361,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     context.roleTag = role ? { icon: PLACE_ROLES[role].icon, label: game.i18n.localize(PLACE_ROLES[role].label) } : null;
 
     // A gate names the market it is the point of entry to. One with no market
-    // above it says so to the Judge alone, who is the one who can place it.
+    // above it says so to whoever can place it: nesting it needs its owner.
     context.gateEntry = null;
     if (role === GATE_ROLE) {
       const market = gateMarketOf(actor, index);
@@ -358,7 +369,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
         const canOpen = market.sheet?.isVisible ?? market.testUserPermission(game.user, "LIMITED");
         context.gateEntry = { uuid: market.uuid, name: market.name, canOpen };
         context.gateEntry.entryFor = game.i18n.format(`${LANG_PREFIX}.place.gate.entryFor`, { market: market.name });
-      } else if (game.user.isGM) context.gateEntry = { none: true };
+      } else if (this.isEditable) context.gateEntry = { none: true };
     }
   }
 
@@ -756,7 +767,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       (config) =>
         new foundry.applications.ux.DragDrop.implementation({
           ...config,
-          permissions: { drop: () => game.user.isGM },
+          permissions: { drop: () => this.isEditable },
           callbacks: { drop: (ev) => this.#onDropDemographics(ev) },
         })
     );
@@ -921,7 +932,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     // Narrower than `isPlace`: a non-location provider dropped here is an
     // occupant, not a sub-place.
     if (places.isLocation(actor)) {
-      if (!game.user.isGM) return;
+      if (!actor.isOwner || !this.actor.isOwner) return;
       await places.setParent(actor, this.actor.uuid);
       this.render();
       return;
@@ -929,7 +940,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
 
     const tab = event?.target?.closest?.(".tab")?.dataset?.tab ?? this.tabGroups.primary;
     if (tab === "recruitment" && this.actor.system.hasMarket) {
-      if (!game.user.isGM) return;
+      // Offering an actor for hire is a step toward handing it to an employer
+      // (`hireExistingActor` rewrites its ownership), so the seat owns it too.
+      if (!actor.isOwner || !this.actor.isOwner) return;
       const existing = this.actor.system.specialHires.find(
         (s) => s.actorUuid === actor.uuid && s.status === "available"
       );
@@ -1115,6 +1128,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
 
   /** Export the current culture mix as a prefilled world RollTable. */
   static async #onExportDemographics() {
+    if (!RollTable.canUserCreate(game.user)) return;
     const cultures = optTable("people", "cultures")?.list ?? {};
     const demographics = (this.actor.system.demographics ?? []).map((d) => d.toObject?.() ?? d);
     const rows = demographics.length
@@ -1161,6 +1175,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
 
   /** Lift a sub-place out to the root — the undo for a wrong drop. */
   static async #onDetachPlace(_event, target) {
+    if (!this.isEditable) return;
     const uuid = target.closest("[data-place-uuid]")?.dataset.placeUuid;
     const child = uuid ? await fromUuid(uuid).catch(() => null) : null;
     if (child) await places.setParent(child, null);
@@ -1231,7 +1246,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
    * scene-token row is a live observation with nowhere to keep one.
    */
   static async #onEditOccupantNote(_event, target) {
-    if (!game.user.isGM) return;
+    if (!this.isEditable) return;
     const uuid = target.closest("[data-occupant-uuid]")?.dataset.occupantUuid;
     const rows = (this.actor.system.roster ?? []).map((r) => r.toObject?.() ?? r);
     const row = rows.find((r) => r.uuid === uuid);
@@ -1245,7 +1260,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
 
   /** Edit a special hire's note. */
   static async #onEditSpecialNote(_event, target) {
-    if (!game.user.isGM) return;
+    if (!this.isEditable) return;
     const id = target.closest("[data-special-id]")?.dataset.specialId;
     const rows = (this.actor.system.specialHires ?? []).map((r) => r.toObject?.() ?? r);
     const row = rows.find((r) => r.id === id);
@@ -1259,6 +1274,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
 
   /** Split one instance out of a stacked place (eight bays → seven + one). */
   static async #onSplitStack() {
+    if (!this.isEditable || !Actor.canUserCreate(game.user)) return;
     const made = await places.splitPlace(this.actor, 1);
     if (made) {
       ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.place.split`, { name: made.name }));
@@ -1298,7 +1314,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
    * subtree (null on a place without one).
    */
   static async #onAddMarket() {
-    if (!game.user.isGM || this.actor.system.hasMarket) return;
+    if (!this.isEditable || this.actor.system.hasMarket) return;
     await this.actor.update({ "system.market": emptyMarket() });
     this.tabGroups.primary = "recruitment";
     this.render();
@@ -1310,13 +1326,15 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
    * are real actors and are untouched.
    */
   static async #onRemoveMarket() {
-    if (!game.user.isGM || !this.actor.system.hasMarket) return;
+    if (!this.isEditable || !this.actor.system.hasMarket) return;
     const sys = this.actor.system;
+    // The slander is the Judge's record: it goes with the market, and only a
+    // Judge's confirm counts it.
     const tally = [
       { n: sys.postings.length, key: "postings" },
       { n: sys.candidates.length, key: "candidates" },
       { n: sys.specialHires.length, key: "specialHires" },
-      { n: sys.slander.length, key: "slander" },
+      ...(game.user.isGM ? [{ n: sys.slander.length, key: "slander" }] : []),
     ].filter((row) => row.n > 0);
     const detail = tally.length
       ? `<ul>${tally.map((row) => `<li>${row.n} × ${game.i18n.localize(`${LANG_PREFIX}.place.discard.${row.key}`)}</li>`).join("")}</ul>`
@@ -1366,17 +1384,17 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     for (const bucket of api.storesByOwner(actor).values()) {
       const isHouse = HOUSE && bucket.ownerUuid === HOUSE;
       const owner = isHouse ? null : api.resolveActorSync(bucket.ownerUuid);
-      // The house bucket is the place's OWN till and stock: the Judge takes
-      // freely; a player takes only rows the Judge marked retrievable, a spoil
-      // row included.
-      const canTakeGroup = isHouse ? game.user.isGM : game.user.isGM || !!owner?.isOwner;
+      // The house bucket is the place's OWN till and stock: the place's owner
+      // takes freely; any other seat takes only rows marked retrievable, a
+      // spoil row included.
+      const canTakeGroup = isHouse ? this.isEditable : game.user.isGM || !!owner?.isOwner;
       groups.push({
         ownerUuid: bucket.ownerUuid,
         // A deleted owner keeps their stored name; the GM's manager reassigns it.
         name: isHouse ? loc("storage.house") : owner?.name || bucket.ownerName || loc("storage.unattributed"),
         dangling: !isHouse && !owner,
         isHouse,
-        houseControls: isHouse && game.user.isGM,
+        houseControls: isHouse && this.isEditable,
         canTake: canTakeGroup,
         coinGC: api.coinTotalGC(bucket.items),
         rows: bucket.items.map((item) => {
@@ -1427,11 +1445,11 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     return { itemId: row?.dataset.itemId ?? null, ownerUuid: group?.dataset.ownerUuid ?? "" };
   }
 
-  /** A non-GM may take a house row only once the Judge marks it retrievable
-   * (a spoil row included). UI rule, like the rest of the storage surface —
-   * the Judge's manager outranks it. */
+  /** A seat that does not own the place may take a house row only once its
+   * owner marks it retrievable (a spoil row included). UI rule, like the rest
+   * of the storage surface — the manager outranks it. */
   #houseRowBlocked(itemId, ownerUuid) {
-    if (game.user.isGM || ownerUuid !== acksExtras.lib?.money?.HOUSE_OWNER) return false;
+    if (this.actor.isOwner || ownerUuid !== acksExtras.lib?.money?.HOUSE_OWNER) return false;
     const item = this.actor.items.get(itemId);
     return !item?.flags?.[MODULE_ID]?.storage?.retrievable;
   }
@@ -1472,9 +1490,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     this.render();
   }
 
-  /** GM: mark or unmark a house row as player-retrievable. */
+  /** Mark or unmark a house row as retrievable by a seat that does not own the place; writing the row's flag needs the place's owner. */
   static async #onHouseRetrievable(_event, target) {
-    if (!game.user.isGM) return;
+    if (!this.actor.isOwner) return;
     const { itemId } = this.#rowContext(target);
     const item = this.actor.items.get(itemId);
     if (!item) return;
@@ -1498,9 +1516,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     openStorageManager(this.actor);
   }
 
-  /** GM: let this place hold goods. */
+  /** Let this place hold goods; `setProvider` asks for the place's owner too. */
   static async #onHoldGoods() {
-    if (!game.user.isGM) return;
+    if (!this.actor.isOwner) return;
     await storage().setProvider(this.actor, true);
     this.render();
   }
@@ -1513,21 +1531,21 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   /**
    * Dropping an item from another actor STORES it here — a real move; core's
    * drop handler only creates on the target, so this path never falls through
-   * to it. A GM's drop turns storage on first; a player's drop on a place that
-   * holds none is refused by `stash`.
+   * to it. The place's owner's drop turns storage on first; a drop on a place that
+   * holds none and is not the owner's is refused by `stash`.
    */
   async _onDropItem(event, item) {
     // On the Things here tab an Item some kind of thing accepts is a thing of this place; goods are the sheet's own.
     if (await takeThingDrop(this, event, item)) return null;
     const source = item?.parent;
-    if (game.user.isGM && !storage().isProvider(this.actor) && source?.uuid !== this.actor.uuid) {
+    if (this.actor.isOwner && !storage().isProvider(this.actor) && source?.uuid !== this.actor.uuid) {
       await storage().setProvider(this.actor, true);
     }
     if (!source || source.documentName !== "Actor") {
       // A compendium or sidebar item belongs to nobody, so it files under the
       // house. `stockProvider` stamps it (`storedItems` lists only flagged
       // rows) and folds a stack into the house's own.
-      if (!game.user.isGM) {
+      if (!this.actor.isOwner) {
         ui.notifications.warn(loc("storage.dropNeedsOwner"));
         return null;
       }

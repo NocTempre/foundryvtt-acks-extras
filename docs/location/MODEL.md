@@ -24,19 +24,23 @@ sibling features (henchmen today; domains later) read through lib.
     goods, transfers, the deletion fallback); this module owns the experience
     — the location sheet, the character sheet's Storage tab, the retirement of
     the system's banked-coin column, the vault sweep, and the GM manager.
-    A location holds goods only once a GM turns storage on: the create hook
+    A location holds goods only once its owner turns storage on: the create hook
     sets no storage flag, and an importer's world copy of a library place
-    leaves the library's behind unless goods are stored on it. A GM turns it
-    on with the Storage tab's **Hold goods here**, the manager's **Add a
-    place**, or a drop on the location's sheet; the manager's new-place
+    leaves the library's behind unless goods are stored on it. The place's
+    owner (a Judge, or a seat with OWNER on it) turns it on with the Storage
+    tab's **Hold goods here** or a drop on the location's sheet; a Judge also
+    turns it on with the manager's **Add a place**, and the manager's new-place
     target and a vault are made holding goods. The manager lists every
     provider, and its Move to targets are the same list. `pruneEmptyLocations`
     spares a provider. The place's own Storage tab shows to a seat that
     observes the place (`canSeeStorage`, `testUserPermission` at OBSERVER), so
     it lists whose goods are held there and the till's total to that seat; its
     deposit and take controls move the seat's own goods through the storage
-    relay, and **Hold goods here**, the house lock and **Open manager** stay the
-    Judge's. A ground pile takes no deposit from anyone, a Judge included.
+    relay. The house bucket's Take and its retrievable lock (`houseControls`)
+    are the place's owner's, and any other seat takes a house row only once it is
+    marked retrievable. **Hold goods here** is the owner's too, and **Open
+    manager** stays the Judge's. A ground pile takes no deposit from anyone, a
+    Judge included.
   - **Table schemas**: typed shapes for the people/economy documents
     (cultures & names, occupations, age tables, class registry +
     distribution grids, wages, availability, followers, slavery, monstrous
@@ -85,7 +89,19 @@ sibling features (henchmen today; domains later) read through lib.
 - **Enhance**: the location sheet — contents, roster and nesting on every place,
   plus the market tabs (pools, demographics, postings, candidates, slander) on
   the places that have a market; a "which tables are present / missing, and from
-  which book" panel with import pointers.
+  which book" panel with import pointers. The **Settings** tab (the stack
+  fields, Split, Unlink map, the market's configuration, the demographics and
+  Remove market) is a tab for a seat that owns the place (`tabs.gmSettings`,
+  core's `isEditable`), and so are Add market, the role, the occupant and
+  special-hire notes and the candidate and special-hire removals, nesting a place
+  and Detach. Split and the demographics export are drawn only for a seat that
+  may create an actor or a table. The Judge's secrets stay the Judge's: the
+  slander section is drawn whole or not at all (the form rebuilds
+  `system.market.slander` from the rows it carries), a Remove market confirm on
+  a seat that is not a Judge's tallies no slander and the slander goes with the
+  market, and the hidden-occupant toggle, Things and GM View are not drawn for
+  anyone else. A special-hire drop needs OWNER of the place and of the dropped
+  actor.
 - **Invent**: nothing the system provides. No book values, no fallback
   sample tables (ruling 1): absent tables render as stubs + citations.
 

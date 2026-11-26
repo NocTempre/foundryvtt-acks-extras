@@ -16,6 +16,14 @@
  *       tab and the controls that move the seat's own goods (Deposit, Take on
  *       the row stamped to the seat's character) and none that write to the
  *       place (Hold goods, the house lock, Open manager); LIMITED has no tab.
+ *   owner admin: a place's owner administers it. Settings shows to the owner
+ *       without the Judge's slander (and Things and GM View stay absent); Add
+ *       market, the role select, an occupant's note edit, Remove market's
+ *       confirm (no slander line for the owner, a slander line for the Judge,
+ *       the market going whole), a special-hire drop (an actor the seat owns is
+ *       listed, one it observes is not), nesting a place and Detach, the house
+ *       lock and Take, Hold goods and a compendium item dropped on the sheet.
+ *       A place the seat only observes draws and does none of it.
  *
  * Fixtures, kept and found by marker, each made OWNER for the Player seat and
  * brought to the shape a step needs at that step's start (the GM seat writes
@@ -24,6 +32,8 @@
  *   `location/owner-place-a`  a location with no market
  *   `location/owner-place-b`  a second one
  *   `location/owner-hero`     a character the Player owns, the storage group's claimant
+ *   `location/owner-hire-mine`   a character the Player owns, offered for hire
+ *   `location/owner-hire-theirs` a character the Player only observes
  * Every figure printed is a boolean, a count or a lang key's answer; no place
  * in the world is named.
  */
@@ -314,6 +324,315 @@ const P = {
     await sheet.close();
     return out;
   },
+
+  /**
+   * GM seat: bring place A, place B and the hero to an administration shape.
+   * The Player gets `levelA` on A and `levelB` on B. `market` says whether A
+   * holds one (made with the sheet's own empty shape), `slander` how many
+   * slander rows it carries, `role` its role, `occupant` whether the roster
+   * holds the hero, `parentB` whether B is nested under A and `provider`
+   * whether storage is on, with a locked house row when it is. The roster, the
+   * hires and the rows this walk's tag marks are cleared first.
+   */
+  shapeAdmin: async ({ aId, bId, heroId, pid, levelA, levelB, market, slander, role, occupant, parentB, provider, tag }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const { emptyMarket } = await import("/modules/acks-extras/scripts/location/data/location-data.mjs");
+    const S = acksExtras.lib.storage;
+    const house = acksExtras.lib.money.HOUSE_OWNER;
+    const a = game.actors.get(aId);
+    const b = game.actors.get(bId);
+    const hero = game.actors.get(heroId);
+    for (const doc of [a, hero]) {
+      const own = doc.items.filter((i) => i.flags?.world?.fixtureItem === tag).map((i) => i.id);
+      if (own.length) await doc.deleteEmbeddedDocuments("Item", own);
+    }
+    await a.update({ "system.market": null, "system.roster": [], "system.role": role ?? "", [`ownership.${pid}`]: levelA });
+    await b.update({ "system.parentUuid": parentB ? a.uuid : "", [`ownership.${pid}`]: levelB });
+    if (market) {
+      await a.update({ "system.market": emptyMarket() });
+      const rows = Array.from({ length: slander }, (_, i) => ({ subject: { scope: "all", uuid: "" }, npcName: `Walk ${i}`, time: 0, note: "" }));
+      await a.update({ "system.market.slander": rows });
+    }
+    if (occupant) await acksExtras.lib.places.addOccupant(a, hero);
+    await S.setProvider(a, provider);
+    if (provider) await S.stockProvider(a, [{ name: "Owner Walk House Rope", type: "item", flags: { world: { fixtureItem: tag } } }], { ownerUuid: house, ownerName: "House" });
+    await sleep(600);
+    return {
+      levelA: a.ownership?.[pid] ?? null,
+      levelB: b.ownership?.[pid] ?? null,
+      hasMarket: !!a.system.hasMarket,
+      slander: a.system.hasMarket ? a.system.slander.length : 0,
+      role: a.system.placeRole ?? "",
+      roster: a.system.roster.length,
+      parentB: b.system.parentUuid === a.uuid,
+      provider: S.isProvider(a),
+      houseId: a.items.find((i) => i.flags?.world?.fixtureItem === tag && i.flags?.["acks-extras"]?.storage?.ownerUuid === house)?.id ?? null,
+    };
+  },
+
+  /** Player seat: wait up to five seconds for this client to hold the levels and the shape an administration step needs. */
+  seenAdmin: async ({ aId, bId, levelA, levelB, market, slander, role, parentB, provider }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const a = game.actors.get(aId);
+    const b = game.actors.get(bId);
+    const level = (doc) => ["OWNER", "OBSERVER", "LIMITED"].find((name) => doc.testUserPermission(game.user, name)) ?? "NONE";
+    const read = () => ({
+      levelA: level(a),
+      levelB: level(b),
+      hasMarket: !!a.system.hasMarket,
+      slander: a.system.hasMarket ? a.system.slander.length : 0,
+      role: a.system.placeRole ?? "",
+      parentB: b.system.parentUuid === a.uuid,
+      provider: acksExtras.lib.storage.isProvider(a),
+    });
+    const want = { levelA, levelB, hasMarket: !!market, slander: market ? slander : 0, role: role ?? "", parentB: !!parentB, provider: !!provider };
+    for (let i = 0; i < 50; i++) {
+      const now = read();
+      if (Object.keys(want).every((key) => now[key] === want[key])) break;
+      await sleep(100);
+    }
+    return { ...read(), isGM: game.user.isGM };
+  },
+
+  /** Arm the helpers every drive below shares, on this page. */
+  kit: async () => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    globalThis.__lpoKit = {
+      sleep,
+      /** The newest open dialog that holds the control named by `action`. */
+      dialog: async (action) => {
+        for (let i = 0; i < 50; i++) {
+          const found = [...document.querySelectorAll("dialog[open], .application.dialog-v2")].filter((el) => el.querySelector(`[data-action="${action}"]`)).at(-1);
+          if (found) return found;
+          await sleep(100);
+        }
+        return null;
+      },
+      /** Open the place's sheet on a tab and wait for the render. */
+      open: async (place, tab) => {
+        const sheet = place.sheet;
+        await sheet.render({ force: true });
+        for (let i = 0; i < 50 && !sheet.rendered; i++) await sleep(100);
+        if (tab) sheet.changeTab(tab, "primary", { force: true });
+        await sleep(400);
+        return sheet;
+      },
+    };
+    return true;
+  },
+
+  /**
+   * Render place A on this seat and read what its Settings and Contents draw:
+   * the context's tabs and seat fields and each control's presence. `bUuid`
+   * names the nested row whose Detach is read.
+   */
+  adminView: async ({ aId, bUuid }) => {
+    const { open, sleep } = globalThis.__lpoKit;
+    const place = game.actors.get(aId);
+    const ctx = await place.sheet._prepareContext({});
+    const sheet = await open(place, ctx.tabs?.gmSettings ? "gmSettings" : "contents");
+    const root = sheet.element;
+    const has = (selector) => !!root.querySelector(selector);
+    const out = {
+      editable: !!ctx.editable,
+      settingsTab: !!ctx.tabs?.gmSettings,
+      settingsNav: has('nav [data-tab="gmSettings"]'),
+      judgeNav: ["things", "gmView"].filter((id) => has(`nav [data-tab="${id}"]`)),
+      canSplit: ctx.canSplit,
+      canExportTable: ctx.canExportTable,
+      canCreateActor: !!Actor.canUserCreate(game.user),
+      canCreateTable: !!RollTable.canUserCreate(game.user),
+      slanderSection: has('[data-action="addSlander"]') || has('[name^="system.market.slander"]'),
+      removeMarket: has('[data-action="removeMarket"]'),
+      export: has('[data-action="exportDemographics"]'),
+      addMarket: has('[data-action="addMarket"]'),
+      gateNone: ctx.gateEntry?.none === true,
+    };
+    sheet.changeTab("contents", "primary", { force: true });
+    await sleep(300);
+    out.roleSelect = has('select[name="system.role"]');
+    out.noteEdit = has('[data-occupant-uuid] [data-action="editOccupantNote"]');
+    out.hiddenToggle = has('[data-occupant-uuid] [data-action="toggleOccupantHidden"]');
+    out.detach = bUuid ? { row: has(`[data-place-uuid="${bUuid}"]`), present: has(`[data-place-uuid="${bUuid}"] [data-action="detachPlace"]`) } : null;
+    out.gateHint = has(".acks-extras-place-idline .fa-triangle-exclamation");
+    await sheet.close();
+    return out;
+  },
+
+  /** Press the Add market control and wait for the market to land. */
+  addMarket: async ({ aId }) => {
+    const { open, sleep } = globalThis.__lpoKit;
+    const place = game.actors.get(aId);
+    const sheet = await open(place, "contents");
+    const button = sheet.element.querySelector('[data-action="addMarket"]');
+    button?.click();
+    for (let i = 0; i < 50 && button && !place.system.hasMarket; i++) await sleep(100);
+    await sheet.close();
+    return { pressed: !!button, hasMarket: !!place.system.hasMarket };
+  },
+
+  /** Change the role select to `value`, as the browser raises it, and read the role that landed. */
+  setRole: async ({ aId, value }) => {
+    const { open, sleep } = globalThis.__lpoKit;
+    const place = game.actors.get(aId);
+    const sheet = await open(place, "contents");
+    const select = sheet.element.querySelector('select[name="system.role"]');
+    if (select) {
+      select.value = value;
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      for (let i = 0; i < 50 && place.system.placeRole !== value; i++) await sleep(100);
+    }
+    await sheet.close();
+    return { select: !!select, role: place.system.placeRole ?? "" };
+  },
+
+  /** Press an occupant row's note edit, type `text` into the prompt and confirm; read the stored note. */
+  editNote: async ({ aId, uuid, text }) => {
+    const { open, sleep, dialog } = globalThis.__lpoKit;
+    const place = game.actors.get(aId);
+    const sheet = await open(place, "contents");
+    const button = sheet.element.querySelector(`[data-occupant-uuid="${uuid}"] [data-action="editOccupantNote"]`);
+    button?.click();
+    const prompt = button ? await dialog("ok") : null;
+    if (prompt) {
+      prompt.querySelector("textarea[name=note]").value = text;
+      prompt.querySelector('[data-action="ok"]').click();
+      for (let i = 0; i < 50 && place.system.roster.find((r) => r.uuid === uuid)?.notes !== text; i++) await sleep(100);
+    }
+    await sheet.close();
+    return { pressed: !!button, prompted: !!prompt, note: place.system.roster.find((r) => r.uuid === uuid)?.notes ?? null };
+  },
+
+  /**
+   * Press Remove market on the Settings tab and read the confirm. `answer` is
+   * `"no"` (read, then decline) or `"yes"` (read, then confirm and wait for the
+   * market to go).
+   */
+  removeMarket: async ({ aId, answer }) => {
+    const { open, sleep, dialog } = globalThis.__lpoKit;
+    const place = game.actors.get(aId);
+    const sheet = await open(place, "gmSettings");
+    const button = sheet.element.querySelector('[data-action="removeMarket"]');
+    button?.click();
+    const confirm = button ? await dialog(answer) : null;
+    const lines = confirm ? [...confirm.querySelectorAll("li")].map((li) => li.textContent.trim()) : [];
+    const slanderText = game.i18n.localize("ACKS-LOCATION.place.discard.slander");
+    const out = { pressed: !!button, confirmed: !!confirm, lines: lines.length, slanderLine: lines.some((l) => l.includes(slanderText)) };
+    if (confirm) {
+      confirm.querySelector(`[data-action="${answer}"]`).click();
+      await sleep(answer === "yes" ? 1500 : 500);
+    }
+    out.hasMarket = !!place.system.hasMarket;
+    await sheet.close();
+    return out;
+  },
+
+  /** Drop an actor on the sheet's `tab`, as a drag from the sidebar hands it, and read what it became: a special hire here, or a child of this place. */
+  dropActor: async ({ aId, actorId, tab }) => {
+    const { open, sleep } = globalThis.__lpoKit;
+    const place = game.actors.get(aId);
+    const dropped = game.actors.get(actorId);
+    const sheet = await open(place, tab);
+    await sheet._onDropActor(new DragEvent("drop"), dropped);
+    await sleep(800);
+    const out = {
+      hires: place.system.hasMarket ? place.system.specialHires.filter((s) => s.actorUuid === dropped.uuid).length : 0,
+      child: dropped.system?.parentUuid === place.uuid,
+    };
+    await sheet.close();
+    return out;
+  },
+
+  /** Press Detach on a nested place's row and read where its parent pointer went. */
+  detach: async ({ aId, childId }) => {
+    const { open, sleep } = globalThis.__lpoKit;
+    const place = game.actors.get(aId);
+    const child = game.actors.get(childId);
+    const sheet = await open(place, "contents");
+    const button = sheet.element.querySelector(`[data-place-uuid="${child.uuid}"] [data-action="detachPlace"]`);
+    button?.click();
+    for (let i = 0; i < 50 && button && child.system.parentUuid; i++) await sleep(100);
+    await sheet.close();
+    return { pressed: !!button, parent: child.system.parentUuid || "" };
+  },
+
+  /**
+   * Press the lock on the house row and read its flag, then press the row's
+   * Take: the rope lands on a character the seat owns. Returns the ids it
+   * landed under, for the sweep.
+   */
+  houseActs: async ({ aId, houseId, tag }) => {
+    const { open, sleep } = globalThis.__lpoKit;
+    const place = game.actors.get(aId);
+    const sheet = await open(place, "storage");
+    const row = () => sheet.element.querySelector(`[data-item-id="${houseId}"]`);
+    const out = { lock: !!row()?.querySelector('[data-action="houseRetrievable"]'), take: !!row()?.querySelector('[data-action="retrieveRow"]') };
+    const flag = () => !!place.items.get(houseId)?.flags?.["acks-extras"]?.storage?.retrievable;
+    out.before = flag();
+    row()?.querySelector('[data-action="houseRetrievable"]')?.click();
+    for (let i = 0; i < 50 && out.lock && flag() === out.before; i++) await sleep(100);
+    out.after = flag();
+    const carried = () => game.actors.filter((c) => c.type === "character" && c.isOwner).flatMap((c) => c.items.filter((i) => i.flags?.world?.fixtureItem === tag).map((i) => ({ actorId: c.id, itemId: i.id })));
+    sheet.changeTab("storage", "primary", { force: true });
+    await sleep(300);
+    row()?.querySelector('[data-action="retrieveRow"]')?.click();
+    for (let i = 0; i < 50 && out.take && !carried().length; i++) await sleep(100);
+    out.carried = carried();
+    out.placeHolds = place.items.filter((i) => i.flags?.world?.fixtureItem === tag).length;
+    await sheet.close();
+    return out;
+  },
+
+  /** Delete the given embedded items by id, from the seat that owns their actor. */
+  sweepItems: async ({ rows }) => {
+    for (const { actorId, itemId } of rows) await game.actors.get(actorId)?.deleteEmbeddedDocuments("Item", [itemId]);
+    return rows.length;
+  },
+
+  /** Press Hold goods and read the provider flag. */
+  holdGoods: async ({ aId }) => {
+    const { open, sleep } = globalThis.__lpoKit;
+    const place = game.actors.get(aId);
+    const sheet = await open(place, "storage");
+    const button = sheet.element.querySelector('[data-action="holdGoods"]');
+    button?.click();
+    for (let i = 0; i < 50 && button && !acksExtras.lib.storage.isProvider(place); i++) await sleep(100);
+    await sheet.close();
+    return { pressed: !!button, provider: acksExtras.lib.storage.isProvider(place) };
+  },
+
+  /**
+   * Drop the first item of the first Item compendium on place A's sheet, as a
+   * drag from a compendium hands it, and read what the place holds under the
+   * house. The ids it made are returned for the sweep.
+   */
+  dropCompendiumItem: async ({ aId }) => {
+    const { open, sleep } = globalThis.__lpoKit;
+    const place = game.actors.get(aId);
+    const pack = game.packs.find((p) => p.documentName === "Item" && p.index.size);
+    const entry = pack?.index.contents[0];
+    const item = entry ? await fromUuid(entry.uuid ?? `Compendium.${pack.collection}.Item.${entry._id}`) : null;
+    if (!item) return { item: false };
+    const sheet = await open(place, "storage");
+    const before = new Set(place.items.map((i) => i.id));
+    await sheet._onDropItem(new DragEvent("drop"), item);
+    await sleep(1000);
+    const made = place.items.filter((i) => !before.has(i.id));
+    const out = {
+      item: true,
+      ids: made.map((i) => i.id),
+      house: made.filter((i) => i.flags?.["acks-extras"]?.storage?.ownerUuid === acksExtras.lib.money.HOUSE_OWNER).length,
+      provider: acksExtras.lib.storage.isProvider(place),
+    };
+    await sheet.close();
+    return out;
+  },
+
+  /** Delete place A's items by id (this walk's own drops), from the seat that owns it. */
+  sweepPlaceItems: async ({ aId, ids }) => {
+    if (ids.length) await game.actors.get(aId).deleteEmbeddedDocuments("Item", ids);
+    return ids.length;
+  },
 };
 
 async function run(api, fn, ...args) {
@@ -537,8 +856,165 @@ async function groupStorage(ctx) {
   await run(gm, P.shapeStorage, { aId, heroId, pid, level: LEVEL.OWNER, provider: false, tag: STORAGE_TAG });
 }
 
+/** The tag this group's rows carry on the place and on whoever takes them. */
+const ADMIN_TAG = "location/owner-admin";
+
+/**
+ * A place's owner administers it. Settings, the market's administration, the
+ * occupants' notes, the special-hire list, nesting and Detach, the house lock
+ * and Take, Hold goods and an item dropped on the sheet each follow ownership
+ * of the place; the Judge's slander, the hidden toggle, Things and GM View stay
+ * the Judge's. Every step brings the shape it needs from the GM seat and
+ * asserts it on the Player seat before it presses anything.
+ */
+async function groupOwnerAdmin(ctx) {
+  const { gm, player, ids, pid } = ctx;
+  const { aId, bId, heroId, mineId, theirsId } = ids;
+  const aUuid = await gm.eval(`game.actors.get(${JSON.stringify(aId)}).uuid`);
+  const bUuid = await gm.eval(`game.actors.get(${JSON.stringify(bId)}).uuid`);
+  const heroUuid = await gm.eval(`game.actors.get(${JSON.stringify(heroId)}).uuid`);
+  const levelName = (level) => Object.keys(LEVEL).find((key) => LEVEL[key] === level);
+  await run(gm, P.kit);
+  await run(player, P.kit);
+
+  /** Shape on the GM seat, then wait for the Player seat to hold it. Returns whether both agree, and the GM's read. */
+  const shapeAdmin = async (shape) => {
+    const full = { levelA: LEVEL.OWNER, levelB: LEVEL.OWNER, market: false, slander: 0, role: "", occupant: false, parentB: false, provider: false, ...shape };
+    const shaped = await run(gm, P.shapeAdmin, { aId, bId, heroId, pid, tag: ADMIN_TAG, ...full });
+    const seen = await run(player, P.seenAdmin, { aId, bId, ...full, levelA: levelName(full.levelA), levelB: levelName(full.levelB) });
+    const agree =
+      !seen.isGM && shaped.levelA === full.levelA && seen.levelA === levelName(full.levelA) && seen.levelB === levelName(full.levelB) &&
+      shaped.hasMarket === full.market && seen.hasMarket === full.market && seen.slander === (full.market ? full.slander : 0) &&
+      shaped.role === full.role && seen.role === full.role && seen.parentB === full.parentB && seen.provider === full.provider;
+    return { shaped, seen, agree };
+  };
+
+  section("owner admin 1: a Player who owns a place with a market has Settings, without the Judge's slander");
+  let s = await shapeAdmin({ market: true, slander: 2, occupant: true });
+  check("the Player seat owns place A, which holds a market with two slander rows and the hero as an occupant", s.agree && s.shaped.roster === 1, s);
+  let v = await run(player, P.adminView, { aId, bUuid });
+  check("the context says the seat can edit, and Settings is a tab and on screen", v.editable && v.settingsTab && v.settingsNav, v);
+  check("Things and GM View are not on screen", v.judgeNav.length === 0, v.judgeNav);
+  check("Settings has no slander section, no slander control and no slander field in its form", !v.slanderSection, v);
+  check("Remove market is on Settings, and Split and the export follow the seat's create rights", v.removeMarket && v.canSplit === v.canCreateActor && v.canExportTable === v.canCreateTable && v.export === v.canCreateTable, { removeMarket: v.removeMarket, canSplit: v.canSplit, canCreateActor: v.canCreateActor, canExportTable: v.canExportTable, exportDrawn: v.export });
+  check("the role select and the occupant's note edit are on Contents; the hidden toggle is not", v.roleSelect && v.noteEdit && !v.hiddenToggle, v);
+
+  section("owner admin 2: Add market on a place with none");
+  s = await shapeAdmin({ market: false });
+  check("the Player seat owns place A, which holds no market", s.agree, s);
+  v = await run(player, P.adminView, { aId, bUuid });
+  check("Add market is drawn", v.addMarket, v);
+  let r = await run(player, P.addMarket, { aId });
+  check("pressing it gives the place a market", r.pressed && r.hasMarket, r);
+
+  section("owner admin 3: the role select writes, and a gate with no market above it says so");
+  s = await shapeAdmin({ market: true });
+  check("place A holds a market, has no role and has nothing above it", s.agree && !s.seen.role, s);
+  r = await run(player, P.setRole, { aId, value: "gate" });
+  check("choosing the gate role in the select writes it", r.select && r.role === "gate", r);
+  s = await shapeAdmin({ market: false, role: "gate" });
+  check("place A is a gate with no market and none above it", s.agree && s.seen.role === "gate", s);
+  v = await run(player, P.adminView, { aId, bUuid });
+  check("the context carries the no-market hint and the hint is on the Contents tab", v.gateNone && v.gateHint, v);
+
+  section("owner admin 4: an occupant's note is edited by the place's owner");
+  s = await shapeAdmin({ market: true, occupant: true });
+  check("place A holds a market and the hero as a stored occupant", s.agree && s.shaped.roster === 1, s);
+  r = await run(player, P.editNote, { aId, uuid: heroUuid, text: "Billeted by the walk" });
+  check("the edit prompt opens, and the note lands on the occupant's row", r.pressed && r.prompted && r.note === "Billeted by the walk", r);
+
+  section("owner admin 5: a special hire is offered by dropping an actor the seat owns on Recruitment");
+  s = await shapeAdmin({ market: true });
+  check("place A holds a market with no special hires", s.agree, s);
+  r = await run(player, P.dropActor, { aId, actorId: mineId, tab: "recruitment" });
+  check("the Player's own character is listed", r.hires === 1, r);
+  s = await shapeAdmin({ market: true });
+  check("place A holds a market with no special hires again, and the Player observes the second character", s.agree && s.seen.levelA === "OWNER", s);
+  r = await run(player, P.dropActor, { aId, actorId: theirsId, tab: "recruitment" });
+  check("an actor the Player only observes is not listed", r.hires === 0, r);
+
+  section("owner admin 6: Remove market's confirm, on the Player seat and on the Judge's");
+  s = await shapeAdmin({ market: true, slander: 2 });
+  check("the Player seat owns place A, which holds a market and two slander rows", s.agree && s.seen.slander === 2, s);
+  const gmConfirm = await run(gm, P.removeMarket, { aId, answer: "no" });
+  check("the Judge's confirm carries a slander line, and declining keeps the market", gmConfirm.confirmed && gmConfirm.slanderLine && gmConfirm.hasMarket, gmConfirm);
+  r = await run(player, P.removeMarket, { aId, answer: "no" });
+  check("the Player's confirm carries no slander line, and declining keeps the market", r.confirmed && !r.slanderLine && r.hasMarket, r);
+  r = await run(player, P.removeMarket, { aId, answer: "yes" });
+  check("confirming removes the market whole, the slander with it", r.confirmed && !r.slanderLine && !r.hasMarket, r);
+
+  section("owner admin 7: a place the seat owns is nested under one it owns, and Detach lifts it out");
+  s = await shapeAdmin({ market: false });
+  check("the Player owns both places and B is not nested", s.agree && !s.shaped.parentB, s);
+  r = await run(player, P.dropActor, { aId, actorId: bId, tab: "contents" });
+  check("dropping B on A nests it", r.child, r);
+  s = await shapeAdmin({ market: false, parentB: true });
+  v = await run(player, P.adminView, { aId, bUuid });
+  check("B is nested and its row carries Detach", s.agree && v.detach?.row && v.detach.present, v.detach);
+  r = await run(player, P.detach, { aId, childId: bId });
+  check("pressing Detach clears B's parent", r.pressed && r.parent === "", r);
+
+  section("owner admin 8: a place the seat only observes is not nested and shows no Detach");
+  s = await shapeAdmin({ market: false, levelB: LEVEL.OBSERVER });
+  check("the Player owns A and observes B", s.agree && s.seen.levelB === "OBSERVER", s);
+  r = await run(player, P.dropActor, { aId, actorId: bId, tab: "contents" });
+  check("dropping B on A nests nothing", !r.child, r);
+  s = await shapeAdmin({ market: false, levelB: LEVEL.OBSERVER, parentB: true });
+  v = await run(player, P.adminView, { aId, bUuid });
+  check("B is nested under A and its row has no Detach", s.agree && v.detach?.row && !v.detach.present, v.detach);
+
+  section("owner admin 9: the house row's lock and Take, on a place the seat owns");
+  s = await shapeAdmin({ provider: true });
+  check("place A holds goods: one locked house row", s.agree && s.shaped.provider && !!s.shaped.houseId, s);
+  r = await run(player, P.houseActs, { aId, houseId: s.shaped.houseId, tag: ADMIN_TAG });
+  check("the lock and Take are on the house row, and the lock flips the row's flag", r.lock && r.take && r.before === false && r.after === true, r);
+  check("Take moves the rope to a character the seat owns and off the place", r.carried.length === 1 && r.placeHolds === 0, { carried: r.carried.length, placeHolds: r.placeHolds });
+  await run(player, P.sweepItems, { rows: r.carried });
+
+  section("owner admin 10: Hold goods, and a compendium item dropped on the sheet, on a place the seat owns");
+  s = await shapeAdmin({ provider: false });
+  check("place A holds no goods", s.agree && !s.shaped.provider, s);
+  r = await run(player, P.holdGoods, { aId });
+  check("Hold goods is on the tab and switches storage on", r.pressed && r.provider, r);
+  s = await shapeAdmin({ provider: false });
+  check("place A holds no goods again", s.agree && !s.shaped.provider, s);
+  const dropped = await run(player, P.dropCompendiumItem, { aId });
+  note("a compendium item was found", dropped.item);
+  check("the item is filed under the house and storage is on", dropped.item && dropped.house === 1 && dropped.provider, dropped);
+  if (dropped.ids?.length) await run(player, P.sweepPlaceItems, { aId, ids: dropped.ids });
+
+  section("owner admin 11: on a place the seat only observes, none of it is drawn or done");
+  s = await shapeAdmin({ levelA: LEVEL.OBSERVER, market: true, slander: 2, occupant: true, provider: true });
+  check("the Player seat observes place A, which holds a market, slander, an occupant and a locked house row", s.agree && s.seen.levelA === "OBSERVER" && !!s.shaped.houseId, s);
+  v = await run(player, P.adminView, { aId, bUuid });
+  check("the context says the seat cannot edit, and Settings is neither a tab nor on screen", !v.editable && !v.settingsTab && !v.settingsNav, v);
+  check("no role select, note edit, hidden toggle or Add market on Contents", !v.roleSelect && !v.noteEdit && !v.hiddenToggle && !v.addMarket, v);
+  r = await run(player, P.houseActs, { aId, houseId: s.shaped.houseId, tag: ADMIN_TAG });
+  check("the house row has no lock and no Take", !r.lock && !r.take && r.carried.length === 0, r);
+  const hold = await run(player, P.holdGoods, { aId });
+  check("Hold goods is not on the tab", !hold.pressed, hold);
+  s = await shapeAdmin({ levelA: LEVEL.OBSERVER, market: true, occupant: false });
+  check("the Player observes place A, which holds a market with no special hires", s.agree && s.seen.levelA === "OBSERVER", s);
+  r = await run(player, P.dropActor, { aId, actorId: mineId, tab: "recruitment" });
+  check("a drop of the seat's own character on Recruitment lists nothing", r.hires === 0, r);
+  s = await shapeAdmin({ levelA: LEVEL.OBSERVER, provider: false });
+  check("the Player observes place A, which holds no goods", s.agree && s.seen.levelA === "OBSERVER" && !s.shaped.provider, s);
+  const refused = await run(player, P.dropCompendiumItem, { aId });
+  check("a compendium item dropped on the sheet is refused: nothing is filed and storage stays off", refused.item === false || (refused.ids.length === 0 && !refused.provider), refused);
+  if (refused.ids?.length) await run(player, P.sweepPlaceItems, { aId, ids: refused.ids });
+
+  section("owner admin 12: the GM seat as control: Settings with the slander, and every Judge tab");
+  s = await shapeAdmin({ market: true, slander: 2, occupant: true });
+  check("place A holds a market with two slander rows and the hero as an occupant", s.agree && s.shaped.roster === 1, s);
+  const gmView = await run(gm, P.adminView, { aId, bUuid });
+  check("the Judge's Settings draws the slander section, and the hidden toggle and role select are on Contents", gmView.settingsTab && gmView.slanderSection && gmView.hiddenToggle && gmView.roleSelect, gmView);
+  check("the Judge's seat has GM View on screen", gmView.judgeNav.includes("gmView"), gmView.judgeNav);
+  // Leave the fixtures at the shape the next group expects: the Player's OWNER, no market, storage off.
+  await shapeAdmin({});
+}
+
 /** The groups this walk runs, in order. A later slice of the recipe appends its own. */
-const GROUPS = [groupSceneLink, groupStorage];
+const GROUPS = [groupSceneLink, groupStorage, groupOwnerAdmin];
 
 /* ------------------------------------------------------------------ */
 /*  The walk                                                            */
@@ -562,8 +1038,10 @@ try {
   const a = await gm.fixture("location/owner-place-a", "Actor", { name: "Owner Walk Place A", type: LOCATION, ownership: own });
   const b = await gm.fixture("location/owner-place-b", "Actor", { name: "Owner Walk Place B", type: LOCATION, ownership: own });
   const hero = await gm.fixture("location/owner-hero", "Actor", { name: "Owner Walk Hero", type: "character", ownership: own });
-  note("fixtures", { scene: scene.built, a: a.built, b: b.built, hero: hero.built });
-  const ctx = { gm, player, pid: pc.userId, ids: { sceneId: scene.id, aId: a.id, bId: b.id, heroId: hero.id } };
+  const mine = await gm.fixture("location/owner-hire-mine", "Actor", { name: "Owner Walk Hire Mine", type: "character", ownership: own });
+  const theirs = await gm.fixture("location/owner-hire-theirs", "Actor", { name: "Owner Walk Hire Theirs", type: "character", ownership: { default: LEVEL.NONE, [pc.userId]: LEVEL.OBSERVER } });
+  note("fixtures", { scene: scene.built, a: a.built, b: b.built, hero: hero.built, mine: mine.built, theirs: theirs.built });
+  const ctx = { gm, player, pid: pc.userId, ids: { sceneId: scene.id, aId: a.id, bId: b.id, heroId: hero.id, mineId: mine.id, theirsId: theirs.id } };
 
   for (const group of GROUPS) await group(ctx);
   walkDone();

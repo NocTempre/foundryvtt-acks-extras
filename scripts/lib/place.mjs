@@ -475,10 +475,13 @@ export async function removeOccupant(place, uuid) {
 
 /**
  * Split one instance out of a stacked place into its own actor. See
- * docs/lib/PLACES.md, "Stacking, and how it differs from a group".
+ * docs/lib/PLACES.md, "Stacking, and how it differs from a group". It asks for
+ * the place's owner and for the seat's own right to create an actor, and
+ * lowers the count only once the new member exists, so a refused create loses
+ * no instance.
  */
 export async function splitPlace(place, take = 1) {
-  if (!place || !place.isOwner) return null;
+  if (!place || !place.isOwner || !Actor.canUserCreate(game.user)) return null;
   const plan = planSplit(countOf(place), take);
   if (!plan) {
     warn("place.cannotSplit");
@@ -501,6 +504,7 @@ export async function splitPlace(place, take = 1) {
     },
     flags,
   });
+  if (!created) return null;
   await place.update({ "system.stack.count": plan.from });
   Hooks.callAll(PLACE_HOOKS.SPLIT, { from: place.uuid, to: created?.uuid, count: plan.to });
   return created ?? null;
