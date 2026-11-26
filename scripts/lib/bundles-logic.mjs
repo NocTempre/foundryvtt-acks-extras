@@ -56,14 +56,26 @@ export function arrivalOf(sourceData) {
  * (`_createBundleEntryItem`) makes it: one document per row. Coin and every
  * Physical Item (gear, weapon, armour) arrive holding the row's `count` as a
  * plain whole-number `system.quantity`, whatever quantity the source carried
- * and whatever shape it kept it in. Anything else (a spell, a proficiency)
- * arrives once, as it is, with no quantity.
+ * and whatever shape it kept it in. A Physical Item carrying Active Effects of
+ * its own (`isStackable` refuses it) arrives instead as `count` separate rows
+ * of one, since an effect applies once per document and a row of several
+ * could neither divide nor be equipped one at a time. Anything else (a spell,
+ * a proficiency) arrives once, as it is, with no quantity.
  * @returns {object[]} plain item data, one entry per document to deliver
  */
 export function goodsForRow(sourceData, count) {
   const n = Math.max(1, Math.floor(num(count, 1)));
   const one = arrivalOf(sourceData);
-  if (one.type === ITEM_TYPE.money || PHYSICAL_ITEM_TYPES.includes(one.type)) {
+  if (one.type === ITEM_TYPE.money) {
+    one.system = { ...one.system, quantity: n };
+  } else if (PHYSICAL_ITEM_TYPES.includes(one.type)) {
+    if (Array.isArray(one.effects) && one.effects.length) {
+      return Array.from({ length: n }, () => {
+        const row = structuredClone(one);
+        row.system = { ...row.system, quantity: 1 };
+        return row;
+      });
+    }
     one.system = { ...one.system, quantity: n };
   }
   return [one];
@@ -74,7 +86,9 @@ export function goodsForRow(sourceData, count) {
  * delivers: the stack as it stands, an empty one counted as one. The system
  * ships its coins as stacks of none, so a coin dragged off the shelf is one
  * coin, and a pile the Judge counted out in the sidebar is the whole pile. A
- * weapon or armour dropped with a quantity arrives as one row holding it.
+ * weapon or armour dropped with a quantity arrives as one row holding it,
+ * unless it carries Active Effects of its own: then a row per unit
+ * (`goodsForRow`).
  * @returns {object[]} plain item data, one entry per document to deliver
  */
 export function goodsForDrop(sourceData) {

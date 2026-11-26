@@ -4264,7 +4264,8 @@ to 25. The rest of the steps below are unwalked.
 4. Stash the stack at the location and retrieve it. *Observable:* it moves whole and merges into a resting row of the same thing; a row holding a variation moves whole and never merges.
 5. Import the same character PDF twice. *Observable:* the second import finds the rows and adds no row; the count stays what the PDF states.
 6. Open a sword row's item sheet. *Observable:* its Details tab opens with a Quantity field holding the whole row's count, a whole number from 0, and the title band shows the same count above one; the pencil locks the field. Walked in [../equipment/TESTING.md](../equipment/TESTING.md), "The item sheet", step 18.
-7. Teardown. The run's tracked documents are swept by ledger; the kept fixtures are restored to the shape above.
+7. Buy three swords that carry an Active Effect of their own, or drop a bundle naming them. *Observable:* three rows of one each, none folded into another or into a row already held; each equips alone.
+8. Teardown. The run's tracked documents are swept by ledger; the kept fixtures are restored to the shape above.
 
 ## A delayed-damage record whose fight ends before it is due
 

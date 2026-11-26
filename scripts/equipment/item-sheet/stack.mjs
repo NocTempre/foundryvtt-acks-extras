@@ -26,6 +26,7 @@
 import { MODULE_ID } from "../constants.mjs";
 import { setWorn, siblingsOf, stackCountOf, isEquippable, canDivide, divideStack, oneAtATime } from "../../lib/item-model.mjs";
 import { quantityOf, isStackable } from "../../lib/storage-logic.mjs";
+import { copyIdFor, createCopyBeside } from "../../lib/stack-copy.mjs";
 import { setPath } from "../../lib/dotted-path.mjs";
 import { wearableSlots } from "../profiles.mjs";
 import { unstowOnUse } from "../containers.mjs";
@@ -76,7 +77,10 @@ export function divertsEquip(item, changes) {
  * again (`divideStack`), so the worst outcome is a duplicate, never a loss.
  * Takes its turn among the holder's other divides and folds (`oneAtATime`), and
  * reads the row again when the turn comes: a second equip of the same stack
- * (a double click) finds the row already drawn and takes nothing.
+ * (a double click) finds the row already drawn and takes nothing. A second seat
+ * equipping the same stack in the same moment reads the same state, so its copy
+ * has the same id and its create is refused (`divideStack`): it resolves null
+ * and writes nothing, the first seat's divide standing.
  * @param {Item} item the stack the user equipped
  * @param {object} changes the pending update that `divertsEquip` cancelled
  * @returns {Promise<Item|null>} the resting row, or null when nothing divided
@@ -159,7 +163,10 @@ export function afterTurn(item, changes) {
 }
 
 /**
- * Split one item out of the stack and wear it.
+ * Split one item out of the stack and wear it. The split item's id is derived
+ * from the state read (`copyIdFor`), so two seats splitting one stack in the
+ * same moment make one: the second create is refused and that seat moves
+ * nothing.
  * @returns {Promise<Item|null>} the split item, or null when nothing moved
  */
 export async function splitOne(item) {
@@ -172,9 +179,9 @@ export async function splitOne(item) {
   data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), [SPLIT_FROM]: item.id } };
   // The declared slot travels with the copy, so `setWorn` has a slot to accept.
   data.flags[MODULE_ID].gear = { ...(data.flags[MODULE_ID].gear ?? {}), slots: [slot] };
-  const [created] = item.parent
-    ? await item.parent.createEmbeddedDocuments("Item", [data])
-    : [await getDocumentClass("Item").create(data)];
+  const created = item.parent
+    ? await createCopyBeside(item, data, copyIdFor(item, q.value))
+    : await getDocumentClass("Item").create(data);
   if (!created) return null;
   await item.update({ [q.path]: q.value - 1 });
   await setWorn(created, slot);

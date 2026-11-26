@@ -33,7 +33,7 @@ import { markLifts, readTurnLife, turnLifeStep, turnEdges } from "./turn-life.mj
 import { endedBy } from "./ends-on.mjs";
 import { expectTables } from "./tables.mjs";
 import { signed } from "./frame-model.mjs";
-import { isPrimaryGM, numOrNull } from "./util.mjs";
+import { isPrimaryGM, numOrNull, seededId } from "./util.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
 import { sizeRank } from "./actor-read.mjs";
 import { STATUS_RUNNING } from "./perception.mjs";
@@ -115,8 +115,6 @@ function systemKeepsFoundryStatuses() {
   }
 }
 
-const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
 /**
  * The static `_id` of the one effect Foundry builds for a status that brings
  * others: 16 letters and digits, a pure function of the status id, so every
@@ -128,16 +126,7 @@ const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456
  * @returns {string}
  */
 export function conditionEffectId(statusId) {
-  let out = "";
-  for (let place = 0; place < 16; place++) {
-    let h = 0x811c9dc5 ^ place;
-    for (const ch of String(statusId)) h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193);
-    h ^= h >>> 16;
-    h = Math.imul(h, 0x45d9f3b);
-    h ^= h >>> 16;
-    out += ID_ALPHABET[(h >>> 0) % ID_ALPHABET.length];
-  }
-  return out;
+  return seededId(statusId);
 }
 
 /** The Active Effect changes of one entry of the system's condition list, copied. */

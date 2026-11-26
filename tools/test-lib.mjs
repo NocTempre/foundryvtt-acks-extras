@@ -33,7 +33,7 @@ import {
   stackSignature,
 } from "../scripts/lib/storage-logic.mjs";
 import { coreWeight6Of, hasStock, stackCountOf, weight6Of } from "../scripts/lib/item-model.mjs";
-import { arrivalOf, bundleRows, goodsForDrop, goodsForRow } from "../scripts/lib/bundles-logic.mjs";
+import { arrivalOf, bundleRows, goodsForDrop, goodsForRow, planEmbeddedUnpack } from "../scripts/lib/bundles-logic.mjs";
 import { clampScore, loyaltyBounds, moraleBounds, schemaBounds } from "../scripts/lib/score-bounds.mjs";
 import {
   ancestorUuids,
@@ -75,7 +75,7 @@ import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } fro
 import { actorAlignment, areEnemies, creatureKinds, hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
 import { drawForJudges, drawQuietly, postToJudges } from "../scripts/lib/roll-audience.mjs";
-import { elementOf, gmIds, judgesAndOwners } from "../scripts/lib/util.mjs";
+import { elementOf, gmIds, judgesAndOwners, seededId } from "../scripts/lib/util.mjs";
 import { clientPages, keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "../scripts/lib/client-pins.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../scripts/lib/sheet-rows.mjs";
 import { PICK_SELECTOR, PicksMixin, isPick, pickChanged, readPicks, restorePicks, spendPicks } from "../scripts/lib/picks.mjs";
@@ -1886,7 +1886,7 @@ t("goodsForRow delivers the units core's bundle drop does: one row holding the c
   const fromThree = goodsForRow(swordN("sw", 3), 2);
   assert.deepEqual(fromThree.map((s) => s.system.quantity), [2], "the source's own quantity is not multiplied in");
   assert.deepEqual(goodsForRow(sword("sw"), 3).map((s) => s.system.quantity), [3], "a source carrying no quantity gets the count");
-  assert.equal(goodsForRow({ ...swordR("sw", 1), effects: [{ _id: "e" }] }, 2).length, 1, "a row with effects of its own is one row too, as core makes it");
+  assert.equal(goodsForRow({ ...swordR("sw", 1), effects: [] }, 2).length, 1, "a row whose effects list is empty is one row of the count");
   const mail = goodsForRow(mailN("m", 1), 2);
   assert.equal(mail.length, 1, "armour counts as a weapon does");
   assert.equal(mail[0].system.quantity, 2);
@@ -1902,6 +1902,48 @@ t("goodsForRow delivers the units core's bundle drop does: one row holding the c
   const coin = goodsForRow(gold("g", 7), 5);
   assert.equal(coin[0].system.quantity, 5, "coin counts coins, not stacks of the source's size");
   assert.equal(coin[0].system.quantitybank, 0);
+});
+
+t("seededId: a pure 16-letter-and-digit id of its seed, the one conditionEffectId pins", () => {
+  assert.equal(seededId("charging"), "hkopszYi2vJpXKTu", "a known seed answers the id its effects are stored under");
+  assert.equal(seededId("charging"), seededId("charging"), "the same seed twice");
+  assert.notEqual(seededId("a|1|5|2"), seededId("a|2|5|2"), "a different seed, a different id");
+  for (const seed of ["a", "a|1700000000000|5|2", "x".repeat(60)]) assert.match(seededId(seed), /^[a-zA-Z0-9]{16}$/, seed);
+});
+
+t("goodsForRow lands gear with Active Effects of its own as a row per unit, each its own object", () => {
+  const source = { ...swordR("sw", 1), effects: [{ _id: "e", name: "Glow" }] };
+  const rows = goodsForRow(source, 3);
+  assert.equal(rows.length, 3, "three units arrive as three rows");
+  assert.deepEqual(rows.map((r) => r.system.quantity), [1, 1, 1], "each holds one");
+  assert.equal(new Set(rows).size, 3, "no object is pushed twice");
+  assert.equal(new Set(rows.map((r) => r.effects)).size, 3, "each carries an effects array of its own");
+  assert.equal(new Set(rows.map((r) => r.system)).size, 3, "and a system of its own");
+  rows[0].system.quantity = 9;
+  rows[0].effects[0].name = "Changed";
+  assert.equal(rows[1].system.quantity, 1, "writing one row leaves the others alone");
+  assert.equal(rows[1].effects[0].name, "Glow");
+  assert.equal(source.system.quantity, 1, "the source is not touched");
+  assert.equal(goodsForRow(source, 1).length, 1, "one unit is one row");
+  assert.equal(goodsForRow(source, 0)[0].system.quantity, 1, "a count under one is one");
+  const mail = goodsForRow({ ...mailN("m", 1), effects: [{ _id: "e" }] }, 2);
+  assert.deepEqual(mail.map((r) => r.system.quantity), [1, 1], "armour with effects splits too");
+  assert.deepEqual(goodsForDrop({ ...swordN("sw", 3), effects: [{ _id: "e" }] }).map((r) => r.system.quantity), [1, 1, 1], "a drop of a counted row with effects splits it");
+  assert.deepEqual(goodsForRow({ ...gold("g", 7), effects: [{ _id: "e" }] }, 5).map((r) => r.system.quantity), [5], "coin stays one row");
+});
+
+t("a row per unit of gear with effects is never folded back together on delivery", () => {
+  const goods = goodsForRow({ ...swordR("sw", 1), effects: [{ _id: "e" }] }, 3);
+  const merged = planStackMerge(goods, []);
+  assert.equal(merged.creates.length, 3, "planStackMerge creates each");
+  assert.deepEqual(merged.creates.map((c) => c.system.quantity), [1, 1, 1]);
+  const carried = planStackMerge(goods, [{ ...swordR("have", 1), effects: [{ _id: "e" }] }]);
+  assert.equal(carried.creates.length, 3, "and folds none into an effects row already carried");
+  assert.deepEqual(carried.targetUpdates, []);
+  const plan = planEmbeddedUnpack("bundle1", goods, []);
+  assert.equal(plan.creates.length, 3, "an embedded bundle's unpack creates each");
+  assert.deepEqual(plan.creates.map((c) => c.system.quantity), [1, 1, 1]);
+  assert.equal(plan.updates.length, 1, "and writes only its journal");
 });
 
 t("goodsForDrop delivers the stack that was dropped: an empty coin is one coin, a counted pile is the pile", () => {

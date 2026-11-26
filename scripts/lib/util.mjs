@@ -82,6 +82,31 @@ export function escape(value) {
 /** The entity each character `escape` handles becomes when core supplies none. */
 const ESCAPED = Object.freeze({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#x27;" });
 
+const ID_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+
+/**
+ * A Foundry document id (16 letters and digits) that is a pure function of
+ * `seed`: every client and every session handed one seed makes the same id.
+ * Two writers that derive an id from the state they both read, and create
+ * with it (`keepId`), collide on the server, which refuses the second create.
+ * Documents are stored under these ids, so the output for a seed never changes.
+ *
+ * @param {string} seed
+ * @returns {string}
+ */
+export function seededId(seed) {
+  let out = "";
+  for (let place = 0; place < 16; place++) {
+    let h = 0x811c9dc5 ^ place;
+    for (const ch of String(seed)) h = Math.imul(h ^ ch.charCodeAt(0), 0x01000193);
+    h ^= h >>> 16;
+    h = Math.imul(h, 0x45d9f3b);
+    h ^= h >>> 16;
+    out += ID_ALPHABET[(h >>> 0) % ID_ALPHABET.length];
+  }
+  return out;
+}
+
 /** The value as a number, or `fallback` when it is not finite. */
 export const toNum = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
 

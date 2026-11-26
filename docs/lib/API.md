@@ -1947,8 +1947,11 @@ field stays editable on any row. `canDivide(item)` is whether `divideStack` will
 row (two or more, nothing stored in it, no variation).
 `divideStack(item, count, {also})` puts `count` into a row of its own beside the stack
 and resolves to the new row, or to `null` when `count` does not fall strictly
-inside the stack or the reducing write is refused (the new row is deleted
-again); `also` is a pending change written in the same reducing write.
+inside the stack, the reducing write is refused (the new row is deleted
+again) or another seat already made the same copy from the same state (the new
+row's id is derived from the state read and the create keeps it, so the server
+refuses the second one); `also` is a pending change written in the same
+reducing write.
 `foldIntoRest(item)` (apiVersion 66) joins a row no longer in use into the
 resting row of the same thing and resolves to that row or `null`;
 `oneAtATime(holder, task)` runs divides and folds on one holder in turn. `joinStacks(item, onto)` folds one row into another of the

@@ -80,6 +80,7 @@ function makeItem(data, parent = null) {
     get system() { return src.system; },
     get flags() { return src.flags; },
     get effects() { return src.effects; },
+    get _stats() { return src._stats; },
     parent,
     getFlag: (scope, key) => src.flags?.[scope]?.[key],
     toObject: () => structuredClone(src),
@@ -110,7 +111,7 @@ function makeItem(data, parent = null) {
 
 /** An actor whose items are a collection, recording how many writes it took. */
 function makeActor({ id, name = id, type = "character", items = [] }) {
-  const actor = { id, name, type, documentName: "Actor", uuid: `Actor.${id}`, isToken: false, system: {}, flags: {}, items: new Coll(), writes: 0 };
+  const actor = { id, name, type, documentName: "Actor", uuid: `Actor.${id}`, isToken: false, system: {}, flags: {}, items: new Coll(), writes: 0, created: [] };
   // Who may write this actor other than the Judge: the ids of its owning seats.
   // `isOwner` answers for the seat in play, as a live document's does; a test
   // that assigns it pins the answer.
@@ -126,7 +127,10 @@ function makeActor({ id, name = id, type = "character", items = [] }) {
     actor.items.set(doc.id, doc);
     return doc;
   };
-  actor.createEmbeddedDocuments = async (_kind, datas) => {
+  actor.createEmbeddedDocuments = async (_kind, datas, options = {}) => {
+    actor.created.push({ datas: structuredClone(datas), options });
+    // The server refuses a kept id the collection already holds.
+    if (options.keepId) for (const data of datas) if (data._id && actor.items.has(data._id)) throw new Error(`The _id [${data._id}] already exists within the parent collection`);
     actor.writes++;
     return datas.map(add);
   };
@@ -1456,6 +1460,49 @@ await test("a reduce that is refused or throws deletes the copy again, so a divi
   await assert.rejects(() => divideStack(thrown, 1), /write failed/);
   assert.equal(hero.items.size, 2, "the copy is gone and the error is the caller's");
   assert.equal(thrown.system.quantity, 3, "the stack is as it was");
+});
+await test("a divide's copy takes an id derived from the state read and is created with keepId", async () => {
+  const stack = (modifiedTime) => ({ _id: "sp", name: "Spears", type: "weapon", system: { cost: 1, weight6: 1, equipped: false, quantity: 5 }, flags: {}, _stats: { modifiedTime } });
+  const first = makeActor({ id: "one", items: [stack(1000)] });
+  const twin = makeActor({ id: "two", items: [stack(1000)] });
+  const later = makeActor({ id: "three", items: [stack(2000)] });
+  const made = await divideStack(first.items.get("sp"), 2);
+  await divideStack(twin.items.get("sp"), 2);
+  await divideStack(later.items.get("sp"), 2);
+  assert.match(made.id, /^[a-zA-Z0-9]{16}$/, "the copy's id is a Foundry id");
+  assert.deepEqual(first.created[0].options, { keepId: true }, "created with keepId");
+  assert.equal(first.created[0].datas[0]._id, made.id);
+  assert.equal(twin.created[0].datas[0]._id, made.id, "two calls from the same state make the same id");
+  assert.notEqual(later.created[0].datas[0]._id, made.id, "a stack updated since reads a different id");
+  const other = makeActor({ id: "four", items: [stack(1000)] });
+  await divideStack(other.items.get("sp"), 3);
+  assert.equal(other.created[0].datas[0]._id, made.id, "another count divided off the same state is the same id, so the two seats' copies collide");
+});
+await test("a divide whose create is refused because the other seat's copy is there writes nothing and resolves null", async () => {
+  const data = { _id: "sp", name: "Spears", type: "weapon", system: { cost: 1, weight6: 1, equipped: false, quantity: 5 }, flags: {}, _stats: { modifiedTime: 1000 } };
+  const hero = makeActor({ id: "hero", items: [data] });
+  // The second seat's handle on the row, as it read it before the first seat's divide landed.
+  const seatB = makeItem(data, hero);
+  const winner = await divideStack(hero.items.get("sp"), 2);
+  assert.ok(winner, "the first seat's divide lands");
+  assert.equal(hero.items.get("sp").system.quantity, 3);
+  let reduced = 0;
+  seatB.update = async () => (reduced++, seatB);
+  assert.equal(await divideStack(seatB, 2), null, "the refused create resolves null");
+  assert.equal(hero.items.size, 2, "no second copy");
+  assert.equal(reduced, 0, "and the stack is not reduced again");
+});
+await test("a divide whose create fails for any other reason rethrows and does not reduce the stack", async () => {
+  const hero = makeActor({ id: "hero", items: [{ _id: "sp", name: "Spears", type: "weapon", system: { cost: 1, weight6: 1, equipped: false, quantity: 5 }, flags: {}, _stats: { modifiedTime: 1000 } }] });
+  const stack = hero.items.get("sp");
+  hero.createEmbeddedDocuments = async () => {
+    throw new Error("permission denied");
+  };
+  let updated = 0;
+  stack.update = async () => (updated++, stack);
+  await assert.rejects(() => divideStack(stack, 2), /permission denied/);
+  assert.equal(updated, 0, "no reduce is written");
+  assert.equal(stack.system.quantity, 5);
 });
 await test("a divide that would leave either side empty is refused and writes nothing", async () => {
   const sword = { _id: "sw", name: "Sword", type: "weapon", system: { cost: 10, weight6: 6, equipped: true } };

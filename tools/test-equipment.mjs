@@ -2585,9 +2585,11 @@ check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quan
   const { splitOne, restack, canSplit } = await import(new URL("item-sheet/stack.mjs", S));
   const writes = [];
   const made = [];
-  const mkRow = (name, type, qty, { flags = {}, items = [] } = {}) => {
+  const madeOptions = [];
+  const taken = new Set();
+  const mkRow = (name, type, qty, { flags = {}, items = [], stats = undefined } = {}) => {
     const row = {
-      id: `${name}-id`, name, type,
+      id: `${name}-id`, name, type, ...(stats ? { _stats: stats } : {}),
       system: { cost: 0, weight6: 0, quantity: qty, ...(type === "weapon" ? { equipped: false } : {}) },
       flags: { "acks-extras": { gear: { slots: ["worn"] }, ...flags } },
       getFlag: (m, k) => row.flags[m]?.[k],
@@ -2596,8 +2598,11 @@ check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quan
       update: async (u) => { writes.push(u); },
       delete: async () => { writes.push("deleted"); },
       parent: {
-        items: Object.assign(items, { get: (id) => items.find((i) => i.id === id) }),
-        createEmbeddedDocuments: async (_kind, rows) => {
+        items: Object.assign(items, { get: (id) => items.find((i) => i.id === id), has: (id) => taken.has(id) }),
+        createEmbeddedDocuments: async (_kind, rows, options = {}) => {
+          if (options.keepId) for (const r of rows) if (taken.has(r._id)) throw new Error("already exists within the parent collection");
+          if (options.keepId) for (const r of rows) taken.add(r._id);
+          madeOptions.push(options);
           made.push(...rows);
           return rows.map((r) => ({ ...r, id: "split-id", getFlag: (m, k) => r.flags?.[m]?.[k], update: async () => {} }));
         },
@@ -2610,6 +2615,26 @@ check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quan
   const stack = mkRow("Gloves", "item", 3);
   const one = await splitOne(stack);
   check("the split row is one, as a plain number, and the stack keeps the rest", !!one && made[0].system.quantity === 1 && JSON.stringify(writes) === JSON.stringify([{ "system.quantity": 2 }]));
+  check("a row carrying no version is split under an id of the server's own", !("_id" in made[0]) && JSON.stringify(madeOptions[0]) === "{}");
+  // Two seats splitting one stack from one state: the second create is refused and that seat moves nothing.
+  made.length = 0;
+  writes.length = 0;
+  const seatA = mkRow("Boots", "item", 3, { stats: { modifiedTime: 7000 } });
+  const seatB = mkRow("Boots", "item", 3, { stats: { modifiedTime: 7000 } });
+  const afterwards = mkRow("Boots", "item", 3, { stats: { modifiedTime: 7001 } });
+  const splitA = await splitOne(seatA);
+  check("a split from a versioned row takes an id derived from that state and keeps it", !!splitA && /^[a-zA-Z0-9]{16}$/.test(made[0]._id) && madeOptions.at(-1).keepId === true);
+  writes.length = 0;
+  const splitB = await splitOne(seatB);
+  check("the second seat's split of the same state is refused: it resolves null and writes nothing", splitB === null && writes.length === 0 && made.length === 1);
+  const splitC = await splitOne(afterwards);
+  check("a stack updated since reads a different id and splits", !!splitC && made.length === 2 && made[1]._id !== made[0]._id);
+  seatB.parent.createEmbeddedDocuments = async () => { throw new Error("permission denied"); };
+  seatB.parent.items.has = () => false;
+  let failedSplit = null;
+  writes.length = 0;
+  await splitOne(seatB).catch((err) => { failedSplit = err; });
+  check("a create that fails for another reason rethrows and writes nothing", failedSplit?.message === "permission denied" && writes.length === 0);
   writes.length = 0;
   const home = mkRow("Gloves", "item", 2);
   const back = mkRow("Gloves", "item", 1, { flags: { splitFrom: home.id } });
@@ -2626,25 +2651,28 @@ check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quan
   const keepsInstances = (x) => (x === null || typeof x !== "object" ? x : Array.isArray(x) ? x.map(keepsInstances) : x.constructor !== Object ? x : Object.fromEntries(Object.entries(x).map(([k, v]) => [k, keepsInstances(v)])));
   foundry.utils.deepClone = keepsInstances;
   const holderOf = (items) => {
+    const kept = new Set();
     const holder = {
       documentName: "Actor",
-      items: Object.assign(items, { get: (id) => items.find((i) => i.id === id) }),
-      createEmbeddedDocuments: async (_kind, rows) => {
+      items: Object.assign(items, { get: (id) => items.find((i) => i.id === id), has: (id) => kept.has(id) }),
+      createEmbeddedDocuments: async (_kind, rows, options = {}) => {
+        if (options.keepId) for (const r of rows) if (kept.has(r._id)) throw new Error("already exists within the parent collection");
+        if (options.keepId) for (const r of rows) kept.add(r._id);
         const made = rows.map((r, n) => {
-          const row = { ...r, id: `rest${n}`, parent: holder, getFlag: (m, k) => r.flags?.[m]?.[k], toObject: () => structuredClone(r), update: async () => row, delete: async () => { log.push(["delete", row.id]); } };
+          const row = { ...r, id: r._id ?? `rest${n}`, parent: holder, getFlag: (m, k) => r.flags?.[m]?.[k], toObject: () => structuredClone(r), update: async () => row, delete: async () => { log.push(["delete", row.id]); } };
           return row;
         });
-        for (const m of made) log.push(["create", structuredClone({ ...m, parent: undefined, toObject: undefined, update: undefined, delete: undefined, getFlag: undefined })]);
+        for (const m of made) log.push(["create", structuredClone({ ...m, parent: undefined, toObject: undefined, update: undefined, delete: undefined, getFlag: undefined }), options]);
         return made;
       },
     };
     return holder;
   };
-  const stackOf = ({ qty = 3, type = "weapon", equipped = false, flags = {}, effects = [], refuse = false, throws = false, items = [] } = {}) => {
+  const stackOf = ({ qty = 3, type = "weapon", equipped = false, flags = {}, effects = [], refuse = false, throws = false, items = [], stats = undefined } = {}) => {
     const src = { name: "Sword", type, system: { cost: 0, weight6: 0, ...(type === "weapon" || type === "armor" ? { equipped } : {}), quantity: qty }, flags: { "acks-extras": { ...flags } } };
     const holder = holderOf(items);
     const row = {
-      id: "row", ...src, effects, parent: holder,
+      id: "row", ...src, effects, parent: holder, ...(stats ? { _stats: stats } : {}),
       getFlag: (m, k) => row.flags[m]?.[k],
       toObject: () => structuredClone({ name: row.name, type: row.type, system: row.system, flags: row.flags }),
       update: async (u) => {
@@ -2699,6 +2727,35 @@ check("consumeItem clamps at zero", (await consumeItem(trackItem("Torch", { quan
   let failed = null;
   await takeOneToEquip(failingRow, equip).catch((err) => { failed = err; });
   check("a write that throws deletes the rest and the error reaches the caller", failed?.message === "write failed" && log.at(-1)[0] === "delete");
+
+  // Two seats equipping one stack in the same moment: the copy's id is a pure function of the state both read.
+  log.length = 0;
+  const seatA = stackOf({ qty: 3, stats: { modifiedTime: 9000 } });
+  const seatB = stackOf({ qty: 3, stats: { modifiedTime: 9000 } });
+  seatB.parent = seatA.parent;
+  const restA = await takeOneToEquip(seatA, equip);
+  check("the rest take an id derived from the state read and are created keeping it", /^[a-zA-Z0-9]{16}$/.test(restA?.id) && log[0][1]._id === restA.id && log[0][2].keepId === true);
+  log.length = 0;
+  const restB = await takeOneToEquip(seatB, equip);
+  check("the second seat's create is refused because the first seat's rest is there: it resolves null and writes nothing", restB === null && log.length === 0);
+  const { divideStack } = await import(new URL("../lib/item-model.mjs", S));
+  const seatC = stackOf({ qty: 3, stats: { modifiedTime: 9000 } });
+  seatC.parent = seatA.parent;
+  log.length = 0;
+  const otherCount = await divideStack(seatC, 1);
+  check("a third seat dividing a different count off the same state is refused alike and writes nothing", otherCount === null && log.length === 0);
+  log.length = 0;
+  const later = stackOf({ qty: 3, stats: { modifiedTime: 9001 } });
+  later.parent = seatA.parent;
+  const restLater = await takeOneToEquip(later, equip);
+  check("a stack updated since reads a different id and divides", !!restLater && restLater.id !== restA.id && log.some((l) => l[0] === "update"));
+
+  log.length = 0;
+  const broken = stackOf({ qty: 3, stats: { modifiedTime: 9000 } });
+  broken.parent.createEmbeddedDocuments = async () => { throw new Error("permission denied"); };
+  let denied = null;
+  await takeOneToEquip(broken, equip).catch((err) => { denied = err; });
+  check("a create that fails for another reason rethrows, and the stack is not reduced", denied?.message === "permission denied" && !log.some((l) => l[0] === "update"));
 
   foundry.utils.deepClone = plainClone;
 }

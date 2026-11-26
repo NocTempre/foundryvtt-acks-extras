@@ -493,10 +493,12 @@ async function takeHeld(held, qty) {
 
 /**
  * Hand purchased goods to their buyer through `lib/bundles.mjs`: `qty` counts
- * units and `goodsForRow` makes the row: every Physical Item arrives as one
- * row holding `qty` (thirty swords are one row of thirty, as the system's own
+ * units and `goodsForRow` makes the rows: a Physical Item arrives as one row
+ * holding `qty` (thirty swords are one row of thirty, as the system's own
  * bundle drop makes it) and folds into an identical resting row the buyer
- * carries. Never as a bundle: no actor sheet lists an embedded one.
+ * carries, but gear with Active Effects of its own arrives as a row per unit,
+ * each of them never folded. Never as a bundle: no actor sheet lists an
+ * embedded one.
  */
 export async function deliverGoods(buyer, { entry, qty }) {
   const data = foundry.utils.deepClone(entry.data);

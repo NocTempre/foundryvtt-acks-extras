@@ -2851,3 +2851,59 @@ facts are the GM's own roll and are never taken from a post.
 
 Rejected: building `burstFuse`'s card through the same function now (its walk
 is owed, and a refactor under an unwalked surface buys nothing).
+
+## 2026-11-26 — Gear with Active Effects of its own arrives as a row per unit (T-0745, T-0763)
+
+Refines "A weapon or a suit of armour folds into a stack, and equipping takes
+one from it" (2026-11-24), less than seven days old, whose Cost paragraph says
+gear with Active Effects of its own "now moves whole". The new evidence: bug
+rows T-0745 and T-0763 found that such gear bought or landed in a count arrived
+as one row of n, which could neither be divided nor equipped one at a time, so
+the Judge held a stack nobody could draw from. The hub's call: "Gear with its
+own effects stays outside stacks (the S1c rule stands). `goodsForRow` lands n
+such units as n rows of one, so each equips alone."
+
+**Ruled.** `goodsForRow` returns `count` separate rows of one, each its own
+clone, for a Physical Item whose data carries Active Effects of its own, and
+`goodsForDrop` inherits it. A bundle row, a purchase, a dropped counted row and
+the character PDF all land through it. `isStackable` and `canDivide` are
+unchanged: such a row never divides, folds or joins, and `stackSignature` stays
+null for it, so `deliverItems` and `planEmbeddedUnpack` create each row.
+
+**Rejected.** Keeping one row of n: it is the stuck stack above. Making rows
+with effects stackable: dividing a row copies its effects with it, so
+the two rows would apply one effect twice.
+
+**Cost.** n rows on the sheet for n units. Rows of n already in a world are not
+migrated; the count field stays the manual way to change one, and a row of n
+equips whole as before.
+
+## 2026-11-26 — A divide's copy has an id derived from the state read, so two seats make one (T-0761)
+
+`oneAtATime` queues per client and `inFlight` is local to one, so two seats
+equipping, dividing or splitting the same stack in the same moment each read the
+old count, each created a copy and each reduced the stack to one figure: a
+unit's worth was duplicated. The owner: "Bugs: just fix them."
+
+**Ruled.** The copy's `_id` is a pure function of what both seats read, `seededId`
+over `<row id>|<_stats.modifiedTime>|<count held>`, and the create asks for
+`keepId`. What the copy is for stays out of the seed, so two seats that read
+one state make one copy whatever count each divides off, and a split racing a
+divide is refused alike. Foundry's server refuses a
+create whose `_id` is already in the parent collection, so the second seat's
+create fails; it finds the id on the holder, resolves null and writes nothing,
+and the first seat's divide stands. `modifiedTime` is in the seed so a copy left
+by an earlier divide never collides: every update of the stack moves it. A row
+with no finite `modifiedTime` (a mock, odd data) takes an id of the server's own,
+as before. Every divide takes this path: the equip divert, the sheet's Divide
+control and `splitOne`. Any other create failure rethrows and the stack is not
+reduced.
+
+**Rejected.** A lock or flag on the stack: a second write for the other seat to
+race, and a flag stranded by a seat that dies. Reading the stack again after the
+create: the window is the create itself.
+
+**Cost.** The losing seat's press does nothing, and it presses again on the
+state the winner left. Mocks prove
+the id and the refusal handling; whether the server refuses the second create as
+this entry says is read from its source and owed a live two-seat walk.

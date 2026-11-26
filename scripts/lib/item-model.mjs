@@ -11,6 +11,7 @@ import { MODULE_ID, FLAG_GEAR, VARIATION_TYPE } from "./constants.mjs";
 import { WEAR_SLOTS, slotCapacity, ITEM_TYPE, PHYSICAL_ITEM_TYPES } from "./vocab.mjs";
 import { containedInOf, quantityOf, isStackable, stackSignature } from "./storage-logic.mjs";
 import { setPath } from "./dotted-path.mjs";
+import { copyIdFor, createCopyBeside } from "./stack-copy.mjs";
 
 const F = () => foundry.data.fields;
 
@@ -378,6 +379,11 @@ export function canDivide(item) {
  * short leaves a duplicate and never a loss; a reduce that is refused or throws
  * deletes the copy again. Nothing is written unless the row can be divided
  * (`canDivide`) and the count falls strictly inside the stack.
+ *
+ * The copy's id is derived from the state read (`copyIdFor`) and created with
+ * `keepId`, so two seats dividing one stack in the same moment make one copy:
+ * the server refuses the second create, and that seat resolves to null and
+ * writes nothing, the other seat's divide standing.
  * @param {Item} item the stack
  * @param {number} count how many go to the new row
  * @param {{also?: object}} [opts] `also` is a pending change to the stack
@@ -394,7 +400,7 @@ export async function divideStack(item, count, { also = null } = {}) {
   foundry.utils.setProperty(copy, q.path, take);
   if (copy.system && "quantitybank" in copy.system) copy.system.quantitybank = 0;
   if (copy.flags?.[MODULE_ID]?.[FLAG_GEAR]?.wornAt) copy.flags[MODULE_ID][FLAG_GEAR].wornAt = "";
-  const [made] = await item.parent.createEmbeddedDocuments("Item", [copy]);
+  const made = await createCopyBeside(item, copy, copyIdFor(item, q.value));
   if (!made) return null;
   // A pending change is the expanded object a hook was handed, so the count
   // joins it as a nested key; with none, the count is the whole write.

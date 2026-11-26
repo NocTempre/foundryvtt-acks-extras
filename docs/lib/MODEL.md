@@ -1214,7 +1214,13 @@ would have refused, the payment is made and the Judge is told which refusal
 was waived. A payment no user declares, a sweep, passes nothing and is gated.
 
 **Dividing and joining.** `divideStack(item, count)` copies the row at
-`count` beside itself and reduces the original. `joinStacks(item, onto)` adds
+`count` beside itself and reduces the original. The copy's id is derived from
+the row, its `_stats.modifiedTime` and the count it held
+(`stack-copy.mjs` `copyIdFor`, over `util.mjs` `seededId`) and the create keeps
+it, so two seats dividing one stack in the same moment, by any counts, make the same id and the
+server refuses the second create: that seat resolves null and writes nothing,
+and the first seat's divide stands. A row with no numeric `modifiedTime` takes an
+id of the server's own. The equipment sheet's `splitOne` is made the same way. `joinStacks(item, onto)` adds
 one row to another of the same kind, owner and container, and removes it.
 Both write the gaining side first, so a write cut short leaves a duplicate
 and never a loss. Two rows of one kind are a state the holder may have
@@ -1420,11 +1426,13 @@ sheet lists an embedded one. So nothing embeds one:
   type, and a row neither finds is named in a warning while the rest arrive.
   A row delivers the units core's own drop makes of it
   (`_createBundleEntryItem`): coin and every Physical Item as one document
-  holding the row's count, a weapon and armour included. The bundle is read,
-  never consumed.
+  holding the row's count, a weapon and armour included, except gear carrying
+  Active Effects of its own, which arrives as a row of one per unit
+  (`goodsForRow`) and is never folded into another. The bundle is read, never
+  consumed.
 - **A market purchase** (`markets/engine/trade.mjs` `deliverGoods`) counts
-  units, so it hands over one stack of the quantity bought or that many
-  copies, through the same `deliverItems`.
+  units, so it hands over one stack of the quantity bought, or a row per unit
+  for gear with Active Effects of its own, through the same `deliverItems`.
 - **A bundle already embedded**, which a path that wrote it whole leaves
   behind, is opened where it lies by `unpackEmbeddedBundle` (the
   repair tool's `lib.embeddedBundles`). It writes three times: the stack
