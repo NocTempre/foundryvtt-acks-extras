@@ -71,7 +71,7 @@ t("the tables are the tab's state, each row named by its label, its role or its 
   assert.deepEqual(c.parts.map((r) => r.key), ["archers", "leader-chief", "mounts", "pen-lair"]);
   assert.deepEqual(c.states.map((s) => [s.key, s.active]), RECIPE_STATES.map((s) => [s, s === "lair"]));
   assert.equal(c.parts[0].name, "archers");
-  assert.equal(c.partsLabel, format(K("parts.count"), { n: 4 }));
+  assert.equal(c.partsLabel, format(K("partsCount"), { n: 4 }));
   assert.ok(c.partsTip.includes("XX p. 1") && c.head.tip.includes("XX p. 1"));
   assert.ok(ctxOf({ cite: "" }).head.tip.length > 0, "the hand count carries a tooltip with no page too");
   assert.equal(c.parts[0].muted, false);
