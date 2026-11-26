@@ -166,7 +166,7 @@ const BEASTMAN_TRAIT_RULES = {
     { page: 0, column: { xMin: 300, xMax: 590 }, yMin: 232, yMax: 620 },
   ],
   values: [
-    { key: "damage", find: "", take: "breedDice", verb: "deals?", span: 4000 },
+    { key: "naturalDice", find: "", take: "breedDice", verb: "deals?", span: 4000 },
     { key: "outnumber", find: "outnumber", take: "ratio", span: 40 },
     { key: "attack", find: "to all attack throws", before: true, take: "signed", span: 6 },
     { key: "damage", find: "damage rolls", before: true, take: "signed", span: 30 },

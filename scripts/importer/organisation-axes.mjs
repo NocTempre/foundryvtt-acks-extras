@@ -114,13 +114,13 @@ export function organisationAxes({ options, axes, cells, org, labels = {}, out =
 
 /**
  * The cells of a trait whose table row lists natural attacks per breed (its
- * `damage` figure a map of breed to dice): one `variant|trait` cell for each
+ * `naturalDice` figure, a map of breed to dice): one `variant|trait` cell for each
  * breed the map holds a non-empty list for. The cell marks variant and trait;
  * the dice are read at generation.
  */
 function naturalAttackCells({ keys, cells, org }) {
   for (const row of org.traitRules?.rows ?? []) {
-    const dice = row.figures?.damage;
+    const dice = row.figures?.naturalDice;
     if (!dice || typeof dice !== "object" || Array.isArray(dice)) continue;
     for (const key of keys) {
       if (!Array.isArray(dice[key]) || !dice[key].length) continue;

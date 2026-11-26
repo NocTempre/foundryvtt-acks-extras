@@ -782,7 +782,8 @@ const FIGURE_KINDS = {
   swigs: isDiceText, ac: isSigned, reductionPerDie: Number.isInteger, delayTurns: Number.isInteger, bonus: isSigned,
   outnumberedMorale: isSigned, targetCondition: isPlainText, targetBand: isPlainText, waivesCharge: isPlainText, waivesRun: isPlainText,
   outnumber: (v) => Array.isArray(v) && v.length === 2 && v.every(Number.isInteger),
-  damage: (v) => Number.isInteger(v) || isDiceText(v) || (v && typeof v === "object" && Object.values(v).every((d) => Array.isArray(d) && d.length > 0 && d.every(isText))),
+  damage: (v) => Number.isInteger(v) || isDiceText(v),
+  naturalDice: (v) => !!v && typeof v === "object" && Object.values(v).every((d) => Array.isArray(d) && d.length > 0 && d.every(isText)),
   blast: (v) => Array.isArray(v) && v.length > 1 && v.every((b) => Number.isInteger(b.lb) && isDiceText(b.dice) && Number.isInteger(b.radius) && Array.isArray(b.types) && b.types.length > 0 && b.types.every((t) => DAMAGE_TYPES[t])),
 };
 const READS = {};
@@ -805,7 +806,7 @@ const paragraphRows = (out, recipe, fail, { counts, keysFrom }) => {
     }
     for (const k of ["ranks", "troops", "kinds"]) if (row[k] !== undefined && !(Array.isArray(row[k]) && row[k].length && row[k].every(isText))) fail(`${n}: ${k} is not a list of keys`);
     for (const rank of row.ranks ?? []) if (!ROLE_ORDER.includes(rank)) fail(`${n}: ${rank} is not a role key`);
-    for (const breed of [...Object.keys(row.mounts ?? {}), ...Object.keys(row.alongside ?? {}), ...Object.keys(row.sizes ?? {}), ...(row.damage && typeof row.damage === "object" ? Object.keys(row.damage) : [])]) {
+    for (const breed of [...Object.keys(row.mounts ?? {}), ...Object.keys(row.alongside ?? {}), ...Object.keys(row.sizes ?? {}), ...Object.keys(row.naturalDice ?? {})]) {
       if (!FAMILY_VARIANT_KEYS.has(breed)) fail(`${n}: ${breed} is not a Variant key of the family`);
     }
     for (const c of Array.isArray(row.carry) ? row.carry : []) if (!isPct(c.pct) || (c.scope !== undefined && !["gang", "warband", "village", "lair"].includes(c.scope))) fail(`${n}: a carry chance has an unexpected shape`);

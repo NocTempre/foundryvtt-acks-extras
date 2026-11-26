@@ -265,7 +265,7 @@ check("the word keeps the page's case", read(["the LONGHOUSE stands"], [{ key: "
       { key: "proficiency", findRe: "may ([a-z]+) \\(as the proficiency\\)", group: 1, take: "text" },
       { key: "proficiency", findRe: "can ([a-z]+) \\(as the proficiency\\)", group: 1, take: "text" },
       { key: "mounts", find: "", take: "byBreed", verb: "ride", span: 4000 },
-      { key: "damage", find: "", take: "breedDice", verb: "deals?", span: 4000 },
+      { key: "naturalDice", find: "", take: "breedDice", verb: "deals?", span: 4000 },
       { key: "ranks", find: "", take: "ranks", span: 4000 },
       { key: "chance", find: "", take: "chances", span: 4000 },
       { key: "sizes", find: "", take: "respectively", unit: "lb", span: 4000 },
@@ -286,7 +286,7 @@ check("the word keeps the page's case", read(["the LONGHOUSE stands"], [{ key: "
     JSON.stringify(got.wrangler.carry) === '{"tinBell":17,"ropeLantern":17}');
   check("a take naming breeds reads the page's header words", JSON.stringify(got.wrangler.mounts) === '{"kell":"marsh herons","dorn":"river pike"}');
   check("a clause names its breeds and prints one figure per attack, as printed",
-    JSON.stringify(got.sleeper.damage) === '{"kell":["2d5-1","2d5","2d7"],"dorn":["3","3","2d9"]}');
+    JSON.stringify(got.sleeper.naturalDice) === '{"kell":["2d5-1","2d5","2d7"],"dorn":["3","3","2d9"]}');
   check("a rank word, plural, hyphenated or split at a line end, is the module's role key",
     JSON.stringify(got.sleeper.ranks) === '["champion","subChieftain","witchDoctor"]');
   check("a chance carries its scope and per-Hit-Die mark", JSON.stringify(got.sleeper.chance) === '[{"pct":7,"perHitDie":true,"scope":"warband"}]');

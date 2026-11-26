@@ -69,9 +69,9 @@ const org = {
   traitRules: {
     cite: "XX p. 3",
     rows: [
-      { key: "ta", label: "Trait A", figures: { damage: { alba: ["1d2-1", "1d2-1", "3"], brex: [] } } },
+      { key: "ta", label: "Trait A", figures: { naturalDice: { alba: ["1d2-1", "1d2-1", "3"], brex: [] } } },
       { key: "tb", label: "Trait B", figures: { damage: 1, morale: -1, outnumber: [2, 1] } },
-      { key: "tc", label: "Trait C", figures: { morale: 2, damage: 1, proficiency: "Quill work", proficiencyRanks: 2 } },
+      { key: "tc", label: "Trait C", figures: { morale: 2, damage: 1, naturalDice: { brex: ["1d4"] }, proficiency: "Quill work", proficiencyRanks: 2 } },
       { key: "td", label: "Trait D", figures: { armourBump: 1 } },
     ],
   },
@@ -117,7 +117,7 @@ organisationAxes({ ...t, org, labels });
 const keysOf = (axisKey) => t.cells.filter((c) => c.by.includes(axisKey)).map((c) => c.key).sort();
 eq("table cells exist where the leader table has a cell for the breed and the rank", t.cells.filter((c) => c.key.endsWith("|table")).map((c) => c.key).sort(), ["alba|champion|table", "alba|chieftain|table", "brex|chieftain|table"]);
 eq("a table cell is keyed by variant, role and source, and marks variant and role only", [t.cells.find((c) => c.key === "alba|champion|table").by, t.cells.find((c) => c.key === "alba|champion|table").flags[MID].extras.organisation.grade, t.cells.find((c) => c.key === "alba|champion|table").merge], [["variant", "role", SOURCE_AXIS], { variant: "alba", role: "champion" }, {}]);
-eq("a natural-attack cell exists for the breed whose list is non-empty, and none for the breed with an empty list", keysOf(TRAIT_AXIS), ["alba|ta"]);
+eq("a natural-attack cell exists for the breed whose list is non-empty, and none for the breed with an empty list", keysOf(TRAIT_AXIS), ["alba|ta", "brex|tc"]);
 eq("the role axis lists the ranks the table prints", t.axes.find((a) => a.key === "role").options.map((o) => o.key), ["standard", "champion", "chieftain"]);
 eq("a template naming no role gets the name format of a role", t.out.nameFormat, "{variant} {role}");
 
@@ -448,6 +448,9 @@ resolved = marked("alba");
 applyGeneratedOrganisation(resolved, { choices: { trait: "ta", role: "standard" }, org, loc: (k, v) => `${v.label} ${v.n}` });
 eq("a marked cell gives the breed's natural attacks, named from the trait's label", resolved.items.map((i) => [i.name, i.system.damage.base.formula]), [["Trait A 1", "1d2-1"], ["Trait A 2", "1d2-1"], ["Trait A 3", "3"]]);
 check("and records how many", resolved.flags[MID].extras.organisation.natural.count === 3);
+resolved = { system: { ac: { value: 5 }, details: {}, damage: { mod: { melee: 0, missile: 0 } } }, flags: { [MID]: { extras: { organisation: { naturalAttacks: { variant: "brex", trait: "tc" } } } } }, items: [] };
+applyGeneratedOrganisation(resolved, { choices: { trait: "tc", role: "standard" }, org, loc: (k, v) => `${v.label} ${v.n}`, findProficiency: () => null });
+eq("a trait carrying both a damage bonus and a breed's natural dice writes the bonus and mints the attacks", [resolved.system.damage.mod.melee, resolved.items.filter((i) => i.type === "weapon").map((i) => i.system.damage.base.formula)], [1, ["1d4"]]);
 resolved = marked("brex");
 applyGeneratedOrganisation(resolved, { choices: { trait: "ta", role: "standard" }, org });
 check("a breed whose list is empty gets no item", resolved.items.length === 0);

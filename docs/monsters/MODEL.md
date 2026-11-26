@@ -673,8 +673,8 @@ already mint, so no troop, trait or item name is in source:
   paragraph `hookedWeapon` reads its maneuver figures from carries `figuresFrom:
   "hookedWeapon"` and only who and how often; the figures are read there.
 - `beastmanTraitRules` (MM p. 57): a row per row of `beastmanTraits`, under its
-  key. Fields: `damage` (a bonus, or `{breedKey: [printed die text per
-  attack]}`), `attack`, `morale`, `armourBump`, `outnumber` (`[allies,
+  key. Fields: `damage` (a bonus), `naturalDice` (`{breedKey: [printed die
+  text per attack]}`, the natural attacks a marked cell mints), `attack`, `morale`, `armourBump`, `outnumber` (`[allies,
   opponents]`), `round`, `strategy`, `proficiency`, `proficiencyRanks`,
   `treasurePct`, `beastDice`, `saveKind`, `condition`, `immunityTurns`,
   `durationTurns`, `durationMinutes`, `subjectKinds` (the words naming who the

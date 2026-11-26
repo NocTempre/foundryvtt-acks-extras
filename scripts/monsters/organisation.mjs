@@ -821,7 +821,7 @@ export function applyGeneratedOrganisation(resolved, { choices = {}, org = impor
 
   // Natural attacks a cell marked: one weapon per die the trait's table lists for the breed.
   if (marks?.naturalAttacks && trait) {
-    const dice = r.damage && typeof r.damage === "object" ? r.damage[marks.naturalAttacks.variant] : null;
+    const dice = r.naturalDice?.[marks.naturalAttacks.variant] ?? null;
     const made = naturalAttackItems(dice, (n) => loc("organisation.natural", { label: trait.label, n }));
     if (made.length) (resolved.items ??= []).push(...made);
     record.natural = { trait: trait.key, count: made.length };
