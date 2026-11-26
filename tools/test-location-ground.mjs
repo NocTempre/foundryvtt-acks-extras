@@ -920,8 +920,8 @@ await ok("the system sheet's Storage tab treats a pile as the Equipment tab does
   const tab = read("../scripts/location/apps/storage-tab.mjs");
   const tpl = read("../templates/location/storage-tab.hbs");
   assert.match(tab, /canDeposit: !ground && /, "a pile takes no deposit, a Judge's included");
-  assert.match(tab, /canOpen: !ground \|\| !!game\.user\?\.isGM/, "and opens for a Judge only");
-  assert.match(tab, /if \(isGroundPile\(place\) && !game\.user\?\.isGM\) break;/, "the open handler refuses a Player too");
+  assert.match(tab, /canOpen: !ground \|\| provider\.testUserPermission\(game\.user, "OBSERVER"\)/, "and opens for a seat that observes it");
+  assert.match(tab, /if \(isGroundPile\(place\) && !place\.testUserPermission\(game\.user, "OBSERVER"\)\) break;/, "the open handler refuses a seat that does not");
   assert.match(tab, /\.filter\(\(p\) => !isGroundPile\(p\) && /, "a pile with none of the character's goods is not listed");
   assert.match(tab, /if \(isGroundPile\(dropped\)\) return void ui\.notifications\.warn/, "a pile dropped on a sheet is not pinned");
   assert.match(tpl, /\{\{#if place\.canOpen\}\}/, "the template reads canOpen");

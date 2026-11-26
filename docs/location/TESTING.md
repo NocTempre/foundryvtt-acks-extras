@@ -30,7 +30,9 @@ by hand.
   seat. Every step starts by bringing them to its shape from the Judge seat:
   the scene and both places unlinked (flag unset, mirrors empty) and the
   Player at the level the step names, written one document at a time with
-  `doc.update({"ownership.<playerId>": level})`. The fixtures are kept.
+  `doc.update({"ownership.<playerId>": level})`. The fixtures are kept. The
+  storage group of step 29 adds `location/owner-hero`, a character created with
+  the same ownership, whose rope row on place A is its claimant fixture.
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -521,7 +523,10 @@ by hand.
     spoil sits on the hero, still a spoil. The section reads
     `game.users.activeGM` on the asking seat in the same call as the retrieval,
     since a higher-role GM seat that joins mid-walk takes the relay. Its
-    recorder check is step 23's.
+    recorder check is step 23's. The Player seat's retrieval can also run from
+    the place's own Storage tab, which shows at OBSERVER: press *Take* on the
+    spoil row once it is unlocked (the same relayed `retrieve`); while it is
+    locked the row has no *Take*. Step 29's storage group walks that tab.
     The fixtures are kept; the walk builds nothing a sweep removes.
 
 26. **A Judge named as an owner is no one's player.**
@@ -654,6 +659,25 @@ by hand.
       place is observed warns and changes nothing. At OBSERVER of the scene no
       row is drawn. The Judge seat's row carries the new-place button and every
       place.
+    *The Storage tab at OBSERVER* (the `groupStorage` steps; fixture
+    `location/owner-hero`, a character the Player owns). Each step starts by
+    bringing place A to its shape from the Judge seat: the Player's level on it,
+    storage on or off, and (when on) one locked house row and one row stamped to
+    the hero, both tagged `flags.world.fixtureItem` so the next start clears them.
+    - *Player at OBSERVER, storage on:* open place A's sheet. *Observable:* the
+      Storage tab is in the nav and its body is drawn, and Things, Settings and
+      GM View are not; Hold goods, the house lock and Open manager are absent;
+      Deposit is on screen and not disabled (a non-owner's sheet disables its
+      controls, and the Storage controls are re-enabled); exactly one *Take* is
+      on the tab, on the hero's row, not disabled. Press it. *Observable:* the
+      rope is on the hero and off the place (the relayed retrieval).
+    - *Storage off, Player at OBSERVER:* the tab shows its off line and no Hold
+      goods.
+    - *Player at LIMITED:* `_prepareContext({})` answers `canSeeStorage` false,
+      and neither the nav item nor the body is on screen.
+    - *Judge seat as control:* Hold goods and Open manager with storage off; the
+      house lock and a *Take* on both rows with it on; Settings and GM View on
+      screen.
     *Not walked live:* the Region functions, whose Player-seat picker is the
     formation feature's (`tools/live/formation-seat-heads.mjs`); they are pinned
     offline in `tools/test-scene-part.mjs`. A Region carries an ownership of
@@ -662,7 +686,8 @@ by hand.
     Player who owns the scene owns none of its Regions until each is granted;
     `linkRegion` needs that grant too.
     *Teardown:* none, the fixtures are kept; the walk ends by leaving them
-    unlinked with the Player at OWNER. Offline: `tools/test-scene-part.mjs`.
+    unlinked with the Player at OWNER, storage off, no group rows. Offline:
+    `tools/test-scene-part.mjs`, `tools/test-location-seat.mjs`.
 
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin

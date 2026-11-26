@@ -12,6 +12,10 @@
  *       of the place the scene named before and the scene the place held, and
  *       the seat must own every one of them. A refusal is a warning and
  *       changes nothing.
+ *   storage: the Storage tab at OBSERVER and at LIMITED. An observer has the
+ *       tab and the controls that move the seat's own goods (Deposit, Take on
+ *       the row stamped to the seat's character) and none that write to the
+ *       place (Hold goods, the house lock, Open manager); LIMITED has no tab.
  *
  * Fixtures, kept and found by marker, each made OWNER for the Player seat and
  * brought to the shape a step needs at that step's start (the GM seat writes
@@ -19,6 +23,7 @@
  *   `location/owner-scene`    a scene with no background
  *   `location/owner-place-a`  a location with no market
  *   `location/owner-place-b`  a second one
+ *   `location/owner-hero`     a character the Player owns, the storage group's claimant
  * Every figure printed is a boolean, a count or a lang key's answer; no place
  * in the world is named.
  */
@@ -210,6 +215,105 @@ const P = {
     }
     return out;
   },
+
+  /**
+   * GM seat: bring place A and the hero to a Storage shape. The Player gets
+   * `level` on the place; every row of this group's tag is cleared from the
+   * place and the hero; storage is switched to `provider`; and, when it is on,
+   * the place holds a locked house row and a row stamped to the hero.
+   */
+  shapeStorage: async ({ aId, heroId, pid, level, provider, tag }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = acksExtras.lib.storage;
+    const house = acksExtras.lib.money.HOUSE_OWNER;
+    const place = game.actors.get(aId);
+    const hero = game.actors.get(heroId);
+    for (const doc of [place, hero]) {
+      const own = doc.items.filter((i) => i.flags?.world?.fixtureItem === tag).map((i) => i.id);
+      if (own.length) await doc.deleteEmbeddedDocuments("Item", own);
+    }
+    await place.update({ [`ownership.${pid}`]: level });
+    await S.setProvider(place, provider);
+    if (provider) {
+      const flags = { world: { fixtureItem: tag } };
+      await S.stockProvider(place, [{ name: "Owner Walk House Rope", type: "item", flags }], { ownerUuid: house, ownerName: "House" });
+      await S.stockProvider(place, [{ name: "Owner Walk Hero Rope", type: "item", flags }], { ownerUuid: hero.uuid, ownerName: hero.name });
+    }
+    await sleep(500);
+    const rows = place.items.filter((i) => i.flags?.world?.fixtureItem === tag);
+    return {
+      provider: S.isProvider(place),
+      level: place.ownership?.[pid] ?? null,
+      houseId: rows.find((i) => i.flags?.["acks-extras"]?.storage?.ownerUuid === house)?.id ?? null,
+      heroRowId: rows.find((i) => i.flags?.["acks-extras"]?.storage?.ownerUuid === hero.uuid)?.id ?? null,
+      heroCarries: hero.items.filter((i) => i.flags?.world?.fixtureItem === tag).length,
+    };
+  },
+
+  /** Player seat: wait up to five seconds for this client to hold the level and the rows a step needs. */
+  seenStorage: async ({ aId, level, rows }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const place = game.actors.get(aId);
+    const read = () => ({
+      level: ["OWNER", "OBSERVER", "LIMITED"].find((name) => place.testUserPermission(game.user, name)) ?? "NONE",
+      rows: place.items.size,
+    });
+    for (let i = 0; i < 50; i++) {
+      const now = read();
+      if (now.level === level && now.rows >= rows) break;
+      await sleep(100);
+    }
+    return { ...read(), isGM: game.user.isGM };
+  },
+
+  /**
+   * Render place A's sheet on this seat and read its Storage tab: what the
+   * context decided, whether the tab and its body are on screen, and each
+   * control with whether core left it disabled. `rows` are the ids to read a
+   * Take control on. With `press`, press that row's Take and read what landed.
+   */
+  storageView: async ({ aId, heroId, rows, press }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const place = game.actors.get(aId);
+    const sheet = place.sheet;
+    const ctx = await sheet._prepareContext({});
+    await sheet.render({ force: true });
+    for (let i = 0; i < 50 && !sheet.rendered; i++) await sleep(100);
+    if (ctx.tabs?.storage) sheet.changeTab("storage", "primary");
+    await sleep(400);
+    const root = sheet.element;
+    const body = root.querySelector('section[data-tab="storage"]');
+    const control = (selector, scope = body) => {
+      const el = scope?.querySelector(selector);
+      return el ? { present: true, disabled: !!el.disabled } : { present: false, disabled: null };
+    };
+    const out = {
+      canSeeStorage: ctx.canSeeStorage,
+      editable: !!ctx.editable,
+      tab: !!ctx.tabs?.storage,
+      nav: !!root.querySelector('nav [data-tab="storage"]'),
+      body: !!body,
+      holdsGoods: ctx.holdsGoods ?? null,
+      judgeTabs: ["things", "gmSettings", "gmView"].filter((id) => !!root.querySelector(`[data-tab="${id}"]`)),
+      deposit: control('[data-action="depositHere"]'),
+      openManager: control('[data-action="openManager"]'),
+      holdGoods: control('[data-action="holdGoods"]'),
+      lock: control('[data-action="houseRetrievable"]'),
+      take: Object.fromEntries((rows ?? []).map(([key, id]) => [key, control('[data-action="retrieveRow"]', body?.querySelector(`[data-item-id="${id}"]`))])),
+      takeCount: body ? body.querySelectorAll('[data-action="retrieveRow"]').length : 0,
+    };
+    if (press && body) {
+      const button = body.querySelector(`[data-item-id="${press}"] [data-action="retrieveRow"]`);
+      button?.click();
+      const hero = game.actors.get(heroId);
+      for (let i = 0; i < 50 && !hero.items.some((i2) => i2.name === "Owner Walk Hero Rope"); i++) await sleep(100);
+      out.pressed = !!button;
+      out.heroCarries = hero.items.filter((i2) => i2.name === "Owner Walk Hero Rope").length;
+      out.placeHolds = place.items.filter((i2) => i2.name === "Owner Walk Hero Rope").length;
+    }
+    await sheet.close();
+    return out;
+  },
 };
 
 async function run(api, fn, ...args) {
@@ -370,8 +474,71 @@ async function groupSceneLink(ctx) {
   await shape(ctx, { levels: OWN });
 }
 
+/** The tag this group's rows carry on the place and the hero. */
+const STORAGE_TAG = "location/owner-storage";
+
+/**
+ * The Storage tab shows to a seat that observes the place. Every write on it
+ * keeps its own gate: Hold goods, the house lock and Open manager stay off the
+ * Player's seat, and Take is live on the row stamped to the Player's character
+ * and on no other.
+ */
+async function groupStorage(ctx) {
+  const { gm, player, ids, pid } = ctx;
+  const { aId, heroId } = ids;
+  const take = (s) => [["house", s.houseId], ["hero", s.heroRowId]];
+  const shapeAt = async (level, provider) => {
+    const shaped = await run(gm, P.shapeStorage, { aId, heroId, pid, level, provider, tag: STORAGE_TAG });
+    const seen = await run(player, P.seenStorage, { aId, level: Object.keys(LEVEL).find((k) => LEVEL[k] === level), rows: provider ? 2 : 0 });
+    return { shaped, seen };
+  };
+  const startsRight = (s, level, provider) =>
+    !s.seen.isGM && s.shaped.provider === provider && s.shaped.level === level && s.seen.level === Object.keys(LEVEL).find((k) => LEVEL[k] === level) && (!provider || (!!s.shaped.houseId && !!s.shaped.heroRowId));
+
+  section("storage 1: a Player who observes the place has its Storage tab");
+  let s = await shapeAt(LEVEL.OBSERVER, true);
+  check("the Player seat observes a place that holds a locked house row and a row stamped to the hero", startsRight(s, LEVEL.OBSERVER, true), s);
+  let v = await run(player, P.storageView, { aId, heroId, rows: take(s.shaped) });
+  check("the context says the seat can see Storage and cannot edit the place", v.canSeeStorage === true && v.editable === false, v);
+  check("the Storage tab is in the nav and its body is drawn, and no Judge tab is", v.tab && v.nav && v.body && v.judgeTabs.length === 0, v);
+  check("Hold goods, the house lock and Open manager are not on screen", !v.holdGoods.present && !v.lock.present && !v.openManager.present, v);
+  check("Deposit is offered and live: the Player owns a character to stash from", v.deposit.present && v.deposit.disabled === false, v.deposit);
+  check("Take is live on the row stamped to the Player's character", v.take.hero.present && v.take.hero.disabled === false, v.take);
+  check("and the house's locked row has none, so one Take control is on the tab", !v.take.house.present && v.takeCount === 1, { house: v.take.house, count: v.takeCount });
+
+  section("storage 2: that Take lands through the storage relay on a place the seat does not own");
+  v = await run(player, P.storageView, { aId, heroId, rows: take(s.shaped), press: s.shaped.heroRowId });
+  check("pressing it moves the rope to the hero and off the place", v.pressed && v.heroCarries === 1 && v.placeHolds === 0, { pressed: v.pressed, hero: v.heroCarries, place: v.placeHolds });
+
+  section("storage 3: with storage off, an observer is offered no switch");
+  s = await shapeAt(LEVEL.OBSERVER, false);
+  check("the place holds no goods and the seat observes it", startsRight(s, LEVEL.OBSERVER, false), s);
+  v = await run(player, P.storageView, { aId, heroId, rows: [] });
+  check("the tab shows, and Hold goods is not on it", v.body && v.holdsGoods === false && !v.holdGoods.present, v);
+
+  section("storage 4: a Player at LIMITED has no Storage tab");
+  s = await shapeAt(LEVEL.LIMITED, true);
+  check("the Player seat is at LIMITED on a place that holds goods", startsRight(s, LEVEL.LIMITED, true), s);
+  v = await run(player, P.storageView, { aId, heroId, rows: take(s.shaped) });
+  check("the context says no, and neither the nav item nor the body is on screen", v.canSeeStorage === false && !v.tab && !v.nav && !v.body, v);
+  check("no Judge tab is on screen either", v.judgeTabs.length === 0, v.judgeTabs);
+
+  section("storage 5: the GM seat as control: every Storage control and every Judge tab");
+  s = await shapeAt(LEVEL.NONE, false);
+  check("the place holds no goods and the Player is at None, so the Judge's seat is the only reader", startsRight(s, LEVEL.NONE, false), s);
+  const gmHold = await run(gm, P.storageView, { aId, heroId, rows: [] });
+  check("with storage off, a Judge has Hold goods and Open manager", gmHold.body && gmHold.holdGoods.present && gmHold.openManager.present, gmHold);
+  s = await shapeAt(LEVEL.NONE, true);
+  check("the place holds a locked house row and the hero's row", startsRight(s, LEVEL.NONE, true), s);
+  const gmOn = await run(gm, P.storageView, { aId, heroId, rows: take(s.shaped) });
+  check("with it on, a Judge has the house lock and Take on both rows", gmOn.lock.present && gmOn.take.house.present && gmOn.take.hero.present && gmOn.openManager.present, gmOn);
+  check("and Settings and GM View are on screen", ["gmSettings", "gmView"].every((id) => gmOn.judgeTabs.includes(id)), gmOn.judgeTabs);
+  // Leave the fixtures at the shape the next group expects: the Player's OWNER, storage off, no rows.
+  await run(gm, P.shapeStorage, { aId, heroId, pid, level: LEVEL.OWNER, provider: false, tag: STORAGE_TAG });
+}
+
 /** The groups this walk runs, in order. A later slice of the recipe appends its own. */
-const GROUPS = [groupSceneLink];
+const GROUPS = [groupSceneLink, groupStorage];
 
 /* ------------------------------------------------------------------ */
 /*  The walk                                                            */
@@ -394,8 +561,9 @@ try {
   const scene = await gm.fixture("location/owner-scene", "Scene", { name: "Owner Walk Scene", ownership: own });
   const a = await gm.fixture("location/owner-place-a", "Actor", { name: "Owner Walk Place A", type: LOCATION, ownership: own });
   const b = await gm.fixture("location/owner-place-b", "Actor", { name: "Owner Walk Place B", type: LOCATION, ownership: own });
-  note("fixtures", { scene: scene.built, a: a.built, b: b.built });
-  const ctx = { gm, player, pid: pc.userId, ids: { sceneId: scene.id, aId: a.id, bId: b.id } };
+  const hero = await gm.fixture("location/owner-hero", "Actor", { name: "Owner Walk Hero", type: "character", ownership: own });
+  note("fixtures", { scene: scene.built, a: a.built, b: b.built, hero: hero.built });
+  const ctx = { gm, player, pid: pc.userId, ids: { sceneId: scene.id, aId: a.id, bId: b.id, heroId: hero.id } };
 
   for (const group of GROUPS) await group(ctx);
   walkDone();

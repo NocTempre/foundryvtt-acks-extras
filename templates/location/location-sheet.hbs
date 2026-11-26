@@ -597,7 +597,11 @@
     {{> "modules/acks-extras/templates/scene-search/keying-tab.hbs"}}
   </section>
   {{/if}}
+  {{/if}}
 
+  {{!-- Storage shows to a seat that observes the place (`tabs.storage`); the
+        controls on it that write to the place keep their own gates. --}}
+  {{#if tabs.storage}}
   <section class="tab location-tab {{tabs.storage.cssClass}}" data-group="primary" data-tab="storage">
     <div class="acks-location-storage-head">
       <h3><i class="fas fa-boxes-stacked"></i> {{localize "ACKS-LOCATION.storage.heldHere"}}</h3>
@@ -622,10 +626,12 @@
       {{/if}}
     {{else}}
       <p class="acks-location-empty">{{localize "ACKS-LOCATION.storage.storageOff"}}</p>
+      {{#if isGM}}
       <button type="button" class="acks-location-btn" data-action="holdGoods"
               data-tooltip="{{localize 'ACKS-LOCATION.storage.holdGoodsHint'}}">
         <i class="fas fa-box-open"></i> {{localize "ACKS-LOCATION.storage.holdGoods"}}
       </button>
+      {{/if}}
     {{/if}}
 
     {{#each groups as |group|}}
@@ -681,6 +687,9 @@
       </div>
     {{/each}}
   </section>
+  {{/if}}
+
+  {{#if isGM}}
   <section class="tab location-tab {{tabs.gmSettings.cssClass}}" data-group="primary" data-tab="gmSettings">
 
     {{!-- ---- The place itself: true of a chest and of a duchy alike ---- --}}

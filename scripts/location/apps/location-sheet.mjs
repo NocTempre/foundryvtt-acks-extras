@@ -79,8 +79,8 @@ function directedSpecMatches(spec, c) {
   return !!name && String(c.notes ?? "").toLowerCase().includes(name);
 }
 
-/** Controls a non-owner viewer acts through: the Trade and Ventures tabs', the Research tab's own and the X of a bucket row it draws (each authorizes per researcher and relays to a GM), and the pure-DOM candidate filters. */
-const VIEWER_CONTROLS = ':is([data-tab="trade"], [data-tab="ventures"]) :is(button, select, input), [data-research-control], [data-tab="research"] [data-bucket] button, [data-candidate-filter]';
+/** Controls a non-owner viewer acts through: the Trade and Ventures tabs', the Research tab's own and the X of a bucket row it draws (each authorizes per researcher and relays to a GM), the Storage tab's deposit and take controls (each moves goods through the storage relay, which checks the acting character), and the pure-DOM candidate filters. */
+const VIEWER_CONTROLS = ':is([data-tab="trade"], [data-tab="ventures"]) :is(button, select, input), [data-research-control], [data-tab="research"] [data-bucket] button, [data-tab="storage"] :is([data-action="depositHere"], [data-action="retrieveAll"], [data-action="retrieveRow"], input[data-pick]), [data-candidate-filter]';
 
 /** The location sub-type's sheet: identity, nesting, contents, storage and, where there is one, the market. */
 export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
@@ -210,6 +210,9 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     context.actor = actor;
     context.system = sys;
     context.isGM = game.user.isGM;
+    // Storage lists whose goods sit here and the till's total, so it shows to
+    // a seat that observes the place; every write on it has its own test.
+    context.canSeeStorage = actor.testUserPermission(game.user, "OBSERVER");
     context.hasMarket = sys.hasMarket;
     // Owners may run due processing (idempotent) so arrivals reveal
     // without waiting on a GM click; the clock itself is the GM's.
@@ -259,8 +262,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
   #prepareVisibleTabs(context) {
     const tabs = this._prepareTabs("primary");
     if (!context.hasMarket) for (const id of MARKET_TABS) delete tabs[id];
+    if (!context.canSeeStorage) delete tabs.storage;
     if (!game.user.isGM) {
-      delete tabs.storage;
       delete tabs.things;
       delete tabs.gmSettings;
       delete tabs.gmView;
@@ -1351,8 +1354,12 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     // A place holds goods only once storage is on; until then the tab offers
     // the switch and no deposit.
     context.holdsGoods = api.isProvider(actor);
-    // The deposit button needs a character this user could stash FROM.
-    context.canDeposit = context.holdsGoods && game.actors.some((a) => a.type === ACTOR_TYPE.character && a.isOwner);
+    // The deposit button needs a character this user could stash FROM, and a
+    // ground pile takes no deposit from anyone.
+    context.canDeposit =
+      context.holdsGoods &&
+      !places.isGroundPile(actor) &&
+      game.actors.some((a) => a.type === ACTOR_TYPE.character && a.isOwner);
 
     const HOUSE = acksExtras.lib?.money?.HOUSE_OWNER;
     const groups = [];

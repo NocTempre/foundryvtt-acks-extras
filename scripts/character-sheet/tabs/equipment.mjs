@@ -339,8 +339,8 @@ export function groundRowOf(actor, provider, items, { stored = [], bystander = f
  * A place kept off-person, as the Kept elsewhere rule lists it. A ground pile
  * carries a `ground` block of its own words, takes no deposit from anyone (a
  * Judge included) and is never pinned: a pin would give reach to it from
- * anywhere. Its Open is the Judge's alone, since the pile's own sheet shows a
- * Player nothing of it. `items` is what the place holds of the viewer's; a
+ * anywhere. Its Open needs OBSERVER on the pile, and its own sheet's Storage tab
+ * then lists its goods. `items` is what the place holds of the viewer's; a
  * pile row with none (`bystander`) is one the viewer stands at.
  */
 function placeRow(actor, provider, items, coinGC, pinned, scan, { bystander = false } = {}) {
@@ -361,7 +361,7 @@ function placeRow(actor, provider, items, coinGC, pinned, scan, { bystander = fa
     reachReason: reach.can || ground ? "" : game.i18n.format(`ACKS-LOCATION.storage.reach.${reach.reason}`, { scene: reach.scene?.name ?? "" }),
     pinned,
     canPin: !ground,
-    canOpen: !ground || !!game.user?.isGM,
+    canOpen: !ground || provider.testUserPermission(game.user, "OBSERVER"),
     ground,
     // Pick up is the owner's, from anywhere: it moves what is stamped to the
     // viewer, so a row with none of the viewer's goods has nothing to pick up.

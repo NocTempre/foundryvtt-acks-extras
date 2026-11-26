@@ -373,3 +373,50 @@ as before.
 
 **Stands.** [A location is a PLACE, and a market is an option on one](DECISIONS-through-v11.14.5.md#a-location-is-a-place-and-a-market-is-an-option-on-one-2026-08-02):
 the scene's flag is canonical and the place carries the mirror.
+
+## 2026-11-25 — The Storage tab shows to a seat that observes the place
+
+**Authority** (owner, 2026-11-25, verbatim): "Tool permissions are hardcoded (e.g. summons)
+by server role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule". With it (T-0793): "In either case the approach is follow foundry
+permissions, don't invent new ones." The release hub ruled on the places batch: Storage
+shows at OBSERVER, and every write needs OWNER.
+
+**Ruled.** A place's sheet shows its Storage tab to a seat that has OBSERVER on the place
+(`canSeeStorage`, Foundry's `testUserPermission`), where the tab was drawn for a Judge's seat
+alone. For example: Bran, a Player, observes a market town that Alys's character stores goods
+at; his sheet of the town now has a Storage tab listing Alys's rows and the house's till
+total. A seat at LIMITED or below has no tab. The Things, Settings and GM View tabs stay the
+Judge's in this change. On the tab:
+
+- the deposit and take controls are live on a sheet the seat cannot edit
+  (`VIEWER_CONTROLS`), since each moves goods through the storage relay, which checks the
+  acting character's owner; a take is offered on the rows stamped to a character the seat owns
+  and on a house row marked retrievable, as before;
+- **Hold goods here**, the house lock and **Open manager** stay the Judge's controls: the tab's
+  audience grew and theirs did not;
+- a ground pile takes no deposit from anyone, a Judge included, as the character sheet's and the
+  system sheet's Storage tabs already hold (`canDeposit`);
+- a pile's own sheet is the same tab, so a pile's *Open* follows the same test (character
+  sheet's DECISIONS, "Open on a pile's row needs OBSERVER on the pile").
+
+**What the widening shows.** To a seat that observes the place: whose goods are held there,
+each owner's rows, and the house's coin as a till total. No ruling makes any of that secret:
+a place's Storage lists what characters stored, a Judge's hidden material lives in the
+fields this change leaves alone (the notes, the slander, the hidden occupant flag), and
+Foundry gates no read, so every pack and world document already reaches every seat's client.
+A Judge who wants a place's goods out of a seat's sight takes the seat's observer level away
+in Configure Ownership, the same control that decides the sheet.
+
+**Supersedes in part** henchmen's archived
+[Recruiting needs no GM client online](../henchmen/DECISIONS-through-v11.14.5.md#recruiting-needs-no-gm-client-online-2026-07-22),
+its clause that the sheet still hides GM-only tabs from players, for the Storage tab. Settings,
+Things and GM View keep it until the change that follows.
+
+**Rejected.** A new module setting or flag that shows or hides the tab: the owner's rule is to
+read Foundry's own level.
+
+**Cost.** A hand-made place opens to the table at OWNER (the two table-default entries of this
+date), so every Player's seat of one now has the tab, along with the places a Judge has set to
+OBSERVER and every ground pile, which is Observer to every seat. A Judge's seat of a pile loses
+the deposit control it had on one.

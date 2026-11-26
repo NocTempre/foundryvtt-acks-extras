@@ -320,9 +320,11 @@ controls *Pick up* and *Open*. *Pick up* is the retrieve-all action with its
 own icon and a tooltip that says where it puts the pack back, "back to" the
 worn slot's label or "carried" when it was not worn. *Deposit* and *Pin* are
 absent for a pile (a pin would give reach to it from anywhere), and picking up
-is not reach-gated. *Open* opens the pile's own sheet, whose Storage tab a
-Player cannot see, so it is the Judge's alone: a Player's pile row has no
-*Open* control and its name is plain text (`canOpen`).
+is not reach-gated. *Open* opens the pile's own sheet, whose Storage tab shows
+to a seat that observes the pile, so it is offered to such a seat: a pile row
+whose pile the viewer does not observe has no *Open* control and its name is
+plain text (`canOpen`, the pile's `testUserPermission` at OBSERVER; every seat
+observes a pile unless a Judge sets its default lower).
 
 **The row unfolds.** The fold toggle is a real button with `aria-expanded`,
 labelled "Show" or "Hide what is in the pile"; the list is closed by default and
@@ -354,7 +356,7 @@ from the owner's actor, else the one the pile was made with), with the *At risk*
 tag, the line "<n> item(s) · you are standing at it" (everything on the pile)
 and the same unfolding list with *Take* on every line. It has no *Pick up*,
 since nothing on it is stamped to the viewer, no *Deposit* and no *Pin*, and
-*Open* only for a Judge. It is not part of the Load tooltip, which names only
+*Open* where the viewer observes the pile. It is not part of the Load tooltip, which names only
 the viewer's own set-down packs, and not a choice in the coin order. Whether a
 row is listed is read at each render, and a move of the character's token or
 of a pile's re-renders the sheet when it changes which piles the character

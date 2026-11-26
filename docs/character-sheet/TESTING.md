@@ -1097,8 +1097,8 @@ data)`, and kept.
    the row's line gives the item count, and its tooltip lists the goods as
    "name ×qty" joined by " · " (the Backpack, the Torches, the dagger and the
    coin row); the controls are the fold toggle, *Pick up* (tooltip "Pick
-   everything up, back to Back") and, as the Judge only, *Open*, and no
-   *Deposit* and no *Pin*. Hover the Load figure: its tooltip names the
+   everything up, back to Back") and *Open* (a seat that observes the pile has it,
+   as step 13 walks), and no *Deposit* and no *Pin*. Hover the Load figure: its tooltip names the
    Backpack as set down. Open the coin order: the pile is offered in
    neither the receive-into select nor, while it holds no coin of the
    character's, the pay-from select (the hero's coin lies in it, so pay-from may
@@ -1142,7 +1142,7 @@ data)`, and kept.
     *Observable:* a row "On the ground · Hero's Backpack" with an *At risk*
     tag whose tooltip says anyone standing at it can take from it, the line
     "<n> item(s) · you are standing at it", whose tooltip lists the goods, and
-    no *Pick up*, no *Deposit*, no *Pin* and no *Open*. The Load tooltip does not
+    no *Pick up*, no *Deposit* and no *Pin*, and *Open* (step 13). The Load tooltip does not
     name the Backpack. Press the row's toggle ("Show what is in the pile").
     *Observable:* the toggle's `aria-expanded` is `true`; a line for the
     Backpack, the Torches ("×<n>") and the dagger, the last two marked "in
@@ -1182,10 +1182,18 @@ data)`, and kept.
     *Observable:* the row stays folded; unfold it, type 3 in the Torch box and
     cause a redraw (toggle another place's fold, or a peer takes a row).
     *Observable:* the 3 is still in the box.
-13. *Open is the Judge's.* As the Player of `set-down-hero`, read the pile's
-    row. *Observable:* no *Open* control, and the name reads as text, not a
-    link. As the Judge, open the same sheet. *Observable:* both are there and
-    open the pile's own sheet. Repeat on the bystander's row, as both seats.
+13. *Open needs OBSERVER on the pile.* The pile's own default is Observer, so
+    every seat has it. As the Player of `set-down-hero`, read the pile's row,
+    then the bystander's row as the bystander's Player. *Observable:* each row
+    has an *Open* control and its name is a link. Press *Open*.
+    *Observable:* the pile's own sheet renders with a *Storage* tab listing the
+    rows the pile holds, with no *Deposit*, no *Hold goods*, no house lock and no
+    *Open manager*; a *Take* shows only on a row stamped to that Player's
+    character. As the Judge, open the same sheet. *Observable:* the same, with
+    no *Deposit* either (a pile takes none). From the Judge's seat set the
+    pile's default ownership to None for this step, then redraw the Player's
+    sheet. *Observable:* the *Open* control is gone and the name reads as text,
+    on both rows and on the system sheet's Storage tab; set it back to Observer.
 14. *Keyboard and type size.* Raise the type size setting and reopen a sheet
     with a pile unfolded. *Observable:* lines, boxes and buttons scale with it.
     Tab reaches the toggle, each number box and each *Take*; a screen reader

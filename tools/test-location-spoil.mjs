@@ -16,9 +16,10 @@ const hb = Handlebars.create();
 hb.registerHelper("localize", (key) => String(key));
 const template = fs.readFileSync("templates/location/location-sheet.hbs", "utf8");
 const from = template.indexOf('data-tab="storage"');
-const to = template.indexOf("<section", from);
+// The body, with the `tabs.storage` gate that wraps it.
+const to = template.lastIndexOf("{{#if isGM}}", template.indexOf('data-tab="gmSettings"', from));
 assert.ok(from > 0 && to > from, "the storage section was found");
-const storage = hb.compile(template.slice(template.lastIndexOf("<section", from), to));
+const storage = hb.compile(template.slice(template.lastIndexOf("{{#if tabs.storage}}", from), to));
 
 const row = (over) => ({ id: "r1", name: "Spoil row", img: "x.png", type: "item", quantity: 1, stackable: false, spoil: true, retrievable: false, canTake: false, ...over });
 const render = (isGM, rowOver) =>

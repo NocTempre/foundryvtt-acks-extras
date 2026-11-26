@@ -31,7 +31,12 @@ sibling features (henchmen today; domains later) read through lib.
     place**, or a drop on the location's sheet; the manager's new-place
     target and a vault are made holding goods. The manager lists every
     provider, and its Move to targets are the same list. `pruneEmptyLocations`
-    spares a provider.
+    spares a provider. The place's own Storage tab shows to a seat that
+    observes the place (`canSeeStorage`, `testUserPermission` at OBSERVER), so
+    it lists whose goods are held there and the till's total to that seat; its
+    deposit and take controls move the seat's own goods through the storage
+    relay, and **Hold goods here**, the house lock and **Open manager** stay the
+    Judge's. A ground pile takes no deposit from anyone, a Judge included.
   - **Table schemas**: typed shapes for the people/economy documents
     (cultures & names, occupations, age tables, class registry +
     distribution grids, wages, availability, followers, slavery, monstrous

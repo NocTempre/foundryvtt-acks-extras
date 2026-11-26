@@ -43,8 +43,9 @@ function collect(actor) {
   const held = api.providersFor(actor);
   const entry = (provider, items, coinGC) => {
     // `canReach` gates the DEPOSIT control only; retrieval is not gated (reach.mjs).
-    // A pile on the ground takes no deposit from anyone, a Judge included, and
-    // its own sheet shows a Player nothing, so its name opens it for a Judge only.
+    // A pile on the ground takes no deposit from anyone, a Judge included. Its
+    // own sheet lists its goods to a seat that observes it, so its name opens it
+    // for that seat.
     const reach = depositReach(actor, provider, { scan });
     const ground = isGroundPile(provider);
     return {
@@ -54,7 +55,7 @@ function collect(actor) {
     isVault: !!api.vaultOwnerUuid(provider),
     canReach: reach.can,
     canDeposit: !ground && (reach.can || !!game.user?.isGM),
-    canOpen: !ground || !!game.user?.isGM,
+    canOpen: !ground || provider.testUserPermission(game.user, "OBSERVER"),
     reachReason: reach.can || ground ? null : loc(`storage.reach.${reach.reason}`, { scene: reach.scene?.name ?? "" }),
     coinGC,
     rows: items.map((item) => {
@@ -197,7 +198,7 @@ async function onAction(event, actor) {
 
   switch (button.dataset.ackslAction) {
     case "openLocation":
-      if (isGroundPile(place) && !game.user?.isGM) break;
+      if (isGroundPile(place) && !place.testUserPermission(game.user, "OBSERVER")) break;
       place.sheet?.render(true);
       break;
     case "deposit":

@@ -84,7 +84,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 
 **Cost.** A pale figure is what the register's reach builds at the caster level its source resolves; a cast may differ once the caster picks an option or types another level. The row id no longer carries the record's id, so two records granting one throw are one row, as the stacking already made them one figure.
 
-## 2026-11-19 — A pile's row unfolds to Take, and Open is the Judge's — SUPERSEDED IN PART 2026-11-19
+## 2026-11-19 — A pile's row unfolds to Take, and Open is the Judge's — SUPERSEDED IN PART 2026-11-19, 2026-11-25
 
 The owner, on the third board of the set-down design: "Approve, build it". The
 board put a list under each pile row on the Equipment tab's Kept elsewhere, one
@@ -214,3 +214,14 @@ The ruling, its example and what it cost are lib's entry of the same date, "A ba
 **Built.** `#onCastMenu` hands `castMenuModel` `bare: bareSummonAllowed(game.user)` as it did; the answer is now the user's token-creation grant, so a Player the world grants it is offered the spell-less *Summon…* beside the spell rows, and every other Player is not. The menu's other rows, the owner's gate on the menu and the walk of an unowned character are unchanged.
 
 **Supersedes IN PART** the archived "2026-11-11 — A summoning is tied to its spell": its "it allows a GM seat only" and its rejection of "Leaving it to every seat". The 2026-11-11 entry is archived and its file is never edited; its In force row, above, names lib's entry. What stands is that a request naming no spell is held to `bareSummonAllowed`, that the one function is the switch, and that a spell's creatures are policies a feature registers.
+
+## 2026-11-25 — Open on a pile's row needs OBSERVER on the pile (T-0792, B4)
+
+**Ruled.** The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server role instead of object ownership, only judge secrets are supposed to be an exception to this rule". And, on T-0793: "In either case the approach is follow foundry permissions, don't invent new ones." The hub's ruling for the places batch: the Storage tab on a place's sheet shows at OBSERVER (location's entry of the same date). For example: Alys's Equipment tab lists Bran's pile under *Kept elsewhere*; the pile is Observer to every seat, so Alys's row carries *Open*, and it opens the pile's own sheet with the pile's rows listed.
+
+**Supersedes in part** "2026-11-19 — A pile's row unfolds to Take, and Open is the Judge's", its bullet "Open is the Judge's". That entry is under 7 days old, so the new evidence is named. *New evidence:* the owner's rule above, which makes a role test on a document's own sheet a bug unless a Judge's secret is behind it; and the fact the bullet's premise rested on, that the pile's sheet shows a Player nothing, no longer holds: its Storage tab shows to a seat that observes the pile, and every seat observes a pile by default.
+
+- **Open is offered where the seat observes the pile** (`provider.testUserPermission(game.user, "OBSERVER")`), on the Equipment tab's pile row (`placeRow`'s `canOpen`) and on the system sheet's Storage tab (`storage-tab.mjs`'s `canOpen` and the `openLocation` handler). A Judge's seat passes as on every document. A pile a Judge sets to None for a seat loses the control there.
+- **Nothing else in the 2026-11-19 entry changes:** the fold, the flat rows, no *Take* on a line the viewer neither owns nor reaches, and a bystander's row listed from reach alone. The pile's sheet offers a seat that only observes it a *Take* on a row stamped to the seat's character and none on the rest; a take by standing at the pile stays on the character sheet's list.
+
+*Cost:* a Player who does not stand at the pile can now read what it holds through Open. A pile is what characters set down on the ground and no ruling makes it a Judge's secret, and Foundry gates no read.

@@ -99,8 +99,8 @@ const checkList = (html, label) => {
 ok(() => {
   const template = read("templates/location/location-sheet.hbs");
   const from = template.indexOf('data-tab="storage"');
-  const to = template.indexOf("<section", from);
-  const storage = hb.compile(template.slice(template.lastIndexOf("<section", from), to));
+  const to = template.lastIndexOf("{{#if isGM}}", template.indexOf('data-tab="gmSettings"', from));
+  const storage = hb.compile(template.slice(template.lastIndexOf("{{#if tabs.storage}}", from), to));
   const html = storage({ isGM: true, holdsGoods: true, tabs: { storage: { cssClass: "" } }, groups: [{ ownerUuid: "o", name: "Owner", canTake: true, rows }] });
   checkList(html, "location sheet");
 }, "the location sheet's Storage tab splits the count from the take field");

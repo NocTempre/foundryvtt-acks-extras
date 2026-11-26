@@ -86,7 +86,10 @@ const actorOf = ({ isOwner = true, isToken = false, items = [], uuid = HERO, id 
 });
 
 const GROUND = { ownerUuid: HERO, ownerName: "Hero", containerName: "Backpack" };
+/** Whether a seat below Owner observes a pile; a Judge's seat always does. */
+let pileObserved = true;
 const pileOf = (flag = GROUND) => ({
+  testUserPermission: (user, level) => !!user?.isGM || (level === "OBSERVER" && pileObserved),
   documentName: "Actor",
   type: "acks-extras.location",
   uuid: PILE,
@@ -368,16 +371,19 @@ const setDownOf = (controls) => controls.find((c) => c.action === "containerSetD
 }
 
 /* -------------------------------------------- */
-/*  Open is the Judge's                          */
+/*  Open needs OBSERVER on the pile              */
 /* -------------------------------------------- */
 
 {
   useStorage();
   const openOf = () => buildEquipmentTab(actorOf()).elsewhere.find((e) => e.uuid === PILE).canOpen;
-  ok(!openOf(), "a Player's pile row offers no Open: the pile's sheet shows them nothing");
+  ok(openOf(), "a Player who observes the pile is offered Open");
+  pileObserved = false;
+  ok(!openOf(), "a Player who does not observe it is offered none");
   globalThis.game.user.isGM = true;
-  ok(openOf(), "a Judge's does");
+  ok(openOf(), "a Judge's seat is");
   globalThis.game.user.isGM = false;
+  pileObserved = true;
 
   const shelf = { ...pileOf(), name: "Cellar", getFlag: () => undefined };
   useStorage({ pile: shelf, items: [itemOf("s1", "Rope", { qty: 1 })] });
@@ -386,7 +392,10 @@ const setDownOf = (controls) => controls.find((c) => c.action === "containerSetD
   useStorage({ held: false });
   stand("beside");
   const alys = actorOf({ uuid: "Actor.alys", id: "alys", name: "Alys" });
-  ok(!buildEquipmentTab(alys).elsewhere.find((e) => e.uuid === PILE).canOpen, "a bystander's row offers a Player no Open either");
+  ok(buildEquipmentTab(alys).elsewhere.find((e) => e.uuid === PILE).canOpen, "a bystander's row offers an observer Open");
+  pileObserved = false;
+  ok(!buildEquipmentTab(alys).elsewhere.find((e) => e.uuid === PILE).canOpen, "and one that does not observe the pile none");
+  pileObserved = true;
   stand(null);
 }
 
