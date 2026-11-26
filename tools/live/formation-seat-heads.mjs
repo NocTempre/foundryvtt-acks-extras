@@ -757,7 +757,12 @@ try {
   }
   t = await run(gm, P.nowMs);
   await run(player, P.click, { partyId: delve.party.id, selector: '.acks-extras-party-sheet__head-actions [data-action="restTurn"]', settle: 2500 });
-  const rested = await run(gm, P.record, { fid: formations.delve.fid });
+  // The rest travels to the Judge's client and back as the record's write; a busy batch can take longer than the
+  // settle, so the clock is polled (bounded) and the wait is reported.
+  const restWaitStart = Date.now();
+  let rested = await run(gm, P.record, { fid: formations.delve.fid });
+  for (let n = 0; n < 40 && rested.rounds === clock0.rounds; n++) { await sleep(250); rested = await run(gm, P.record, { fid: formations.delve.fid }); }
+  note(`H1 Rest a turn: the clock was read moved ${Date.now() - restWaitStart} ms after the settle`, rested.rounds > clock0.rounds);
   check("H1 Rest a turn: the Judge's client takes the rest, a line says it and the clock moves", spoken(await cardsSince(t), frameName, await L("ACKS-FORMATION.request.rest")).length === 1 && rested.rounds > clock0.rounds, { rounds: [clock0.rounds, rested.rounds] });
   await run(player, P.close, { partyId: delve.party.id });
 

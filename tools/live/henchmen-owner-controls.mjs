@@ -185,8 +185,9 @@ const P = {
     // would make a count of new events or a search for one pass on their leavings.
     await a.setFlag("acks-extras", "record", { ...record, events: [], loyalty: { ...(record.loyalty ?? { start: null }), permanents } });
     await H.EV.syncLoyalty(a);
-    const back = a.getFlag("acks-extras", "record")?.loyalty?.permanents ?? [];
-    return { entries: back.length, compensated: back.filter((p) => p.compensated).length, scoreRead: H.EV.effectiveLoyaltyFor(a) !== null };
+    const after = a.getFlag("acks-extras", "record") ?? {};
+    const back = after.loyalty?.permanents ?? [];
+    return { entries: back.length, compensated: back.filter((p) => p.compensated).length, events: (after.events ?? []).length, scoreRead: H.EV.effectiveLoyaltyFor(a) !== null };
   },
   /** GM seat: empty a record's capped event log, so a search for one event reads this run's. */
   resetEvents: async ({ actorId }) => {
@@ -622,9 +623,13 @@ try {
   const l1 = await run(gm, P.setLedger, { actorId: ids.hireling, entries: [{ delta: ENTRY_DELTA, note: ENTRY_NOTE, compensated: false }] });
   const l2 = await run(gm, P.setLedger, { actorId: ids.foreignHireling, entries: [{ delta: ENTRY_DELTA, note: ENTRY_NOTE, compensated: true }] });
   check("toggle: the Player's hireling carries one uncompensated entry and the foreign one a compensated entry", l1.entries === 1 && l1.compensated === 0 && l2.entries === 1 && l2.compensated === 1, { hireling: l1, foreign: l2 });
-  // The ledger was written on the GM seat; the Player seat reads it only once the update has reached it, so wait for its own entry (and the score the entry gives) before taking the figure.
+  // The ledger was written on the GM seat; the Player seat reads it only once the update has reached it. A kept
+  // fixture's last run leaves uncompensated entries carrying the same note, so the wait is for the whole shape the
+  // rewrite left (one entry, the event count the GM seat read back), never for the entry alone.
+  const startShape = (r) => r.entries.length === 1 && r.ownCompensated === false && r.events.length === l1.events;
   let t0 = await run(player, P.read, { actorId: ids.hireling });
-  for (let n = 0; n < 40 && (t0.own < 0 || t0.ownCompensated !== false); n++) { await sleep(250); t0 = await run(player, P.read, { actorId: ids.hireling }); }
+  for (let n = 0; n < 40 && !startShape(t0); n++) { await sleep(250); t0 = await run(player, P.read, { actorId: ids.hireling }); }
+  check("toggle: the Player seat reads the rewritten ledger before the press (one uncompensated entry, the GM seat's event count)", startShape(t0), { entries: t0.entries.length, ownCompensated: t0.ownCompensated, events: t0.events.length, gmEvents: l1.events });
   note("loyalty figure read at the start", t0.score !== null);
 
   const svc = await run(player, P.serviceToggle, { actorId: ids.hireling, press: true });
@@ -670,8 +675,9 @@ try {
     const gmCardsBefore = (await run(gm, P.cards, { actorIds: fixtureIds, actorId: ids.hireling })).calamityCards.length;
     await run(player, P.markRender);
     const press = await run(player, P.rosterPress, { actorId: ids.hireling, action: "calamity" });
+    // The counter and the event line are two writes in turn, and the seat sees the counter first, so the wait is for both.
     const landed = await run(player, P.read, { actorId: ids.hireling }).then(async (r) => {
-      for (let n = 0; n < 24 && r.calamities === before.calamities; n++) { await sleep(250); r = await run(player, P.read, { actorId: ids.hireling }); }
+      for (let n = 0; n < 40 && (r.calamities === before.calamities || count(r, "calamity") === count(before, "calamity")); n++) { await sleep(250); r = await run(player, P.read, { actorId: ids.hireling }); }
       return r;
     });
     await sleep(1500);
