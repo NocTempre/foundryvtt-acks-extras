@@ -43,7 +43,7 @@
   {{/if}}
   {{#if cards.length}}
     <p class="hint">
-      <span data-tooltip="ACKS-LIB.org.chart.totalTip">{{localize "ACKS-LIB.org.chart.total" n=total}}</span>
+      <span data-tooltip="{{#if service}}ACKS-LIB.org.service.totalTip{{else}}ACKS-LIB.org.chart.totalTip{{/if}}">{{localize "ACKS-LIB.org.chart.total" n=total}}</span>
       {{#if emptyCards}} · {{localize "ACKS-LIB.org.chart.emptyCards" n=emptyCards}}{{/if}}
     </p>
     <div class="acks-extras-org__scroll" role="region" tabindex="0" aria-label="{{localize 'ACKS-LIB.org.chart.scrollLabel'}}">

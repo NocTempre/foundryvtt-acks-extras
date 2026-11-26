@@ -92,7 +92,7 @@ function makeActor({ id, type = "character", category = "", hires = [], monsters
 }
 
 const { serviceNodes, hirelingBuckets, hiredUnitsOf } = await import("../scripts/henchmen/engine/service-tree.mjs");
-const { buildFollowersTab } = await import("../scripts/character-sheet/tabs/followers.mjs");
+const { buildFollowersTab, followersSwitch, followersViewOf, hasServiceFollowers, FOLLOWERS_VIEWS } = await import("../scripts/character-sheet/tabs/followers.mjs");
 const { orgChartView, rowRoots } = await import("../scripts/lib/org-tree-logic.mjs");
 
 /**
@@ -258,6 +258,35 @@ await test("a loop reads through the view and ends", () => {
   w.under.system.henchmenList.push(w.boss.id);
   const view = orgChartView(serviceNodes(w.boss), () => ({ name: "n", img: "", count: 1 }));
   assert.equal(view.rows.length, new Set(view.rows.map((r) => r.key)).size);
+});
+
+console.log("service nodes: the Followers tab's view choice");
+await test("the switch is for a lord with a follower besides itself, and the choice falls back to the cards otherwise", () => {
+  const w = buildWorld();
+  const nodes = serviceNodes(w.boss);
+  assert.ok(hasServiceFollowers(nodes));
+  assert.ok(!hasServiceFollowers(serviceNodes(w.under)), "a lone follower is only the root");
+  assert.ok(!hasServiceFollowers([]) && !hasServiceFollowers(undefined));
+  assert.deepEqual(FOLLOWERS_VIEWS, ["cards", "chart", "locations"]);
+  assert.equal(followersViewOf(undefined, nodes), "cards", "the default is the cards");
+  for (const v of FOLLOWERS_VIEWS) assert.equal(followersViewOf(v, nodes), v);
+  assert.equal(followersViewOf("tree", nodes), "cards", "an unknown choice is the cards");
+  assert.equal(followersViewOf("chart", serviceNodes(w.under)), "cards", "a choice kept while followers stood is the cards once none is left");
+});
+
+await test("the tab's data carries the view in use, the switch with the current view pressed, and no switch for a lone character", async () => {
+  const w = buildWorld();
+  const chart = await buildFollowersTab(w.boss, { view: "chart" });
+  assert.deepEqual([chart.view, chart.showCards, chart.showChart, chart.showLocations], ["chart", false, true, false]);
+  assert.deepEqual(chart.switch.buttons.map((b) => [b.key, b.on]), [["cards", false], ["chart", true], ["locations", false]]);
+  assert.ok(chart.switch.buttons.every((b) => b.label && b.tip), "every button has a name and a tooltip");
+  const plain = await buildFollowersTab(w.boss);
+  assert.deepEqual([plain.view, plain.showCards], ["cards", true], "the default view is the cards");
+  assert.equal(plain.groups.length, 3, "the cards are today's, whatever the view");
+  const lone = await buildFollowersTab(w.under, { view: "locations" });
+  assert.equal(lone.switch, null);
+  assert.deepEqual([lone.view, lone.showCards], ["cards", true]);
+  assert.equal(followersSwitch("cards", []), null);
 });
 
 console.log(`\n${passed} passed`);

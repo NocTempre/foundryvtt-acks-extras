@@ -1891,6 +1891,14 @@ button.acks-extras-frame__pinchip {
 
 /* --- Stats: training ------------------------------------------------------ */
 
+/* The Followers tab's view switch (Cards, Org chart, Locations), on one line under the rule. */
+.acks-extras-frame__views {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(4px * var(--acks-extras-k));
+}
+
 /* The view cycle, the pencil and Reset, on one line under the rule. */
 .acks-extras-frame__training-tools {
   display: flex;

@@ -2,7 +2,7 @@
       row of this faction standing there (in service mode, one for each follower of a lord). A row wraps; nothing scrolls sideways. --}}
 <section class="acks-extras-org" data-org-host="{{hostUuid}}"{{#if service}} data-org-service="1"{{/if}}>
   {{#if isEmpty}}
-    <p class="acks-empty">{{localize "ACKS-LIB.org.locations.none"}}</p>
+    <p class="acks-empty">{{#if service}}{{localize "ACKS-LIB.org.service.none"}}{{else}}{{localize "ACKS-LIB.org.locations.none"}}{{/if}}</p>
   {{/if}}
   {{#each places}}
     <div class="acks-extras-org-place">
@@ -17,7 +17,7 @@
             <span class="acks-extras-org-chip__count" data-tooltip-text="{{countTip}}">{{count}}</span>
             {{#each rows}}
               {{#unless inside}}
-                <span class="acks-extras-org-chip__row" data-key="{{key}}">{{label}}
+                <span class="acks-extras-org-chip__row" data-key="{{key}}">{{#unless service}}{{label}}{{/unless}}
                   {{#if service}}{{#if canRecall}}<button type="button" class="acks-extras-org-chip__act" data-action="orgRecall" data-tooltip="ACKS-LIB.org.service.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>{{/if}}{{#if canSend}}<button type="button" class="acks-extras-org-chip__act" data-action="orgSendOut" data-tooltip="ACKS-LIB.org.service.sendTip" aria-label="{{localize 'ACKS-LIB.org.card.send'}}"><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></button>{{/if}}{{else if canRecall}}<button type="button" data-action="orgRecall" data-tooltip="ACKS-LIB.org.card.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>{{/if}}
                 </span>
               {{/unless}}

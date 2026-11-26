@@ -571,12 +571,29 @@ module's monster henchmen alike — and the Roster chip. The card draws the
 employer's controls itself (Show, Dismiss, the morale and loyalty throws)
 when the seat owns the employer (`controls: actor.isOwner`); they dispatch
 this sheet's `hireling*` actions, which resolve the follower by the
-wrapper's `data-actor-id`. The wage line beside it is the henchmen feature's
+wrapper's `data-actor-id`, or, on an Org chart card, the nearest `data-uuid` (lib's leader
+wrapper). The wage line beside it is the henchmen feature's
 `wageBill` ([henchmen MODEL](../henchmen/MODEL.md) §4c): what a payday would
 bill now, with the Pay wages chip, while anything is due, and what the
 payroll costs a month otherwise, with the days until the bill's `nextDue`
 and no chip. The chip calls `payWagesFor`.
 The line is absent for a character with no follower and no paid unit.
+
+Once the character has a follower besides itself, a three-button switch under the rule
+line (Cards, Org chart, Locations; `aria-pressed` on the current one) chooses how the tab
+draws them. The choice is `#ui.followersView`, kept for the sheet instance and cards by
+default; `followersViewOf` returns the cards for an unknown choice or a lord with no
+follower left, so the tab is never left on a view with no switch. Cards is the tab above,
+unchanged. Org chart and Locations are lib's `serviceChartContext` and
+`serviceLocationsContext` ([lib ORGANISATION](../lib/ORGANISATION.md), "The Followers tab's
+service mode"), built by `_prepareContext` for the view in use only, over `serviceNodes`
+(henchmen [MODEL](../henchmen/MODEL.md), "Who serves whom"), and drawn through lib's
+`org-chart.hbs` and `org-locations.hbs`. The sheet takes `orgOpen`, `orgToggle`,
+`orgExpandAll`, `orgCollapseAll`, `orgSendOut` and `orgRecall` from lib's `ORG_ACTIONS` by
+name, never the whole map (its `hirelingShow` would replace the sheet's). `followersView`
+and the four looking actions are view actions, so an Observer may switch views and open
+or fold; Send out and Recall follow the seat's ownership of the character. The tree scrolls
+sideways inside its own box (`acks-extras-org__scroll`) in a narrow window.
 
 **Notes** is the character's notes as prose with an edit toggle, and the
 influence feature's relationships (attitude items) as rows: open, drag to

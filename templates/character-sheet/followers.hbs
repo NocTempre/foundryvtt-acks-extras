@@ -1,4 +1,5 @@
-{{!-- Followers: the roster chip, the wage line, and the Follower Cards. --}}
+{{!-- Followers: the roster chip, the wage line, the view switch (drawn once the character has a follower to draw
+      by who serves whom), and the Follower Cards, or the same followers as lib's Org chart or Locations. --}}
 {{#with panels.followers as |fw|}}
 <div class="acks-extras-frame__stack">
   <div class="acks-extras-frame__rule">
@@ -11,6 +12,16 @@
     {{#if fw.due}}{{#if fw.editable}}<button type="button" class="acks-extras-frame__chip" data-action="payWages"><i class="fa-solid fa-coins" inert></i>{{localize "ACKS-CHARACTER.followers.pay"}}</button>{{/if}}{{/if}}
     {{/if}}
   </div>
+  {{#if fw.switch}}
+  <div class="acks-extras-frame__views" role="group" aria-label="{{fw.switch.label}}">
+    {{#each fw.switch.buttons as |b|}}
+    <button type="button" class="acks-extras-frame__chip{{#if b.on}} is-on{{/if}}" data-action="followersView" data-view="{{b.key}}" aria-pressed="{{b.on}}" data-tooltip-text="{{b.tip}}">{{b.label}}</button>
+    {{/each}}
+  </div>
+  {{/if}}
+  {{#if fw.showChart}}{{> "modules/acks-extras/templates/lib/org-chart.hbs" fw.orgChart}}{{/if}}
+  {{#if fw.showLocations}}{{> "modules/acks-extras/templates/lib/org-locations.hbs" fw.orgLocations}}{{/if}}
+  {{#if fw.showCards}}
   {{#each fw.groups as |g|}}
   <div class="acks-extras-frame__group">
     <div class="acks-extras-frame__subhead"><span>{{g.title}}</span></div>
@@ -26,5 +37,6 @@
   </div>
   {{/each}}
   {{#unless fw.count}}<div class="acks-empty"><span class="acks-empty-title">{{localize "ACKS-CHARACTER.followers.title"}}</span><span class="acks-empty-hint">{{fw.emptyHint}}</span></div>{{/unless}}
+  {{/if}}
 </div>
 {{/with}}

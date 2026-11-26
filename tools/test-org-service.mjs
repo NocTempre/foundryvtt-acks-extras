@@ -10,7 +10,8 @@
  */
 import assert from "node:assert/strict";
 import { locationsView, orgChartView } from "../scripts/lib/org-tree-logic.mjs";
-import { branchKeys, chartCards, serviceFlags, serviceRowFlags, serviceRows, serviceSummary, serviceTotal } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { branchKeys, chartCards, placeNamesOf, rankOf, serviceFlags, serviceKindKey, serviceRowFlags, serviceRows, serviceSummary, serviceTotal } from "../scripts/lib/org-chart-ui-logic.mjs";
+import { readFileSync } from "node:fs";
 
 /** A service node, as `serviceNodes` hands it over: the key is the holder's uuid. */
 const node = (key, parentKey = "", extra = {}) => ({ key, parentKey, label: `Name ${key}`, holderUuid: key, kind: "", ...extra });
@@ -105,6 +106,39 @@ t("a follower standing on no place is unplaced, standing with its employer, and 
   assert.deepEqual(rows.map((r) => [r.key, r.canRecall, r.canSend]), [["U1", true, true], ["U2", false, true]], "Recall only for the one standing directly on the roster");
   assert.ok(rows.every((r) => r.service === true), "a chip carries its own flag, as a template's loop leaves the root's behind");
   assert.deepEqual(out.places.find((p) => p.uuid === "P.keep").groups, [], "a place of nobody's of ours holds none of our rows");
+});
+
+t("a follower's places are read from the places a seat may see, so a roster row the reader was not shown names none", () => {
+  const places = [
+    { uuid: "P.hall", name: "Hall", roster: [{ uuid: "U1" }, { uuid: "H2" }] },
+    { uuid: "P.keep", name: "Keep", roster: [{ uuid: "H2" }, { uuid: "" }] },
+    { uuid: "P.none", name: "", roster: [{ uuid: "H3" }] },
+  ];
+  assert.deepEqual(placeNamesOf(places), { U1: ["Hall"], H2: ["Hall", "Keep"] }, "a holder on two rosters names both, and a blank uuid or a nameless place names nothing");
+  const seenByPlayer = places.map((p) => ({ ...p, roster: p.roster.filter((r) => r.uuid !== "H2") }));
+  assert.deepEqual(placeNamesOf(seenByPlayer), { U1: ["Hall"] }, "placesOf has already left the hidden row out, so the follower stands on no place for this seat");
+  assert.deepEqual(placeNamesOf(undefined), {});
+  assert.deepEqual(placeNamesOf([{ name: "Hall" }]), {});
+});
+
+t("the rank line names a kind in words: the retainer and the unit categories map, and an unknown or blank one draws none", () => {
+  for (const k of ["henchman", "mercenary", "specialist", "monster", "follower"]) assert.equal(serviceKindKey(k), k);
+  assert.equal(serviceKindKey(" Mercenary "), "mercenary", "case and padding fold");
+  for (const k of ["", "   ", "company", undefined, null, 7]) assert.equal(serviceKindKey(k), "", `${String(k)} draws no word`);
+  const word = (kind) => (serviceKindKey(kind) ? `W-${serviceKindKey(kind)}` : "");
+  assert.equal(rankOf({ label: "Name H1", kind: word("henchman") }), "W-henchman · Name H1");
+  assert.equal(rankOf({ label: "Name H1", kind: word("band") }), "Name H1", "an unknown category leaves the label alone");
+  assert.equal(rankOf({ label: "Name L", kind: word("") }), "Name L");
+});
+
+t("the service partials say it in the follower's words and print a placed follower's name once", () => {
+  const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  const chart = readFileSync(new URL("../templates/lib/org-chart.hbs", import.meta.url), "utf8");
+  const places = readFileSync(new URL("../templates/lib/org-locations.hbs", import.meta.url), "utf8");
+  assert.ok(chart.includes("{{#if service}}ACKS-LIB.org.service.totalTip{{else}}ACKS-LIB.org.chart.totalTip{{/if}}"));
+  assert.ok(places.includes('{{#if service}}{{localize "ACKS-LIB.org.service.none"}}{{else}}{{localize "ACKS-LIB.org.locations.none"}}{{/if}}'));
+  assert.ok(places.includes('data-key="{{key}}">{{#unless service}}{{label}}{{/unless}}'), "a row's label is left out in service mode, where the chip names it");
+  for (const k of ["totalTip", "countTip", "none", "recallRefused.noHolder", "kind.henchman", "kind.mercenary", "kind.specialist", "kind.monster", "kind.follower"]) assert.ok(`ACKS-LIB.org.service.${k}` in lang, k);
 });
 
 let failures = 0;

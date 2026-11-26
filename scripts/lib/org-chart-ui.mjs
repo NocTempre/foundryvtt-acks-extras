@@ -21,7 +21,7 @@ import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
 import { bodyCount, groupNodes, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, countDieOf, dieChangeOf, dieFloorOf, emptyKeys, formDraftsOf, familyOfRows, hostLeaderState, isPartRow, officerCreatureTypes, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, readAfterIndex, removalRows, restorableDrafts, roleOf, serviceFlags, serviceRowFlags, serviceRows, serviceSummary, serviceTotal, slotPosition, subtreeView, templateOf, thrownOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, countDieOf, dieChangeOf, dieFloorOf, emptyKeys, formDraftsOf, familyOfRows, hostLeaderState, isPartRow, officerCreatureTypes, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, placeNamesOf, rankOf, readAfterIndex, removalRows, restorableDrafts, roleOf, serviceFlags, serviceKindKey, serviceRowFlags, serviceRows, serviceSummary, serviceTotal, slotPosition, subtreeView, templateOf, thrownOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
 import { DELETE_LINKED_SETTING, WARN_DELETE_SETTING, deleteOffered, linkedToDelete, makeUndoMemory, undoOffered, undoView, warningModel } from "./org-delete-logic.mjs";
 import { isLocation, packIdOf } from "./place.mjs";
 import { outputActorType } from "./template-generate.mjs";
@@ -328,7 +328,8 @@ const serviceViews = new WeakMap();
  * the same shape `chartContext` answers, with `service: true`, over `serviceNodes`' nodes the
  * tab passes in (lib imports no feature's reader). The employer is the root card, name and art
  * with a count of its direct followers; every other card's head is its own Follower Card, or
- * for a hired unit its officer's, in no role frame, over the unit's bodies line. There is no
+ * for a hired unit its officer's, in no role frame, over the unit's bodies line, the rank line leading
+ * with the card's kind in words. "Out at" reads `org.placesOf`, so a hidden roster row is a Judge's. There is no
  * form, die, plate or Undo here and the only tool is Expand all and Collapse all: a service row
  * stores nothing the chart could write through, so Open is the follower's own sheet. Send out
  * and Recall follow the seat's ownership of the employer.
@@ -344,12 +345,8 @@ export async function serviceChartContext(employer, nodes, app, { isGM }) {
   const groups = groupNodes();
   const view = org.orgChartView(nodes, (uuid) => org.readHolder(uuid, groups), [], { isGM });
   serviceViews.set(app, view);
-  const outAt = {};
-  for (const r of view.rows) {
-    if (!r.holderUuid || r.key === rootKey) continue;
-    const names = org.rostersHolding(r.holderUuid).map((u) => docOf(u)?.name).filter(Boolean);
-    if (names.length) outAt[r.holderUuid] = names;
-  }
+  const outAt = placeNamesOf(org.placesOf({ isGM }));
+  delete outAt[rootKey];
   const cards = chartCards(view.roots, { collapsed: foldOf(app), outAt, canRoll: () => false, canEdit: false });
   const summary = serviceSummary(view.rows.find((r) => r.key === rootKey)?.children, (uuid) => isGroupActor(docOf(uuid)));
   const decorate = (list) => Promise.all(list.map(async (c) => {
@@ -358,9 +355,11 @@ export async function serviceChartContext(employer, nodes, app, { isGM }) {
     const group = isGroupActor(holder);
     const head = isRoot ? null : group ? (c.officer ? docOf(c.officer.uuid) : null) : holder;
     const { cites, byHand, handTip, countTip } = countLineOf(holder, c.name);
+    const kindKey = serviceKindKey(c.kind);
     return {
       ...c,
       ...serviceFlags(c, { isGroup: group, isRoot, owns }),
+      rank: rankOf({ label: c.label, kind: kindKey ? loc(`service.kind.${kindKey}`) : "" }),
       cites,
       countTip,
       byHand,
@@ -462,8 +461,8 @@ export function serviceLocationsContext(employer, nodes, { isGM }) {
       total: p.total,
       groups: p.groups
         .map((g) => {
-          const rows = g.rows.map((r) => ({ ...serviceRowFlags(r, owns), countTip: loc("locations.countTip", { name: r.label, place: p.name, cites: citesOf(docOf(r.holderUuid)) }) }));
-          return { ...g, rows, holds: rows.some((r) => r.inside), countTip: loc("locations.countTip", { name: g.name, place: p.name, cites: citesOf(docOf(g.uuid)) }) };
+          const rows = g.rows.map((r) => ({ ...serviceRowFlags(r, owns), countTip: loc("service.countTip", { name: r.label, place: p.name, cites: citesOf(docOf(r.holderUuid)) }) }));
+          return { ...g, rows, holds: rows.some((r) => r.inside), countTip: loc("service.countTip", { name: g.name, place: p.name, cites: citesOf(docOf(g.uuid)) }) };
         })
         .filter((g) => g.rows.length),
     }))
@@ -501,9 +500,10 @@ async function targetOf(target) {
 }
 
 /** Say why nothing was written, in the reason's own words where the lang file has them. */
-function refuse(result, scope = "refused") {
-  const key = `${ORG_LANG_PREFIX}.${scope}.${result.reason}`;
-  ui.notifications.warn(game.i18n.has(key) ? game.i18n.format(key, { name: result.name ?? "" }) : loc("refused.other"));
+function refuse(result, scope = "refused", { service = false } = {}) {
+  const keys = [...(service ? [`${ORG_LANG_PREFIX}.service.${scope}.${result.reason}`] : []), `${ORG_LANG_PREFIX}.${scope}.${result.reason}`];
+  const key = keys.find((k) => game.i18n.has(k));
+  ui.notifications.warn(key ? game.i18n.format(key, { name: result.name ?? "" }) : loc("refused.other"));
   return result;
 }
 
@@ -1270,8 +1270,9 @@ async function onSendOut(_event, target) {
 async function onRecall(_event, target) {
   const { host, key } = await targetOf(target);
   if (!host) return;
-  const result = target.closest("[data-org-service]") ? await org.recallHolder(host, key) : await org.recall(host, key);
-  if (!result.ok) refuse(result, "recallRefused");
+  const service = !!target.closest("[data-org-service]");
+  const result = service ? await org.recallHolder(host, key) : await org.recall(host, key);
+  if (!result.ok) refuse(result, "recallRefused", { service });
   render(this);
 }
 

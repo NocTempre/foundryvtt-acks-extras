@@ -1,4 +1,4 @@
-/* global foundry, game, ui, Hooks, canvas, ChatMessage */
+/* global foundry, game, ui, Hooks, canvas, ChatMessage, fromUuidSync */
 /**
  * The ACKS character sheet — this module's own window for a character. Its
  * shape is fixed: the title band is the window header, the art row carries
@@ -36,7 +36,7 @@ import { buildClassTab } from "./tabs/class.mjs";
 import { buildAbilitiesTab } from "./tabs/abilities.mjs";
 import { buildMagicTab } from "./tabs/magic.mjs";
 import { buildTraderTab, bindTraderTab, traderTabShown, TRADER_TAB_ACTIONS } from "../markets/apps/trader-tab.mjs";
-import { buildFollowersTab, wageLineKey } from "./tabs/followers.mjs";
+import { FOLLOWERS_VIEWS, buildFollowersTab, wageLineKey } from "./tabs/followers.mjs";
 import { buildNotesTab } from "./tabs/notes.mjs";
 import { buildEffectsTab, heroicFateOn } from "./tabs/effects.mjs";
 import { openCoreWindow } from "../lib/core-windows.mjs";
@@ -72,6 +72,8 @@ import { openRosterApp } from "../henchmen/apps/roster-app.mjs";
 import { dismissMonster } from "../henchmen/apps/hirelings-grid.mjs";
 import { openLoyaltyRoll, openObedienceRoll, payWagesFor, setPermanentCompensated } from "../henchmen/engine/events.mjs";
 import { buildServicePanel } from "../henchmen/service-view.mjs";
+import { serviceNodes } from "../henchmen/engine/service-tree.mjs";
+import { ORG_ACTIONS, serviceChartContext, serviceLocationsContext } from "../lib/org-chart-ui.mjs";
 import { getManager } from "../henchmen/acks-adapter.mjs";
 import { openStashDialog } from "../location/apps/stash-dialog.mjs";
 import { setPinnedPlace, pinnedPlaces } from "../location/reach.mjs";
@@ -92,6 +94,22 @@ export const CHARACTER_SHEET_TEMPLATES = Object.freeze([
 ].map((n) => `${T}/${n}.hbs`));
 
 const loc = makeLoc(LANG);
+
+/**
+ * The lib organisation actions the Followers tab's Org chart and Locations views draw, by name:
+ * never the whole of `ORG_ACTIONS`, whose `hirelingShow` would replace this sheet's own.
+ */
+const FOLLOWERS_ORG_ACTIONS = Object.freeze({
+  orgOpen: ORG_ACTIONS.orgOpen,
+  orgToggle: ORG_ACTIONS.orgToggle,
+  orgExpandAll: ORG_ACTIONS.orgExpandAll,
+  orgCollapseAll: ORG_ACTIONS.orgCollapseAll,
+  orgSendOut: ORG_ACTIONS.orgSendOut,
+  orgRecall: ORG_ACTIONS.orgRecall,
+});
+/** The chart's own looking actions (open a sheet, fold a branch), which stay live for a seat that cannot edit. */
+const FOLLOWERS_ORG_VIEW_ACTIONS = Object.freeze(["orgOpen", "orgToggle", "orgExpandAll", "orgCollapseAll"]);
+
 /** The frame's own strings — the fold, the pins, the roll verbs — are the lib's. */
 const frameLoc = makeLoc(FRAME_LANG_PREFIX);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -208,6 +226,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
       serviceEmployer: AcksCharacterSheet.#onServiceEmployer,
       servicePay: AcksCharacterSheet.#onServicePay,
       toggleCompensated: AcksCharacterSheet.#onToggleCompensated,
+      followersView: AcksCharacterSheet.#onFollowersView,
       hirelingShow: AcksCharacterSheet.#onHirelingShow,
       hirelingLoyalty: AcksCharacterSheet.#onHirelingLoyalty,
       hirelingMorale: AcksCharacterSheet.#onHirelingMorale,
@@ -221,6 +240,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
       effectDelete: AcksCharacterSheet.#onEffectDelete,
       fateAdjust: AcksCharacterSheet.#onFateAdjust,
       ...TRADER_TAB_ACTIONS,
+      ...FOLLOWERS_ORG_ACTIONS,
     },
   };
 
@@ -233,7 +253,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
     ...FRAME_VIEW_ACTIONS,
     "roll", "moveMenu", "cycleAc", "abilityFilter", "toggleBucket", "trainingView", "formation", "partyMenu", "influence",
     "placeOpen", "placeFold", "companionOpen", "mountOpen", "itemEdit", "hirelingShow", "relationshipOpen", "classOpen", "effectEdit", "source",
-    "serviceEmployer",
+    "serviceEmployer", "followersView", ...FOLLOWERS_ORG_VIEW_ACTIONS,
   ]);
 
   static PARTS = {
@@ -244,7 +264,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
   tabGroups = { primary: "rolls" };
 
   /** Sheet-local state that survives the re-render every form change causes. */
-  #ui = { editingBio: false, editingNotes: false, moveMode: "exploration", abilityFilter: "all", openBuckets: new Set(), openPiles: new Set(), trainingEdit: false };
+  #ui = { editingBio: false, editingNotes: false, moveMode: "exploration", abilityFilter: "all", openBuckets: new Set(), openPiles: new Set(), trainingEdit: false, followersView: "cards" };
 
   /** The roll inventory of the last render — what the folded bar and the row ids read against. */
   #rolls = null;
@@ -401,7 +421,10 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
     if (tabs.magic) panels.magic = buildMagicTab(actor);
     if (tabs.trade) panels.trade = buildTraderTab(actor, { compare: this._traderCompare });
     if (tabs.service) panels.service = buildServicePanel(actor, { isGM: gm, pins: snap.pins });
-    panels.followers = await buildFollowersTab(actor);
+    const followNodes = serviceNodes(actor);
+    panels.followers = await buildFollowersTab(actor, { view: this.#ui.followersView, nodes: followNodes });
+    if (panels.followers.showChart) panels.followers.orgChart = await serviceChartContext(actor, followNodes, this, { isGM: gm });
+    if (panels.followers.showLocations) panels.followers.orgLocations = serviceLocationsContext(actor, followNodes, { isGM: gm });
     this.#wageLine = wageLineKey(actor);
     this.#pileReach = pileReachKey(actor);
     this.#castKey = castTrackerKey(snap.cast.records);
@@ -1539,9 +1562,20 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
     await setPermanentCompensated(this.actor, { track, index: Number(index), compensated: compensated !== "true" });
   }
 
+  /** The follower a control belongs to: its card's `data-actor-id`, else the nearest `data-uuid` (the Org chart's leader wrapper). */
   #hirelingOf(target) {
     const id = target?.closest?.("[data-actor-id]")?.dataset.actorId;
-    return id ? game.actors.get(id) : null;
+    if (id) return game.actors.get(id) ?? null;
+    const uuid = target?.closest?.("[data-uuid]")?.dataset.uuid;
+    return uuid ? fromUuidSync(uuid) ?? null : null;
+  }
+
+  /** Switch the Followers tab between its Cards, Org chart and Locations views; the choice is kept for this window. */
+  static #onFollowersView(event, target) {
+    const view = target.dataset.view;
+    if (!FOLLOWERS_VIEWS.includes(view)) return;
+    this.#ui.followersView = view;
+    this.render();
   }
 
   static #onHirelingShow(event, target) {

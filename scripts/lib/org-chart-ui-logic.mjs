@@ -272,6 +272,39 @@ export function serviceRowFlags(row, owns) {
 }
 
 /**
+ * The places each follower stands on, by holder uuid, from the places a reader may see
+ * (`org.placesOf`, which has already left out a roster row marked hidden from a seat that
+ * is not the Judge's). A row names its holder by `uuid`.
+ * @param {{name: string, roster: {uuid: string}[]}[]} places
+ * @returns {Object<string, string[]>} a holder uuid → the names of the places whose roster holds it
+ */
+export function placeNamesOf(places) {
+  const at = {};
+  for (const place of places ?? []) {
+    for (const row of place?.roster ?? []) {
+      if (!row?.uuid || !place.name) continue;
+      (at[row.uuid] ??= []).push(place.name);
+    }
+  }
+  return at;
+}
+
+/** The categories a service node's `kind` can carry: a hireling's retainer category and a hired unit's group category. */
+const SERVICE_KINDS = Object.freeze(["henchman", "mercenary", "specialist", "monster", "follower"]);
+
+/**
+ * The lang suffix (under `service.kind.`) of the word a service card's rank line names its
+ * kind with, blank for a root, a blank category or one this list does not know, which then
+ * draw no word.
+ * @param {string} kind a service node's `kind`
+ * @returns {string}
+ */
+export function serviceKindKey(kind) {
+  const key = String(kind ?? "").trim().toLowerCase();
+  return SERVICE_KINDS.includes(key) ? key : "";
+}
+
+/**
  * The unit word a chart already uses one level below its top, for a hand-added
  * warband-level row: where the rows beneath the top share a kind, a new row takes it;
  * otherwise it takes none and is named only by its label.

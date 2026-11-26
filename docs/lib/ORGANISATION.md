@@ -190,7 +190,13 @@ draws them through the same two partials, never a second tree or a second card:
   root card: its name and art and "{henchmen} henchmen · {units} units", the lone actors and the
   groups directly under it, with a tooltip saying where they are read from. Every other card's
   head is its own Follower Card, or for a hired unit its officer's, in no role frame (the frame
-  is the village's) and with no role word, officer line, form or die. A hired unit keeps its
+  is the village's) and with no role word, officer line, form or die. The rank line leads with
+  the kind named in words (`ACKS-LIB.org.service.kind.*`: henchman, mercenary, specialist, and a
+  unit's monster or follower), by `serviceKindKey`; a blank or unknown category draws no word.
+  "Out at {place}" reads the places `org.placesOf` answers (`placeNamesOf`), so a hidden roster
+  row names no place for a seat that is not the Judge's, as Locations does. The total's tooltip,
+  the Locations count tooltips, the empty line and the Recall refusal for a follower that cannot
+  be found are worded for followers (`ACKS-LIB.org.service.*`), not for groups or stacks. A hired unit keeps its
   bodies line; a lone actor, which is one body, has none. The foot is Open, Recall and Send out.
   **Open is the edit:** a service row stores nothing the card could write through, so the pen
   opens the follower's own sheet (a unit's group sheet). Show is the Follower Card's own control.
@@ -198,7 +204,8 @@ draws them through the same two partials, never a second tree or a second card:
   the root, each naming the employer as its host, the places read through `org.placesOf` (the one
   reader, so a hidden roster row stays a Judge's). A follower on no roster stands with its
   employer, so the unplaced row reads "With {employer}". A chip has Send out, and Recall where
-  the follower stands directly on a roster.
+  the follower stands directly on a roster. A placed follower's name is printed once, on the
+  chip, so the row beneath it carries only its controls.
 - **Send out and Recall** are `org.sendOutHolder(employer, holderUuid, placeUuid)` and
   `org.recallHolder(employer, holderUuid)`: the card's `data-key`, which is the node key, is the
   follower's uuid, so the press needs no row. Both follow Foundry ownership only: the seat must

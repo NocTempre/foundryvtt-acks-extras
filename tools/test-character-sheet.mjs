@@ -1496,4 +1496,28 @@ console.log("character sheet: summons on a scene");
   }
 }
 
+test("the Followers tab's view switch is wired: a view action, the named org actions only, a uuid fallback, and a switch inside the tab", () => {
+  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
+  const tpl = readFileSync(new URL("../templates/character-sheet/followers.hbs", import.meta.url), "utf8");
+  const viewActions = sheet.slice(sheet.indexOf("static VIEW_ACTIONS"), sheet.indexOf("static PARTS"));
+  assert.ok(viewActions.includes('"followersView"'), "an Observer may switch views");
+  assert.ok(viewActions.includes("...FOLLOWERS_ORG_VIEW_ACTIONS"));
+  const from = sheet.indexOf("const FOLLOWERS_ORG_VIEW_ACTIONS");
+  const named = sheet.slice(from, sheet.indexOf(";", from));
+  for (const a of ["orgOpen", "orgToggle", "orgExpandAll", "orgCollapseAll"]) assert.ok(named.includes('"' + a + '"'), a + " is a view action");
+  assert.ok(!named.includes("orgSendOut") && !named.includes("orgRecall"), "Send out and Recall write, so they are not view actions");
+  assert.ok(sheet.includes("...FOLLOWERS_ORG_ACTIONS,"));
+  assert.ok(!/\.\.\.ORG_ACTIONS\b/.test(sheet), "the whole of lib's actions would replace the sheet's hirelingShow");
+  assert.ok(sheet.includes("followersView: AcksCharacterSheet.#onFollowersView"));
+  assert.ok(sheet.includes('followersView: "cards" }'), "the choice is kept per sheet instance, the cards by default");
+  assert.ok(sheet.includes('closest?.("[data-uuid]")?.dataset.uuid'), "a chart card's follower resolves from its wrapper's uuid");
+  const at = tpl.indexOf('data-action="followersView"');
+  assert.ok(at > tpl.indexOf("acks-extras-frame__stack") && at < tpl.indexOf("{{/with}}"), "the switch is inside the tab's own section");
+  assert.ok(tpl.includes('aria-pressed="{{b.on}}"'));
+  assert.ok(tpl.includes("{{#if fw.switch}}"), "drawn only with a follower to draw by who serves whom");
+  const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  for (const k of ["label", "cards", "chart", "locations", "cardsTip", "chartTip", "locationsTip"]) assert.equal(typeof lang["ACKS-CHARACTER.followers.view." + k], "string", k);
+  assert.ok(!("ACKS-CHARACTER.followers.view" in lang), "no key lands under a string key");
+});
+
 console.log(`character sheet: ${passed} passed`);
