@@ -157,8 +157,16 @@ export async function removeStaged(pile, cardId) {
   if (pile.cards.get(cardId)) await pile.deleteEmbeddedDocuments("Card", [cardId]);
 }
 
-/** Set who rolls. Stored only. Judge-only. */
-export const setMode = (pile, mode) => (game.user.isGM ? pile.update({ [`${potPath}.mode`]: mode }) : null);
+/**
+ * Set who rolls. Judge-only. Opening reads it (`deal-logic.mjs` `planTableOpen`),
+ * and a change withdraws an offer the pot stands under, since the offer is
+ * Table mode's.
+ */
+export const setMode = (pile, mode) =>
+  game.user.isGM ? pile.update({ [`${potPath}.mode`]: mode, [`${potPath}.offered`]: false, [`${potPath}.offeredLair`]: false }) : null;
+
+/** Record the key of the deal list a deal just rolled (`deal-logic.mjs` `dealKey`). Judge-only. */
+export const markDealt = (pile, key) => (game.user.isGM ? pile.update({ [`${potPath}.dealt`]: key }) : null);
 
 /** Set one deal toggle (`DEAL_TOGGLE`) on a staged pot. Stored only; opening applies it. Judge-only. */
 export async function setDealToggle(pile, key, on) {
@@ -229,14 +237,16 @@ export async function setDealOption(pile, key, value) {
  * Open a staged pot to the table: the buckets fold into `order`, every seat
  * but the Judge's gets LIMITED sight, and the doorway card is posted unless
  * `doorway` is false (a scene's pot is reached from its own tray, and a pot
- * whose lots are not yet found has nothing to announce).
+ * whose lots are not yet found has nothing to announce). A pot offered to the
+ * table already carries its doorway, which opening keeps rather than posting a
+ * second.
  * @param {Cards} pile
  * @param {{doorway?: boolean}} [opts]
  * @returns {Promise<{ok: boolean, reason?: string}>}
  */
 export async function openPot(pile, { doorway = true } = {}) {
   if (!game.user.isGM) return { ok: false, reason: REFUSAL.notAllowed };
-  const audience = game.users.filter((u) => !u.isGM).map((u) => u.id);
+  const audience = audienceIds();
   const plan = planOpen(viewOf(pile), { audience, rng: () => foundry.dice.MersenneTwister.random() });
   if (!plan.ok) return plan;
   // The cards are written before the pile opens, so no seat ever renders a band that is not final.
@@ -249,14 +259,61 @@ export async function openPot(pile, { doorway = true } = {}) {
   if (updates.length) await pile.updateEmbeddedDocuments("Card", updates);
   const gone = plan.removed.filter((id) => pile.cards.get(id));
   if (gone.length) await pile.deleteEmbeddedDocuments("Card", gone);
-  const message = doorway ? await postDoorway(pile) : null;
-  plan.flag.messageId = message?.id ?? null;
+  const prior = potOf(pile).messageId;
+  const message = doorway ? await doorwayOf(pile) : null;
+  plan.flag.messageId = message?.id ?? prior ?? null;
   const ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE };
   for (const id of audience) ownership[id] = CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED;
   await pile.update({ [potPath]: plan.flag, ownership });
   if (plan.audit.length) await postDealAudit(pile, plan.audit);
   if (plan.warning) ui.notifications?.warn(loc("audit.warnShort", { seeds: plan.warning.seeds.join(", "), worth: gpText(plan.warning.worthGp) }));
   return { ok: true };
+}
+
+/** The seats a pot is opened or offered to: every user who is not a Judge. */
+const audienceIds = () => game.users.filter((u) => !u.isGM).map((u) => u.id);
+
+/**
+ * Offer a staged pot to the table (Table mode, a list to deal): the pot stays
+ * in staging and unrolled, its audience gets LIMITED sight as opening gives it,
+ * and the doorway card is posted once. `lair` records that the Judge confirmed
+ * the lair warning, which the seat's deal carries. Judge-only.
+ * @param {Cards} pile
+ * @param {{lair?: boolean}} [opts]
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+export async function offerPot(pile, { lair = false } = {}) {
+  if (!game.user.isGM) return { ok: false, reason: REFUSAL.notAllowed };
+  if (potOf(pile).phase !== PHASE.staging) return { ok: false, reason: REFUSAL.phase };
+  const message = await doorwayOf(pile);
+  const ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE };
+  for (const id of audienceIds()) ownership[id] = CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED;
+  await pile.update({ [`${potPath}.offered`]: true, [`${potPath}.offeredLair`]: lair === true, [`${potPath}.messageId`]: message?.id ?? null, ownership });
+  return { ok: true };
+}
+
+/**
+ * The pot's one line in chat when the table deals it: who dealt, how many
+ * hoards, into which pot, spoken as the seat that pressed (a Judge's client may
+ * author a message for another user). Counts only; no letter and no card.
+ */
+export async function postTableLine(pile, user, hoards) {
+  const esc = foundry.utils.escapeHTML;
+  const name = user.character?.name || user.name;
+  return ChatMessage.create({
+    author: user.id,
+    speaker: { alias: name },
+    content: `<p>${esc(loc(hoards === 1 ? "table.dealtOne" : "table.dealt", { name, n: hoards, pot: pile.name }))}</p>`,
+  });
+}
+
+/**
+ * The pot's doorway message: the one it already carries while that message
+ * stands, else a new one. A pot offered and then opened has one doorway.
+ */
+async function doorwayOf(pile) {
+  const prior = potOf(pile).messageId;
+  return (prior && game.messages?.get(prior)) || postDoorway(pile);
 }
 
 /**
@@ -474,9 +531,14 @@ export function mayGrab(pile, user) {
   return mayStartGrab({ sender: user, ownsMember, seated: !!pile.testUserPermission(user, "LIMITED") });
 }
 
-/** The relay over the world's documents (`pot-relay.mjs` holds the rules). */
-export function createPotRelay() {
+/**
+ * The relay over the world's documents (`pot-relay.mjs` holds the rules).
+ * `dealOffered(pile, sender, how)` is the Judge's client's deal of an offered
+ * pot, supplied by the feature's module since dealing is `deal.mjs`'s.
+ */
+export function createPotRelay({ dealOffered } = {}) {
   return createRelay({
+    dealOffered: dealOffered ? (id, sender, how) => dealOffered(findPot(id), sender, how) : undefined,
     user: (id) => game.users.get(id) ?? null,
     self: () => game.user,
     readPot: (id) => {

@@ -355,6 +355,15 @@
   color: var(--acks-ink-soft);
 }
 
+/* The panel a seat sees for a pot the Judge offered to the table, drawn where the cards would stand. */
+.acks-extras-treasure .acks-extras-treasure__waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-5);
+}
+
 /* The deal controls in the left rail: the hoards to deal (a list, a drop zone, a picker of the imported types), the style group, and the lair warning. */
 .acks-extras-treasure .acks-extras-treasure__hoards {
   min-width: 0;

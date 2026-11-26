@@ -9,8 +9,9 @@
  * its row (one to begin with) however many tokens stand for it: a treasure type
  * is the lair's hoard, and a lair is not multiplied by the bodies in it. `deal.mjs` is the Foundry side.
  */
-import { PHASE, REFUSAL } from "./constants.mjs";
+import { MODE, PHASE, REFUSAL } from "./constants.mjs";
 import { MAGIC_ERROR, armsField } from "./magic-deal-logic.mjs";
+import { normalizePot } from "./pot-logic.mjs";
 import { letterOf } from "./search-logic.mjs";
 
 /** Reasons a letter deal refuses, beside `REFUSAL`'s: the lair was neither met nor confirmed. */
@@ -157,6 +158,58 @@ export function dealLines(deal) {
     if (letter) for (let i = 0; i < hoards(row); i++) lines.push({ letter, name: null, count: 0 });
   }
   return lines;
+}
+
+/**
+ * A deal list's key: its letters in the order a Deal sends them, once per hoard.
+ * A pot records the key of the list it dealt (`pot.dealt`), so a later edit to
+ * the list reads as a list not yet dealt.
+ * @param {{monsters?: object[], hand?: object[]}} deal `pot.deal`
+ * @returns {string}
+ */
+export const dealKey = (deal) => dealLines(deal).map((line) => line.letter).join("");
+
+/** Whether the pot's deal list is the one it last dealt, so dealing it again would roll its hoards twice. */
+export const listDealt = (pot) => !!pot?.dealt && pot.dealt === dealKey(pot.deal);
+
+/**
+ * What the Judge's Open does on a staging pot. In Table mode, with hoards
+ * listed that no Deal has rolled, Open offers the pot instead of dealing it and
+ * the table rolls it; every other pot opens as it always has. A lair warning
+ * that stands is settled first (`warn`), and the Judge's answer, `confirmed`,
+ * is carried to the deal as `lair`. An offered pot is not offered again.
+ * @param {object} pot the pot's normalized flag
+ * @param {{confirmed?: boolean}} [opts]
+ * @returns {{ok: true, action: "open"|"offered"}|{ok: true, action: "warn", warning: {letters: string[]}}|{ok: true, action: "offer", lair: boolean}}
+ */
+export function planTableOpen(pot, { confirmed = false } = {}) {
+  const lines = dealLines(pot?.deal);
+  if (pot?.phase !== PHASE.staging || pot.mode !== MODE.table || !lines.length || listDealt(pot)) return { ok: true, action: "open" };
+  if (pot.offered) return { ok: true, action: "offered" };
+  const warning = lairWarning({ letters: lines, metInLair: pot.deal.metInLair });
+  if (warning && !confirmed) return { ok: true, action: "warn", warning };
+  return { ok: true, action: "offer", lair: !!warning };
+}
+
+/**
+ * What a seat's window draws for a pot. Staging is the Judge's surface, so a
+ * seat that is not a Judge is drawn a view stripped of everything it may not
+ * be told (no card, no bucket, no letter, no monster) whatever the pot's
+ * state, and `stripped` says the window draws no staging surface. The waiting
+ * panel is drawn only when the pot is also offered, in Table mode, to a seat
+ * holding LIMITED or better; `count` is the hoards its press will deal. Any
+ * other pot is returned as it stands.
+ * @param {{pot: object, cards: object[]}} view
+ * @param {{isGM: boolean, seated: boolean}} seat
+ * @returns {{waiting: boolean, stripped: boolean, view: object, count?: number}}
+ */
+export function tableWaiting(view, { isGM, seated }) {
+  const { pot } = view;
+  if (isGM || pot.phase !== PHASE.staging) return { waiting: false, stripped: false, view };
+  const bare = normalizePot({ phase: pot.phase, mode: pot.mode, offered: pot.offered, messageId: pot.messageId });
+  const stripped = { ...view, cards: [], pot: bare };
+  if (!seated || pot.mode !== MODE.table || !pot.offered) return { waiting: false, stripped: true, view: stripped };
+  return { waiting: true, stripped: true, count: dealLines(pot.deal).length, view: stripped };
 }
 
 /** The per-letter error codes a deal words by name; any other code is worded generically with the code in it. */

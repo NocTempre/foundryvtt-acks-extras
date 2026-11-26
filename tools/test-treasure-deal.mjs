@@ -51,6 +51,7 @@ globalThis.foundry = {};
 const { PHASE, MODULE_ID, POT_FLAG } = await import("../scripts/treasure/constants.mjs");
 const { addHand, addMonster, normalizePot, removeRow, setDealChoice, setMetInLair, setMonsters, setToggle, stepRow, DEAL_LIST, DEAL_STYLE, DEAL_TOGGLE } = await import("../scripts/treasure/pot-logic.mjs");
 const { DEAL_ERROR_CODES, DEAL_REFUSAL, canBrowseTables, dealLines, dealMessages, dealOptionsView, groupMonsters, lairWarning, monsterRows, runLetterDeal } = await import("../scripts/treasure/deal-logic.mjs");
+const dealLogic = await import("../scripts/treasure/deal-logic.mjs");
 const { STYLE_TABLE } = await import("../scripts/treasure/hoard-map.mjs");
 const { readFileSync } = await import("node:fs");
 const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
@@ -440,6 +441,61 @@ const plain = () => {
   r = await dealLettersIntoPot(pile, { letters: ["Z"], style: "classic" });
   eq(r.ok, true, "a staged pot with the lair set deals unasked");
   eq(stored().monsters.length, 1, "a deal leaves the list alone");
+  // A deal that staged cards marks the list it dealt, so a Table-mode Open does not deal it a second time.
+  reset({ phase: PHASE.staging, deal: { metInLair: true, hand: [{ letter: "Z", hoards: 2 }] } });
+  eq(flags[MODULE_ID][POT_FLAG].dealt ?? "", "", "a pot never dealt carries no marker");
+  r = await dealLettersIntoPot(pile, { letters: ["Z", "Z"] });
+  eq([r.ok, flags[MODULE_ID][POT_FLAG].dealt], [true, "ZZ"], "a deal that staged cards records the letters it dealt");
+  ok(dealLogic.listDealt(normalizePot(flags[MODULE_ID][POT_FLAG])), "the list is dealt while it reads as it did");
+  await stepDealRow(pile, DEAL_LIST.hand, 0, 1);
+  ok(!dealLogic.listDealt(normalizePot(flags[MODULE_ID][POT_FLAG])), "an edit to the list makes the marker stale");
+  reset({ phase: PHASE.staging, deal: { metInLair: true, hand: [{ letter: "Z", hoards: 1 }] } });
+  globalThis.game.user.isGM = false;
+  await dealLettersIntoPot(pile, { letters: ["Z"] });
+  globalThis.game.user.isGM = true;
+  eq(flags[MODULE_ID][POT_FLAG].dealt ?? "", "", "a refused deal marks nothing");
+
+  // Offering: the pot stays in staging, its audience is seated at LIMITED, and one doorway is posted and kept.
+  const { markDealt, offerPot, postTableLine, setMode } = await import("../scripts/treasure/pot.mjs");
+  const posted = [];
+  const stash = { CONST: globalThis.CONST, ChatMessage: globalThis.ChatMessage, users: globalThis.game.users, messages: globalThis.game.messages };
+  globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { NONE: 0, LIMITED: 1 } };
+  globalThis.ChatMessage = { create: async (data) => (posted.push(data), { id: `msg${posted.length}` }) };
+  globalThis.foundry.utils = { escapeHTML: (s) => String(s).replace(/</g, "&lt;") };
+  globalThis.foundry.applications = { handlebars: { renderTemplate: async () => "<div class=\"door\"></div>" } };
+  globalThis.game.users = [{ id: "gm", isGM: true }, { id: "anna", isGM: false }, { id: "ben", isGM: false }];
+  globalThis.game.messages = new Map();
+  pile.name = "Cache";
+  pile.uuid = "Cards.pile1";
+  reset({ phase: PHASE.staging, mode: "table", deal: { metInLair: true, hand: [{ letter: "Z", hoards: 2 }] } });
+  eq(await offerPot(pile, { lair: true }), { ok: true }, "a Judge offers a staged pot");
+  const offered = flags[MODULE_ID][POT_FLAG];
+  eq([offered.phase, offered.offered, offered.offeredLair, offered.messageId, offered.order ?? []], [PHASE.staging, true, true, "msg1", []], "it stays in staging, unrolled, offered, with the Judge's lair confirmation recorded and its doorway named");
+  eq(pile.ownership, { default: 0, anna: 1, ben: 1 }, "every seat that is not a Judge gets LIMITED, never more");
+  eq(posted.length, 1, "one doorway card was posted");
+  globalThis.game.messages.set("msg1", { id: "msg1" });
+  await offerPot(pile);
+  eq([posted.length, flags[MODULE_ID][POT_FLAG].offeredLair, flags[MODULE_ID][POT_FLAG].messageId], [1, false, "msg1"], "a second offer keeps the doorway it has and records the lair answer it was given");
+  await markDealt(pile, "ZZ");
+  eq(flags[MODULE_ID][POT_FLAG].dealt, "ZZ", "the dealt marker is written");
+  await setMode(pile, "judge");
+  const back = flags[MODULE_ID][POT_FLAG];
+  eq([back.mode, back.offered, back.offeredLair], ["judge", false, false], "a change of mode withdraws the offer");
+  reset({ phase: PHASE.open, mode: "table" });
+  eq(await offerPot(pile), { ok: false, reason: "phase" }, "a pot past staging is not offered");
+  await postTableLine(pile, { id: "anna", name: "Anna", character: { name: "Cleo" } }, 2);
+  await postTableLine(pile, { id: "ben", name: "Ben", character: null }, 1);
+  eq(posted.slice(-2).map((m) => [m.author, m.speaker.alias, m.content]), [
+    ["anna", "Cleo", "<p>ACKS-TREASURE.table.dealt</p>"],
+    ["ben", "Ben", "<p>ACKS-TREASURE.table.dealtOne</p>"],
+  ], "the line is authored by the seat that pressed and spoken as its character, or its own name");
+  globalThis.game.user.isGM = false;
+  reset({ phase: PHASE.staging, mode: "table" });
+  eq([await offerPot(pile), await setMode(pile, "judge"), await markDealt(pile, "Z")], [{ ok: false, reason: "notAllowed" }, null, null], "a player offers nothing, changes no mode and marks nothing");
+  globalThis.game.user.isGM = true;
+  Object.assign(globalThis, { CONST: stash.CONST, ChatMessage: stash.ChatMessage });
+  globalThis.game.users = stash.users;
+  globalThis.game.messages = stash.messages;
   reset({ phase: PHASE.open });
   eq([await setDealMonsters(pile, []), await stepDealRow(pile, DEAL_LIST.monsters, 0, 1), await addDealHand(pile, "K"), await addDealMonster(pile, { name: "x", letter: "Z" }), await removeDealRow(pile, DEAL_LIST.hand, 0), await setDealOption(pile, "special", true)], [null, null, null, null, null, null], "an open pot takes none of them");
   globalThis.game.user.isGM = false;
@@ -605,6 +661,55 @@ const plain = () => {
   eq(dealt(), "2d4", "an override of the page read changes nothing the deal reads");
   tables.resetTables();
   Object.assign(globalThis, keep);
+}
+
+/* --- Who rolls: Table mode offers the pot instead of dealing it --- */
+{
+  const table = (over = {}) => normalizePot({ phase: PHASE.staging, mode: "table", deal: { hand: [{ letter: "Q", hoards: 2 }] }, ...over });
+  const flag = normalizePot({});
+  eq([flag.offered, flag.offeredLair, flag.dealt], [false, false, ""], "a pot built before the offer reads as not offered, lair unconfirmed, nothing dealt");
+  eq(normalizePot({ offered: true, offeredLair: true, dealt: "QQ" }).offered, true, "a true offered is kept");
+  eq([normalizePot({ offered: "yes" }).offered, normalizePot({ offeredLair: 1 }).offeredLair, normalizePot({ dealt: 5 }).dealt], [false, false, ""], "only a real true or a string counts");
+
+  eq(dealLogic.dealKey(table().deal), "QQ", "a list's key is its letters, once per hoard");
+  eq(dealLogic.dealKey(normalizePot({}).deal), "", "an empty list has none");
+  ok(!dealLogic.listDealt(table()), "a list nobody dealt is not dealt");
+  ok(dealLogic.listDealt(table({ dealt: "QQ" })), "a list whose marker is its key is dealt");
+  ok(!dealLogic.listDealt(table({ dealt: "QR" })), "a stale marker is not");
+
+  eq(dealLogic.planTableOpen(table({ mode: "judge" })), { ok: true, action: "open" }, "Judge mode: Open is Open");
+  eq(dealLogic.planTableOpen(table({ deal: {} })), { ok: true, action: "open" }, "Table mode with nothing to deal: Open is Open");
+  eq(dealLogic.planTableOpen(table({ dealt: "QQ" })), { ok: true, action: "open" }, "Table mode with the list already dealt: Open is Open");
+  eq(dealLogic.planTableOpen(table({ phase: PHASE.open })), { ok: true, action: "open" }, "a pot past staging is left to open's own refusal");
+  eq(dealLogic.planTableOpen(table()), { ok: true, action: "warn", warning: { letters: ["Q"] } }, "Table mode with a list to deal and a lair warning standing: the Judge settles the warning first");
+  eq(dealLogic.planTableOpen(table({ deal: { metInLair: true, hand: [{ letter: "Q", hoards: 1 }] } })), { ok: true, action: "offer", lair: false }, "the warning does not stand: offered, no confirmation to carry");
+  eq(dealLogic.planTableOpen(table(), { confirmed: true }), { ok: true, action: "offer", lair: true }, "the Judge confirmed the warning: offered, and the confirmation is carried");
+  eq(dealLogic.planTableOpen(table({ offered: true })), { ok: true, action: "offered" }, "an offered pot is not offered twice");
+
+  const view = (pot) => ({ id: "p", pot, cards: [{ id: "c1", face: null, value: 0, truth: { label: "Seed", pool: "item" } }] });
+  const seen = dealLogic.tableWaiting(view(table({ offered: true, order: ["c1"], buckets: { add: ["c1"] }, mode: "table" })), { isGM: false, seated: true });
+  ok(seen.waiting, "a seat with LIMITED on an offered pot is shown the waiting panel");
+  eq(seen.count, 2, "it is told how many hoards, and nothing more");
+  eq([seen.view.cards, seen.view.pot.order, seen.view.pot.buckets, seen.view.pot.deal.hand, seen.view.pot.deal.monsters], [[], [], { add: [], replace: [] }, [], []], "no card, no bucket and no letter reach the seat's context");
+  ok(!JSON.stringify(seen).includes("Q"), "the letter is nowhere in what the seat is handed");
+  ok(seen.stripped, "and the window draws no staging surface");
+  const staged = (over) => view(table({ order: ["c1"], buckets: { add: ["c1"] }, ...over }));
+  // Staging is the Judge's surface: a seat is never drawn it, whatever state the pot is in (a mode change withdraws an offer and leaves the seat at LIMITED).
+  for (const [what, v, ctx] of [
+    ["a seat with no level on an offered pot", staged({ offered: true }), { isGM: false, seated: false }],
+    ["a pot not offered", staged({}), { isGM: false, seated: true }],
+    ["a pot whose mode is Judge", staged({ offered: true, mode: "judge" }), { isGM: false, seated: true }],
+  ]) {
+    const got = dealLogic.tableWaiting(v, ctx);
+    eq([got.waiting, got.stripped, got.view.cards, got.view.pot.order, got.view.pot.buckets, got.view.pot.deal.hand], [false, true, [], [], { add: [], replace: [] }, []], `${what}: no waiting panel and no card, bucket or letter`);
+  }
+  for (const [what, v, ctx] of [
+    ["a Judge", view(table({ offered: true })), { isGM: true, seated: true }],
+    ["an open pot", view(table({ offered: true, phase: PHASE.open })), { isGM: false, seated: true }],
+  ]) {
+    const got = dealLogic.tableWaiting(v, ctx);
+    eq([got.waiting, got.stripped, got.view === v], [false, false, true], `${what}: the view is the window's own`);
+  }
 }
 
 console.log(`treasure deal: ${checks} checks passed`);

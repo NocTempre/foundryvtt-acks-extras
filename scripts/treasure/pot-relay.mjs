@@ -19,20 +19,50 @@
  * (`claimCard`) a Take uses, inside the one queued request, so no flip or claim
  * lands between its read and its writes.
  *
+ * A `deal` rolls a pot the Judge offered to the table (`planTableDeal`): the
+ * sender must hold LIMITED or better on the pile, read from Foundry when the
+ * request arrives, and the pot must be offered in staging, in Table mode. The
+ * Judge's client deals it as a Judge's Deal does, opens it and says so under the
+ * sender's name.
+ *
  * A `close` is the pile's owner's: the sender must hold OWNER on the pile, and
  * on the place when one is named, each read from Foundry when the request
  * arrives. The close itself (filing, the record, the delete) is the Judge's
  * client's `closePot`, which the handler calls inside the queue.
  */
-import { PHASE, REFUSAL } from "./constants.mjs";
+import { MODE, PHASE, REFUSAL } from "./constants.mjs";
+import { dealLines, listDealt } from "./deal-logic.mjs";
 import { planGrab } from "./grab-logic.mjs";
 import { grabLots, ownsAnyMember, planGrabStart, speedOfRank, valueGpsOf } from "./grab-pot.mjs";
 import { apparentName, cardInPot, planClaim, planClose, planFlip } from "./pot-logic.mjs";
 
 /** The request kinds a pot answers to. */
-export const OPS = Object.freeze(["flip", "claim", "grab", "close"]);
+export const OPS = Object.freeze(["flip", "claim", "grab", "close", "deal"]);
 
 const failure = (reason, extra = {}) => ({ ok: false, reason, ...extra });
+
+/**
+ * Whether a sender may deal a pot the Judge offered to the table: the sender
+ * holds LIMITED or better on the pile (`seated`, which Foundry answers and the
+ * caller reads when the act arrives, a Judge always), and the pot is in staging,
+ * in Table mode, offered, with a hoard listed. `lair` is the confirmation of the
+ * lair warning the Judge gave at the offer, or a Judge sender's own; a
+ * player's payload never supplies it. `resume` says the list was already dealt
+ * (a deal landed and its open did not), so the Judge's client opens without
+ * dealing again.
+ * @param {object|null} view the pot's `PotView`, read fresh
+ * @param {{sender: object, seated: boolean, confirmed?: boolean}} ctx `confirmed` is the payload's claim, honoured only for a Judge
+ * @returns {{ok: true, lair: boolean, resume: boolean, hoards: number}|{ok: false, reason: string}}
+ */
+export function planTableDeal(view, { sender, seated, confirmed = false }) {
+  if (!view) return failure(REFUSAL.noPot);
+  if (!seated) return failure(REFUSAL.notAllowed);
+  const { pot } = view;
+  if (pot.phase !== PHASE.staging || pot.mode !== MODE.table || !pot.offered) return failure(REFUSAL.notYours);
+  const hoards = dealLines(pot.deal).length;
+  if (!hoards) return failure(REFUSAL.empty);
+  return { ok: true, lair: pot.offeredLair || (!!sender?.isGM && confirmed === true), resume: listDealt(pot), hoards };
+}
 
 /**
  * @param {object} deps
@@ -43,6 +73,8 @@ const failure = (reason, extra = {}) => ({ ok: false, reason, ...extra });
  * @param {(potId: string, user: object) => boolean} deps.seated  whether the user holds LIMITED or better on the pot's pile, read when the act arrives
  * @param {(potId: string, user: object) => boolean} deps.ownsPot  whether the user holds OWNER on the pot's pile, read when the act arrives
  * @param {(potId: string, placeUuid: string|null) => Promise<{ok: boolean, reason?: string, filed?: number}>} deps.closePot  closes the pot, filing what is unclaimed at the place when one is named
+ * @param {(potId: string, sender: object, how: {lair: boolean, resume: boolean}) => Promise<{ok: boolean, reason?: string, hoards?: number}>} [deps.dealOffered]
+ *   deals the offered pot (unless `resume`), opens it and says so under `sender`'s name; `lair` carries the Judge's confirmation of the lair warning
  * @param {(user: object, actorUuid: string) => boolean} deps.owns  whether the user owns the actor
  * @param {(actorUuid: string) => boolean} deps.hasActor  whether the uuid names an actor
  * @param {(actorUuid: string) => boolean} deps.ownedByTable  whether any seat at the table owns the actor
@@ -177,8 +209,25 @@ export function createRelay(deps) {
     return deps.closePot(potId, placeUuid);
   }
 
+  /**
+   * Deal a pot the Judge offered, for the sender. The pot is read fresh inside
+   * the queue, so a press that finds it already dealt is refused `notYours`.
+   * The deal, the open and the line said under the sender's name are the
+   * Judge's client's (`deps.dealOffered`).
+   */
+  async function dealOffered(potId, sender, payload) {
+    const plan = planTableDeal(deps.readPot(potId), { sender, seated: !!deps.seated(potId, sender), confirmed: payload.lair === true });
+    if (!plan.ok) return failure(plan.reason);
+    if (typeof deps.dealOffered !== "function") return failure(REFUSAL.failed);
+    const done = await deps.dealOffered(potId, sender, { lair: plan.lair, resume: plan.resume });
+    if (done?.ok) return { ok: true, hoards: done.hoards ?? plan.hoards };
+    // A reason the window has no words for (the deal's own lair refusals) is a plain failure to the seat.
+    return failure(Object.values(REFUSAL).includes(done?.reason) ? done.reason : REFUSAL.failed);
+  }
+
   async function act(potId, op, sender, payload) {
     if (op === "grab") return grab(potId, sender);
+    if (op === "deal") return dealOffered(potId, sender, payload);
     if (op === "close") return close(potId, sender, payload);
     if (op === "flip") {
       const plan = planFlip(deps.readPot(potId), payload.cardId, { sender, seated: !!deps.seated(potId, sender) });

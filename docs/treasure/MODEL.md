@@ -14,7 +14,9 @@ A pot is a core `pile` Cards document, GM-only through staging. Its flag
 | Key | Holds |
 | --- | --- |
 | `phase` | `staging` → `open` → `closed` |
-| `mode` | `judge` or `table`: who rolls. Stored only; a pot built by hand rolls nothing |
+| `mode` | `judge` or `table`: who rolls. In `table`, the Judge's Open offers a pot whose deal list is undealt instead of dealing it (see "Table mode: the offer"); `judge` opens as it always has |
+| `offered`, `offeredLair` | whether the Judge offered the staging pot to the table, and whether the Judge confirmed the lair warning at the offer; both clear when the pot opens or the mode changes |
+| `dealt` | the key (`dealKey`: the list's letters, once per hoard) of the deal list a Deal last rolled; the list reads as dealt while it still has that key, so an edit makes it undealt |
 | `flippers` | user ids that may turn cards, or `null` for every seat that holds LIMITED on the pile |
 | `audience` | user ids given LIMITED sight at open; a record that no act reads (the relay reads the pile's own level, see "Opening, the relay and closing") |
 | `order` | the card ids that are in the pot, **the authority** |
@@ -97,6 +99,35 @@ window is narrow.
 - The header counts what the pot holds: "In the pot: {n}" while staging, "You
   found {n} items" once open, with the number turned in its tooltip. No string
   the window shows calls an entry a card.
+
+## Table mode: the offer
+
+With **Who rolls** on Table and a deal list that no Deal has rolled
+(`planTableOpen`; `listDealt` reads the `dealt` key), the Judge's **Open to the
+table** offers the pot instead of dealing and opening it. The pot stays in
+staging and unrolled, its audience gets LIMITED as at open, the doorway is posted
+(opening keeps it), and `offered` is set. A lair warning that stands is settled
+first, in the rail, with **Cancel** and **Open anyway**; the answer is stored as
+`offeredLair`. An empty list, a dealt list or Judge mode opens as always.
+
+A seat holding LIMITED or better on the pile is drawn a waiting panel where the
+cards would stand (`tableWaiting`): a caption and one press worded with the
+number of hoards only. The view that panel is drawn from has no card, bucket,
+letter or monster in it, and the doorway reports nothing of a staging pot. With
+no Judge connected the press is disabled and the line says why; the window
+re-draws on `userConnected`.
+
+The press is the relay's `deal` (`planTableDeal`): the sender's LIMITED is read
+when the act arrives, the pot must be in staging, in Table mode, offered, with a
+hoard listed, and a lair confirmation counts only from the stored `offeredLair`
+or a Judge sender. The Judge's client (`dealOfferedPot`) runs the Judge's own
+deal (`dealLettersIntoPot`, which records `dealt`), opens the pot with the
+offer's doorway (`openPot`, so bands, forced flags, No magic and Replace and the
+Judge's audit whisper are those of a Judge's Deal then Open) and says one line
+authored by and spoken as the pressing user. A list already dealt (a deal landed
+and its open did not) is opened without dealing again. The Judge's own Deal on
+an offered pot takes the same path, under the Judge's name; on any other staging
+pot it is the Deal it always was.
 
 ## Opening, the relay and closing
 

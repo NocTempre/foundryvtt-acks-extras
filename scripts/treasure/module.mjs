@@ -8,8 +8,8 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
-import { MODULE_ID, LANG, POT_HANDLER, DEAL_BLOCK_TEMPLATE, DEAL_OPTIONS_TEMPLATE } from "./constants.mjs";
-import { newDealPot } from "./deal.mjs";
+import { DEAL_BLOCK_TEMPLATE, DEAL_OPTIONS_TEMPLATE, LANG, MODULE_ID, POT_HANDLER } from "./constants.mjs";
+import { dealOfferedPot, newDealPot } from "./deal.mjs";
 import { declareTreasureTables } from "./expected.mjs";
 import { installDoorway } from "./doorway.mjs";
 import PotSheet, { report } from "./pot-sheet.mjs";
@@ -18,7 +18,7 @@ import { createCardDrop } from "./sheet-drop.mjs";
 import "./search.mjs";
 import "./search-deal.mjs";
 
-registerHandler(POT_HANDLER, createPotRelay().handle);
+registerHandler(POT_HANDLER, createPotRelay({ dealOffered: dealOfferedPot }).handle);
 
 Hooks.on(
   "dropActorSheetData",

@@ -1,4 +1,4 @@
-/* global game, foundry, fromUuid, ui */
+/* global game, foundry, fromUuid, Hooks, ui */
 /**
  * The pot's window: the stash a table turns over, and the Judge's staging room
  * for the same pile. One sheet serves both seats and re-renders whenever a Card
@@ -20,12 +20,12 @@ import { BAND_COUNT, BUCKET, LANG, MODE, MODULE_ID, PHASE, POOL, POT_HANDLER, RE
 import { DEAL_LIST, DEAL_STYLE, DEAL_TOGGLE, apparentName, bucketCards, cardInPot, cardView, dealOf, haulOf, normalizeTruth, potCards, seatCards, turnedOf, withBands } from "./pot-logic.mjs";
 import { slowestSpeed, speedOfRank } from "./grab-pot.mjs";
 import { TEXTURE, backArt, backDress, faceArt, faceDress, textureArt } from "./card-art.mjs";
-import { canBrowseTables, dealLines, dealMessages, dealOptionsView, lairWarning, monsterRows } from "./deal-logic.mjs";
+import { canBrowseTables, dealLines, dealMessages, dealOptionsView, lairWarning, monsterRows, planTableOpen, tableWaiting } from "./deal-logic.mjs";
 import { armsSource, dealLettersIntoPot } from "./deal.mjs";
 import { armsBandParts } from "./magic-deal-logic.mjs";
 import { hoardTypes, styleCite } from "./hoard.mjs";
 import {
-  addDealHand, addDealMonster, addTruths, closePot, mayGrab, openPot, partyFigures, potOf, removeDealRow, removeStaged, setDealMetInLair, setDealOption, setDealToggle, setMode, stepDealRow, truthsFromItem, viewOf,
+  addDealHand, addDealMonster, addTruths, closePot, mayGrab, offerPot, openPot, partyFigures, potOf, removeDealRow, removeStaged, setDealMetInLair, setDealOption, setDealToggle, setMode, stepDealRow, truthsFromItem, viewOf,
 } from "./pot.mjs";
 
 const { HandlebarsApplicationMixin, DocumentSheetV2, DialogV2 } = foundry.applications.api;
@@ -92,6 +92,9 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       dealConfirm: PotSheet.#onDealConfirm,
       dealCancel: PotSheet.#onDealCancel,
       openTable: PotSheet.#onOpen,
+      offerConfirm: PotSheet.#onOfferConfirm,
+      offerCancel: PotSheet.#onOfferCancel,
+      tableDeal: PotSheet.#onTableDeal,
       closePot: PotSheet.#onClose,
       removeCard: PotSheet.#onRemove,
       addValue: PotSheet.#onAddValue,
@@ -111,8 +114,17 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
   /** Whether the next render should put focus on the warning's Deal anyway button, set by the Deal press that raised it. */
   #focusWarning = false;
 
-  /** Whether a Deal is under way, so a second press while the first is rolling does nothing. */
+  /** Whether a Deal is under way, so a second press while the first is rolling does nothing. A seat's deal of an offered pot holds it too. */
   #dealing = false;
+
+  /** Whether the Judge's Open has raised the lair warning its offer waits behind and not yet had an answer. */
+  #offerWarned = false;
+
+  /** Whether the next render should put focus on the offer warning's Open anyway button. */
+  #focusOffer = false;
+
+  /** The `userConnected` hook that re-draws a waiting panel when a Judge comes or goes. */
+  #userHook = null;
 
   /** Whether the treasure-type picker is open. Window state: it is not stored and a re-render keeps it. */
   #picking = false;
@@ -138,9 +150,11 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const isGM = game.user.isGM;
-    const view = withBands(viewOf(this.document));
+    // Staging is the Judge's surface: a seat is drawn it from a view with no card in it, and a pot offered to the table is a waiting panel.
+    const waiting = tableWaiting(viewOf(this.document), { isGM, seated: !!this.document.testUserPermission(game.user, "LIMITED") });
+    const view = withBands(waiting.view);
     const { pot } = view;
-    const staging = pot.phase === PHASE.staging;
+    const staging = pot.phase === PHASE.staging && !waiting.stripped;
     const open = pot.phase === PHASE.open;
     // A player is shown found lots only; the Judge's tiles carry them all, an unfound one marked (`found`). Display-level: every seat can read every Card's flag.
     const seat = seatCards(view, { isGM }).map((c) => cardView(c, { isGM }));
@@ -179,6 +193,8 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       pressed: pot.deal.toggles[key],
     }));
     context.deal = staging && isGM ? this.#dealContext(pot) : null;
+    context.waiting = waiting.waiting ? this.#waitingContext(waiting.count) : null;
+    context.offer = staging && isGM ? this.#offerContext(pot) : null;
     context.party = open ? this.#partyContext(view) : null;
     context.modeJudge = pot.mode === MODE.judge;
     context.modeTable = pot.mode === MODE.table;
@@ -263,6 +279,37 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       ...options,
       dealTip: loc("deal.tip.deal"),
       warning: standing ? { body: loc("deal.warn.body", { toggle: loc("deal.lair") }), tip: cite } : null,
+    };
+  }
+
+  /**
+   * The waiting panel a seat is shown for an offered pot: a caption, the press
+   * worded with the number of hoards only, and, while no Judge is connected,
+   * the press disabled and the line that says why. Nothing here names a letter
+   * or a monster.
+   */
+  #waitingContext(count) {
+    return {
+      caption: loc("table.waiting"),
+      runText: loc(count === 1 ? "deal.runOne" : "deal.runN", { n: count }),
+      tip: loc("table.tip"),
+      noGm: !game.users.activeGM,
+    };
+  }
+
+  /**
+   * What the Judge's Open does on this pot, as the rail words it: whether it
+   * offers the pot to the table (`planTableOpen`), a note while the pot stands
+   * offered, and the lair warning the offer waits behind while one stands.
+   */
+  #offerContext(pot) {
+    const plan = planTableOpen(pot);
+    const cite = loc("cite.deal");
+    return {
+      offers: plan.action === "warn" || plan.action === "offer",
+      offered: pot.offered,
+      openTip: plan.action === "open" ? "" : loc("table.openTip"),
+      warning: this.#offerWarned && plan.action === "warn" ? { body: loc("deal.warn.body", { toggle: loc("deal.lair") }), tip: cite } : null,
     };
   }
 
@@ -385,6 +432,21 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
   }
 
   /** @override */
+  _onFirstRender(context, options) {
+    super._onFirstRender(context, options);
+    this.#userHook = Hooks.on("userConnected", () => {
+      if (this.rendered) this.render();
+    });
+  }
+
+  /** @override */
+  _onClose(options) {
+    if (this.#userHook !== null) Hooks.off("userConnected", this.#userHook);
+    this.#userHook = null;
+    super._onClose(options);
+  }
+
+  /** @override */
   async _onRender(context, options) {
     await super._onRender(context, options);
     const first = this.#shown === null;
@@ -401,6 +463,10 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     if (this.#focusWarning) {
       this.#focusWarning = false;
       this.element.querySelector("[data-deal-warning] [data-action='dealConfirm']")?.focus();
+    }
+    if (this.#focusOffer) {
+      this.#focusOffer = false;
+      this.element.querySelector("[data-offer-warning] [data-action='offerConfirm']")?.focus();
     }
   }
 
@@ -593,6 +659,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
   /** Judge: set or clear "Met in their lair". Any warning shown is dropped, since the answer to it changed. */
   static async #onDealLair(_event, target) {
     this.#warned = false;
+    this.#offerWarned = false;
     await setDealMetInLair(this.document, target.getAttribute("aria-pressed") !== "true");
     this.render();
   }
@@ -633,12 +700,20 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       await this.#writes.catch(() => {});
       const { deal } = potOf(this.document);
       const letters = dealLines(deal).map((line) => line.letter);
-      if (!confirmed && lairWarning({ letters, metInLair: deal.metInLair })) {
+      const offered = potOf(this.document);
+      // A lair the Judge confirmed at the offer is not asked again.
+      const settled = confirmed || (offered.offered && offered.offeredLair);
+      if (!settled && lairWarning({ letters, metInLair: deal.metInLair })) {
         this.#warned = true;
         this.#focusWarning = true;
         return;
       }
       this.#warned = false;
+      // An offered pot is dealt the way a seat deals it: dealt, opened, and said under the Judge's name.
+      if (offered.offered) {
+        report(await executeAsGM(POT_HANDLER, { potId: this.document.id, op: "deal", lair: confirmed }));
+        return;
+      }
       const outcome = await dealLettersIntoPot(this.document, { letters, style: deal.style, special: deal.special, confirmLair: confirmed ? () => true : undefined });
       for (const m of dealMessages(outcome)) ui.notifications?.[m.level](loc(m.key, m.args));
     } catch (err) {
@@ -650,10 +725,53 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     }
   }
 
-  /** Judge: open the staged pot to the table. */
-  static async #onOpen() {
-    const result = await openPot(this.document);
+  /** Judge: open the staged pot to the table, or offer it when Table mode leaves its list for a seat to deal. */
+  static #onOpen() {
+    return this.#open({ confirmed: false });
+  }
+
+  /** Judge: Open anyway, from the lair warning an offer waits behind. */
+  static #onOfferConfirm() {
+    return this.#open({ confirmed: true });
+  }
+
+  /** Judge: Cancel, from the offer's lair warning. Nothing is offered and nothing is said. */
+  static #onOfferCancel() {
+    this.#offerWarned = false;
+    this.render();
+  }
+
+  /**
+   * What Open does (`planTableOpen`): offer the pot while a lair warning that
+   * stands is settled first, or open it as it always has. An offered pot is
+   * not offered again.
+   */
+  async #open({ confirmed }) {
+    await this.#writes.catch(() => {});
+    const plan = planTableOpen(potOf(this.document), { confirmed });
+    if (plan.action === "warn") {
+      this.#offerWarned = true;
+      this.#focusOffer = true;
+      this.render();
+      return;
+    }
+    this.#offerWarned = false;
+    if (plan.action === "offered") return;
+    const result = plan.action === "offer" ? await offerPot(this.document, { lair: plan.lair }) : await openPot(this.document);
     if (!result.ok) ui.notifications?.warn(loc(`refuse.${result.reason}`));
+    else if (plan.action === "offer") this.render();
+  }
+
+  /** A seat: deal the pot the Judge offered. The press runs on the Judge's client through the relay, which reads this seat's level on the pile when it arrives. */
+  static async #onTableDeal() {
+    if (this.#dealing) return;
+    this.#dealing = true;
+    try {
+      report(await executeAsGM(POT_HANDLER, { potId: this.document.id, op: "deal" }));
+    } finally {
+      this.#dealing = false;
+      this.render();
+    }
   }
 
   /** Judge: take a card out of the staged pot. */

@@ -87,12 +87,29 @@
           {{/if}}
         {{/if}}
         <button type="button" class="acks-btn acks-btn--secondary" data-action="addValue">{{localize "ACKS-TREASURE.judge.addValue"}}</button>
-        <button type="button" class="acks-btn acks-btn--lg" data-action="openTable">{{localize "ACKS-TREASURE.judge.open"}}</button>
+        <button type="button" class="acks-btn acks-btn--lg" data-action="openTable"{{#if offer.openTip}} data-tooltip-text="{{offer.openTip}}"{{/if}}>{{localize "ACKS-TREASURE.judge.open"}}</button>
+        {{#if offer.offered}}<span class="acks-extras-treasure__hint" role="status">{{localize "ACKS-TREASURE.table.offered"}}</span>{{/if}}
+        {{#if offer.warning}}
+          <div class="acks-callout acks-callout--warning acks-extras-treasure__warning" role="alert" data-offer-warning data-tooltip-text="{{offer.warning.tip}}">
+            <span><span class="acks-callout-label">{{localize "ACKS-TREASURE.deal.warn.label"}}</span>{{offer.warning.body}}</span>
+            <div class="acks-btn-group">
+              <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="offerCancel">{{localize "ACKS-TREASURE.deal.warn.cancel"}}</button>
+              <button type="button" class="acks-btn acks-btn--sm" data-action="offerConfirm">{{localize "ACKS-TREASURE.judge.openAnyway"}}</button>
+            </div>
+          </div>
+        {{/if}}
       </aside>
     {{/if}}
 
     <main class="acks-extras-treasure__main">
 
+      {{#if waiting}}
+        <section class="acks-extras-treasure__waiting" aria-labelledby="{{@root.partId}}-waiting">
+          <h3 class="acks-extras-caption" id="{{@root.partId}}-waiting">{{waiting.caption}}</h3>
+          <button type="button" class="acks-btn acks-btn--roll acks-btn--lg" data-action="tableDeal" data-tooltip-text="{{waiting.tip}}"{{#if waiting.noGm}} disabled aria-describedby="{{@root.partId}}-nogm"{{/if}}>{{waiting.runText}}</button>
+          {{#if waiting.noGm}}<span class="acks-extras-treasure__hint" id="{{@root.partId}}-nogm" role="status">{{localize "ACKS-LIB.socket.noGm"}}</span>{{/if}}
+        </section>
+      {{else}}
       <ol class="acks-extras-treasure__grid" {{#if staging}}data-accept-drop="pot"{{/if}}>
         {{#each cards}}
           {{#if ../isGM}}
@@ -183,6 +200,7 @@
           <li class="acks-extras-treasure__empty">{{#if staging}}{{localize "ACKS-TREASURE.judge.emptyPot"}}{{else}}{{localize "ACKS-TREASURE.card.none"}}{{/if}}</li>
         {{/each}}
       </ol>
+      {{/if}}
 
       {{#if staging}}
         <div class="acks-extras-treasure__buckets">

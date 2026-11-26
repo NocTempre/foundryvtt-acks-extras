@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { PHASE, REFUSAL } from "../scripts/treasure/constants.mjs";
 import { normalizePot, normalizeTruth } from "../scripts/treasure/pot-logic.mjs";
 import { createRelay } from "../scripts/treasure/pot-relay.mjs";
+import * as relayRules from "../scripts/treasure/pot-relay.mjs";
 
 let checks = 0;
 const eq = (a, b, msg) => {
@@ -32,7 +33,7 @@ const OBSERVER = 2;
 const OWNER = 3;
 
 /** A relay over one fake pot, with a log of every write and every delivery. */
-function world({ pot = {}, cards, deliver, setClaimDelay = 0, levels = { anna: LIMITED, ben: LIMITED } } = {}) {
+function world({ pot = {}, cards, deliver, setClaimDelay = 0, dealDelay = 0, levels = { anna: LIMITED, ben: LIMITED } } = {}) {
   const store = {
     pot: normalizePot({ phase: PHASE.open, audience: ["anna", "ben"], order: ["a", "b"], ...pot }),
     cards: cards ?? [
@@ -41,7 +42,7 @@ function world({ pot = {}, cards, deliver, setClaimDelay = 0, levels = { anna: L
       { id: "planted", face: 0, value: 0, truth: normalizeTruth({ label: "Plant" }) },
     ],
   };
-  const log = { flips: [], claims: [], delivered: [], closes: [] };
+  const log = { flips: [], claims: [], delivered: [], closes: [], deals: [] };
   const relay = createRelay({
     user: (id) => users[id] ?? null,
     self: () => users.gm,
@@ -56,6 +57,12 @@ function world({ pot = {}, cards, deliver, setClaimDelay = 0, levels = { anna: L
     closePot: async (_id, placeUuid) => {
       log.closes.push(placeUuid);
       return { ok: true, filed: placeUuid ? 1 : 0 };
+    },
+    dealOffered: async (_id, sender, how) => {
+      log.deals.push([sender.id, how]);
+      if (dealDelay) await new Promise((r) => setTimeout(r, dealDelay));
+      store.pot = normalizePot({ ...store.pot, phase: PHASE.open, offered: false, offeredLair: false });
+      return { ok: true, hoards: 2 };
     },
     party: () => ({ members: [{ id: "m1", uuid: "Actor.cleo", name: "Cleo", capacity6: null, load6: null, casualty: false, hasDocument: true }], paceWith: () => 0 }),
     owns: (user, uuid) => user.isGM || (owners[uuid] ?? []).includes(user.id),
@@ -260,6 +267,86 @@ const send = (w, payload) => w.relay.handle({ potId: "pot1", ...payload });
   eq((await slow.handle({ potId: "pot1", op: "close", requestUserId: "anna" })).reason, REFUSAL.busy, "a second close while one is in flight is refused busy");
   release();
   ok((await first).ok, "the first settles");
+}
+
+/* --- deal: the table rolls an offered pot --- */
+const offeredPot = (over = {}) => ({ phase: PHASE.staging, mode: "table", offered: true, order: [], deal: { hand: [{ letter: "Q", hoards: 2 }] }, ...over });
+{
+  const w = world({ pot: offeredPot() });
+  const r = await send(w, { op: "deal", requestUserId: "anna" });
+  ok(r.ok, "a seat with LIMITED on an offered pot deals it");
+  eq(w.log.deals, [["anna", { lair: false, resume: false }]], "the Judge's client deals once, for the sender Foundry attested");
+  const again = await send(w, { op: "deal", requestUserId: "ben" });
+  eq(again.reason, REFUSAL.notYours, "the pot is no longer offered once dealt: a second press is refused");
+  eq(w.log.deals.length, 1, "and deals nothing");
+}
+{
+  const w = world({ pot: offeredPot() });
+  eq((await send(w, { op: "deal", requestUserId: "out" })).reason, REFUSAL.notAllowed, "a seat with no level on the pile is refused");
+  eq((await send(w, { op: "deal", requestUserId: "nobody" })).reason, REFUSAL.noUser, "an unknown sender");
+  eq((await send(w, { op: "deal", requestUserId: "anna", potId: "other" })).reason, REFUSAL.noPot, "an unknown pot");
+  eq(w.log.deals.length, 0, "no refusal dealt");
+  w.levels.anna = NONE;
+  eq((await send(w, { op: "deal", requestUserId: "anna" })).reason, REFUSAL.notAllowed, "the level is read when the act arrives");
+  w.levels.anna = LIMITED;
+  ok((await send(w, { op: "deal", requestUserId: "anna" })).ok, "and admitted again at LIMITED");
+}
+{
+  for (const [what, pot] of [
+    ["a pot never offered", offeredPot({ offered: false })],
+    ["a pot whose mode is Judge", offeredPot({ mode: "judge" })],
+    ["an open pot", offeredPot({ phase: PHASE.open, offered: false })],
+    ["a closed pot", offeredPot({ phase: PHASE.closed })],
+  ]) {
+    const w = world({ pot });
+    eq((await send(w, { op: "deal", requestUserId: "anna" })).reason, REFUSAL.notYours, `${what} is not the seat's to deal`);
+    eq(w.log.deals.length, 0, `${what}: nothing dealt`);
+  }
+  const empty = world({ pot: offeredPot({ deal: {} }) });
+  eq((await send(empty, { op: "deal", requestUserId: "anna" })).reason, REFUSAL.empty, "an offered pot with no hoard listed refuses empty");
+  eq(empty.log.deals.length, 0);
+}
+{
+  // The lair confirmation is the Judge's, stored at the offer; a player's payload never supplies it.
+  const lair = world({ pot: offeredPot({ offeredLair: true }) });
+  await send(lair, { op: "deal", requestUserId: "anna" });
+  eq(lair.log.deals[0][1].lair, true, "a lair confirmed at the offer is carried to the deal");
+  const claim = world({ pot: offeredPot() });
+  await send(claim, { op: "deal", requestUserId: "anna", lair: true });
+  eq(claim.log.deals[0][1].lair, false, "a player's payload cannot confirm the lair");
+  const judge = world({ pot: offeredPot() });
+  await send(judge, { op: "deal", requestUserId: "gm", lair: true });
+  eq(judge.log.deals[0][1].lair, true, "a Judge's own confirmation is honoured");
+  const own = world({ pot: offeredPot() });
+  ok((await send(own, { op: "deal" })).ok, "a Judge's own call (no attested sender) deals an offered pot");
+  eq(own.log.deals[0][0], "gm");
+}
+{
+  // A deal that landed and an open that failed leaves the list dealt: the next press opens and deals nothing again.
+  const w = world({ pot: offeredPot({ dealt: "QQ" }) });
+  await send(w, { op: "deal", requestUserId: "anna" });
+  eq(w.log.deals[0][1].resume, true, "a list already dealt is not dealt again");
+  const stale = world({ pot: offeredPot({ dealt: "QR" }) });
+  await send(stale, { op: "deal", requestUserId: "anna" });
+  eq(stale.log.deals[0][1].resume, false, "a marker for a list since edited is stale");
+}
+{
+  // One press at a time: the second is busy, and once the first settles the pot is no longer offered.
+  const w = world({ pot: offeredPot(), dealDelay: 10 });
+  const first = send(w, { op: "deal", requestUserId: "anna" });
+  eq((await send(w, { op: "deal", requestUserId: "anna" })).reason, REFUSAL.busy, "a second press while one runs is refused busy");
+  ok((await first).ok, "the first settles");
+  eq(w.log.deals.length, 1, "one deal");
+  const bank = world({ pot: offeredPot(), dealDelay: 10 });
+  const [ra, rb] = await Promise.all([send(bank, { op: "deal", requestUserId: "anna" }), send(bank, { op: "deal", requestUserId: "ben" })]);
+  eq([ra.ok, rb.ok, bank.log.deals.length], [true, false, 1], "two seats pressing at once make one deal; the second re-reads the pot and finds it dealt");
+}
+{
+  const view = { id: "pot1", pot: normalizePot(offeredPot()), cards: [] };
+  const plan = relayRules.planTableDeal(view, { sender: users.anna, seated: true });
+  eq([plan.ok, plan.lair, plan.resume], [true, false, false], "the rule is a pure function of the pot, the sender and the seat");
+  eq(relayRules.planTableDeal(view, { sender: users.anna, seated: false }).reason, REFUSAL.notAllowed);
+  eq(relayRules.planTableDeal(null, { sender: users.anna, seated: true }).reason, REFUSAL.noPot);
 }
 
 console.log(`test-treasure-relay: ${checks} checks passed`);

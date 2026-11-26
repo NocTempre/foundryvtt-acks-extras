@@ -8,7 +8,7 @@
  * from then on there is nothing here to fill.
  */
 import { makeLoc } from "../lib/util.mjs";
-import { LANG, MODULE_ID, POT_FLAG } from "./constants.mjs";
+import { LANG, MODULE_ID, PHASE, POT_FLAG } from "./constants.mjs";
 import { seatCards } from "./pot-logic.mjs";
 import { findPot, progressOf } from "./pot.mjs";
 
@@ -30,11 +30,13 @@ function fill(el) {
   const pile = potOfDoor(el);
   if (!pile) return;
   const { turned, count, haul, view } = progressOf(pile);
-  el.querySelector('[data-field="turned"]').textContent = loc("door.turned", { turned, count });
-  el.querySelector('[data-field="haul"]').textContent = loc("door.gp", { gp: Math.round(haul.totalGp * 100) / 100 });
+  // A pot offered to the table is still in staging: its cards are the Judge's, so the card reports none of them.
+  const shown = view.pot.phase === PHASE.staging ? { turned: 0, count: 0, gp: 0, cards: [] } : { turned, count, gp: haul.totalGp, cards: seatCards(view) };
+  el.querySelector('[data-field="turned"]').textContent = loc("door.turned", { turned: shown.turned, count: shown.count });
+  el.querySelector('[data-field="haul"]').textContent = loc("door.gp", { gp: Math.round(shown.gp * 100) / 100 });
   const pips = el.querySelector('[data-field="pips"]');
   pips.replaceChildren(
-    ...seatCards(view).map((card) => {
+    ...shown.cards.map((card) => {
       const span = pips.ownerDocument.createElement("span");
       span.className = "acks-extras-treasure-door__pip";
       if (card.face != null) span.classList.add("is-up");

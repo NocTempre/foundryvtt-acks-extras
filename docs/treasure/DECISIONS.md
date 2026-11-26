@@ -48,7 +48,7 @@ shows (`cardView`) and a Card's `suit` and faces carry only that. A flip writes
 `faces` and `face` in one update so no core sheet shows a face early. A player
 who reads the flag sees the truth, as with the equipment disguise.
 
-## 2026-11-17 — Who rolls is the Judge's choice, per pot
+## 2026-11-17 — Who rolls is the Judge's choice, per pot — SUPERSEDED IN PART 2026-11-26
 
 Owner question A, answered: "Judge chooses per pot". The choice is the pile's
 `mode` (`judge` or `table`), a toggle in staging. In R1 a pot is built by hand
@@ -763,3 +763,47 @@ The owner, 2026-11-20: "Treasure tables aren t improting?" and 2026-11-26: "wher
 The owner, 2026-11-26: "also no way to select on treasure deal card"; standing: "every value has a control, everything has a manual override or entry point, and nothing is buried in a hidden table", "follow foundry permissions, don't invent new ones", "players get blocks, judges get warnings". Search the scene dealt at the first style, special off, the Judge's last arms column, and answered the lair warning on its own, so the Judge had no say in the deal the card started. The card now records the pot's four choices as `treasureSearch.deal`, seeded as `newPot` seeds a pot, draws them from the pot rail's shared partial, and the pot its press opens carries exactly them (MODEL, "Search the fallen"). Who writes is Foundry's answer for the message, `canUserModify(user, "update")`; no role is tested. Met in their lair off keeps the existing behavior: the Judge is warned and the deal goes on.
 
 **Ruled:** a card whose scene is open is drawn the reason line "This card's scene is open" and no controls (a Judge who sees the line knows why the choices are gone). The choices are not remembered per user: a column chosen on a card does not update the Judge's last-column default, which only a pot's own select writes. **Cost:** a Judge who wants a different deal after the scene opens changes it on the pot's own deal, not on the card; two Judges editing one card race and the last write wins. **Rejected:** a role test for the block (Foundry's own answer is the permission); remembering the card's choices per user (a second default beside the pot's); a refusal when the lair is off (a Judge is warned, never blocked).
+
+## 2026-11-26 — Table mode is wired: Open offers the pot and a seat deals it
+
+T-0818. The 2026-11-17 entry left `mode` stored and gating nothing, and the
+Who rolls toggle did nothing on a default world. The owner: "Bugs: just fix
+them." and "follow foundry permissions, don't invent new ones"; the call for the
+row: "Wire the setting; do not retire it. In Table mode, the open pot shows the
+Deal press to the pot's owners, decided by Foundry ownership. The press runs the
+same deal as the Judge's, relayed to the GM client for the writes, and posts
+under the player's name. The Judge's Deal stays in both modes."
+
+**Q1, ruled by the release hub:** the press shows to seats with LIMITED or
+better on the pile, the same test as Flip and Grab, since "Open grants LIMITED,
+so an OWNER test leaves the setting doing nothing on a default world". A seat
+with LIMITED on the offered pot sees the press; a seat the Judge never gave the
+pile sees nothing, and the relay refuses it by the level it reads when the press
+arrives.
+
+What was built: in Table mode, with hoards listed that no Deal has rolled, the
+Judge's Open offers the pot (`offered` on the flag, the audience seated at
+LIMITED, the doorway posted) instead of dealing and opening it; the window
+draws a seat a waiting panel with the hoard count in place of any card; the
+press is the relay's `deal`, which the Judge's client runs as the Judge's own
+Deal then Open and says in one chat line authored by the pressing user. A Deal
+records the list it rolled (`dealt`, the list's letters), because dealing never
+marked a list and an Open that dealt it again would have rolled it twice.
+
+**The three principles.** Control: the stored mode now decides what Open does.
+Override: the Judge's Deal runs in both modes, a Judge's Open in Judge mode is
+unchanged, a Judge's Deal on an offered pot is the same path under the Judge's
+name, and switching the mode back withdraws the offer. Visible: the seat is
+told the count, the chat line names the pressing user, the Judge's audit
+whisper and the warnings are those of a Judge's Deal, and the rail says the
+pot is offered.
+
+**Counter (strong):** a seat may deal a pot before the Judge has seen the
+cards, which the 2026-11-17 entry named. It is answered by the offer being the
+Judge's act per pot, by the Judge's lair warning settling before it, and by the
+Judge's audit whisper, which is unchanged. **Counter (weak):** the stored key
+of a dealt list goes stale when the list is edited, so a pot dealt before this
+change reads as undealt and a Table-mode Open offers it; a Judge who wants it
+opened as it stands switches the mode to Judge. **Rejected:** retiring the
+toggle; testing OWNER, which no default world grants; a seat's own client
+dealing (a seat cannot write the pile).

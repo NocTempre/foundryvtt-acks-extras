@@ -725,4 +725,12 @@ const planOf = (seeds, lots) => planReplace({ seeds: seeds.map((w, i) => ({ id: 
   eq(planOpen(open, { audience: [], rng: () => 0 }).reason, REFUSAL.phase, "a pot already open is not planned again");
 }
 
+/* --- an offered pot is no longer offered once it opens --- */
+{
+  const staged = view([card("a", { label: "Gem" })], { phase: PHASE.staging, mode: "table", offered: true, offeredLair: true });
+  const plan = planOpen(staged, { audience: [ANNA.id], rng: () => 0 });
+  eq([plan.ok, plan.flag.phase, plan.flag.offered, plan.flag.offeredLair], [true, PHASE.open, false, false], "opening clears the offer and its lair confirmation from the flag");
+  eq(plan.flag.mode, "table", "and leaves who rolls as the Judge set it");
+}
+
 console.log(`test-treasure: ${checks} checks passed`);

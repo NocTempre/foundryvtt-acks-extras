@@ -672,6 +672,53 @@ or the cookbook documents a real import writes.
      pointer), and the select at the narrowest rail width, where a long label
      must not widen the rail.
 
+## Table mode: the offer (both seats; T-0818)
+
+Not yet scripted: no walk in `tools/live/` presses Table with a list. A GM seat
+cannot test an ownership gate (`isOwner` is true for a Judge), so the press is
+walked from the Player seat. Fixtures: `treasure/player-character` (above), and
+a pot made by the step, marked `treasure/pot-table` and swept, with a by-hand
+hoard of an imported type in its list and the lair toggle left off. Needs a
+Judge seat connected for the whole walk.
+
+1. **Judge seat:** in staging press **Table**, leave "Met in their lair" off,
+   and press **Open to the table**. Observables: the lair warning shows in the
+   rail with **Cancel** and **Open anyway**; the pot is still `staging`, with
+   `offered` unset and no card staged.
+2. **Cancel**, then **Open to the table**, then **Open anyway**. Observables:
+   the pot's flag reads `phase: "staging"`, `offered: true`, `offeredLair: true`;
+   `order` is still empty; the pile's ownership is LIMITED for each non-Judge
+   user; one doorway card is in chat and reads "0 of 0 turned"; the rail says
+   the pot is offered. Press **Open to the table** again: nothing is posted.
+3. **Player seat:** the doorway's **Open the table** opens the window. Observable:
+   the caption "The table rolls this pot." and one button, "Deal 1 hoard"; no
+   card, no bucket, no rail, and no letter or monster name anywhere in the
+   window or its tooltips (read the DOM text).
+4. **Press the button** as the Player. Observables: the pile's flag reads
+   `phase: "open"`, `offered: false`, `dealt` holding the list's letters; its
+   `order` holds the dealt cards, face down; the doorway card is the one posted
+   at the offer (`messageId` unchanged); one chat line "<player's character
+   name> deals 1 hoard into <pot>." whose `author` is the Player and whose
+   speaker alias is the character's name; the Judge's audit whisper stands as
+   at a Judge's Deal then Open; the Player's window now shows the face-down
+   cards. Press the button twice in quick succession on a second offered pot:
+   one deal, one line.
+5. **Refusals.** On a third offered pot a seat that holds no level on the pile
+   (set its ownership default to NONE and drop that user's entry) sends
+   `executeAsGM("treasurePot", {op: "deal"})` from the console and is refused
+   `notAllowed`; no card is staged. On a pot never offered, the same call from
+   the Player is refused `notYours` ("The Judge has not given you this pot.").
+6. **No Judge connected:** log the Judge out with an offered pot open on the
+   Player seat. Observables: the button is disabled and "A GM must be
+   connected…" shows beside it, with no reload; the Judge logging back in
+   re-enables it.
+7. **Override:** on an offered pot the Judge's **Deal** runs the same path
+   (dealt, opened, the line under the Judge's name); on a fresh staging pot in
+   Table mode with an empty list, **Open to the table** opens as before; on an
+   offered pot, pressing **Judge** withdraws the offer (`offered` false) and
+   **Open to the table** is then a Judge's Open: it refuses "Put something in
+   the pot first." while nothing is staged, and opens once a card is.
+
 **Teardown:** the run's pots are tracked and swept; the kept fixtures stay.
 
 ## Treasure tables home (Judge seat)

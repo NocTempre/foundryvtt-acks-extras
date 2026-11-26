@@ -144,6 +144,9 @@ export function normalizePot(flag) {
   return {
     phase: Object.values(PHASE).includes(f.phase) ? f.phase : PHASE.staging,
     mode: f.mode === MODE.table ? MODE.table : MODE.judge,
+    offered: f.offered === true,
+    offeredLair: f.offeredLair === true,
+    dealt: typeof f.dealt === "string" ? f.dealt : "",
     flippers: Array.isArray(f.flippers) ? ids(f.flippers) : null,
     audience: ids(f.audience),
     partyId: typeof f.partyId === "string" ? f.partyId : null,
@@ -843,6 +846,8 @@ export function planOpen(view, { audience, rng }) {
   const gone = new Set(deal.removed);
   const next = normalizePot(pot);
   next.phase = PHASE.open;
+  next.offered = false;
+  next.offeredLair = false;
   next.audience = ids(audience);
   const struck = new Set(deal.struck);
   const slot = new Map();

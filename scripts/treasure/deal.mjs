@@ -1,4 +1,4 @@
-/* global game, canvas, fromUuid */
+/* global game, canvas, fromUuid, ui */
 /**
  * Dealing treasure letters into a staged pot: the Foundry side of
  * `deal-logic.mjs`. It reads the selected tokens as monster groups, and deals
@@ -17,11 +17,14 @@ import { isWorldCopy, libraryDocsWhere } from "../lib/library.mjs";
 import * as services from "../lib/services.mjs";
 import { citeOf, getDoc, hasDoc } from "../lib/tables.mjs";
 import { MAGIC_ITEM_DOC } from "../magic-items/constants.mjs";
-import { MAGIC_ITEM_ROLL_CONTRACT, MODULE_ID } from "./constants.mjs";
-import { groupMonsters, monsterRows, runLetterDeal } from "./deal-logic.mjs";
+import { makeLoc } from "../lib/util.mjs";
+import { LANG, MAGIC_ITEM_ROLL_CONTRACT, MODULE_ID } from "./constants.mjs";
+import { dealKey, dealLines, dealMessages, groupMonsters, monsterRows, runLetterDeal } from "./deal-logic.mjs";
 import { dealHoard } from "./hoard.mjs";
 import { armsBases, armsColumns, holdsMagicPlaceholder, isArmsBaseRow, rollMagicTruths } from "./magic-deal-logic.mjs";
-import { addTruths, newPot, potOf, truthsFromItem } from "./pot.mjs";
+import { addTruths, markDealt, newPot, openPot, postTableLine, potOf, truthsFromItem } from "./pot.mjs";
+
+const loc = makeLoc(LANG);
 
 /**
  * The selected monster tokens (a character or any other actor type is skipped),
@@ -72,9 +75,9 @@ export function newDealPot(groups = selectedMonsterGroups()) {
  * @param {(warning: {letters: string[]}) => (boolean|Promise<boolean>)} [args.confirmLair]
  * @returns {Promise<{ok: boolean, reason?: string, dealt?: object[], staged?: string[]}>}
  */
-export function dealLettersIntoPot(pile, { letters, style, special, confirmLair, roller } = {}) {
+export async function dealLettersIntoPot(pile, { letters, style, special, confirmLair, roller } = {}) {
   const pot = pile ? potOf(pile) : null;
-  return runLetterDeal({
+  const outcome = await runLetterDeal({
     isGM: !!game.user?.isGM,
     pot,
     letters,
@@ -83,6 +86,35 @@ export function dealLettersIntoPot(pile, { letters, style, special, confirmLair,
     rollMagic: magicRollerFor({ pot, style, roller }),
     stage: (truths) => addTruths(pile, truths),
   });
+  // The list that was dealt is recorded, so a Table-mode Open does not roll it again.
+  if (outcome.ok && outcome.staged.length) await markDealt(pile, dealKey({ hand: letters.map((l) => ({ letter: typeof l === "string" ? l : l?.letter })) }));
+  return outcome;
+}
+
+/**
+ * The Judge's client's half of a seat dealing an offered pot (the relay's
+ * `deal`): the list is dealt as the Judge's own Deal deals it (unless `resume`,
+ * a list already dealt whose open did not land), the pot opens with its
+ * offer's doorway kept, and one line is said under `user`'s name. `lair`
+ * carries the Judge's confirmation of the lair warning. What a Deal tells a
+ * Judge (a table not imported, nothing staged) is told here, on this client.
+ * @param {Cards} pile the offered pot
+ * @param {User} user the seat that pressed, or the Judge
+ * @param {{lair: boolean, resume: boolean}} how
+ * @returns {Promise<{ok: boolean, reason?: string, hoards?: number}>}
+ */
+export async function dealOfferedPot(pile, user, { lair, resume }) {
+  const pot = potOf(pile);
+  const lines = dealLines(pot.deal);
+  if (!resume) {
+    const outcome = await dealLettersIntoPot(pile, { letters: lines.map((l) => l.letter), style: pot.deal.style, special: pot.deal.special, confirmLair: lair ? () => true : undefined });
+    for (const m of dealMessages(outcome)) ui.notifications?.[m.level](loc(m.key, m.args));
+    if (!outcome.ok) return outcome;
+  }
+  const opened = await openPot(pile, { doorway: false });
+  if (!opened.ok) return opened;
+  await postTableLine(pile, user, lines.length);
+  return { ok: true, hoards: lines.length };
 }
 
 /**

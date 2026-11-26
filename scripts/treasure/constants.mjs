@@ -37,7 +37,7 @@ export const POT_HANDLER = "treasurePot";
 /** Where a pot is in its life: built by the Judge, turned by the table, then closed. */
 export const PHASE = Object.freeze({ staging: "staging", open: "open", closed: "closed" });
 
-/** Who rolls: the Judge deals and the table turns the cards, or the table rolls too. Stored only; R1 deals by hand. */
+/** Who rolls: the Judge deals and the table turns the cards, or the table rolls too. In Table mode opening a pot whose list is undealt offers it (`deal-logic.mjs` `planTableOpen`) and a seat deals it. */
 export const MODE = Object.freeze({ judge: "judge", table: "table" });
 
 /** The pools a card belongs to. A seat is shown `shownPool`, which hides `magic` behind `item`. */
@@ -93,4 +93,5 @@ export const REFUSAL = Object.freeze({
   dealEmpty: "dealEmpty",
   noParty: "noParty",
   nothingToGrab: "nothingToGrab",
+  notYours: "notYours",
 });
