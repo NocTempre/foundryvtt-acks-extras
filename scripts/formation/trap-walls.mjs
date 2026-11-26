@@ -302,11 +302,12 @@ export function installTrapDrop() {
    * edited, since a WallConfig is recognisable only by what it edits.
    */
   Hooks.on("renderApplicationV2", (app, element) => {
-    if (!game.user.isGM) return;
     const wall = app?.document;
     // The wall palette renders this sheet over an unsaved preview wall with a
     // null id, which a trap write cannot land on.
     if (wall?.documentName !== "Wall" || !wall.id) return;
+    // The row is the user's to use when Foundry lets them write the trap onto this wall.
+    if (!canTrapWall(wall, game.user)) return;
     const root = elementOf(element);
     if (!root) return;
     // The sheet re-renders on every field touched; do not append a second copy.

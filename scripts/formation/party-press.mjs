@@ -224,6 +224,22 @@ export const PARTY_PRESSES = Object.freeze({
     },
   }),
 
+  // The Dungeon tab's Search here. The run is the Judge's own press: it calls the
+  // scene search's api, whose own Judge check is the executor, so this client is
+  // the Judge's by the time it runs. The api answers `{ ok: false, reason }` for a
+  // search that did not open (no place under the party, a session already
+  // opening) and has told the Judge in its own words; the seat is told only that
+  // it did not open.
+  searchHere: Object.freeze({
+    parse: () => ({}),
+    modes: Object.freeze(["delve"]),
+    async run(formation) {
+      const opened = await globalThis.acksExtras?.sceneSearch?.searchHere?.({ partyId: formation.id });
+      if (!opened?.ok) return { ok: false, refused: "searchClosed" };
+      return { ok: true, said: loc("request.searchHere") };
+    },
+  }),
+
   // The Kit tab's three tracked-thing presses are the bearer's or the caster's own,
   // so each names that member and the relay tests the seat's ownership of it. The
   // Kit is the same in every mode.
@@ -275,6 +291,7 @@ export const PRESS_REFUSALS = Object.freeze({
   stale: Object.freeze({ key: "ACKS-FORMATION.request.refused", level: "warn" }),
   noHours: Object.freeze({ key: "ACKS-FORMATION.forageRun.noHours", level: "info" }),
   worked: Object.freeze({ key: "ACKS-FORMATION.forageRun.worked", level: "info" }),
+  searchClosed: Object.freeze({ key: "ACKS-FORMATION.request.searchClosed", level: "warn" }),
   noTarget: Object.freeze({ key: "ACKS-FORMATION.settlement.poi.refused.noTarget", level: "warn" }),
   far: Object.freeze({ key: "ACKS-FORMATION.settlement.poi.refused.far", level: "warn" }),
   outside: Object.freeze({ key: "ACKS-FORMATION.settlement.poi.refused.outside", level: "warn" }),

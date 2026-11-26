@@ -68,10 +68,8 @@
         <option value="hasty" {{#if hasty}}selected{{/if}}>{{localize "ACKS-FORMATION.rolls.trapbreakHasty"}}</option>
       </select>
 
-      {{#if isGM}}
-        <label class="acks-label" for="{{@root.partId}}-extra">{{localize "ACKS-FORMATION.doors.judgeMod"}}</label>
-        <input class="acks-input acks-extras-trapbreak-number" type="number" id="{{@root.partId}}-extra" name="extra" step="1" value="{{extra}}">
-      {{/if}}
+      <label class="acks-label" for="{{@root.partId}}-extra">{{localize "ACKS-FORMATION.doors.judgeMod"}}</label>
+      <input class="acks-input acks-extras-trapbreak-number" type="number" id="{{@root.partId}}-extra" name="extra" step="1" value="{{extra}}"{{#unless isGM}} data-tooltip="ACKS-FORMATION.doors.judgeModTyped"{{/unless}}>
     </div>
 
     {{! The throw, before anyone spends a round on it. A throw that is not read leaves

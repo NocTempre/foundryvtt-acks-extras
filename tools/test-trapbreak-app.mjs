@@ -12,10 +12,10 @@
  * and is blank, its tooltip the page alone, where the character's throw is not
  * read; each part keeps the page it cites; the reach shows blank with the page
  * alone until it is imported; a trap thing lists by its place's name; the
- * character's own state at the trap is stated, and the Judge's modifier is the
- * Judge's alone; the window draws again when the trap or the character
+ * character's own state at the trap is stated, and the modifier is typed on
+ * any seat; the window draws again when the trap or the character
  * changes, and takes its watch off when it closes; a player's press sends the
- * request and no modifier.
+ * request with the modifier typed.
  *
  * Run: node tools/test-trapbreak-app.mjs
  */
@@ -255,23 +255,27 @@ await ok("a failed hasty try is stated as the character's own state, at the leve
   assert.equal(ctx.note.tip, "ACKS-FORMATION.traps.pageTrapbreak");
 });
 
-await ok("the Judge's modifier rides the Judge's throw; a player's dialog and request carry none", async () => {
+await ok("the modifier is typed on any seat and rides that seat's throw; a player's request carries it", async () => {
   reset();
   let { ctx } = await ctxOf("Alder", { extra: 2 });
   assert.equal(ctx.extra, 2);
   assert.equal(ctx.needs, 15, "17 lowered by the modifier");
   assert.ok(ctx.judgePart);
+  assert.match(ctx.judgePart.tip, /judge/i, "the Judge's figure keeps the Judge's tooltip");
   game.user = player;
   ({ ctx } = await ctxOf("Alder", { extra: 2 }));
-  assert.equal(ctx.extra, 0, "a stored modifier never shows for a player");
-  assert.equal(ctx.judgePart, null);
-  assert.equal(ctx.needs, 17);
-  // The press: a player's request names the character, the trap and the column, and nothing more.
+  assert.equal(ctx.extra, 2, "a player's dialog shows the modifier typed");
+  assert.equal(ctx.needs, 15, "and lowers the die by it");
+  assert.equal(ctx.judgePart.display, "+2");
+  assert.equal(ctx.judgePart.tip, "ACKS-FORMATION.doors.judgeModTyped", "the figure says where it came from: this seat");
+  assert.match(ctx.needsTip, /ACKS-FORMATION.doors.judgeModTyped/, "and so does the throw's own tooltip");
+  assert.equal(ctx.isGM, false, "the Judge's gate and Mark found stay the Judge's");
+  // The press: a player's request names the character, the trap, the column and the modifier.
   const app = new TrapbreakApp({ formationId: "F", actorId: "Alder", choice: { extra: 5, mode: "methodical" } });
   await TrapbreakApp.DEFAULT_OPTIONS.actions.attempt.call(app);
   assert.equal(sent.length, 1, JSON.stringify(sent));
   assert.equal(sent[0].name, "partyRequest");
-  assert.deepEqual(sent[0].payload.payload, { actorId: "Alder", targetUuid, mode: "methodical" });
+  assert.deepEqual(sent[0].payload.payload, { actorId: "Alder", targetUuid, mode: "methodical", extra: 5 });
 });
 
 await ok("the Judge's press carries the Judge's authority into the throw and a player's does not", async () => {

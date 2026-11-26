@@ -1,6 +1,6 @@
 /* global game, foundry, ChatMessage, ui, fromUuid, fromUuidSync */
 import { makeLoc } from "../lib/util.mjs";
-import { addMember, getFormation, getFrontage, getMemberActor, getPartyScene, removeMember, swapCells, toggleRole } from "./formation-model.mjs";
+import { addMember, getFormation, getFrontage, getMemberActor, getPartyActor, getPartyScene, removeMember, swapCells, toggleRole } from "./formation-model.mjs";
 import { ROLE_LABELS, LIGHT_SOURCES } from "./constants.mjs";
 import { anchorMap } from "./map-items.mjs";
 import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
@@ -10,7 +10,7 @@ import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
 import { attemptDisarm, attemptRearm } from "./trap-zone.mjs";
 import {
-  JUMP_KIND, SQUEEZE_KIND, SWIM_KIND, crossingMembers, jumpFor, jumpPressRefusal, readCrossing, relayRefusalWords, rescueCheck, rescueRefusalWords, rowFor, setPace, setRescuer, squeezePress, throwFor,
+  CROSSING_KINDS, JUMP_KIND, SQUEEZE_KIND, SWIM_KIND, beginCrossing, crossingMembers, endCrossing, heldMembers, jumpFor, jumpPressRefusal, kindLabel, readCrossing, relayRefusalWords, rescueCheck, rescueRefusalWords, rowFor, setPace, setRescuer, squeezePress, throwAll, throwFor,
 } from "./crossing.mjs";
 import { paceStep } from "./crossing-logic.mjs";
 import { PACES } from "./climb-pace.mjs";
@@ -31,7 +31,8 @@ import { PARTY_FORM_SAYS, applyPartyForm, pickPartyForm } from "./party-form.mjs
  * checks, the turn plan, a Round or a turn asked of the Judge, a search declared,
  * the marching order, forming the party up into a saved order, roles,
  * detaching, leaving a member behind, conveyance, bringing an actor in or out,
- * light discipline, anchoring a map, trapbreaking, a crossing's throw and the
+ * light discipline, anchoring a map, trapbreaking, a crossing's throw, its Begin,
+ * End and Throw all (`crossingRun`, for the party actor's owner) and the
  * party's own presses (`partyPress`: the pace, a hop to a place, the next hex,
  * a day's foraging, ending the day) and its form fields (`partyForm`).
  *
@@ -163,6 +164,50 @@ async function partyPressRelay(formation, user, payload) {
   return { ok: true };
 }
 
+/** The steps a relayed crossing run may name: open a crossing, close it, or throw a stretch for every member the seat owns. */
+const CROSSING_RUN_STEPS = Object.freeze(["begin", "end", "throwAll"]);
+
+/**
+ * A seat's press on the crossing as a whole (`crossingRun`), checked on the GM
+ * client in order: the step is one of `CROSSING_RUN_STEPS`, the sender owns the
+ * party actor (Foundry's OWNER test on the attested user), a `begin` names a
+ * kind the crossing opens, and any other step names the crossing that is open
+ * now. The run is the Judge's own with the sender passed in: `endCrossing`
+ * refuses a seat that is no GM while a member is held, and `throwAll` throws
+ * only for the members the sender owns. Nothing here reads `judge` or passes
+ * `override`. The declaration is made once the run has written.
+ * @returns {Promise<{ok: boolean, refused?: string, stuck?: string, drowning?: string, thrown?: number, left?: number}>}
+ */
+async function crossingRunRelay(formation, user, payload) {
+  const refuse = (refused, extra = {}) => ({ ok: false, refused, ...extra });
+  const step = typeof payload.step === "string" && CROSSING_RUN_STEPS.includes(payload.step) ? payload.step : null;
+  if (!step) return refuse("badPress");
+  if (!getPartyActor(formation)?.testUserPermission?.(user, "OWNER")) return refuse("notOwner");
+  const open = readCrossing(formation);
+  if (step === "begin") {
+    if (typeof payload.kind !== "string" || !CROSSING_KINDS.includes(payload.kind)) return refuse("badPress");
+    if (open || !(await beginCrossing(formation, payload.kind))) return refuse("stale");
+    await announceDeclaration(formation, user, loc("request.crossingBegin", { kind: kindLabel(payload.kind) }));
+    return { ok: true };
+  }
+  const crossingId = typeof payload.crossingId === "string" ? payload.crossingId : "";
+  if (!open || open.id !== crossingId) return refuse("stale");
+  if (step === "end") {
+    const held = heldMembers(formation);
+    if (!user.isGM && (held.stuck.length || held.drowning.length)) return refuse("held", { stuck: held.stuck.join(", "), drowning: held.drowning.join(", ") });
+    if (!(await endCrossing(formation, { player: !user.isGM }))) {
+      // A member held between the check above and the close is a hold, not a stale press.
+      const now = heldMembers(formation);
+      return !user.isGM && (now.stuck.length || now.drowning.length) ? refuse("held", { stuck: now.stuck.join(", "), drowning: now.drowning.join(", ") }) : refuse("stale");
+    }
+    await announceDeclaration(formation, user, loc("request.crossingEnd"));
+    return { ok: true };
+  }
+  const out = await throwAll(formation, { asUser: user });
+  if (out.thrown) await announceDeclaration(formation, user, loc("request.crossingThrowAll"));
+  return { ok: true, thrown: out.thrown, left: out.left };
+}
+
 /**
  * Execute a validated request on the GM client. A crossing or party press
  * request answers `{ok, refused?}`, which the relay carries back to the
@@ -268,15 +313,6 @@ async function executeRequest(formation, user, type, payload) {
       const key = { round: "request.askRound", turn: "request.askTurn" }[payload.press];
       if (!key) return;
       await announceDeclaration(formation, user, loc(key));
-      break;
-    }
-
-    /* --- A player declares the party searches here: announced, and the Judge opens the scene --- */
-    case "declareSearch": {
-      if (!userOwnsMember(formation, user)) return;
-      // Nothing in the payload is read. The declaration opens no session, deals
-      // nothing and moves no clock: only the Judge's own press does any of them.
-      await announceDeclaration(formation, user, loc("request.searchHere"));
       break;
     }
 
@@ -420,7 +456,11 @@ async function executeRequest(formation, user, type, payload) {
         name: foundry.utils.escapeHTML(actor.name),
       }));
       if (type === "trapRearm") await attemptRearm(formation, actor, { targetUuid: payload.targetUuid });
-      else await attemptDisarm(formation, actor, { mode, targetUuid: payload.targetUuid, askUserId: user.id });
+      else {
+        // The modifier the seat typed: a finite number, else none. `judge` is never passed.
+        const extra = Number.isFinite(payload.extra) ? payload.extra : 0;
+        await attemptDisarm(formation, actor, { mode, extra, targetUuid: payload.targetUuid, askUserId: user.id });
+      }
       break;
     }
 
@@ -459,6 +499,10 @@ async function executeRequest(formation, user, type, payload) {
       if (!out.ok) return refuse(out.refused);
       return { ok: true };
     }
+
+    /* --- The crossing as a whole: Begin, End and Throw all, for a seat that owns the party actor --- */
+    case "crossingRun":
+      return crossingRunRelay(formation, user, payload);
 
     /* --- The party's own press: the pace, a hop, the next hex, a day's work --- */
     case "partyPress":
@@ -617,6 +661,47 @@ export async function requestCrossingPace(formation, actorId, pick) {
   }
   const answer = await requestPartyAction(formation.id, "crossing", { crossingId: crossing.id, actorId, step: "pace", pace: pick });
   return answer?.ok === false ? { ok: false, refused: answer.refused } : { ok: true };
+}
+
+/**
+ * Say a crossing run's refusal to the seat that pressed: an End held back by a
+ * member who is stuck or drowning is said with the names, any other refusal
+ * goes through `sayPressAnswer`.
+ */
+export function sayCrossingRunAnswer(answer) {
+  if (answer?.ok !== false) return;
+  if (answer.refused !== "held") return sayPressAnswer(answer);
+  for (const state of ["stuck", "drowning"]) {
+    if (answer[state]) ui.notifications.warn(loc(`crossing.endRefused.${state}`, { names: answer[state] }));
+  }
+}
+
+/**
+ * A seat's press on the crossing as a whole: `begin` (with the `kind` in
+ * `extra`), `end` or `throwAll`. The party actor's owner sends the step, and the
+ * crossing's id for the last two, to the Judge's client, which checks the owner
+ * again and runs the Judge's own function with this seat's user passed in. An
+ * End that a held member would refuse is said here and not sent. The answer is
+ * said here and returned.
+ * @param {object} formation
+ * @param {"begin"|"end"|"throwAll"} step
+ * @param {{kind?: string}} [extra]
+ * @returns {Promise<{ok: boolean, refused?: string, thrown?: number, left?: number}|undefined>}
+ */
+export async function requestCrossingRun(formation, step, { kind = null } = {}) {
+  const crossing = readCrossing(formation);
+  if (step === "end" && !game.user.isGM) {
+    const held = heldMembers(formation);
+    if (held.stuck.length || held.drowning.length) {
+      const answer = { ok: false, refused: "held", stuck: held.stuck.join(", "), drowning: held.drowning.join(", ") };
+      sayCrossingRunAnswer(answer);
+      return answer;
+    }
+  }
+  const payload = step === "begin" ? { step, kind } : { step, crossingId: crossing?.id ?? "" };
+  const answer = await requestPartyAction(formation.id, "crossingRun", payload, { sent: false });
+  sayCrossingRunAnswer(answer);
+  return answer;
 }
 
 /**

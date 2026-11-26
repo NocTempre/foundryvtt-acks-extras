@@ -932,10 +932,28 @@ test("the wall palette's id-less preview gets no trap row, so no assignment can 
 
   // A wall that is ON the scene still gets the row: the guard is a filter, not
   // a switch that turned the feature off.
-  h.render({ documentName: "Wall", id: "Wall.1", flags: {} });
+  h.render({ documentName: "Wall", id: "Wall.1", flags: {}, canUserModify: () => true });
   assert.equal(h.appended.length, 1, "a placed wall gets the drop row");
   assert.ok(h.created[0].className.includes("acks-extras-trap-drop"), "and it is the trap row");
   assert.ok(h.created[0].listeners.some(([event]) => event === "drop"), "listening for the drop that assigns");
+});
+
+test("the wall sheet's trap row follows Foundry's own answer for the user, not the Judge's role", () => {
+  const h = wallSheetHarness();
+  const asked = [];
+  const wallFor = (allow) => ({ documentName: "Wall", id: "Wall.1", flags: {}, canUserModify: (user, action, data) => (asked.push([user, action, data]), allow) });
+  // A Player who may modify the wall gets the row.
+  game.user = { id: "u1", isGM: false };
+  h.render(wallFor(true));
+  assert.equal(h.appended.length, 1, "a Player Foundry lets write the wall gets the row");
+  assert.deepEqual(asked.at(-1), [game.user, "update", { flags: { [MODULE_ID]: { trap: {} } } }], "asked as an update carrying the trap layer's own data");
+  // A Player who may not gets none.
+  h.render(wallFor(false));
+  assert.equal(h.appended.length, 1, "a Player Foundry refuses gets no row");
+  // A Judge passes wherever Foundry says so.
+  game.user = { id: "gm", isGM: true };
+  h.render(wallFor(true));
+  assert.equal(h.appended.length, 2, "a Judge gets the row");
 });
 
 test("a sheet that is not a wall's gets no trap row either", () => {

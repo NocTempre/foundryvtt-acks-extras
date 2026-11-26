@@ -84,8 +84,10 @@ globalThis.ChatMessage = { create: async (data) => (chats.push(data), {}) };
 globalThis.fromUuid = async (uuid) => (uuid === "Item.trap" ? { type: "acks-extras.trap", name: "Probe trap", system: { crude: false } } : null);
 /** Each roll the test queues: the natural face and the total. */
 const throws = [];
+/** The formula of every roll made, in order. */
+const formulas = [];
 globalThis.Roll = class {
-  constructor(formula) { this.formula = formula; }
+  constructor(formula) { this.formula = formula; formulas.push(formula); }
   async evaluate() {
     const [natural, total] = throws.shift();
     this.total = total;
@@ -372,6 +374,26 @@ await ok("a relayed player request asks the requesting player", async () => {
   await relayed("partyRequest", "player", { formationId: "F", type: "trapbreak", payload: { actorId: "Alder", targetUuid, mode: "methodical" } }).catch(() => {});
   assert.deepEqual(asked.map((a) => a.userId), ["player"]);
   assert.deepEqual(dialogs, [], "nothing opened on the Judge's screen");
+});
+
+await ok("a relayed request's modifier rides the throw as a finite number, else none, and never carries the Judge's authority", async () => {
+  // The bonus the formula carries, signed.
+  const bonusOf = (formula) => Number(formula.replace(/^1d20\s*/, "").replace(/\s+/g, "")) || 0;
+  const bonuses = [];
+  for (const extra of [undefined, 2, "2", NaN, Infinity, {}]) {
+    reset();
+    formulas.length = 0;
+    click = () => false;
+    throwOnce(15, 20);
+    alder.testUserPermission = (user) => user.id === "player";
+    await relayed("partyRequest", "player", { formationId: "F", type: "trapbreak", payload: { actorId: "Alder", targetUuid, mode: "methodical", ...(extra === undefined ? {} : { extra }) } }).catch(() => {});
+    assert.equal(formulas.length, 1, `one throw for ${String(extra)}`);
+    bonuses.push(bonusOf(formulas[0]));
+  }
+  const [none, two, ...rest] = bonuses;
+  assert.equal(two - none, 2, "a number rides the throw");
+  assert.deepEqual(rest, [none, none, none, none], "a string, NaN, Infinity or an object is none");
+  assert.deepEqual(asked.map((a) => a.userId), ["player"], "the question still goes to the requesting player: no Judge authority was passed");
 });
 
 await ok("the turn plan's resolve asks the user who locked the entry, and the Judge's client where none did", async () => {

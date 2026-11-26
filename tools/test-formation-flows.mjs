@@ -1574,21 +1574,55 @@ await scenario("players steer their own members via the GM relay", async () => {
     await drain();
     assert.equal(chat.length, said + 2, "a press outside the closed set is dropped unannounced");
 
-    // A declared search: announced to the table, and nothing else moves. The payload is not read.
+    // Search here: a member-owner's press lands on the Judge's client as the Judge's own call to the
+    // scene search, with the party id and nothing a sender adds; the search's own refusal comes back refused.
+    const calls = [];
+    let answer = { ok: true, opened: true };
+    const realSceneSearch = globalThis.acksExtras.sceneSearch;
+    const fakeSearch = { searchHere: async (args) => (calls.push(args), answer) };
+    globalThis.acksExtras.sceneSearch = fakeSearch;
     const beforeSearch = structuredClone(onlyFormation());
-    await requests.requestPartyAction(id, "declareSearch", { partyId: "other", placeUuid: "Actor.elsewhere" });
-    await drain();
-    assert.equal(chat.length, said + 3, "a declared search is announced to the table");
-    assert.deepEqual(onlyFormation(), beforeSearch, "and changes nothing on the party's record");
-    assert.deepEqual(party?.getFlag?.(MODULE_ID, "turnPlan") ?? null, planBefore, "nor its turn plan");
-    // A seat that owns no member declares nothing.
-    game.users.push({ id: "PL9", name: "Stranger", isGM: false, isSelf: false });
-    game.user = game.users.get("PL9");
-    await requests.requestPartyAction(id, "declareSearch", {});
-    await drain();
-    assert.equal(chat.length, said + 3, "a seat that owns no member of the party is not announced");
-    game.user = game.users.get("PL1");
-    game.users.pop();
+    try {
+      const hand = await requests.requestPartyAction(id, "partyPress", { press: "searchHere", args: { partyId: "other", placeUuid: "Actor.elsewhere", judge: true, override: true }, judge: true });
+      await drain();
+      assert.deepEqual(hand, { ok: true });
+      assert.deepEqual(calls, [{ partyId: id }], "the Judge's call, with the party id and nothing the sender added");
+      assert.equal(chat.length, said + 3, "a search that opened is announced to the table");
+      assert.match(String(chat.at(-1).content), /request\.searchHere/);
+      assert.deepEqual(onlyFormation(), beforeSearch, "the press changes nothing on the party's record");
+      assert.deepEqual(party?.getFlag?.(MODULE_ID, "turnPlan") ?? null, planBefore, "nor its turn plan");
+      // The search's own {ok: false} comes back as the seat's refusal, announced to no one.
+      answer = { ok: false, reason: "noPlaceHere" };
+      assert.deepEqual(await requests.requestPartyAction(id, "partyPress", { press: "searchHere", args: {} }), { ok: false, refused: "searchClosed" });
+      await drain();
+      assert.equal(calls.length, 2);
+      assert.equal(chat.length, said + 3, "a search that did not open is not announced");
+      // With no scene search installed there is nothing to open: refused, not thrown.
+      delete globalThis.acksExtras.sceneSearch;
+      assert.deepEqual(await requests.requestPartyAction(id, "partyPress", { press: "searchHere", args: {} }), { ok: false, refused: "searchClosed" });
+      globalThis.acksExtras.sceneSearch = fakeSearch;
+      // The sheet's press: a member-owner's seat sends it through the relay.
+      const { SHARED_ACTIONS } = await import("../scripts/formation/formation-actions.mjs");
+      answer = { ok: true, opened: true };
+      const sheet = { formation: model.getFormation(id), render() {} };
+      await SHARED_ACTIONS.searchHere.call(sheet);
+      await drain();
+      assert.equal(calls.length, 3);
+      assert.equal(chat.length, said + 4, "the sheet's press is announced like the relay's");
+      // A seat that owns no member presses nothing: refused on the relay, and the sheet sends nothing.
+      game.users.push({ id: "PL9", name: "Stranger", isGM: false, isSelf: false });
+      game.user = game.users.get("PL9");
+      assert.deepEqual(await requests.requestPartyAction(id, "partyPress", { press: "searchHere", args: {} }), { ok: false, refused: "notOwner" });
+      await SHARED_ACTIONS.searchHere.call(sheet);
+      await drain();
+      assert.equal(calls.length, 3, "a seat that owns no member of the party searches nothing");
+      assert.equal(chat.length, said + 4, "and is not announced");
+      game.user = game.users.get("PL1");
+      game.users.pop();
+    } finally {
+      if (realSceneSearch === undefined) delete globalThis.acksExtras.sceneSearch;
+      else globalThis.acksExtras.sceneSearch = realSceneSearch;
+    }
   } finally {
     game.user = gmUser;
   }
@@ -1652,7 +1686,7 @@ await scenario("a seat that owns a member presses the party's own pace, clock, h
     assert.deepEqual(PARTY_PRESSES.enterHex.parse({ label: " Q9 ", override: true }, stored()), { label: "Q9" });
     assert.deepEqual(PARTY_PRESSES.forageDay.parse({ judge: true }, stored()), {});
     assert.deepEqual(PARTY_PRESSES.endDay.parse({ override: true }, stored()), {});
-    assert.deepEqual(Object.keys(PRESS_REFUSALS).sort(), ["badPress", "far", "noHours", "noTarget", "notOwner", "outside", "quiet", "stale", "worked"]);
+    assert.deepEqual(Object.keys(PRESS_REFUSALS).sort(), ["badPress", "far", "noHours", "noTarget", "notOwner", "outside", "quiet", "searchClosed", "stale", "worked"]);
 
     // --- Pace, in a delve: idempotent, announced once per change.
     assert.equal(travel.travelOf(stored()).mode, "delve");

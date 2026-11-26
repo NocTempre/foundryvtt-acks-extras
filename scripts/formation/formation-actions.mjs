@@ -37,7 +37,7 @@ import {
 } from "./crossing.mjs";
 import { lockPlanAsJudge, parsePick, planNote, planRefusal, reasonText, resolvePlanRound, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
-import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestPartyForm, requestPartyPress, requestTakeOut, sayPartyFormAnswer, userOwnsMember } from "./player-requests.mjs";
+import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingRun, requestCrossingThrow, requestPartyAction, requestPartyForm, requestPartyPress, requestTakeOut, sayPartyFormAnswer, userOwnsMember } from "./player-requests.mjs";
 import { spendPicks } from "../lib/picks.mjs";
 import { chooseConveyance } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
@@ -92,6 +92,12 @@ const loc = makeLoc("ACKS-FORMATION");
 function gmFormation(app) {
   const formation = app.formation;
   return formation && game.user.isGM ? formation : null;
+}
+
+/** The app's formation where this seat owns the party actor (Foundry's own test, true for a Judge), else null. The seat the crossing's presses and setup belong to. */
+function partyOwnerFormation(app) {
+  const formation = app.formation;
+  return formation && getPartyActor(formation)?.isOwner ? formation : null;
 }
 
 /** Is the current user a Judge, or the owner of a member of the formation? The seat a save, a ration or a check is the press of. */
@@ -1007,15 +1013,15 @@ export const SHARED_ACTIONS = {
   },
 
   /**
-   * Search here: the Judge opens the scene search at the place the party stands
-   * in (or its screen where one is open); a player's press is a declaration the
-   * party's request relay announces, and the Judge then presses.
+   * Search here: the scene search opens at the place the party stands in (or its
+   * screen where one is open). A seat that owns a member sends the press to the
+   * Judge's client, which makes the Judge's own call.
    */
   async searchHere() {
     const formation = this.formation;
-    if (!formation) return;
+    if (!formation || !seatOwnsMember(formation)) return;
     if (!game.user.isGM) {
-      await requestPartyAction(formation.id, "declareSearch", {});
+      await requestPartyPress(formation, "searchHere");
       return;
     }
     await globalThis.acksExtras?.sceneSearch?.searchHere?.({ partyId: formation.id });
@@ -1096,28 +1102,34 @@ export const SHARED_ACTIONS = {
     await requestPartyAction(formation.id, "plan", { actorId, unlock: true });
   },
 
-  /** Open a crossing of the kind the begin row's pick names. The Judge's alone. */
+  /** Open a crossing of the kind the begin row's pick names. The Judge's seat opens it; another seat that owns the party actor sends the press. */
   async crossingBegin(_event, target) {
-    const formation = gmFormation(this);
+    const formation = partyOwnerFormation(this);
     const kind = target.closest(".acks-extras-crossing")?.querySelector("[data-pick='crossing-kind']")?.value;
     if (!formation || !kind) return;
-    await beginCrossing(formation, kind);
+    if (game.user.isGM) await beginCrossing(formation, kind);
+    else await requestCrossingRun(formation, "begin", { kind });
     this.render?.();
   },
 
-  /** Close the crossing, members and all. The Judge's alone. */
+  /** Close the crossing, members and all. The Judge's seat closes it; another seat that owns the party actor sends the press. */
   async crossingEnd() {
-    const formation = gmFormation(this);
+    const formation = partyOwnerFormation(this);
     if (!formation) return;
-    await endCrossing(formation);
+    if (game.user.isGM) await endCrossing(formation);
+    else await requestCrossingRun(formation, "end");
     this.render?.();
   },
 
-  /** One stretch thrown for every member whose row allows it with no warning. The Judge's alone. */
+  /**
+   * One stretch thrown for every member whose row allows it with no warning.
+   * The Judge's seat throws for all; another seat that owns the party actor
+   * sends the press and the Judge's client throws for the members it owns.
+   */
   async crossingThrowAll() {
-    const formation = gmFormation(this);
+    const formation = partyOwnerFormation(this);
     if (!formation) return;
-    const { left } = await throwAll(formation);
+    const { left } = game.user.isGM ? await throwAll(formation) : (await requestCrossingRun(formation, "throwAll")) ?? {};
     if (left) ui.notifications.info(loc("crossing.leftForJudge", { count: left }));
     this.render?.();
   },
@@ -1371,7 +1383,7 @@ export const SHARED_ACTIONS = {
  * on a seat that owns a member, the record's fields (`applyPartyForm`): the
  * Judge's applies the whole submit, any other seat relays the allow-listed
  * part to the Judge's client (`requestPartyForm`). The crossing's setup fields
- * are the Judge's seat's.
+ * are flags on the party actor, written from the seat of whoever owns it.
  */
 export async function onChangeForm(event, form, formData) {
   const data = foundry.utils.expandObject(formData.object);
@@ -1385,6 +1397,13 @@ export async function onChangeForm(event, form, formData) {
   const actor = typeof description === "string" ? getPartyActor(formation) : null;
   if (actor?.isOwner && description !== (actor.system?.description ?? "")) {
     await actor.update({ "system.description": description });
+    redraw = true;
+  }
+  // The crossing's setup fields are flags on the party actor, so they follow
+  // its owner whether or not the seat owns a member: each changed one is
+  // written by its own path, from this client.
+  if (data.crossing && getPartyActor(formation)?.isOwner && readCrossing(formation)) {
+    await applyCrossingForm(formation, data.crossing);
     redraw = true;
   }
   // The record's fields below follow the seat that owns a member: the Judge's
@@ -1415,11 +1434,6 @@ export async function onChangeForm(event, form, formData) {
   sayPartyFormAnswer(applied);
   changed = applied.changed;
   redraw ||= applied.redraw;
-  // The crossing's setup fields: each changed one is written by its own path.
-  if (data.crossing && readCrossing(formation)) {
-    await applyCrossingForm(formation, data.crossing);
-    redraw = true;
-  }
   if (changed || redraw) this.render();
 }
 

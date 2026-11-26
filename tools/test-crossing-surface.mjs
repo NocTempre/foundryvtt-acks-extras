@@ -191,7 +191,8 @@ function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level =
     },
     getFlag: () => undefined,
     testUserPermission: (user) => !!user?.isGM || user?.id === owner,
-    isOwner: false,
+    // Foundry's own test, read for the seat the stand-in `game.user` names.
+    get isOwner() { return !!game.user?.isGM || game.user?.id === owner; },
     async rollSave(key, options) { seen.saves.push([name, key, options]); return saveResult; },
     async update(data) { seen.updates.push(["member", data]); },
   };
@@ -213,11 +214,16 @@ function applyPath(root, path, value) {
   else at[last] = value;
 }
 
-/** The party actor: a flag store whose update takes a tick, so concurrent writes interleave. */
-function party(id = "party1") {
+/**
+ * The party actor: a flag store whose update takes a tick, so concurrent writes
+ * interleave. `owner` is the user id who owns it besides the GM.
+ */
+function party(id = "party1", owner = null) {
   const store = { flags: { "acks-extras": {} } };
   const actor = {
-    id, name: "Party", store,
+    id, name: "Party", store, ownerId: owner,
+    get isOwner() { return !!game.user?.isGM || game.user?.id === actor.ownerId; },
+    testUserPermission: (user) => !!user?.isGM || user?.id === actor.ownerId,
     getFlag: (scope, key) => clone(store.flags[scope]?.[key]),
     async update(data) {
       seen.updates.push(["party", data]);
@@ -229,9 +235,9 @@ function party(id = "party1") {
   return actor;
 }
 
-/** A formation holding these actors, with a party actor beside it. */
-function world(actors) {
-  const actor = party();
+/** A formation holding these actors, with a party actor beside it; `partyOwner` is the user id who owns that actor besides the GM. */
+function world(actors, { partyOwner = null } = {}) {
+  const actor = party("party1", partyOwner);
   const formation = { id: "f1", name: "Party", actorId: actor.id, members: actors.map((a) => ({ actorId: a.id })) };
   formations[formation.id] = formation;
   return { actor, formation };
@@ -297,22 +303,25 @@ const rowOf = (view, name) => view.rows.find((r) => r.name === name);
 
 /* ---------------------------------------------------------------------------- */
 
-await ok("who sees what: a Judge always has the begin row, a player nothing until a crossing is open", async () => {
+await ok("who sees what: the party actor's owner has the begin row, any other seat nothing until a crossing is open", async () => {
   reset();
   const alder = person("Alder", { owner: PLAYER.id });
-  const { formation } = world([alder]);
+  const { formation } = world([alder], { partyOwner: PLAYER.id });
   const judge = buildCrossingView(formation);
-  assert.deepEqual([judge.open, judge.kinds.length], [false, CROSSING_KINDS.length]);
+  assert.deepEqual([judge.open, judge.kinds.length, judge.canSetup], [false, CROSSING_KINDS.length, true]);
   assert.equal(judge.kinds.at(-1).value, "squeeze");
   assert.deepEqual(judge.kinds.slice(-3, -1).map((k) => k.value), ["jump", "swim"]);
-  assert.equal(as(PLAYER, () => buildCrossingView(formation)), null, "a player sees no section while none is open");
+  const owner = as(PLAYER, () => buildCrossingView(formation));
+  assert.deepEqual([owner.open, owner.kinds.length, owner.canSetup, owner.isGM], [false, CROSSING_KINDS.length, true, false], "the party actor's owner has the begin row");
+  assert.equal(as(OTHER, () => buildCrossingView(formation)), null, "a seat that does not own the party actor sees no section while none is open");
   await as(PLAYER, () => beginCrossing(formation, "sheerClimb"));
-  assert.equal(readCrossing(formation), null, "a player's client opens nothing");
+  assert.equal(readCrossing(formation), null, "a player's client opens nothing: the open runs on the Judge's");
   assert.ok(await beginCrossing(formation, "sheerClimb"));
   assert.equal(await beginCrossing(formation, "easyClimb"), null, "a second crossing is not opened over the first");
   const open = as(PLAYER, () => buildCrossingView(formation));
-  assert.equal(open.open, true);
-  assert.equal(open.isGM, false);
+  assert.deepEqual([open.open, open.isGM, open.canSetup], [true, false, true]);
+  const bystander = as(OTHER, () => buildCrossingView(formation));
+  assert.deepEqual([bystander.open, bystander.canSetup], [true, false], "any seat sees the rows, only an owner the setup");
 });
 
 await ok("a seed is merged over the defaults in the begin write: only the kind's own keys, through the sheet's readers", async () => {
@@ -449,8 +458,8 @@ await ok("a target's tooltip lists the figure's base and its parts with their pa
   };
   assert.equal(
     crossing.targetTooltip(figure, 1),
-    "Probe Climb (L6), base 11+; +2 Probe Boots (XX p.7), +1 Probe Score, −1 Conditions, +1 Judge modifier",
-    "the base is the target and every part it was lowered by, each cited part carrying its page, then the Judge's modifier",
+    "Probe Climb (L6), base 11+; +2 Probe Boots (XX p.7), +1 Probe Score, −1 Conditions, +1 Judge modifier (Set by the Judge)",
+    "the base is the target and every part it was lowered by, each cited part carrying its page, then the Judge's modifier and who set it (a modifier with no setter recorded is the Judge's)",
   );
   assert.ok(!crossing.targetTooltip(figure, 1).endsWith("Spelunking"), "a part's page stands in for the procedure's");
   assert.equal(crossing.targetTooltip({ target: 12, source: "Via Adventuring", parts: [] }, 0), "Via Adventuring, base 12+ · RR ch. 6, Spelunking");
@@ -3187,6 +3196,184 @@ await ok("the header line carries the rounds billed, each member's working in it
     await beginCrossing(plain.formation, kind);
     assert.equal("rounds" in buildCrossingView(plain.formation), false, `${kind} has no rounds line`);
   }
+});
+
+/* --- the party actor's owner: setup, Begin, End and Throw all ------------------ */
+const { requestCrossingRun } = await import("../scripts/formation/player-requests.mjs");
+const crossingRun = (user, formation, payload) => relay(user, formation, "crossingRun", payload);
+
+await ok("the party actor's owner writes the setup from their own client, with the modifier's setter; any other seat is refused and writes nothing", async () => {
+  reset();
+  load();
+  const { formation } = world([person("Alder", { items: [CLIMBING()], owner: PLAYER.id })], { partyOwner: PLAYER.id });
+  await beginCrossing(formation, "easyClimb");
+  seen.updates.length = 0;
+  assert.equal(await asAsync(OTHER, () => applyCrossingForm(formation, { length: "40", judgeMod: "2" })), false, "a seat that does not own the party actor is refused");
+  assert.deepEqual(seen.updates, [], "and nothing is written");
+  assert.equal(await asAsync(PLAYER, () => applyCrossingForm(formation, { length: "40", judgeMod: "2" })), true);
+  const stored = readCrossing(formation);
+  assert.deepEqual([stored.length, stored.judgeMod, stored.judgeModBy], [40, 2, PLAYER.id], "the owner's own write, with who set the modifier");
+  assert.ok(rowOf(buildCrossingView(formation), "Alder").targetTip.includes("Judge modifier (Set by Pat)"), "the tooltip names the user");
+  assert.equal(await applyCrossingForm(formation, { judgeMod: "3" }), true);
+  assert.equal(readCrossing(formation).judgeModBy, GM.id);
+  assert.ok(rowOf(buildCrossingView(formation), "Alder").targetTip.includes("Judge modifier (Set by the Judge)"), "a Judge's id says the Judge");
+  await applyCrossingForm(formation, { judgeMod: "" });
+  assert.equal("judgeModBy" in readCrossing(formation), false, "blanked with the modifier");
+  const tip = crossing.targetTooltip({ target: 9, source: "Probe", parts: [] }, 1, null, "nobody");
+  assert.ok(tip.includes("Judge modifier (Set by the Judge)"), "an id no user holds is the Judge's");
+});
+
+await ok("the swim setup is the party actor's owner's too: the water penalty pick and the larger figure land on the flag, and the tooltip names who set the modifier", async () => {
+  const { formation, party: actor } = await swimWorld([["Alder", { stone: 9 }]]);
+  actor.ownerId = PLAYER.id;
+  assert.equal(await asAsync(PLAYER, () => applyCrossingForm(formation, { penaltyPick: "larger", penaltyLarger: "11", judgeMod: "1", waterCold: true })), true);
+  const stored = readCrossing(formation);
+  assert.deepEqual([stored.penaltyPick, stored.penaltyLarger, stored.judgeMod, stored.judgeModBy, stored.waterCold], ["larger", 11, 1, PLAYER.id, true]);
+  assert.ok(rowOf(buildCrossingView(formation), "Alder").targetTip.includes("Judge modifier 1 (Set by Pat)"), "the swim tooltip's modifier part");
+  assert.ok(render({ crossing: buildCrossingView(formation) }).includes('data-tooltip-text="Set by Pat"'), "and the setup field's, as text");
+});
+
+await ok("the squeeze's tooltips name who set the modifier", async () => {
+  const { formation, party: actor } = await squeezeWorld([["Alder", { stone: 5 }]], { form: { shape: "squeeze", length: "20" } });
+  actor.ownerId = PLAYER.id;
+  await asAsync(PLAYER, () => applyCrossingForm(formation, { judgeMod: "1" }));
+  assert.ok(rowOf(buildCrossingView(formation), "Alder").targetTip.includes("Judge modifier −1 (Set by Pat)"));
+});
+
+await ok("a party owner who owns no member is offered Throw all for nobody; a member's owner for theirs; the Judge for all", async () => {
+  reset();
+  load();
+  const a = person("Alder", { items: [CLIMBING()], owner: OTHER.id });
+  const b = person("Birch", { items: [CLIMBING()], owner: PLAYER.id });
+  const { formation } = world([a, b], { partyOwner: PLAYER.id });
+  await beginCrossing(formation, "easyClimb");
+  await applyCrossingForm(formation, { length: "400" });
+  assert.equal(buildCrossingView(formation).canThrowAll, true, "a Judge");
+  assert.equal(as(PLAYER, () => buildCrossingView(formation)).canThrowAll, true, "a seat that owns the party actor and Birch");
+  assert.equal(as(OTHER, () => buildCrossingView(formation)).canThrowAll, false, "a member's owner who does not own the party actor");
+  reset();
+  load();
+  const c = person("Cedar", { items: [CLIMBING()], owner: OTHER.id });
+  const lone = world([c], { partyOwner: PLAYER.id });
+  await beginCrossing(lone.formation, "easyClimb");
+  await applyCrossingForm(lone.formation, { length: "400" });
+  assert.equal(as(PLAYER, () => buildCrossingView(lone.formation)).canThrowAll, false, "the party's owner owns no member to throw for");
+});
+
+await ok("crossingRun: Begin opens the crossing for the party actor's owner, declared; another seat, an unknown step, an unknown kind and a second Begin are refused", async () => {
+  reset();
+  load();
+  const { formation } = world([person("Alder", { items: [CLIMBING()], owner: PLAYER.id })], { partyOwner: PLAYER.id });
+  assert.deepEqual(await crossingRun(OTHER, formation, { step: "begin", kind: "sheerClimb" }), { ok: false, refused: "notOwner" });
+  assert.deepEqual(await crossingRun(PLAYER, formation, { step: "explode", kind: "sheerClimb" }), { ok: false, refused: "badPress" });
+  assert.deepEqual(await crossingRun(PLAYER, formation, { step: "begin", kind: "lava" }), { ok: false, refused: "badPress" });
+  assert.deepEqual(await crossingRun(PLAYER, formation, { step: "begin" }), { ok: false, refused: "badPress" });
+  assert.equal(readCrossing(formation), null, "nothing opened");
+  assert.equal(seen.created.length, 0, "and nothing declared");
+  assert.deepEqual(await crossingRun(PLAYER, formation, { step: "begin", kind: "sheerClimb", judge: true, override: true }), { ok: true }, "a key the closed payload does not name is dropped");
+  assert.equal(readCrossing(formation).kind, "sheerClimb");
+  assert.ok(seen.created.at(-1).content.includes("Pat") && seen.created.at(-1).content.includes("opens a crossing"), "declared publicly");
+  assert.deepEqual(await crossingRun(PLAYER, formation, { step: "begin", kind: "easyClimb" }), { ok: false, refused: "stale" }, "a second Begin does not open over the first");
+  assert.equal(readCrossing(formation).kind, "sheerClimb");
+});
+
+await ok("crossingRun: Throw all throws only for the members the sender owns, and End refuses a stale crossing id", async () => {
+  reset();
+  load();
+  const a = person("Alder", { items: [CLIMBING()], owner: PLAYER.id });
+  const b = person("Birch", { items: [CLIMBING()], owner: OTHER.id });
+  const { formation } = world([a, b], { partyOwner: PLAYER.id });
+  await beginCrossing(formation, "easyClimb");
+  await applyCrossingForm(formation, { length: "400" });
+  const id = readCrossing(formation).id;
+  assert.deepEqual(await crossingRun(PLAYER, formation, { step: "throwAll", crossingId: "old" }), { ok: false, refused: "stale" });
+  assert.deepEqual(await crossingRun(PLAYER, formation, { step: "throwAll" }), { ok: false, refused: "stale" }, "no id matches no crossing");
+  assert.deepEqual(await crossingRun(OTHER, formation, { step: "throwAll", crossingId: id }), { ok: false, refused: "notOwner" }, "the owner of a member is not the party actor's");
+  assert.equal(seen.created.length, 0);
+  naturals.push(18, 18);
+  const out = await crossingRun(PLAYER, formation, { step: "throwAll", crossingId: id });
+  assert.deepEqual([out.ok, out.thrown, out.left], [true, 1, 0], "Birch is not counted as left: the seat never owned that throw");
+  assert.deepEqual([memberOf(formation, "Alder")?.throws, memberOf(formation, "Birch")], [1, undefined], "Birch's record is untouched");
+  assert.equal(naturals.length, 1, "one die");
+  assert.ok(seen.created.some((m) => String(m.content).includes("throws a stretch for every member")), "declared");
+  assert.deepEqual(await crossingRun(PLAYER, formation, { step: "end", crossingId: "old" }), { ok: false, refused: "stale" });
+  assert.ok(readCrossing(formation), "still open");
+  assert.deepEqual(await crossingRun(PLAYER, formation, { step: "end", crossingId: id }), { ok: true });
+  assert.equal(readCrossing(formation), null);
+  const judgeRun = world([a, b]);
+  await beginCrossing(judgeRun.formation, "easyClimb");
+  await applyCrossingForm(judgeRun.formation, { length: "400" });
+  naturals.push(18, 18);
+  const all = await throwAll(judgeRun.formation);
+  assert.deepEqual([all.thrown, all.left], [2, 0], "the Judge's own press is unchanged: every member");
+});
+
+await ok("a player's End is refused while a member is drowning, with the names and no write; the Judge's goes ahead and is warned", async () => {
+  const { formation, party: actor } = await swimWorld([["Alder", { stone: 9 }], ["Birch", { stone: 9 }]]);
+  actor.ownerId = PLAYER.id;
+  await writeMemberStep(formation, readCrossing(formation).id, "Alder", { state: "drowning" });
+  const id = readCrossing(formation).id;
+  seen.warned.length = 0;
+  assert.deepEqual(await crossingRun(PLAYER, formation, { step: "end", crossingId: id }), { ok: false, refused: "held", stuck: "", drowning: "Alder" });
+  assert.equal(readCrossing(formation)?.id, id, "nothing was closed");
+  assert.deepEqual(seen.warned, [], "and the Judge's warning is not raised for a player's press");
+  assert.equal(await as(PLAYER, () => endCrossing(formation, { player: true })), false, "the executor refuses a player's End itself");
+  assert.equal(await endCrossing(formation, { player: true }), false, "wherever it runs");
+  // The seat says it before sending.
+  assert.equal((await asAsync(PLAYER, () => requestCrossingRun(formation, "end"))).refused, "held");
+  assert.deepEqual(seen.warned, ["The crossing stays open: Alder still drowning."]);
+  assert.deepEqual(await crossingRun(GM, formation, { step: "end", crossingId: id }), { ok: true }, "the Judge goes ahead");
+  assert.deepEqual(seen.warned.at(-1), "Crossing ended with Alder still drowning; they are released where they are.");
+  assert.equal(readCrossing(formation), null);
+  const calm = await swimWorld([["Alder", { stone: 9 }]]);
+  calm.party.ownerId = PLAYER.id;
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingRun(calm.formation, "end")), { ok: true });
+  assert.equal(readCrossing(calm.formation), null, "an afloat party's End closes it");
+});
+
+await ok("the seat sender: Begin and Throw all reach the Judge's client for the party actor's owner and say a refusal on the seat", async () => {
+  reset();
+  load();
+  const a = person("Alder", { items: [CLIMBING()], owner: PLAYER.id });
+  const { formation } = world([a], { partyOwner: PLAYER.id });
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingRun(formation, "begin", { kind: "easyClimb" })), { ok: true });
+  assert.equal(readCrossing(formation).kind, "easyClimb");
+  await applyCrossingForm(formation, { length: "400" });
+  naturals.push(18);
+  const out = await asAsync(PLAYER, () => requestCrossingRun(formation, "throwAll"));
+  assert.deepEqual([out.ok, out.thrown], [true, 1]);
+  seen.warned.length = 0;
+  assert.equal((await asAsync(OTHER, () => requestCrossingRun(formation, "end"))).refused, "notOwner");
+  assert.deepEqual(seen.warned, ["The Judge's client did not take that press."]);
+  assert.ok(readCrossing(formation), "another seat closed nothing");
+});
+
+await ok("the partial draws setup, Throw all and End for the party actor's owner (canSetup) and the penalty line for a seat that is not", async () => {
+  const { formation, party: actor } = await swimWorld([["Alder", { stone: 9, owner: OTHER.id }]]);
+  actor.ownerId = PLAYER.id;
+  const owner = render({ crossing: as(PLAYER, () => buildCrossingView(formation)) });
+  assert.ok(owner.includes('data-action="crossingEnd"') && owner.includes('name="crossing.penaltyPick"') && owner.includes('name="crossing.judgeMod"'), "an owner's setup and End");
+  assert.equal(owner.includes("acks-extras-crossing-inforce"), false, "no in-force line where the picker is");
+  const bystander = render({ crossing: as(OTHER, () => buildCrossingView(formation)) });
+  assert.equal(/name="crossing\./.test(bystander) || bystander.includes("crossingEnd"), false, "nothing of the setup for another seat");
+  assert.ok(bystander.includes("acks-extras-crossing-inforce"), "the in-force line instead of the picker");
+  const begin = (() => { reset(); load(); const w = world([person("Alder", { owner: PLAYER.id })], { partyOwner: PLAYER.id }); return render({ crossing: as(PLAYER, () => buildCrossingView(w.formation)) }); })();
+  assert.ok(begin.includes('data-action="crossingBegin"'), "a party owner has the begin row with no crossing");
+  const view = as(PLAYER, () => buildCrossingView(world([], { partyOwner: PLAYER.id }).formation));
+  assert.equal(render({ crossing: view }).includes('data-action="crossingThrowAll"'), false, "Throw all only where this seat can throw for someone");
+});
+
+await ok("onChangeForm writes the crossing's setup for the party actor's owner before the record's seat check returns", async () => {
+  const source = fs.readFileSync(new URL("../scripts/formation/formation-actions.mjs", import.meta.url), "utf8");
+  const body = source.slice(source.indexOf("export async function onChangeForm"));
+  const write = body.indexOf("applyCrossingForm(formation, data.crossing)");
+  assert.ok(write > 0 && write < body.indexOf("if (!seatOwnsMember(formation))"), "the setup write precedes the member-seat return");
+  assert.ok(/data\.crossing && getPartyActor\(formation\)\?\.isOwner/.test(body), "gated on the party actor's owner");
+  assert.equal(body.includes("applyCrossingForm", write + 10), false, "written once");
+  const { pickPartyForm } = await import("../scripts/formation/party-form.mjs");
+  const picked = pickPartyForm({ crossing: { length: 5, judgeMod: 3 }, name: "Wanderers" });
+  assert.equal("crossing" in picked, false, "the relayed form never carries the crossing");
+  assert.equal(picked.name, "Wanderers", "while the allow-listed keys still pass");
 });
 
 console.log(`\n${passed} passed`);

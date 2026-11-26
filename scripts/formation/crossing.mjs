@@ -176,6 +176,17 @@ export function readCrossing(formation) {
 }
 
 /**
+ * The names of the members the open crossing holds stuck or drowning, each list
+ * empty when none is held or no crossing stands.
+ * @returns {{stuck: string[], drowning: string[]}}
+ */
+export function heldMembers(formation) {
+  const crossing = readCrossing(formation);
+  const named = (state) => (crossing ? crossingMembers(formation).filter((e) => crossing.members?.[e.member.actorId]?.state === state).map((e) => e.actor.name) : []);
+  return { stuck: named(STUCK), drowning: named(DROWNING) };
+}
+
+/**
  * Open a crossing: the flag is replaced whole, with a fresh id and no members.
  * Nothing is written for a kind that is neither an obstacle nor a jump, or
  * while one stands, or from a seat that is no GM.
@@ -210,16 +221,20 @@ export async function beginCrossing(formation, kind, { seed = null } = {}) {
  * Close the crossing: what it holds is released from every member its record
  * names, then the flag is unset, members and all. The Judge is warned, naming
  * them, of every member still stuck or drowning, since ending is adjudication
- * and releases them where they are.
+ * and releases them where they are. A press declared by a player (`player`) is
+ * blocked where the Judge is warned: nothing is written while a member is stuck
+ * or drowning (`heldMembers` names them).
+ * @param {object} formation
+ * @param {{player?: boolean}} [options]
  * @returns {Promise<boolean>} whether a crossing was closed
  */
-export async function endCrossing(formation) {
+export async function endCrossing(formation, { player = false } = {}) {
   const actor = getPartyActor(formation);
   const crossing = readCrossing(formation);
   if (!actor || !game.user.isGM || !crossing) return false;
-  const named = (state) => crossingMembers(formation).filter((e) => crossing.members?.[e.member.actorId]?.state === state).map((e) => e.actor.name);
-  const stillHeld = [[STUCK, "crossing.endHeld.stuck"], [DROWNING, "crossing.endHeld.drowning"]]
-    .map(([state, key]) => [named(state), key])
+  const held = heldMembers(formation);
+  if (player && (held.stuck.length || held.drowning.length)) return false;
+  const stillHeld = [[held.stuck, "crossing.endHeld.stuck"], [held.drowning, "crossing.endHeld.drowning"]]
     .filter(([names]) => names.length)
     .map(([names, key]) => loc(key, { names: names.join(", ") }));
   await syncHeld(bodiesOfRecord(formation, Object.keys(crossing.members ?? {})), crossing.id, []);
@@ -257,7 +272,10 @@ export const SETUP_FIELDS = Object.freeze({
  * Write the setup fields a form carries that differ from the stored setup, each
  * by its own dotted path, so a member's step landing at the same time is not
  * overwritten. A blank number unsets its key. `members` and `id` are never
- * written here.
+ * written here. The seat is the party actor's owner, Foundry's own test: the
+ * write is a flag on that actor, made from the owner's own client. A written
+ * Judge modifier carries the id of the user who set it (`judgeModBy`), cleared
+ * with the modifier when it is blanked, so its tooltip can say who set it.
  * @param {object} formation
  * @param {object} form the `crossing` object of a submit
  * @returns {Promise<boolean>} whether anything was written
@@ -265,13 +283,14 @@ export const SETUP_FIELDS = Object.freeze({
 export async function applyCrossingForm(formation, form) {
   const actor = getPartyActor(formation);
   const crossing = readCrossing(formation);
-  if (!actor || !game.user.isGM || !crossing || !form) return false;
+  if (!actor || !actor.isOwner || !crossing || !form) return false;
   const update = {};
   for (const [key, read] of Object.entries(SETUP_FIELDS)) {
     if (!(key in form)) continue;
     const next = read(form[key]);
     if ((crossing[key] ?? null) === next) continue;
     update[setupPath(key)] = next === null ? unset() : next;
+    if (key === "judgeMod") update[setupPath("judgeModBy")] = next ? game.user.id : unset();
   }
   if (!Object.keys(update).length) return false;
   await actor.update(update);
@@ -407,8 +426,17 @@ export function crossingMembers(formation) {
  * bystander's. `owns` states the seat's ownership outright where the caller
  * has established it for a user other than this client's (the GM client
  * answering a relayed throw); left null it is read from this client's user.
+ * A row that carries the Judge's modifier also carries who set it
+ * (`row.judgeModBy`), which its tooltip names.
  */
-export function rowFor(formation, crossing, { member, actor }, { judge = game.user.isGM, owns = null, load = null } = {}) {
+export function rowFor(formation, crossing, member, options = {}) {
+  const entry = rowOf(formation, crossing, member, options);
+  if (entry.row && !entry.jump) entry.row.judgeModBy = crossing.judgeModBy ?? null;
+  return entry;
+}
+
+/** One member's row, before it is told who set the Judge's modifier. */
+function rowOf(formation, crossing, { member, actor }, { judge = game.user.isGM, owns = null, load = null } = {}) {
   owns = owns ?? (judge || (actor.testUserPermission?.(game.user, "OWNER") ?? false));
   const seat = { judge, owns };
   const standing = standingOf(member, actor);
@@ -534,6 +562,20 @@ const jumpingRef = () => loc("crossing.ref.jumping");
 const citeFor = (table) => citeOf(FORMATION_DOC, table);
 
 /**
+ * Who set the Judge's modifier, as words for a tooltip: the user's name, or the
+ * Judge for a Judge's id and for an id no user holds or none recorded. The name
+ * is plain text, written to a `data-tooltip-text` attribute and never as HTML.
+ * @param {string|null} id the user id the crossing's `judgeModBy` holds
+ */
+export function judgeModSetBy(id) {
+  const user = id ? game.users?.get?.(id) : null;
+  return user && !user.isGM ? loc("crossing.judgeModBy", { name: user.name }) : loc("crossing.judgeModByJudge");
+}
+
+/** The words a tooltip adds after a part that is the Judge's modifier: where it came from, or "" for any other part. */
+const judgePartSuffix = (part, judgeModBy) => (part.key === "judge" ? ` (${judgeModSetBy(judgeModBy)})` : "");
+
+/**
  * A member's target as a tooltip: where the figure was read from with the figure
  * it starts at, each part that moved it with the page its import cites, and the
  * Judge's modifier where one is set, and the pace the member moves at with its own
@@ -543,14 +585,14 @@ const citeFor = (table) => citeOf(FORMATION_DOC, table);
  * arrive as a part of the figure. The procedure's page ends the line unless a
  * part names its own.
  */
-export function targetTooltip(figure, judgeMod = 0, pace = null) {
+export function targetTooltip(figure, judgeMod = 0, pace = null, judgeModBy = null) {
   if (!figure) return spelunkingRef();
   const parts = figure.parts ?? [];
   const mod = Number(judgeMod) || 0;
   const start = Number.isFinite(figure.target) ? figure.target + parts.reduce((sum, part) => sum + part.value, 0) : null;
   const source = start === null ? figure.source : loc("crossing.tip.base", { source: figure.source, base: start });
   const extra = [];
-  if (mod) extra.push(partText({ value: mod, label: loc("crossing.judgeMod") }));
+  if (mod) extra.push(partText({ value: mod, label: `${loc("crossing.judgeMod")} (${judgeModSetBy(judgeModBy)})` }));
   if (pace) extra.push(`${partText({ value: -pace.size, label: pace.label })} (${pace.cite})`);
   const line = citedSource({ source, parts }, extra);
   return parts.some((part) => part.cite) ? line : [line, spelunkingRef()].join(" · ");
@@ -794,7 +836,7 @@ function obstacleRowView(crossing, entry) {
     settled,
     stalled: row.state === STALLED,
     target: target === null ? "" : `${target}+`,
-    targetTip: target === null ? spelunkingRef() : targetTooltip(figure, row.judgeMod, paceOfRow(row)),
+    targetTip: target === null ? spelunkingRef() : targetTooltip(figure, row.judgeMod, paceOfRow(row), row.judgeModBy),
     pace: paceView(entry),
     holds: entry.holds,
     holdsLabel: entry.holds ? loc("crossing.holds") : "",
@@ -1047,9 +1089,12 @@ function jumpRowView(crossing, entry) {
 }
 
 /**
- * The context of "The crossing" on the Dungeon tab. A Judge always gets a begin
- * row; every seat gets the member rows while a crossing is open, and a Judge
- * also the setup fields. A player gets nothing while none is open (null).
+ * The context of "The crossing" on the Dungeon tab. A seat that owns the party
+ * actor (`canSetup`, Foundry's own test) always gets a begin row, and the setup
+ * fields while a crossing is open; every seat gets the member rows while one is
+ * open. Any other seat gets nothing while none is open (null). `isGM` is for
+ * display only. Throw all is offered where this seat may throw for at least one
+ * member: any member to a Judge, the members the seat owns to a player.
  *
  * Every figure is the logic's answer on what the tables hold: a figure nobody
  * imported is blank, with the page reference alone in its tooltip, and never
@@ -1057,10 +1102,12 @@ function jumpRowView(crossing, entry) {
  */
 export function buildCrossingView(formation) {
   const isGM = game.user.isGM;
+  const ownsParty = !!getPartyActor(formation)?.isOwner;
   const crossing = readCrossing(formation);
-  if (!crossing && !isGM) return null;
+  if (!crossing && !ownsParty) return null;
   const view = {
     isGM,
+    canSetup: ownsParty,
     open: !!crossing,
     kinds: CROSSING_KINDS.map((value) => ({ value, label: kindLabel(value) })),
     refs: { spelunking: spelunkingRef(), jumping: jumpingRef() },
@@ -1076,6 +1123,7 @@ export function buildCrossingView(formation) {
     depth: crossing.depth ?? "",
     gap: crossing.gap ?? "",
     judgeMod: crossing.judgeMod ?? 0,
+    judgeModTip: judgeModSetBy(crossing.judgeModBy),
     ropeFixed: !!crossing.ropeFixed,
     runUp: crossing.runUp !== false,
     precarious: !!crossing.precarious,
@@ -1085,21 +1133,23 @@ export function buildCrossingView(formation) {
   const squeeze = crossing.kind === SQUEEZE_KIND;
   const load = jump || swim || squeeze ? carriedLoad(formation) : null;
   const entries = crossingMembers(formation).map((entry) => ({ ...entry, ...rowFor(formation, crossing, entry, { load }) }));
+  // A Judge's seat throws for any member; any other seat only for a member it owns whose crossing is not already settled.
+  const mayThrow = (entry) => isGM || (!!entry.actor.isOwner && !SETTLED.includes(entry.row.state));
   if (swim) {
     view.swim = swimSetupView(crossing, entries);
     view.rows = entries.map((entry) => swimRowView(crossing, entry, entries));
-    view.canThrowAll = isGM && entries.some((entry) => entry.row.can && !entry.row.warn);
+    view.canThrowAll = ownsParty && entries.some((entry) => mayThrow(entry) && entry.row.can && !entry.row.warn);
     return view;
   }
   if (squeeze) {
     view.squeeze = squeezeSetupView(crossing);
     view.rows = entries.map((entry) => squeezeRowView(crossing, entry));
-    view.canThrowAll = isGM && entries.some((entry) => entry.row.can && !entry.row.warn);
+    view.canThrowAll = ownsParty && entries.some((entry) => mayThrow(entry) && entry.row.can && !entry.row.warn);
     return view;
   }
   view.rows = entries.map((entry) => (jump ? jumpRowView(crossing, entry) : obstacleRowView(crossing, entry)));
   if (!jump) view.rounds = roundsView(crossing, entries);
-  view.canThrowAll = isGM && !jump && entries.some((entry) => entry.row.can && !entry.row.warn && !SETTLED.includes(entry.row.state));
+  view.canThrowAll = ownsParty && !jump && entries.some((entry) => mayThrow(entry) && entry.row.can && !entry.row.warn && !SETTLED.includes(entry.row.state));
   return view;
 }
 
@@ -1134,7 +1184,7 @@ function throwCard({ crossing, entry, plan, read, roll, natural, stepped, fall, 
         name: actor.name,
         total: roll.total,
         target: target ?? undefined,
-        targetTooltip: target === null ? "" : targetTooltip(figure, row.judgeMod, paceOfRow(row)),
+        targetTooltip: target === null ? "" : targetTooltip(figure, row.judgeMod, paceOfRow(row), row.judgeModBy),
         detail: read.botch ? loc("crossing.card.botch", { natural }) : "",
         outcome: loc(`crossing.state.${stepped.state}`),
         emphasis: read.success ? "success" : "failure",
@@ -1341,20 +1391,28 @@ async function payCrossing(formationId, crossingId) {
  * Throw a stretch for every member whose row allows it with no warning, one
  * after another, and bill the rounds they spent once, after the last. A member
  * who is across, fell, stalled, refused or warned is left for the Judge to press.
+ * `asUser` is who declared the press, the Judge's own seat by default. A user
+ * who is no GM throws only for the members they own (Foundry's OWNER test), with
+ * every row read for a player and every throw blocked where a Judge's is warned;
+ * the members they do not own are not counted as left.
+ * @param {object} formation
+ * @param {{asUser?: object}} [options]
  * @returns {Promise<{thrown: number, left: number, messages: object[]}>}
  */
-export async function throwAll(formation) {
+export async function throwAll(formation, { asUser = game.user } = {}) {
   const crossing = readCrossing(formation);
   const out = { thrown: 0, left: 0, messages: [] };
   if (!crossing || crossing.kind === JUMP_KIND || !game.user.isGM) return out;
+  const player = !asUser.isGM;
   const load = crossing.kind === SWIM_KIND || crossing.kind === SQUEEZE_KIND ? carriedLoad(formation) : null;
   for (const entry of crossingMembers(formation)) {
-    const { row } = rowFor(formation, crossing, entry, { judge: true, load });
+    if (player && !entry.actor.testUserPermission?.(asUser, "OWNER")) continue;
+    const { row } = rowFor(formation, crossing, entry, player ? { judge: false, owns: true, load } : { judge: true, load });
     if (!row.can || row.warn || SETTLED.includes(row.state)) {
       out.left++;
       continue;
     }
-    const result = await throwFor(formation, entry.member.actorId, { bill: false });
+    const result = await throwFor(formation, entry.member.actorId, { bill: false, player });
     if (result.ok) {
       out.thrown++;
       out.messages.push(result.message);
@@ -1480,7 +1538,7 @@ export function swimTargetTip(seen) {
   const parts = row.parts.map((part) => {
     const words = loc(`swimming.part.${partKey(part)}`);
     const conditions = part.conditions?.length ? ` (${part.conditions.map((key) => loc(`swimming.water.${key}`)).join(", ")})` : "";
-    return `${words} ${part.value}${conditions}`;
+    return `${words} ${part.value}${conditions}${judgePartSuffix(part, row.judgeModBy)}`;
   });
   return [...parts, citeFor("swimmingBonus") ?? swimmingRef()].join(" · ");
 }
@@ -1543,6 +1601,7 @@ function swimSetupView(crossing, entries) {
     penaltyTip: words.tip,
     movement: ["combat", "running"].map((value) => ({ value, label: loc(`crossing.swim.mode.${value}`), selected: movement === value })),
     judgeMod: crossing.judgeMod ?? 0,
+    judgeModTip: judgeModSetBy(crossing.judgeModBy),
     inForce: words.size ? loc("crossing.swim.inForce", { penalty: `−${words.size}`, conditions: conditionList }) : loc("crossing.swim.noPenalty"),
     round,
     roundLabel: round === null ? "" : loc("crossing.swim.round", { round }),
@@ -2075,12 +2134,12 @@ const squeezeCite = (table) => citeFor(table) ?? squeezingRef();
 const signed = (n) => `${n < 0 ? "−" : "+"}${Math.abs(n)}`;
 
 /** A target's parts as words, each signed by what it adds to the number to roll. */
-const squeezeParts = (parts) => parts.map((part) => `${loc(`crossing.squeeze.part.${partKey(part)}`, { mod: signed(part.mod ?? 0) })} ${signed(part.value)}`);
+const squeezeParts = (parts, judgeModBy = null) => parts.map((part) => `${loc(`crossing.squeeze.part.${partKey(part)}`, { mod: signed(part.mod ?? 0) })} ${signed(part.value)}${judgePartSuffix(part, judgeModBy)}`);
 
 /** The squeezing throw's target as a tooltip: its parts, then the page; the page alone where no target stands. */
 export function squeezeTargetTip(row) {
   if (row.target === null) return squeezeCite("contortionismBonus");
-  return [...squeezeParts(row.parts), squeezeCite("contortionismBonus")].join(" · ");
+  return [...squeezeParts(row.parts, row.judgeModBy), squeezeCite("contortionismBonus")].join(" · ");
 }
 
 /** The feet covered along a squeeze as a tooltip: the member's combat speed that a made throw carries them, then the page; the page alone where no speed stands. */
@@ -2096,7 +2155,7 @@ export function escapeTargetTip(entry, name) {
   const head = name === "push"
     ? loc("crossing.squeeze.part.figure", { figure: entry.pushFigure?.target, source: entry.pushFigure?.source ? loc("crossing.squeeze.part.figureFrom", { source: entry.pushFigure.source }) : "" })
     : loc("crossing.squeeze.part.save", { save: saveName({ save: WIGGLE_SAVE }), base: entry.save.base });
-  return [head, ...squeezeParts(way.parts), cite].join(" · ");
+  return [head, ...squeezeParts(way.parts, entry.row.judgeModBy), cite].join(" · ");
 }
 
 /**
@@ -2254,6 +2313,7 @@ function squeezeSetupView(crossing) {
     lengthTip: squeezingRef(),
     length: crossing.length ?? "",
     judgeMod: crossing.judgeMod ?? 0,
+    judgeModTip: judgeModSetBy(crossing.judgeModBy),
     refs: { squeezing: squeezingRef() },
   };
 }

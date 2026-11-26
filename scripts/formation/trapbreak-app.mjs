@@ -23,6 +23,9 @@ const LANG_PREFIX = "ACKS-FORMATION.traps";
 const loc = makeLoc(LANG_PREFIX);
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
+/** What a figure typed into the modifier field says of itself on a seat that is not the Judge's. */
+const TYPED_TIP = () => game.i18n.localize("ACKS-FORMATION.doors.judgeModTyped");
+
 /** The id every Trapbreaking window takes before its party and character are added. */
 const WINDOW_ID_ROOT = "acks-extras-trapbreak";
 
@@ -245,7 +248,7 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
       loc("tipNeeds", { name: actor?.name ?? "", source: check.source, target: check.target, page }),
       ...(check.parts ?? []).map((p) => partTip(p, page)),
     ];
-    if (extra) bits.push(loc("tipJudge", { value: signed(extra) }));
+    if (extra) bits.push(judgeDeclares() ? loc("tipJudge", { value: signed(extra) }) : `${TYPED_TIP()} ${signed(extra)}`);
     if (succeeds) bits.push(loc("tipSucceeds", { face: succeedMin, page: dicePage }));
     if (floor != null) bits.push(loc("tipFloor", { floor, page: dicePage }));
     return { needs, tip: bits.join(" · ") };
@@ -260,8 +263,9 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
     const inReach = placementsInReach(formation, reachFeet);
     const chosen = inReach.find((p) => p.uuid === this.choice.targetUuid) ?? inReach[0] ?? null;
     const mode = this.choice.mode === "hasty" ? "hasty" : "methodical";
-    // The Judge's modifier is the Judge's and rides their throw; a player's request carries none.
-    const extra = isGM ? this.choice.extra : 0;
+    // The modifier is typed on any seat and rides that seat's throw. A player's request carries it, and
+    // the gate (`judge`) is still the Judge's alone.
+    const extra = this.choice.extra;
     const page = loc("pageTrapbreak");
 
     const check = actor ? resolveCheck(actor, PARTY_CHECKS[mode === "hasty" ? "trapbreakHasty" : "trapbreakMethodical"]) : null;
@@ -308,7 +312,7 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
       needsTip,
       throwLine: check ? { source: check.source, target: check.target, tip: loc("tipNeeds", { name: actor?.name ?? "", source: check.source, target: check.target, page: loc("pageThrow") }) } : null,
       parts: (check?.parts ?? []).map((p) => ({ label: p.label, display: `${signed(p.value)}`, tip: partTip(p, loc("pageThrow")) })),
-      judgePart: extra ? { display: signed(extra), tip: loc("tipJudge", { value: signed(extra) }) } : null,
+      judgePart: extra ? { display: signed(extra), tip: isGM ? loc("tipJudge", { value: signed(extra) }) : TYPED_TIP() } : null,
       refusal,
       warnings,
       note,
@@ -321,7 +325,7 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
     };
   }
 
-  /** Declare the attempt. A GM's client rolls it; a player's asks the GM's to, and carries no modifier. */
+  /** Declare the attempt. A GM's client rolls it; a player's asks the GM's to, and carries the modifier typed. */
   static async #onAttempt() {
     const formation = this.formation;
     const actor = this.actor;
@@ -329,7 +333,7 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
     const targetUuid = (await this._targetUuid()) ?? "";
     if (!targetUuid) return;
     if (judgeDeclares()) await attemptDisarm(formation, actor, { mode: this.choice.mode, extra: this.choice.extra, targetUuid, askUserId: game.user.id, judge: true });
-    else await requestPartyAction(formation.id, "trapbreak", { actorId: actor.id, targetUuid, mode: this.choice.mode });
+    else await requestPartyAction(formation.id, "trapbreak", { actorId: actor.id, targetUuid, mode: this.choice.mode, extra: this.choice.extra });
     this.render();
   }
 
