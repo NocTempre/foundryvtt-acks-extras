@@ -829,6 +829,11 @@ await ta("a pick goes to the GM's client as {op: \"setControl\", messageId, outc
   reply = { ok: false, reason: "notOwner" };
   assert.equal((await hand.pressControl(message, "control", deps)).ok, false);
   assert.deepEqual(told.map((x) => x[0]), ["warn"]);
+  assert.ok(told[0][1].endsWith("refused.notOwner"), "a reason with a string of its own is worded by it");
+  reply = { ok: false, reason: "someOtherReason" };
+  await hand.pressControl(message, "control", deps);
+  assert.ok(told[1][1].endsWith("refused.refused"), "any other reason reads as the generic refusal");
+  told.length = 1;
   reply = { ok: true, outcome: "stays", skipped: 2, none: true };
   await hand.pressControl(message, "stays", deps);
   assert.deepEqual(told.slice(1).map((x) => x[0]), ["info"], "the none-left answer is a notice");

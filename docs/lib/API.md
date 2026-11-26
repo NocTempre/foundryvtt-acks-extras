@@ -1395,7 +1395,13 @@ directly, runs on the GM's client alone and ends the control of one cast's
 creatures, named by their own recorded cast and never by a name or a type:
 each is stamped `lost` with `outcome` (one of `CONTROL_ENDS`, read by the
 caller from the spell's row), and `outcome` removes it (`gone`), turns it hostile
-with its owners set to NONE (`hostile`) or leaves it (`stays`). Only a creature
+with its owners set to NONE (`hostile`) or leaves it (`stays`). A Judge's hand on
+a cast afterwards may also pass `UNDER_CONTROL` (`"control"`; it and `CONTROL_PICKS`,
+the four values in a select's order, are imported from `scripts/lib/summons-logic.mjs`):
+the stamp is cleared, a creature that had turned hostile is given back the owners
+`summonOwnership` grants and its world copy's prototype disposition, and nothing is
+put back on a roster or deleted; the answer carries `dispositionUnread` where that
+world copy could not be read. Only a creature
 that turned hostile is refused to a non-GM's `dismissSummons` as `controlLost`,
 the door and the relay's `dismiss` alike; one that stayed or went is dismissed
 by an owner of its summoner as any other is. A deployed member's token

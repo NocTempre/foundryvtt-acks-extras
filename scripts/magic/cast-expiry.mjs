@@ -269,7 +269,7 @@ export async function postEnded({ effect, record, tokens, held = [], outcome = n
  * posted with, a line for the outcome the creatures stand in (the render hook
  * swaps it for the select on a seat that gets one, `cast-control-hand.mjs`), who
  * set it by hand, who left the party and who stayed on its roster (not once the
- * creatures are back under control), and Dismiss. A Judge's hand redraws it from
+ * creatures are back under control), and Dismiss (not once they are gone). A Judge's hand redraws it from
  * a new flag. A card with no outcome in its flag draws no outcome line.
  *
  * @param {{spellName?: string, casterName?: string, n?: number, outcome?: string, setBy?: string, left?: {name: string}[], kept?: {name: string}[]}} flag  the card's `castEnded` flag
@@ -285,7 +285,8 @@ export function endedContent(flag) {
     (line && flag.setBy ? `<p>${esc(controlLoc("setBy", { name: flag.setBy }))}</p>` : "") +
     (left.length ? `<p>${esc(loc("leftParty", { names: left.map((l) => l.name).join(", ") }))}</p>` : "") +
     (kept.length ? `<p>${esc(loc("keptInParty", { names: kept.map((k) => k.name).join(", ") }))}</p>` : "") +
-    `<button type="button" ${DISMISS_ATTR}><i class="fa-solid fa-ghost" inert></i> ${esc(loc("dismiss"))}</button></div>`
+    (flag.outcome === "gone" ? "" : `<button type="button" ${DISMISS_ATTR}><i class="fa-solid fa-ghost" inert></i> ${esc(loc("dismiss"))}</button>`) +
+    "</div>"
   );
 }
 
@@ -324,7 +325,8 @@ const liveDeps = (worldTime) => ({
 export function bindCard(message, html) {
   const flag = message?.getFlag?.(MODULE_ID, CAST_ENDED_FLAG);
   if (!flag?.castId) return;
-  bindControlSelect(message, html, { key: CAST_ENDED_FLAG, root: ".acks-extras-cast-ended", anchor: `[${DISMISS_ATTR}]`, live: true });
+  // A card posted before it kept its names cannot be redrawn from its flag, so it draws no select.
+  if (flag.spellName !== undefined) bindControlSelect(message, html, { key: CAST_ENDED_FLAG, root: ".acks-extras-cast-ended", anchor: `[${DISMISS_ATTR}]`, live: true });
   const owner = fromUuidSync(flag.casterUuid)?.isOwner === true;
   const may = owner && (flag.outcome !== "hostile" || game.user?.isGM === true);
   for (const button of html?.querySelectorAll?.(`[${DISMISS_ATTR}]`) ?? []) {

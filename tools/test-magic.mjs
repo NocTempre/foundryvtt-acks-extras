@@ -1228,43 +1228,53 @@ await ta("the ended card names who left the party and who stays on the roster, e
     }
   }
 });
-await ta("the ended card's flag keeps what a redraw reads (the creatures, who left, the names), its content is a function of that flag, and the select is drawn from it for a seat that owns every creature", async () => {
+await ta("the ended card's flag keeps what a redraw reads (the names, the count, who left), its content is a function of that flag, and the select is drawn for a seat that owns every creature the cast has standing now", async () => {
   const prior = { game: globalThis.game, ChatMessage: globalThis.ChatMessage, fromUuidSync: globalThis.fromUuidSync };
   const made = [];
-  globalThis.game = { i18n: { format: (key, data) => `${key}|${JSON.stringify(data ?? {})}`, localize: (key) => key }, users: [{ id: "gm1", isGM: true }], user: { id: "p1", isGM: false } };
+  const stamped = (name, uuid, isOwner) => ({ name, uuid, texture: { src: "" }, actor: { isOwner, getFlag: (scope, key) => (scope !== "acks-extras" ? undefined : key === "summonedBy" ? "Actor.c1" : key === "summon" ? { castId: "cast7" } : undefined) } });
+  let standing = [stamped("Invented Wolf", "Scene.s1.Token.t1", true)];
+  globalThis.game = { i18n: { format: (key, data) => key + "|" + JSON.stringify(data ?? {}), localize: (key) => key }, users: [{ id: "gm1", isGM: true }], user: { id: "p1", isGM: false }, scenes: { *[Symbol.iterator]() { yield { tokens: standing }; } } };
   globalThis.game.users.get = (id) => globalThis.game.users.find((u) => u.id === id);
   globalThis.ChatMessage = { getSpeaker: () => ({}), create: async (data) => (made.push(data), data) };
-  globalThis.fromUuidSync = () => null;
+  globalThis.fromUuidSync = (uuid) => (uuid === "Actor.c1" ? { uuid: "Actor.c1", isOwner: true } : (standing.find((t) => t.uuid === uuid) ?? null));
   try {
     const effect = { name: "Invented", parent: { uuid: "Actor.c1", name: "Invented Caster", ownership: {} } };
     const record = { spellUuid: "Actor.c1.Item.sp1", castId: "cast7", casterUuid: "Actor.c1" };
-    const tokens = [{ name: "Invented Wolf", uuid: "Scene.s1.Token.t1", texture: { src: "wolf.webp" } }];
+    const tokens = [{ name: "Invented Wolf", uuid: "Scene.s1.Token.t1" }];
     const held = [{ name: "Invented Owl", img: "", partyId: "pty", actorId: "m2" }];
     await postEnded({ effect, record, tokens, held, outcome: "hostile", left: [{ name: "Invented Owl", partyId: "pty", actorId: "m2", tokenUuid: "Scene.s9.Token.n" }] });
     const flag = made[0].flags["acks-extras"].castEnded;
-    assert.deepEqual(flag.summons, [{ name: "Invented Wolf", img: "wolf.webp", tokenUuid: "Scene.s1.Token.t1" }, { name: "Invented Owl", img: "", tokenUuid: "Scene.s9.Token.n" }], "a stashed creature that left is listed by its token");
-    assert.deepEqual([flag.spellName, flag.casterName, flag.left], ["Invented", "Invented Caster", [{ name: "Invented Owl" }]]);
+    assert.deepEqual([flag.spellName, flag.casterName, flag.n, flag.left], ["Invented", "Invented Caster", 2, [{ name: "Invented Owl" }]]);
+    assert.equal("summons" in flag, false, "the card lists no creatures: the select reads them live");
     assert.equal(made[0].content, endedContent(flag), "the stored content is the flag drawn");
     assert.ok(endedContent({ ...flag, outcome: "control" }).includes("castEnded.underControl") && !endedContent({ ...flag, outcome: "control" }).includes("castEnded.hostile|"), "set back under control the hostile line goes");
     assert.ok(endedContent({ ...flag, outcome: "gone" }).includes("castEnded.gone"));
     assert.ok(endedContent({ ...flag, outcome: "hostile" }).includes("castEnded.hostile|") && endedContent(flag).includes("data-acks-extras-cast-dismiss"));
+    assert.equal(endedContent({ ...flag, outcome: "gone" }).includes("data-acks-extras-cast-dismiss"), false, "nothing is left to dismiss once the creatures went");
 
-    // The select, drawn by the render hook for a seat that owns every creature the flag lists.
+    // The select, drawn by the render hook for a seat that owns every creature the cast has standing.
     const root = { children: [], append(...n) { this.children.push(...n); } };
     const el = (tag) => ({ tag, attrs: {}, children: [], listeners: {}, setAttribute(k, v) { this.attrs[k] = String(v); }, append(...n) { this.children.push(...n); }, addEventListener(type, fn) { this.listeners[type] = fn; } });
     const html = { ownerDocument: { createElement: el }, querySelector: (sel) => (sel === ".acks-extras-cast-ended" ? root : null), querySelectorAll: () => [] };
     const message = { id: "m9", flags: { "acks-extras": { castEnded: { ...flag } } }, getFlag: (scope, key) => (scope === "acks-extras" && key === "castEnded" ? flag : undefined) };
-    globalThis.fromUuidSync = (uuid) => (uuid === "Actor.c1" ? { isOwner: true } : { actor: { isOwner: true } });
     bindEndedCard(message, html);
-    assert.equal(root.children.filter((c) => c.tag === "label").length, 1, "drawn into the ended card");
+    assert.equal(root.children.filter((c) => c.tag === "div").length, 1, "drawn into the ended card");
     root.children.length = 0;
-    globalThis.fromUuidSync = (uuid) => (uuid === "Actor.c1" ? { isOwner: true } : { actor: { isOwner: false } });
+    standing = [stamped("Invented Wolf", "Scene.s1.Token.t1", true), stamped("Invented Bat", "Scene.s1.Token.t2", false)];
     bindEndedCard(message, html);
     assert.equal(root.children.length, 0, "a seat that owns not every creature is drawn none");
+    standing = [stamped("Invented Wolf", "Scene.s1.Token.t1", true)];
     root.children.length = 0;
+    const goneFlag = { ...flag, outcome: "gone" };
+    bindEndedCard({ id: "m8", flags: { "acks-extras": { castEnded: goneFlag } }, getFlag: () => goneFlag }, html);
+    assert.equal(root.children.length, 0, "a card whose creatures went is drawn no select");
+    standing = [];
+    bindEndedCard(message, html);
+    assert.equal(root.children.length, 0, "a cast with nothing standing lists no creature and draws none");
+    standing = [stamped("Invented Wolf", "Scene.s1.Token.t1", true)];
     const oldFlag = { casterUuid: "Actor.c1", castId: "cast7", outcome: "stays" };
-    bindEndedCard({ id: "m8", flags: { "acks-extras": { castEnded: oldFlag } }, getFlag: () => oldFlag }, html);
-    assert.equal(root.children.length, 0, "a card posted before the list was kept draws none");
+    bindEndedCard({ id: "m7", flags: { "acks-extras": { castEnded: oldFlag } }, getFlag: () => oldFlag }, html);
+    assert.equal(root.children.length, 0, "a card posted before the flag kept its names cannot be redrawn, so it draws none");
   } finally {
     for (const [key, value] of Object.entries(prior)) {
       if (value === undefined) delete globalThis[key];

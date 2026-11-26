@@ -1280,6 +1280,44 @@ Restore. A cast's recipient records are not found when the caster's
 whole actor is deleted, since Foundry fires no per-record hook for it
 ([ROADMAP.md](ROADMAP.md)).
 
+**A cast's control end set by hand** (`cast-control-hand.mjs`). Both cards a cast's
+end posts, the held-end card (`castHeldEnd`) and the time-end card (`castEnded`),
+record the outcome the end gave the creatures (`outcome` in the flag, absent where
+no GM applied an end), and each draws its body from that flag: the time-end card's
+`endedContent` and the held card's `heldEndContent`, so a Judge's hand redraws a card
+by writing a new flag. The render hook (`bindControlSelect`) adds an Outcome select
+to either card for a seat that is an owner, by Foundry's own `isOwner`, of every
+creature the card lists that still exists (`mayPickControl`): the held-end card
+lists them in its flag (`summons`), the time-end card reads them live
+(`castSummons`), and with none left the caster's owner is asked instead. A GM is an
+owner by Foundry's rule, so no role is read. A card that lists no creature, and one
+whose outcome is `gone` (the creatures were deleted), draws no select, and a
+time-end card then draws no Dismiss either. A time-end card posted before its flag
+kept the spell's and the caster's names cannot be redrawn from it and draws none. The select
+takes the outcome line's place (`data-acks-extras-control-line`), so a seat reads
+the line or the select and never both; a seat that owns not every creature reads the
+line. Its options are `CONTROL_PICKS` (lib's `UNDER_CONTROL`, then `stays`, `gone`
+and `hostile`), each worded as the whole outcome, the recorded one selected, with
+one unpickable `Not recorded` first where the flag records none. The select carries
+one tooltip (`data-tooltip`) and an `aria-label`; a hint line under it says what the
+chosen value did to the creatures, which a tooltip on an `<option>` cannot, since
+core's tooltip manager never hovers one.
+
+A pick goes to the GM's client as `magicHeldEnd` `{op: "setControl", messageId,
+outcome}`, dispatched like Restore before the end request's own check. That client
+reads the card and its creatures from the world, validates the value against
+`CONTROL_PICKS`, re-tests the sender's ownership of each creature
+(`setControlOnCard`), and applies the value through lib's `applyControlEnd` on the
+cast the card names ("Setting control back by hand", lib's MODEL). It then writes
+the card's flag (`outcome`, `setBy` the user's name, `left` and `kept` as the end
+answered, the stashed creatures that left a party listed by their new tokens) and
+its drawn content in one update. A creature that left a party stays listed as having
+left; the roster line is not drawn once the creatures are under control. Creatures
+that no longer exist are skipped and counted, a card whose creatures are all gone
+changes only its record and says so, and a refusal reads in the presser's words
+(`ACKS-MAGIC.castControl.refused.*`). The decision is in
+[DECISIONS.md](DECISIONS.md), "The Judge's hand on one cast's control end".
+
 What is not built yet is in [ROADMAP.md](ROADMAP.md) and the plan, `wip/`.
 
 **A damage row that states no die** (`spell-die.mjs`, `spell-die-prompt.mjs`).

@@ -3737,6 +3737,16 @@ summon is the scene token it always was and nothing here runs.
   undeployed, unlinked summon member, in one patch, on the GM's client, and
   changes no membership; with no such method on the provider a stash is left as
   it was and counted `unapplied`.
+- *Setting control back by hand.* `UNDER_CONTROL` is a fifth value of
+  `controlEndPlan` that no spell row carries (`CONTROL_ENDS` stays the row's
+  vocabulary; `CONTROL_PICKS` lists the four a Judge may pick). Every token,
+  deployed members included, and every stash takes a `control` step: `lost` is
+  cleared and nothing is put on a roster or released. A creature whose record
+  reads hostile is given back the owners `summonOwnership` grants the summoner's
+  owners and the disposition its world copy's prototype token gives; a stash is
+  asked its own record, in the same `amendSummons` patch (`stashAfterControlEnd`
+  with `back`). `stays` from a hostile start gives the same back; a creature that
+  was never hostile keeps what it has and only its stamp is written.
 - *A temporary ally that turns hostile leaves its party.* `isTemporaryAlly`
   (`summons-logic.mjs`) is the one test of what the module can tell is
   temporary: a body carrying a cast's record, whatever summon format made it and

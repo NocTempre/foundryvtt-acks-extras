@@ -2535,8 +2535,27 @@ Owner ruling 2026-11-26 (lib `DECISIONS.md`): a creature a cast made that return
 ### Steps
 
 1. Cast `magic/hostile-conjure` from inside `magic/hostile-party`. *Observable:* the party sheet's Order tab lists the creature, and the scene holds no token for it.
-2. Lose concentration (damage the caster) and, in a second run, let the duration run out. *Observable:* the chat card whispered to the Judge and the caster's owner reads "Left the party: <name>. Each stands where it is, hostile."; the creature is on no Order tab roster; a token of it stands on the party's scene beside the party token, with a red (hostile) border, and its Dismiss on the card is the Judge's alone and removes that token. `game.actors` still holds the creature's world copy.
+2. Lose concentration (damage the caster) and, in a second run, let the duration run out. *Observable:* the chat card whispered to the Judge and the caster's owner reads "The creatures turn hostile" and "Left the party: <name>. Each stands where it is."; the creature is on no Order tab roster; a token of it stands on the party's scene beside the party token, with a red (hostile) border, and its Dismiss on the card is the Judge's alone and removes that token. `game.actors` still holds the creature's world copy.
 3. Repeat with the creature deployed (Detach or a fight) before the control ends. *Observable:* the token does not move or vanish, turns hostile, and the Order tab no longer lists it.
 4. Repeat with a spell whose row reads "They stay" and "They go". *Observable:* the creature stays on the roster (stays) or is gone (goes), as before.
 5. Drop the hostile creature's token on the open party sheet (or Add to party on its token HUD) as the Judge. *Observable:* it is a member again, while its caster is in the party. On the Order tab, Remove takes a member out by hand.
 6. Set `magic/hostile-member`'s token to Hostile in its token configuration (the Disposition control). *Observable:* on the Judge's seat and on both Player seats the party sheet's warning box (above the tabs, on every tab) reads "Hostile, and still in the party: <name>.", the member is still on the roster, and nothing else changed. Hide the token: the warning goes on every seat. Move the viewed scene: the warning goes.
+
+## One cast's control end set by hand
+
+The Outcome select on the held-end card and the time-end card. Not walked.
+
+### Fixtures
+
+- `magic/hostile-conjure` and `magic/hostile-party` (the fixtures of "A temporary ally that turns hostile leaves the party"): the conjuration whose summon row reads "They turn hostile", and a party whose token stands on a scene with the caster riding inside it. The creatures a cast makes are tracked by their uuids for the run and are not markers: the steps delete them.
+- A Player seat that owns the caster, and a second Player seat that owns nothing.
+
+### Steps
+
+1. Cast `magic/hostile-conjure` with a count of two, standing on a scene outside the party, then lose concentration (damage the caster). Open the Chat tab as the Judge. *Observable:* the held-end card reads "The creatures turn hostile" and, where that line stood, an Outcome select shows "Control lost: they turn hostile" selected, with its hint line beneath and the line not drawn beside it. Hover the select: one tooltip. Both creatures are hostile with no owners. Neither Player seat is drawn a select, since the creatures have no owners; each reads the outcome line.
+2. On the Judge's seat pick "Under control". *Observable:* the card redraws reading "The creatures are under control" and "Set by <the Judge's name>", the select shows "Under control", and keyboard focus is back on it. Each creature's token is back at its prototype disposition, its actor's ownership holds the caster's owners, and its lost mark is cleared.
+3. Pick "Control lost: they stay", then "Control lost: they turn hostile". *Observable:* the line and hint follow the value; the creatures stay marked lost, and hostile removes their owners and turns them hostile.
+4. Set "Under control" again, then open the same card as the Player seat that owns the caster and as the seat that owns nothing. *Observable:* the owner of the caster owns the creatures again, is drawn the select, and a pick lands as in step 2; the seat that owns nothing reads the outcome line and no select.
+5. Pick "Control lost: they go" as the Judge. *Observable:* the tokens are deleted, the card reads "The creatures are gone" and draws no select on any seat.
+6. Repeat step 1 with a duration that runs out in place of the damage, then step 2 and step 5. *Observable:* the time-end card (the caster's name, the spell and the count) draws the same select under the same rules; set to "Control lost: they go" it draws the select and its Dismiss no more.
+7. Cast from inside `magic/hostile-party` with the party's token off every scene, so no token can be stood on a scene for the creature, and end the cast hostile. *Observable:* the card reads "Still on the party's roster" for the creature. Pick "Under control". *Observable:* that line is no longer drawn, the creature is still a member on the Order tab, its owners are the caster's owners and its lost mark is clear.

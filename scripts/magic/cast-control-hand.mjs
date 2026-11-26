@@ -15,7 +15,8 @@
  * card keeps them in its flag (`summons`, a token by `tokenUuid`, a stashed one
  * by `held: {partyId, actorId}`), and the time-end card reads them live
  * (`castSummons`). The select is built here, from the flag, and not by the
- * cards' templates, so a card posted before this existed draws it too.
+ * cards' templates, so a held-end card posted before this existed draws it too;
+ * a time-end card posted before it kept its names draws none.
  *
  * Who is drawn it is Foundry's own answer on each creature: a seat whose
  * `isOwner` holds on every listed creature that still exists. A stashed creature
@@ -29,8 +30,7 @@
  * `applyControlEnd`. It then writes the card's flag and its drawn content in one
  * update, so the card is a function of its flag.
  *
- * See docs/magic/DECISIONS.md, "What changes a conjuration's control end, and
- * the Judge's hand on it".
+ * See docs/magic/DECISIONS.md, "The Judge's hand on one cast's control end".
  */
 import { MODULE_ID, LANG_PREFIX, HELD_END_HANDLER } from "./constants.mjs";
 import { CONTROL_PICKS } from "../lib/summons-logic.mjs";
@@ -247,6 +247,9 @@ export async function setControlOnCard({ message, key, outcome, sender = null, b
   return { ok: true, outcome, skipped, none: !standing.length, changed };
 }
 
+/** The refusals this file's lang group words; any other reason reads as `refused`. */
+const REFUSALS = Object.freeze(["gone", "notOwner", "noCard", "badOutcome", "noUser", "notGm", "noCast", "refused"]);
+
 /** The message a pick has asked to hold focus once its card is redrawn. */
 let focusPending = null;
 
@@ -268,7 +271,7 @@ export async function pressControl(message, outcome, deps = {}) {
   const info = deps.info ?? ((text) => ui.notifications.info(text));
   const answer = await relay({ op: "setControl", messageId: message.id, outcome });
   if (!answer) return null;
-  if (!answer.ok) warn(controlLoc(`refused.${answer.reason}`));
+  if (!answer.ok) warn(controlLoc(`refused.${REFUSALS.includes(answer.reason) ? answer.reason : "refused"}`));
   else if (answer.none) info(controlLoc("notice.none"));
   else if (answer.skipped) info(controlLoc("notice.skipped", { n: answer.skipped }));
   return answer;
