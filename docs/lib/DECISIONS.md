@@ -2818,3 +2818,36 @@ canvas sprite needs one.
 
 Cost: every client works the glyph out itself, on a debounced pass over the
 viewed scene, where a document flag would have been read once.
+
+## 2026-11-25 — A consume item's count is rolled when it is handed on with none, and a count once set is kept (gear S9b-2)
+
+The page gives a beastman's grog no count on its first bearer (MM p. 56), so
+an item created with its actor is stamped with that actor and nothing is
+rolled. **Ruled by the release hub** (its ruling 5): the imported swig dice
+are rolled into `itemRun.activation.left` when the item first reaches a
+different actor, the typed count on the sheet row is the manual way in, and
+there is no Roll control. The roll happens only while `left` is null: a jug
+handed on part-drunk, or one whose count a Judge typed, keeps its count,
+because a second roll there would refill or empty a jug nobody drank from.
+A blank or invalid swig figure leaves the count null, which is uncounted (a
+Swig never spends), never a stand-in number.
+
+Rejected: rolling on every hand-on (refills a part-drunk jug); a Roll press on
+the row (the hub withdrew it); a count on the first bearer (the page prints
+none).
+
+## 2026-11-25 — An outcome card is posted from any seat by the speaker's ownership, and a burst never is (gear S9b-2)
+
+An on-hit save card is raised on the attacker's client, where the attack
+resolves, and a swig's on the GM's window, where the use runs. Both go through
+`postOutcomeCard`: a Player's seat relays the post, and the GM's window posts
+it only when the sender owns the actor the card speaks for (the attacker, the
+drinker), by Foundry's ownership test. The owner: "follow foundry permissions,
+don't invent new ones". A post's facts never set the keys a card holds for
+itself (its entries, subjects, kind and ids), so a relayed seat cannot forge
+an applied entry that an Undo would act on. Only a kind with a registered
+Save writer, or the unknown drinker's card, is posted this way: a burst's
+facts are the GM's own roll and are never taken from a post.
+
+Rejected: building `burstFuse`'s card through the same function now (its walk
+is owed, and a refactor under an unwalked surface buys nothing).

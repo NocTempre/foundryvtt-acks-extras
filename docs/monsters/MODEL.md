@@ -961,20 +961,28 @@ a blank figure writes nothing, and a caster or dependant carries none of it.
 
 **A fuse item** (a row with `fuseDice` and `blast`) needs no `radius`: `gear-run.mjs` `fusedItem` mints a `fuse` activation holding references to `throw`, `fumble`, `fuseDice`, `proficiency`, `sizes` and `blast`, and the bearer's variant key (`gearPayloads` is passed `choices.variant`; `""` where the body has none), with one `burst` row whose reach names the save and its `fraction`. The burst's dice and radius are joined from the variant at the moment it goes off (lib `blastOf`). The monsters feature registers lib's proficiency reader (`fuse-proficiency.mjs`), which reads whether the bearer holds the imported proficiency.
 
-**A consumable to drink** carries `drink = {healDice, saveKind, condition, successHealDice, swigDice}`,
-each the row's figure or null where the import left it blank. `condition` is the
+**A consumable to drink** carries `drink = {healDice, saveKind, condition, successHealDice, swigDice, ownKind}`,
+each the row's figure or null where the import left it blank, and `ownKind`
+`BEASTMAN_KIND` (the `MONSTER_TYPES` key the kind reader carries). `condition` is the
 conditions-catalogue id `matchCondition` folds the printed word to; a word that
 folds to none is null, listed on `extras.organisation.unresolved` as `{kind: "gear",
-key, figure: "condition", word}` and passed to `warn`. The item carries no swig
-count: `swigDice` is stored and nothing rolls it (an owner question, open).
-`swigOutcome({drinkerKind, drink, saved})` (`monsters/gear-outcomes.mjs`, pure) says
+key, figure: "condition", word}` and passed to `warn`. The item also carries a
+`consume` activation for lib's item runner, `{kind: "consume", uses, left: null,
+bearerUuid: ""}`, `uses` a live reference to the row's swigs figure: the count
+is rolled by lib when the item is handed on (`docs/lib/MODEL.md`, "The consume
+item"). `swigOutcome({drinkerKind, drink, saved})` (`lib/swig-logic.mjs`, pure) says
 what one swig does: the bearer's own kind heals `healDice`; a human or demi-human
 (`DRINKER_KIND.human`) with no result owes a save of `saveKind`, then heals
 `successHealDice` on a pass or takes the condition on a fail, with a turn-life
 record `{edge: "end", count: 1}`; any other kind answers null, for the Judge; a
-blank figure is null in the outcome and nothing is substituted. Nothing calls it yet:
-the swig, its save prompt and the item's breakage with its bearer wait on the item
-carrier.
+blank figure is null in the outcome and nothing is substituted. Lib's consume
+runner calls it. **The grog breaks** with a beastman bearer
+(`grog-breakage.mjs`, installed at init): on the primary GM's window, an Active
+Effect created or updated carrying the defeated or dead status on an actor whose
+kinds hold `beastman` deletes each item on it whose drink flag's `ownKind` is
+beastman (`grogToBreak`, pure) and whispers the GMs one line naming them (MM p.
+56). Hit points are never read; a second status event finds nothing and posts
+nothing.
 
 **Ammunition whose hit asks a save** carries `onHit = {saveKind, saveMod, formula,
 delayTurns, source, cite}` (`source` the row's label, `cite` its page), written

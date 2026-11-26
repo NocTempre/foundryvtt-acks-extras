@@ -629,3 +629,18 @@ reticking a unit word reorders `when.units` and reads as a hand change.
 
 Strongest counter-argument to departure 4 (medium): a Judge who edits a monster's Ecology tab may
 expect a roll to change. The header names the document, and `MODEL.md` says which one a roll reads.
+
+## 2026-11-25 — A grog breaks on its beastman bearer's defeated or dead status, never on its hit points (gear S9b-2)
+
+The page breaks a beastman's own flask when the beastman is slain (MM p. 56).
+**Ruled by the release hub** (its ruling 3): the break follows the defeated or
+dead status only, and only where the bearer's own kind is beastman. A beastman
+at no hit points with no status keeps its grog, since the Judge has not called
+it slain; a body of another kind carrying a beastman's grog keeps it. The
+listener reads the status on the actor itself, never lib's bearer-down hook,
+which fires only for a reach's bearer and names hit points before the status.
+The drink flag names beastman as the grog's own kind (`ownKind`), the closed
+monster-type key the kind reader carries.
+
+Rejected: breaking at no hit points (the Judge's call, not the hit-point
+track's); breaking any bearer's grog (the page names the beastman's own).

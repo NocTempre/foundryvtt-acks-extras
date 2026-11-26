@@ -422,3 +422,18 @@ world only.
 world's override on that character alone, so a Judge who sets the world's die
 afterward finds characters that keep their own. The Judge sees each by its mark
 on that character's sheet and has no list of them.
+
+## 2026-11-25 — An on-hit save's delayed damage counts turns on the world clock from the strike (gear S9b-2)
+
+The page counts the delay of on-hit ammunition in turns, from the strike (MM
+p. 56), and the importer reads it as `delayTurns`. A failed save therefore
+writes one delayed-damage record on the world clock, due the imported count
+of turns after the world time the hit was resolved at (`struckAt`, stored on
+the card), not after the Save is pressed, which can come later. The formula is
+rolled when the record falls due. A turn's length is lib's
+(`lib/time-unit.mjs`), a unit the rules count in, not a figure read off this
+page. The stack is read before the shot spends it, since a spend can empty the
+stack and an emptied stack is no longer the shot's.
+
+Rejected: the combat clock (the page counts turns, not rounds); counting from
+the Save press.

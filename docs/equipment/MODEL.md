@@ -908,8 +908,17 @@ Net row all read one answer.
   stack, as silver is: `onHit` (`ITEM_FLAGS.ON_HIT`, `{saveKind, saveMod, formula,
   delayTurns, source, cite}`, the figures a gear row printed) is read by
   `onHitOf`, which answers null for a flag naming no damage dice or no whole
-  turn count. Nothing asks the save yet; the flag and the stack are the data it
-  will read. See docs/monsters/MODEL.md, "Equipment".
+  turn count. **The hit's save** (`on-hit.mjs`): the post-attack seam's
+  `settleShot` reads the shot's stack BEFORE the spend, spends, and on a hit
+  with a target token posts lib's `postOutcomeCard` of kind `onHit` for the
+  struck token (`onHitPost`, pure): the attacker speaks, the save is the flag's
+  `saveKind` with its `saveMod`, and the facts carry the formula, the turn count,
+  the source, the page and `struckAt`, the world time of the hit. The writer
+  `onHitOutcome`, registered at setup, writes nothing on a passed save and, on a
+  failed one, one delayed-damage record on the world clock due `delayTurns`
+  turns after `struckAt`, its formula rolled when it falls due (lib's delayed
+  damage). A miss, no target or no flag posts nothing. See
+  docs/monsters/MODEL.md, "Equipment".
 
 ### Scavenged condition (RR p. 160)
 
