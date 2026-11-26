@@ -124,6 +124,27 @@ const P = {
     return { scene: canvas.scene?.id === sceneId };
   },
 
+  /**
+   * The party button on an owned token's HUD, pressed as this seat. A seat that owns no member
+   * owns no party sheet, so the HUD is its way in; the button is the product's own control.
+   */
+  hudBringIn: async ({ actorId }) => {
+    const H = globalThis.__fl;
+    const placeable = await H.poll(() => canvas.tokens?.placeables.find((t) => t.document.actorId === actorId), { tries: 60, every: 200 });
+    if (!placeable) return { token: false };
+    try { canvas.tokens.activate(); } catch (_e) { /* active */ }
+    placeable.control({ releaseOthers: true });
+    await H.sleep(300);
+    await canvas.hud.token.bind(placeable);
+    const button = await H.poll(() => document.querySelector("#token-hud .acks-formation-hud"), { tries: 30, every: 100 });
+    const tip = button?.dataset.tooltip ?? null;
+    button?.click();
+    await H.sleep(1500);
+    try { await canvas.hud.token.close(); } catch (_e) { /* closed */ }
+    try { canvas.tokens.releaseAll(); } catch (_e) { /* released */ }
+    return { token: true, button: !!button, tip };
+  },
+
   /** The party's linked token on the scene, made where none stands there, and adopted. */
   partyToken: async ({ fid, partyId, sceneId, x, y }) => {
     const H = globalThis.__fl;
@@ -512,13 +533,16 @@ try {
   check("their combatant keeps its token", r.combat?.some((c) => c.tokenId === leaverBody && c.resolves), r.combat);
   const rolled = await run(gm, P.roll, { combatId: first.id });
   note("initiative roll", rolled);
-  check("an initiative roll completes: nothing thrown, every combatant holds a figure", !rolled.threw && rolled.initiatives.length === 2 && rolled.initiatives.every((i) => i != null), rolled);
+  check("an initiative roll completes: nothing thrown, every combatant holds a figure", !rolled.threw && rolled.initiatives.length === 3 &&rolled.initiatives.every((i) => i != null), rolled);
 
   section("3. the Player seat brings in an owned actor whose token is on the map");
   sheet = await run(player, P.sheet, { partyId: party.id, actorId: joiner.id });
   check("the joiner is on the list again after the take-out redraw", sheet.listed.some((b) => b.id === joiner.id), sheet.listed);
-  await run(player, P.press, { partyId: party.id, selector: `[data-action="bringIn"][data-actor-id="${joiner.id}"]` });
-  check("the press brings the joiner into the record", await run(gm, P.awaitIn, { fid, actorId: joiner.id, present: true }));
+  // The seat's last member left, so it owns no party and its sheet is not editable (the list is drawn disabled): the way in is the joiner's own token HUD.
+  check("the Player seat views the combat scene", (await run(player, P.view, { sceneId: scene.id })).scene);
+  const hudPress = await run(player, P.hudBringIn, { actorId: joiner.id });
+  note("HUD press", hudPress);
+  check("the press brings the joiner into the record", hudPress.button && await run(gm, P.awaitIn, { fid, actorId: joiner.id, present: true }), hudPress);
   await sleep(800);
   r = await run(gm, P.read, { ...seen, combatId: first.id });
   note("after bring-in", { member: r.members[joiner.id], tokens: r.tokens[joiner.id] });
@@ -526,9 +550,13 @@ try {
   check("and its token is still on the map", r.tokens[joiner.id].length === 1, r.tokens[joiner.id]);
 
   section("4. leave behind, then go back for, the owned member");
+  // The joiner is a member again, so the seat owns the party again once the GM client's ownership sync lands.
+  access = await run(player, P.access, { partyId: party.id });
+  for (let n = 0; n < 25 && !access.owns; n++) { await sleep(300); access = await run(player, P.access, { partyId: party.id }); }
+  check("the seat owns the party again through the joiner", access.owns, access);
   await run(player, P.close, { partyId: party.id });
   await run(player, P.open, { partyId: party.id });
-  const lines = { left: await run(gm, P.line, { key: "leftBehind", name: joiner.name }), back: await run(gm, P.line, { key: "wentBackFor", name: joiner.name }) };
+  const lines ={ left: await run(gm, P.line, { key: "leftBehind", name: joiner.name }), back: await run(gm, P.line, { key: "wentBackFor", name: joiner.name }) };
   let since = await run(gm, P.nowMs);
   const toggle = `li.member[data-actor-id="${joiner.id}"] a[data-action="toggleLeftBehind"]`;
   let pressed = await run(player, P.press, { partyId: party.id, selector: toggle, settle: 3000 });

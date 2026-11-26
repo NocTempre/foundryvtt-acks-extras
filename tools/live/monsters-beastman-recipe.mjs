@@ -131,6 +131,15 @@ const P = {
   },
 
   /** The family's repair through the entry picker, as the Judge ticks it: Yes to the confirm, the held-edits list closed unanswered. */
+  /** Starts the importer's own table import for the Monstrous Manual's tables; `tablesDone` reads whether it returned. The recipes read these rows, so a template repaired without them holds no recipe parts. */
+  importTables: async () => {
+    const H = globalThis.__br;
+    H.tablesDone = false;
+    H.tablesError = null;
+    H.tablesFlight = acksExtras.importer.cookbookImportTables(["monsters"]).catch((e) => { H.tablesError = String(e?.message ?? e); }).finally(() => { H.tablesDone = true; });
+    return true;
+  },
+  tablesDone: async () => ({ done: globalThis.__br.tablesDone === true, error: globalThis.__br.tablesError ?? null }),
   repair: async ({ family }) => {
     const H = globalThis.__br;
     const before = H.dialogs().map((a) => a.id);
@@ -503,6 +512,9 @@ try {
   let variants = await run(gm, P.variants, { uuid: lib.uuid });
   if (!variants.some((v) => v.stamped && v.side)) {
     note("no option of the library template holds stamped parts with a Roll side", "Repair in place on the family row through the entry picker (the importer's own; the library template is written)");
+    await run(gm, P.importTables);
+    const tables = await until(gm, P.tablesDone, null, (r) => r.done, { tries: 480, every: 1000 });
+    check("the Monstrous Manual's tables were imported by the importer's own call before the repair", tables.done && !tables.error, tables);
     const repaired = await run(gm, P.repair, { family: FAMILY });
     check("the entry picker ticked the family row and its confirm was answered", repaired.opened && repaired.ticked && repaired.asked, repaired);
     const flown = await until(gm, P.repairDone, null, (r) => r.done, { tries: 480, every: 1000 });

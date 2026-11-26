@@ -1308,6 +1308,8 @@ const P = {
       chips: sec?.querySelectorAll(".acks-extras-country-chip").length ?? null,
       actions: sec ? [...sec.querySelectorAll("[data-action]")].map((n) => n.dataset.action) : null,
       skyCards: el?.querySelectorAll('[data-section="sky"] .acks-extras-country-card').length ?? null,
+      skyKeys: [...(el?.querySelectorAll('[data-section="sky"] .acks-extras-country-card') ?? [])].map((c) => c.dataset.key),
+      skyJudgeParts: el?.querySelectorAll('[data-section="sky"] .acks-extras-country-source, [data-section="sky"] .acks-extras-country-chip, [data-section="sky"] .acks-extras-country-card [data-action]').length ?? null,
       judgePart: !!el?.querySelector('[data-application-part="judge"]'),
       judgeTab: !!el?.querySelector('.tabs [data-tab="judge"]'),
       hand: !!el?.querySelector('[data-section="hand"]'),
@@ -2584,7 +2586,8 @@ async function walkCountry(W) {
   const ps = await page(player, P.playerSheet, { partyId: party.id });
   note("player sheet", ps);
   check("C9: the player's Country section holds the four cards with values, and no source, chip or action", ps.rendered && ps.cards?.length === 4 && ps.cards.every((c) => c.value && !c.source && !c.override && !c.declared && !c.paint && !c.clear) && ps.sources === 0 && ps.chips === 0 && ps.actions?.length === 0, { cards: ps.cards?.map((c) => ({ key: c.key, value: c.value })), sources: ps.sources, chips: ps.chips, actions: ps.actions });
-  check("C9: no climate card in the Sky section, no Judge tab, no hand", ps.skyCards === 0 && !ps.judgePart && !ps.judgeTab && !ps.hand, { sky: ps.skyCards, judgePart: ps.judgePart, judgeTab: ps.judgeTab, hand: ps.hand });
+  // A seat that owns a member is drawn the Sky section with the climate as a reading (formation DECISIONS, "A member-owner arranges, reads and fills the party's form"); the Judge's source, chip and clear stay off it.
+  check("C9: the Sky section's climate card is a bare reading (no source, chip or action), no Judge tab, no hand", (ps.skyCards === 0 || (ps.skyCards === 1 && ps.skyKeys[0] === "climate" && ps.skyJudgeParts === 0)) && !ps.judgePart && !ps.judgeTab && !ps.hand, { sky: ps.skyCards, keys: ps.skyKeys, judgeParts: ps.skyJudgeParts, judgePart: ps.judgePart, judgeTab: ps.judgeTab, hand: ps.hand });
   note("closed", await page(gm, P.closeAll));
 
   section("battlemap Terrain painting 5-7 (changed): the journey read on a painted hex scene");

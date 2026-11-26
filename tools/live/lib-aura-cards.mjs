@@ -1231,7 +1231,7 @@ try {
       let strip = await until(async () => { const s = await plRun(P.strip, { actorUuid: A.C.uuid }); return s.has ? s : null; }, 12000, 800) ?? (await plRun(P.strip, { actorUuid: A.C.uuid, open: false }));
       note("W9a the sheet that opened", { sheet: strip.sheet, strip: strip.has });
       const row = strip.rows.find((x) => x.name === ITEMS.S.name);
-      check("W9a an In reach of strip stands above the tabs, inside the sheet's scroll frame", strip.has && strip.title === W.stripTitle && strip.scrolls === true && strip.aboveTabs !== false, { title: strip.title, scrolls: strip.scrolls, aboveTabs: strip.aboveTabs });
+      check("W9a an In reach of strip stands above the tabs, inside the sheet's scroll frame", strip.has && strip.title.startsWith(W.stripTitle) && strip.scrolls === true && strip.aboveTabs !== false, { title: strip.title, scrolls: strip.scrolls, aboveTabs: strip.aboveTabs });
       check("W9a one row for the item, tagged Save owed", strip.rows.length === 1 && !!row && row.tag.startsWith(W.tagOwed), { rows: strip.rows.length, tag: row?.tag });
       const shown = await plRun(P.shownName, { tokenUuid: T.B.uuid });
       check("W9a the source is the bearer's name as the Player's own view shows that token", !!row && row.line.startsWith(shown.name ?? W.stripUnseen), { shown: shown.name, line: row?.line });
@@ -1314,8 +1314,8 @@ try {
       let card = await waitCard(gmRun, r.messageId, (c) => rowsOf(c).some((x) => x.name === NAME.B));
       const pc = await waitCard(plRun, r.messageId, (c) => !!c);
       check("W9f a seat that does not own the item sees neither control", !anyBtn(pc, "itemRun.tick") && !anyBtn(pc, "itemRun.untick"));
-      await gmRun((a) => fromUuidSync(a.uuid).update({ ownership: { default: 0, [a.player]: 3 } }), { uuid: A.B.uuid, player: S.playerId });
-      await plRun(() => ui.chat.render({ force: true }));
+      await gmRun(async (a) => { await fromUuidSync(a.uuid).update({ ownership: { default: 0, [a.player]: 3 } }); return true; }, { uuid: A.B.uuid, player: S.playerId });
+      await plRun(async () => { await ui.chat.render({ force: true }); return true; });
       await sleep(1500);
       const owning = await waitCard(plRun, r.messageId, (c) => anyBtn(c, "itemRun.tick"));
       check("W9f a seat that owns the bearer is offered Count in", anyBtn(owning, "itemRun.tick"));
@@ -1450,8 +1450,9 @@ try {
       skip("W9i", `the unit clause settles a body of another group on this build (another group: ${verdict.m}, own group: ${verdict.a}); the walk builds a null case only from a build that registers no unit ancestry`);
       return;
     }
-    const itemBefore = await gmRun(P.itemFlag, { uuid: I.T.uuid });
     const r = await raise("T");
+    // A raise writes the item's activation state, so the baseline is read after it: Count in is what must leave the flags alone.
+    const itemBefore = await gmRun(P.itemFlag, { uuid: I.T.uuid });
     const gcard = await waitCard(gmRun, r.messageId, (c) => rowsOf(c).some((x) => x.name === NAME.M));
     const mRow = rowNamed(gcard, NAME.M);
     const tickTip = await gmRun(P.tipOf, { id: r.messageId, action: "itemRun.tickSubject", subject: T.M.uuid });

@@ -218,6 +218,20 @@ const P = {
     }
     if (what === "reverse") await H.model.patchFormation(fid, (rec) => { rec.members = [...rec.members].reverse(); });
     if (what === "noBlanks") await H.model.patchFormation(fid, (rec) => { rec.members = rec.members.filter((m) => !m?.blank); });
+    // A roll needs a climate the imported sky tables answer for; a party the map names none for rolls nothing, by design. The Judge's own override supplies one, and "climateClear" takes it back off.
+    if (what === "climate") {
+      const f = H.model.getFormation(fid);
+      const season = H.travel.effectiveSeason(H.travel.trueTravelOf(f)).season;
+      const W = await import("/modules/acks-extras/scripts/formation/weather.mjs");
+      const had = H.travel.trueTravelOf(f).weather?.climate ?? "";
+      if (W.generateDay({ climate: had, season }).ok) return { ok: true, climate: had, set: false };
+      const pick = Object.keys(W.CLIMATES).find((c) => W.generateDay({ climate: c, season }).ok) ?? null;
+      if (!pick) return { ok: false, climate: null, set: false };
+      await H.travel.applyTravelForm(fid, { override: { climate: pick } });
+      await H.sleep(800);
+      return { ok: true, climate: pick, set: true };
+    }
+    if (what === "climateClear") await H.travel.applyTravelForm(fid, { override: { climate: "" } });
     if (what === "restore") await H.partyForm.applyPartyForm(H.model.getFormation(fid), value, { judge: true });
     await H.sleep(600);
     return { ok: true };
@@ -675,8 +689,11 @@ try {
   await run(player, P.open, { partyId: journey.party.id, tab: "mode" });
   const roll = await run(player, P.query, { partyId: journey.party.id, sels: { roll: '[data-action="travelWeatherRoll"]' } });
   const journeyName = (await run(gm, P.record, { fid: fids.journey })).name;
+  let sky = null;
   if (!roll.roll.n || roll.roll.disabled[0]) notWalked("S7c", `Roll weather is ${roll.roll.n ? "disabled (no imported sky tables)" : "not drawn"}`);
+  else if (!(sky = await run(gm, P.settle, { fid: fids.journey, what: "climate" })).ok) notWalked("S7c", "no climate in the imported sky tables answers for the party's season");
   else {
+    await run(player, P.open, { partyId: journey.party.id, tab: "mode" });
     let t = await run(gm, P.nowMs);
     await press(player, journey.party.id, '[data-action="travelWeatherRoll"]', 3000);
     // A fresh record reads "" until the roll lands (never null), and the roll reads the sky tables before it writes, so the walk waits for a written band and for the announcement that follows the write, then a moment more for a second line.
@@ -694,6 +711,7 @@ try {
     await press(gm, journey.party.id, '[data-action="travelWeatherRoll"]', 3000);
     check("S7c the Judge's own press posts no line", (await cardsSince(t, (c) => c.alias === journeyName)).length === 0);
     await run(gm, P.close, { partyId: journey.party.id });
+    if (sky.set) await run(gm, P.settle, { fid: fids.journey, what: "climateClear" });
   }
   await run(player, P.open, { partyId: journey.party.id, tab: "mode" });
   const slots = (await run(player, P.field, { partyId: journey.party.id, prefix: "travel.day.slot." })).fields;

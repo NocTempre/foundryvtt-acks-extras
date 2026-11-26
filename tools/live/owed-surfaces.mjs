@@ -250,7 +250,7 @@ const P = {
   },
   fightStanding: async ({ actorId }) => ({
     combats: game.combats.filter((c) => c.combatants.some((x) => x.actorId === actorId)).map((c) => c.id),
-    tokens: game.scenes.flatMap((s) => s.tokens.filter((t) => t.actorId === actorId).map((t) => t.uuid)),
+    tokens: [...game.scenes].flatMap((s) => [...s.tokens].filter((t) => t.actorId === actorId).map((t) => t.uuid)),
   }),
   fightBuild: async ({ sceneId, actorId }) => {
     let combat = null;

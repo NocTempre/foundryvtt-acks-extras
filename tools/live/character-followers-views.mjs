@@ -25,7 +25,8 @@ const { browser, origin } = MACHINE;
 const TAG = MACHINE.own ? ` ${MACHINE.own}` : "";
 const OBSERVER = 2;
 const OWNER = 3;
-const NARROW = 460;
+// The frame opens every sheet at its canvas width and its CSS floor is 640px (styles/lib-frame.css), so the narrowest window a user can have is dragged to that floor, never opened below it.
+const NARROW = 640;
 const SHORT = 420;
 const tally = { pass: 0, fail: 0 };
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
@@ -152,6 +153,8 @@ const P = {
       await new Promise((r) => setTimeout(r, 200));
     }
     const ready = !!tab()?.classList.contains("active");
+    // The frame sizes the window to its open width after the first render, so a narrower one is a resize, as a user's drag is.
+    if (ready && width) { await app.setPosition({ width, height }); await new Promise((r) => setTimeout(r, 400)); }
     if (ready && view) await globalThis.__fwPress(id, view);
     return { ready, width: app.position.width, height: app.position.height, offsetWidth: app.element?.offsetWidth ?? null };
   },
@@ -287,12 +290,17 @@ const P = {
     const box = el?.querySelector('section[data-tab="followers"] .acks-extras-org__scroll');
     const body = el?.querySelector('[data-application-part="body"]');
     if (!box || !body) return { box: !!box, body: !!body };
+    // At the frame's floor this fixture's tree can fit; the box is then squeezed below the tree's own width, which is what a wider tree does to it, and the walk says so.
+    const fitsAtFloor = box.scrollWidth <= box.clientWidth;
+    const squeezed = fitsAtFloor ? box.style.width : null;
+    if (fitsAtFloor) box.style.width = `${Math.max(120, Math.floor(box.scrollWidth * 0.6))}px`;
     box.scrollLeft = 40;
     body.scrollTop = 40;
     await new Promise((r) => setTimeout(r, 100));
-    return {
+    const out = {
       width: app.position.width,
       offsetWidth: el.offsetWidth,
+      fitsAtFloor,
       boxScrolls: box.scrollWidth > box.clientWidth,
       boxOverflowX: getComputedStyle(box).overflowX,
       boxLeft: box.scrollLeft,
@@ -300,6 +308,8 @@ const P = {
       bodyTall: body.scrollHeight > body.clientHeight,
       bodyTop: body.scrollTop,
     };
+    if (fitsAtFloor) box.style.width = squeezed;
+    return out;
   },
 };
 
