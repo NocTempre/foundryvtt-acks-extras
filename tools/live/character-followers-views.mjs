@@ -54,16 +54,16 @@ const P = {
     if (old?.armed) {
       console.error = old.consoleError;
       ui.notifications.warn = old.warn;
-      removeEventListener("error", old.onError);
-      removeEventListener("unhandledrejection", old.onReject);
+      globalThis.removeEventListener("error", old.onError);
+      globalThis.removeEventListener("unhandledrejection", old.onReject);
     }
     const H = (globalThis.__fw = { armed: true, errors: [], notes: [], sheets: {} });
     H.consoleError = console.error;
     console.error = (...args) => { H.errors.push(args.map((a) => a?.message ?? String(a)).join(" ").slice(0, 300)); H.consoleError.apply(console, args); };
     H.onError = (e) => H.errors.push(String(e.message).slice(0, 300));
     H.onReject = (e) => H.errors.push(String(e.reason?.message ?? e.reason).slice(0, 300));
-    addEventListener("error", H.onError);
-    addEventListener("unhandledrejection", H.onReject);
+    globalThis.addEventListener("error", H.onError);
+    globalThis.addEventListener("unhandledrejection", H.onReject);
     H.warn = ui.notifications.warn;
     ui.notifications.warn = function (...args) { H.notes.push(String(args[0])); return H.warn.apply(this, args); };
     return true;
@@ -76,8 +76,8 @@ const P = {
     for (const app of Object.values(H.sheets)) { try { await app.close({ animate: false }); } catch (_e) { /* closed */ } }
     console.error = H.consoleError;
     ui.notifications.warn = H.warn;
-    removeEventListener("error", H.onError);
-    removeEventListener("unhandledrejection", H.onReject);
+    globalThis.removeEventListener("error", H.onError);
+    globalThis.removeEventListener("unhandledrejection", H.onReject);
     H.armed = false;
     return { errors: H.errors, notes: H.notes };
   },

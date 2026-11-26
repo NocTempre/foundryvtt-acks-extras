@@ -1516,8 +1516,9 @@ test("the Followers tab's view switch is wired: a view action, the named org act
   assert.ok(tpl.includes('aria-pressed="{{b.on}}"'));
   assert.ok(tpl.includes("{{#if fw.switch}}"), "drawn only with a follower to draw by who serves whom");
   const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
-  for (const k of ["label", "cards", "chart", "locations", "cardsTip", "chartTip", "locationsTip"]) assert.equal(typeof lang["ACKS-CHARACTER.followers.view." + k], "string", k);
-  assert.ok(!("ACKS-CHARACTER.followers.view" in lang), "no key lands under a string key");
+  const viewRoot = "ACKS-CHARACTER.followers.view.";
+  for (const k of ["label", "cards", "chart", "locations", "cardsTip", "chartTip", "locationsTip"]) assert.equal(typeof lang[viewRoot + k], "string", k);
+  assert.ok(!(viewRoot.slice(0, -1) in lang), "no key lands under a string key");
 });
 
 console.log(`character sheet: ${passed} passed`);
