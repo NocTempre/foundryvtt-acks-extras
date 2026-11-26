@@ -7,7 +7,7 @@
  */
 import assert from "node:assert";
 import fs from "node:fs";
-import { stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows, toggleStar, shownDamageBonus, STAR_FLAG } from "../scripts/lib/follower-card-model.mjs";
+import { stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows, toggleStar, shownDamageBonus, casterSlots, STAR_FLAG } from "../scripts/lib/follower-card-model.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -106,6 +106,24 @@ test("starred rows are the rows the star list names, in the rows' order", () => 
   assert.deepEqual(starredRows(rows, ["c", "a"]), [{ id: "a" }, { id: "c" }]);
   assert.deepEqual(starredRows(rows, []), []);
   assert.deepEqual(starredRows(rows, null), []);
+});
+
+test("the caster strip counts a level's used slots from its spells' casts, as the system's own sheet does", () => {
+  // The system's slot fields hold a max and nothing else; what is spent lives on each spell.
+  const core = { enabled: true, 1: { max: 3 }, 2: { max: 1 }, 3: { max: 0 } };
+  const spells = [
+    { system: { lvl: 1, cast: 1 } },
+    { system: { lvl: 1, cast: 2 } },
+    { system: { lvl: 2, cast: 0 } },
+    { system: { lvl: 4, cast: 1 } },
+  ];
+  assert.deepStrictEqual(casterSlots(core, spells), [
+    { lvl: "1", used: 3, max: 3 },
+    { lvl: "2", used: 0, max: 1 },
+    { lvl: "4", used: 1, max: 0 },
+  ]);
+  assert.deepStrictEqual(casterSlots({ enabled: true, 1: { max: 0 } }, []), []);
+  assert.deepStrictEqual(casterSlots(null, null), []);
 });
 
 test("a star toggles on and off and the flag has a name", () => {

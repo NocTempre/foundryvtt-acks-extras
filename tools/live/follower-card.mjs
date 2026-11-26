@@ -175,35 +175,66 @@ const P = {
    * Throw the first attack row twice: once from the row's text, once from its
    * die, both with the seat's skip-dialog key held. The messages the beast
    * posts are read back from a create observer scoped to its speaker, and
-   * returned for the ledger.
+   * returned for the ledger. Each press reports the dialogs it answered and
+   * the notifications it raised; `heldDieConnected` says whether the die
+   * found before the first press was still the card's own after it.
    */
   rollAttack: async ({ actorId }) => {
     const H = globalThis.__fc1;
     const app = H.appBy("acks-lib-follower-card-sheet", actorId);
-    const row = H.root(app)?.querySelector(".acks-extras-frame__row.is-roll[data-action='fcRollAttack']");
+    // The row and its die are found again in the live card before each
+    // press, as a user's eye finds them: a write between the presses
+    // re-renders the card, and a node held across it is detached.
+    const rowNow = () => H.root(app)?.querySelector(".acks-extras-frame__row.is-roll[data-action='fcRollAttack']") ?? null;
+    const row = rowNow();
     if (!row) return { found: false };
     const die = row.querySelector("button[data-action='fcRollAttack']");
     const same = !!die && ["attack", "itemId", "label"].every((k) => (die.dataset[k] ?? "") === (row.dataset[k] ?? ""));
     const skipKey = (() => { try { return game.settings.get("acks", "skip-dialog-key") || null; } catch { return null; } })();
     const posted = [];
     const id = Hooks.on("createChatMessage", (m) => { if (m.speaker?.actor === actorId) posted.push(m.id); });
+    const warned = [];
+    const notify = ui.notifications.notify;
+    ui.notifications.notify = function (message, type, ...rest) {
+      warned.push({ type, message: String(message) });
+      return notify.call(this, message, type, ...rest);
+    };
     const press = async (el) => {
       const seen = posted.length;
+      const warnedFrom = warned.length;
+      // Only a dialog this press opened is answered: one still closing from
+      // the press before is no answer to this one.
+      const before = new Set(H.apps().filter((a) => a.constructor?.name?.includes("Dialog")));
+      const dialogs = [];
       el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, ...(skipKey ? { [skipKey]: true } : {}) }));
       // A dialog instead of a throw: answer its default once, so the walk
       // reports the throw and not the dialog.
       const got = await H.poll(async () => {
         if (posted.length > seen) return true;
-        const dlg = H.apps().find((a) => a.constructor?.name?.includes("Dialog") && H.root(a)?.isConnected);
-        if (dlg) { (H.root(dlg).querySelector("button.default, button[type='submit'], .dialog-button") ?? null)?.click(); }
+        const dlg = H.apps().find((a) => !before.has(a) && a.constructor?.name?.includes("Dialog") && H.root(a)?.isConnected);
+        if (dlg) {
+          before.add(dlg);
+          dialogs.push(H.text(H.root(dlg).querySelector(".window-title")) || dlg.constructor.name);
+          (H.root(dlg).querySelector("button.default, button[type='submit'], .dialog-button") ?? null)?.click();
+        }
         return null;
       }, { tries: 40, every: 200 });
-      return !!got;
+      return { posted: !!got, dialogs, warned: warned.slice(warnedFrom) };
     };
-    const fromRow = await press(row.querySelector(".acks-extras-frame__row-line") ?? row);
-    const fromDie = die ? await press(die) : false;
-    Hooks.off("createChatMessage", id);
-    return { found: true, same, fromRow, fromDie, posted, rolls: posted.map((m) => game.messages.get(m)?.rolls?.length ?? 0) };
+    let rowPress, diePress, heldDieConnected, dieNow;
+    try {
+      rowPress = await press(rowNow()?.querySelector(".acks-extras-frame__row-line") ?? rowNow());
+      heldDieConnected = !!die?.isConnected;
+      dieNow = rowNow()?.querySelector("button[data-action='fcRollAttack']") ?? null;
+      diePress = dieNow ? await press(dieNow) : { posted: false, dialogs: [], warned: [] };
+    } finally {
+      Hooks.off("createChatMessage", id);
+      ui.notifications.notify = notify;
+    }
+    return {
+      found: true, same, fromRow: rowPress.posted, fromDie: diePress.posted, heldDieConnected, dieFound: !!dieNow,
+      rowPress, diePress, posted, rolls: posted.map((m) => game.messages.get(m)?.rolls?.length ?? 0),
+    };
   },
 
   /** Write the beast's number-appearing formulas, whatever the last run left. */
@@ -389,7 +420,7 @@ try {
   if ((thrown.posted ?? []).length === THROWS.length) for (const [n, id] of thrown.posted.entries()) await gm.mark(`ChatMessage.${id}`, THROWS[n]);
   else for (const id of thrown.posted ?? []) gm.track(id, "ChatMessage");
   check("the row and its die name the same attack", thrown.found && thrown.same);
-  check("a press on the row's text posts a throw, and a press on the die posts another", thrown.fromRow && thrown.fromDie && (thrown.posted ?? []).length === 2 && thrown.rolls.every((n) => n >= 1), { posted: (thrown.posted ?? []).length, rolls: thrown.rolls });
+  check("a press on the row's text posts a throw, and a press on the die posts another", thrown.fromRow && thrown.fromDie && (thrown.posted ?? []).length === 2 && thrown.rolls.every((n) => n >= 1), { posted: (thrown.posted ?? []).length, rolls: thrown.rolls, heldDieConnected: thrown.heldDieConnected, dieFound: thrown.dieFound, rowPress: thrown.rowPress, diePress: thrown.diePress });
   note("closed (gm card)", await run(gm, P.closeAll));
 
   section("9. number appearing: a row per stored formula, each die posting the system's roll");

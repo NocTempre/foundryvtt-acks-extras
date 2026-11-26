@@ -30,7 +30,7 @@ import { ITEM_TYPE } from "./vocab.mjs";
 import { ANIMAL_TRAINING } from "./data/animal-data.mjs";
 import { signed } from "./frame-model.mjs";
 import { blankLoyaltyCite } from "./score-bounds.mjs";
-import { STAR_FLAG, shownDamageBonus, stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows } from "./follower-card-model.mjs";
+import { STAR_FLAG, shownDamageBonus, stones, hdText, withMod, throwFigure, rankLine, saveTargets, savesLine, appearingSides, oneLine, starredRows, casterSlots } from "./follower-card-model.mjs";
 
 export { STAR_FLAG };
 
@@ -227,11 +227,8 @@ export async function followerCardContext(actor, { editable = false, interactive
   const purse = editable && interactive && actor ? coinOrderView(actor) : null;
 
   // Caster strip: one line of per-level slots, no memorize/reset controls
-  // (that stays the full sheet's job). Slot shape per the released system:
-  // spells[level] = {value: used, max} under numeric keys, read defensively.
-  const spellLevels = Object.entries(sys.spells ?? {})
-    .filter(([key, slot]) => /^\d+$/.test(key) && slot && (num(slot.max) > 0 || num(slot.value) > 0))
-    .map(([key, slot]) => ({ lvl: key, used: num(slot.value), max: num(slot.max) }));
+  // (that stays the full sheet's job).
+  const spellLevels = casterSlots(sys.spells, items.filter((i) => i.type === ITEM_TYPE.spell));
 
   // The spells themselves, by level.
   const byLevel = new Map();

@@ -119,5 +119,24 @@ export function starredRows(rows, starredIds) {
   return (rows ?? []).filter((r) => ids.has(r.id));
 }
 
+/**
+ * The caster strip's slots, one per spell level that has a slot or a cast:
+ * the system's `spells[n].max` beside the sum of `system.cast` over the
+ * spells of that level, as the system's own sheet counts them. Levels come as
+ * strings, lowest first.
+ */
+export function casterSlots(coreSpells, spells) {
+  const used = new Map();
+  for (const s of spells ?? []) {
+    const lvl = String(num(s?.system?.lvl, 1));
+    used.set(lvl, (used.get(lvl) ?? 0) + Math.max(0, num(s?.system?.cast)));
+  }
+  const levels = new Set([...Object.keys(coreSpells ?? {}).filter((k) => /^d+$/.test(k)), ...used.keys()]);
+  return [...levels]
+    .sort((a, b) => Number(a) - Number(b))
+    .map((lvl) => ({ lvl, used: used.get(lvl) ?? 0, max: num(coreSpells?.[lvl]?.max) }))
+    .filter((slot) => slot.max > 0 || slot.used > 0);
+}
+
 /** Star or unstar one id; the pin toggle, which answers a new list. */
 export const toggleStar = togglePin;
