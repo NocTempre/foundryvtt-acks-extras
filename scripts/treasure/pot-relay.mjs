@@ -1,6 +1,6 @@
 /**
  * The relay's rules, Foundry-free: every act a player makes on a pot (a flip, a
- * claim) reaches the Judge's client as one request to one handler, which
+ * claim, a close) reaches the Judge's client as one request to one handler, which
  * authorizes on the sender Foundry attested (`lib/sockets.mjs` `runRelayed`)
  * and never on what a payload says. `createRelay(deps)` is built over the
  * Foundry half (`pot.mjs`) and over fakes in the tests.
@@ -18,14 +18,19 @@
  * owns a member of that party. It carries each assignment out through the same claim
  * (`claimCard`) a Take uses, inside the one queued request, so no flip or claim
  * lands between its read and its writes.
+ *
+ * A `close` is the pile's owner's: the sender must hold OWNER on the pile, and
+ * on the place when one is named, each read from Foundry when the request
+ * arrives. The close itself (filing, the record, the delete) is the Judge's
+ * client's `closePot`, which the handler calls inside the queue.
  */
-import { REFUSAL } from "./constants.mjs";
+import { PHASE, REFUSAL } from "./constants.mjs";
 import { planGrab } from "./grab-logic.mjs";
 import { grabLots, ownsAnyMember, planGrabStart, speedOfRank, valueGpsOf } from "./grab-pot.mjs";
-import { apparentName, cardInPot, planClaim, planFlip } from "./pot-logic.mjs";
+import { apparentName, cardInPot, planClaim, planClose, planFlip } from "./pot-logic.mjs";
 
 /** The request kinds a pot answers to. */
-export const OPS = Object.freeze(["flip", "claim", "grab"]);
+export const OPS = Object.freeze(["flip", "claim", "grab", "close"]);
 
 const failure = (reason, extra = {}) => ({ ok: false, reason, ...extra });
 
@@ -36,6 +41,8 @@ const failure = (reason, extra = {}) => ({ ok: false, reason, ...extra });
  * @param {(potId: string) => (object|null)} deps.readPot  the pot's `PotView`, read fresh
  * @param {(potId: string, update: object) => Promise<void>} deps.writeFlip  writes one card's flip update
  * @param {(potId: string, user: object) => boolean} deps.seated  whether the user holds LIMITED or better on the pot's pile, read when the act arrives
+ * @param {(potId: string, user: object) => boolean} deps.ownsPot  whether the user holds OWNER on the pot's pile, read when the act arrives
+ * @param {(potId: string, placeUuid: string|null) => Promise<{ok: boolean, reason?: string, filed?: number}>} deps.closePot  closes the pot, filing what is unclaimed at the place when one is named
  * @param {(user: object, actorUuid: string) => boolean} deps.owns  whether the user owns the actor
  * @param {(actorUuid: string) => boolean} deps.hasActor  whether the uuid names an actor
  * @param {(actorUuid: string) => boolean} deps.ownedByTable  whether any seat at the table owns the actor
@@ -152,8 +159,27 @@ export function createRelay(deps) {
     };
   }
 
+  /**
+   * Close the pot for a sender who owns its pile. A place that names an actor
+   * must be one the sender owns; a uuid that names no actor reaches `closePot`,
+   * which answers `noTarget`.
+   */
+  async function close(potId, sender, payload) {
+    const view = deps.readPot(potId);
+    if (!view) return failure(REFUSAL.noPot);
+    if (!deps.ownsPot(potId, sender)) return failure(REFUSAL.notAllowed);
+    const plan = planClose(view);
+    if (!plan.ok) return failure(plan.reason);
+    // Staging is the Judge's surface: an owner who is not a Judge closes an open pot only.
+    if (!sender?.isGM && view.pot.phase !== PHASE.open) return failure(REFUSAL.phase);
+    const placeUuid = typeof payload.placeUuid === "string" && payload.placeUuid ? payload.placeUuid : null;
+    if (placeUuid && deps.hasActor(placeUuid) && !deps.owns(sender, placeUuid)) return failure(REFUSAL.notAllowed);
+    return deps.closePot(potId, placeUuid);
+  }
+
   async function act(potId, op, sender, payload) {
     if (op === "grab") return grab(potId, sender);
+    if (op === "close") return close(potId, sender, payload);
     if (op === "flip") {
       const plan = planFlip(deps.readPot(potId), payload.cardId, { sender, seated: !!deps.seated(potId, sender) });
       if (!plan.ok) return failure(plan.reason);

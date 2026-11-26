@@ -17,7 +17,11 @@
  * planted Card the pot's `order`
  * does not list, and a request after the pot is gone); the window contract on
  * both seats; Close (leftovers to a place, the chat card rewritten as the
- * record, the pile gone, no chat message from the delete); teardown.
+ * record, the pile gone, no chat message from the delete); Close on the Player
+ * seat as OWNER of a second pot (no Close at LIMITED, the relay's refusals of a
+ * seat without OWNER of the pile and of one without OWNER of the named place,
+ * the place offered only once it is owned, the pot closed and its card filed);
+ * teardown.
  *
  * Fixtures, kept and found by marker: `treasure/player-character` (a
  * character the Player seat owns), `treasure/judge-character` (a character
@@ -28,6 +32,9 @@
  * it needs before its first check; nothing is restored at the end. A pot is
  * the run's own: the scene control makes it, the walk marks it `treasure/pot`
  * after retiring any standing one (a setup check), and its close deletes it.
+ * The Player-OWNER close makes a second pot the same way, marked
+ * `treasure/pot-owner-close`, and writes the Player seat's level on that pile
+ * and on the place at its start.
  * Everything the run made is swept by tracked id: the pot if its close failed,
  * the doorway card, the planted Card, the rows the Take and the close created
  * on the characters and the place. Kept fixtures stay.
@@ -66,6 +73,7 @@ const MARKS = {
   coin: "treasure/coin",
   place: "treasure/place",
   pot: "treasure/pot",
+  potOwner: "treasure/pot-owner-close",
 };
 const NAMES = { player: "QA Treasure Player Character", judge: "QA Treasure Judge Character", place: "QA Treasure Place" };
 const TRUE_ITEM = {
@@ -578,10 +586,11 @@ const P = {
   },
 
   /* ---- Relay calls a refusal check sends from this seat ------------------ */
-  relay: async ({ potId, op, cardId, actorUuid }) => {
+  relay: async ({ potId, op, cardId, actorUuid, placeUuid }) => {
     const H = globalThis.__tw;
     const payload = { potId, op, cardId };
     if (actorUuid !== undefined) payload.actorUuid = actorUuid;
+    if (placeUuid !== undefined) payload.placeUuid = placeUuid;
     const r = await H.race(H.S.executeAsGM("treasurePot", payload), 25000);
     return r === undefined ? { none: true } : r;
   },
@@ -603,7 +612,36 @@ const P = {
       level: pile.ownership?.[userId] ?? 0,
       audience: pile.getFlag("acks-extras", "treasure")?.audience ?? [],
       limited: pile.testUserPermission(game.users.get(userId), "LIMITED"),
+      owner: pile.testUserPermission(game.users.get(userId), "OWNER"),
     };
+  },
+  /** Set one seat's ownership level on the place, then answer whether Foundry now counts the seat its OWNER. */
+  setPlaceSeat: async ({ placeId, userId, level }) => {
+    const H = globalThis.__tw;
+    const place = game.actors.get(placeId);
+    await place.update({ [`ownership.${userId}`]: level });
+    await H.sleep(500);
+    return { level: place.ownership?.[userId] ?? 0, owner: place.testUserPermission(game.users.get(userId), "OWNER") };
+  },
+  /** Wait until this seat's own client counts it the OWNER, or not, of the pile or the place. */
+  waitOwner: async ({ potId = null, placeId = null, want }) => {
+    const H = globalThis.__tw;
+    const doc = () => (potId ? H.pile(potId) : game.actors.get(placeId));
+    return { met: !!(await H.poll(() => !!doc()?.isOwner === want, { tries: 40, every: 250 })) };
+  },
+  /** Wait until the pot's window holds an element matching the selector, or none does. */
+  waitControl: async ({ potId, sel, want }) => {
+    const H = globalThis.__tw;
+    return { met: !!(await H.poll(() => !!H.root(H.sheet(potId))?.querySelector(sel) === want, { tries: 40, every: 250 })) };
+  },
+  /** Close the open treasure dialog without confirming it. */
+  dialogDismiss: async () => {
+    const H = globalThis.__tw;
+    const app = H.dialog();
+    if (!app) return { ok: false };
+    await app.close();
+    await H.sleep(300);
+    return { ok: !H.dialog() };
   },
   plant: async ({ potId, fromId }) => {
     const H = globalThis.__tw;
@@ -831,6 +869,8 @@ let player = null;
 let potId = null;
 let placeId = null;
 let potClosed = false;
+let potBId = null;
+let potBClosed = false;
 const made = [];
 const WALL_MS = Number(process.env.WALK_WALL_MS ?? 900_000);
 setTimeout(() => {
@@ -1224,6 +1264,70 @@ try {
   const flipGone = await run(player, P.relay, { potId, op: "flip", cardId: C.item });
   check("a request for the pot after its close is refused noPot (a closed pot is deleted, so it never answers phase)", flipGone.ok === false && flipGone.reason === "noPot", flipGone);
 
+  section("Close (Player seat, OWNER of the pile): the relay's close");
+  {
+    // The Judge's close above deleted its pot, so this step makes its own, stocks one card, and brings the Player
+    // seat's level on the pile and on the place to the shape each check starts from.
+    note("a pot left standing by an earlier run is retired first (setup is this section's subject)", await gm.retire(MARKS.potOwner, "Cards"));
+    await run(gm, P.newPotApi);
+    const openedB = await run(gm, P.awaitNewSheet);
+    if (!openedB) throw new Error("no PotSheet opened on the GM seat for the second pot");
+    potBId = openedB.potId;
+    made.push(gm.track(openedB.uuid, "Cards"));
+    await gm.mark(openedB.uuid, MARKS.potOwner);
+    const dropB = await run(gm, P.dropAndWait, { potId: potBId, zone: "pot", uuid: itemUuid });
+    const openB = await press(gm, PORTS.gm, { scope: "sheet", potId: potBId, sel: "aside [data-action='openTable']" });
+    const wOpenB = await run(gm, P.waitState, { potId: potBId, until: "phase", mode: "open" });
+    const sB = await run(gm, P.stage, { potId: potBId });
+    const messageB = sB.messageId;
+    if (messageB) made.push(gm.track(messageB, "ChatMessage"));
+    const levelB = await run(gm, P.setSeat, { potId: potBId, userId: playerId, level: 1 });
+    const placeShapeB = await run(gm, P.setPlaceSeat, { placeId, userId: playerId, level: 2 });
+    const ownerLostB = await run(player, P.waitOwner, { placeId, want: false });
+    check("the step starts from its shape: the second pot is open with one card, the Player seat holds LIMITED and not OWNER on its pile, and holds OBSERVER and not OWNER on the place", dropB.ok && openB.found && wOpenB.met && sB.phase === "open" && sB.order.length === 1 && !!messageB && levelB.limited && !levelB.owner && !placeShapeB.owner && ownerLostB.met, { dropped: dropB.ok, phase: sB.phase, cards: sB.order.length, limited: levelB.limited, ownsPile: levelB.owner, ownsPlace: placeShapeB.owner, seatSawPlace: ownerLostB.met });
+
+    const doorB = await run(player, P.waitDoorway, { messageId: messageB });
+    await press(player, PORTS.player, { scope: "doc", sel: `[data-message-id='${messageB}'] [data-action='openTable']` }, "the doorway's Open the table, on the Player seat");
+    const sheetB = await run(player, P.waitSheet, { potId: potBId });
+    const pB1 = sheetB.rendered ? await run(player, P.sheetRead, { potId: potBId }) : { controls: {} };
+    check("at LIMITED the Player seat's window has no Close", doorB.found && sheetB.rendered && pB1.controls.close === false, { door: doorB.found, rendered: sheetB.rendered, close: pB1.controls.close });
+    const refusedLimited = await run(player, P.relay, { potId: potBId, op: "close" });
+    const sB1 = await run(gm, P.stage, { potId: potBId });
+    check("a close asked for from the Player seat at LIMITED is refused notAllowed and the pot stands open", refusedLimited.ok === false && refusedLimited.reason === "notAllowed" && !sB1.gone && sB1.phase === "open", refusedLimited);
+
+    const levelB3 = await run(gm, P.setSeat, { potId: potBId, userId: playerId, level: 3 });
+    const sawOwner = await run(player, P.waitOwner, { potId: potBId, want: true });
+    const closeShown = await run(player, P.waitControl, { potId: potBId, sel: "[data-action='closePot']", want: true });
+    check("with OWNER set on the pile the Player seat counts itself its owner and its window shows Close", levelB3.owner && sawOwner.met && closeShown.met, { gmReads: levelB3.owner, seatReads: sawOwner.met, shown: closeShown.met });
+    const refusedPlace = await run(player, P.relay, { potId: potBId, op: "close", placeUuid: fxPlace.uuid });
+    const sB2 = await run(gm, P.stage, { potId: potBId });
+    check("a close naming the place, asked for from the Player seat while it holds only OBSERVER on that place, is refused notAllowed and the pot stands open", refusedPlace.ok === false && refusedPlace.reason === "notAllowed" && !sB2.gone && sB2.phase === "open", refusedPlace);
+    await press(player, PORTS.player, { scope: "sheet", potId: potBId, sel: "[data-action='closePot']" });
+    const dlgNo = await run(player, P.dialogWait, { timeout: 6000 });
+    check("Close opened its dialog and, with OBSERVER on the place, did not offer it", dlgNo.found && dlgNo.fields.includes("place") && !dlgNo.options.includes(fxPlace.uuid), { found: dlgNo.found, offered: dlgNo.options?.includes(fxPlace.uuid) });
+    await run(player, P.dialogDismiss);
+
+    const placeShapeB2 = await run(gm, P.setPlaceSeat, { placeId, userId: playerId, level: 3 });
+    const sawPlace = await run(player, P.waitOwner, { placeId, want: true });
+    const placeBeforeB = await run(gm, P.placeRead, { placeId });
+    await press(player, PORTS.player, { scope: "sheet", potId: potBId, sel: "[data-action='closePot']" });
+    const dlgYes = await run(player, P.dialogWait, { timeout: 6000 });
+    check("with OWNER on the place as well, the Close dialog offers it", placeShapeB2.owner && sawPlace.met && dlgYes.found && dlgYes.options.includes(fxPlace.uuid), { owner: placeShapeB2.owner, seat: sawPlace.met, offered: dlgYes.options?.includes(fxPlace.uuid) });
+    const setB = await run(player, P.dialogSet, { values: { place: fxPlace.uuid } });
+    const okB = await press(player, PORTS.player, { scope: "dialog", sel: "button[data-action='ok']" });
+    const goneB = await run(gm, P.waitState, { potId: potBId, until: "gone" });
+    potBClosed = goneB.met;
+    const goneBP = await run(player, P.waitState, { potId: potBId, until: "gone" });
+    const placeAfterB = await run(gm, P.placeRead, { placeId });
+    for (const row of placeAfterB.rows.filter((r) => !placeBeforeB.ids.includes(r.id))) made.push(gm.track(row.uuid, "Item"));
+    const recB = await run(gm, P.waitDoorway, { messageId: messageB, record: true });
+    const recBP = await run(player, P.waitDoorway, { messageId: messageB, record: true });
+    const tToPlaceB = await t(gm, "record.to", { name: NAMES.place });
+    check("the Player seat's confirm closed the pot: the pile is gone from both seats", setB.ok && okB.found && goneB.met && goneBP.met, { gm: goneB.met, player: goneBP.met });
+    check("the card the pot held was filed at the place as house goods", placeAfterB.provider && placeAfterB.houseGoods - placeBeforeB.houseGoods === 1, { goods: placeAfterB.houseGoods - placeBeforeB.houseGoods });
+    check("the doorway card was rewritten as the record on both seats, listing the one card as taken by the place", recB.record && !recB.door && recBP.record && !recBP.door && recB.rows.length === 1 && recB.rows[0].endsWith(tToPlaceB), { gm: recB.record, player: recBP.record, rows: recB.rows });
+  }
+
   section("console");
   for (const [key, api] of [["gm", gm], ["player", player]]) {
     const drained = await run(api, P.drain);
@@ -1239,6 +1343,9 @@ try {
   if (gm && potId && !potClosed) {
     try { note("the pot survived its close: deleted by its tracked id, no chat notification", await run(gm, P.forceDeletePot, { potId })); } catch (err) { console.error("force delete:", err?.message ?? err); }
   }
+  if (gm && potBId && !potBClosed) {
+    try { note("the second pot survived its close: deleted by its tracked id, no chat notification", await run(gm, P.forceDeletePot, { potId: potBId })); } catch (err) { console.error("force delete:", err?.message ?? err); }
+  }
   if (player) {
     try { await run(player, P.closeAll); } catch {}
     try { note("restored (player)", await run(player, P.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
@@ -1249,7 +1356,7 @@ try {
     // Only the run's own ids: the pot, the doorway card, the planted Card and the rows its claims and close created. The kept fixtures stay.
     try { note("swept (the run's own ids)", await gm.sweepTracked({ only: made.filter((uuid) => gm.tracked().some((e) => e.uuid === uuid)) })); } catch (err) { console.error("sweep:", err?.message ?? err); }
   }
-  for (const marker of Object.values(MARKS)) if (marker !== MARKS.pot) console.log(`fixture kept: ${marker}`);
+  for (const marker of Object.values(MARKS)) if (marker !== MARKS.pot && marker !== MARKS.potOwner) console.log(`fixture kept: ${marker}`);
   try { if (player) await player.close(); } catch {}
   try { if (gm) await gm.close(); } catch {}
   section("summary");

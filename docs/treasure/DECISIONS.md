@@ -721,3 +721,33 @@ a Judge who edits Configure Ownership by hand now changes who may act, which is
 the rule asked for. **Rejected:** keeping the copy and refreshing it on an
 ownership change, since a second record of a level Foundry already holds goes
 stale in exactly the cases that prompted this.
+
+## 2026-11-25 — Close is the pile's owner's, through the relay
+
+The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server
+role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule". And, on T-0793: "In either case the approach is follow
+foundry permissions, don't invent new ones." Close was the Judge's by role: the
+window drew it for a Judge, and `closePot` refused every other seat. A pot is a
+Cards pile, and Foundry lets the pile's OWNER delete it, so the window now draws
+Close for `this.document.isOwner`, and the Close dialog lists the places the seat
+owns. A seat that is not a Judge cannot rewrite the doorway message (its author
+or a Judge may) or write a place it does not own, so its Close is forwarded to the
+relay as a `close` op. The handler, on the Judge's client, admits the attested
+sender who holds OWNER on the pile, read when the request arrives, refuses a
+closed pot, and refuses a named place that is an actor the sender does not own;
+then it calls `closePot` inside the pot's queue. A Judge passes by owning every
+document, and no gate reads a role. The 2026-11-17 entry "A seat gets LIMITED,
+never OWNER" stands: opening still grants LIMITED and nothing here grants a
+level. This only answers for a seat a Judge has made OWNER of the pile by hand,
+in Configure Ownership. **Counter (strong):** it admits nobody today, since no
+player owns a pot until a Judge grants OWNER by hand, so the control and the op
+are built for a case the module does not yet produce. It is built anyway because
+the gate is Foundry's, so the rule holds the day a Judge, or a later slice,
+grants it. **Counter (weak):** an OWNER of a pile could already delete it in core,
+around the module; the relay's op gives that seat the module's close (leftovers
+filed, the record written) in place of a bare delete. **Rejected:** a Judge-only
+Close with the owner's bare core delete as the player's route, which leaves the
+doorway card a live doorway to a pot that no longer exists. A seat that is not a
+Judge closes an open pot only: staging stays the Judge's surface until its own
+role-check batch rules on it (T-STAGE, held by the release hub).

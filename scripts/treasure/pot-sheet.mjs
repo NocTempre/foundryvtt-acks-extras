@@ -153,6 +153,8 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     const held = potCards(view).length;
 
     context.isGM = isGM;
+    // Staging is the Judge's surface, so an owner who is not a Judge closes an open pot only.
+    context.canClose = this.document.isOwner && (isGM || open);
     context.staging = staging;
     context.open = open;
     context.totalText = loc("bar.gp", { gp: gpText(total.totalGp) });
@@ -686,10 +688,13 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     await addTruths(this.document, [normalizeTruth({ pool: got.pool, label: got.label, valueGp: got.gp })]);
   }
 
-  /** Judge: close the pot, filing what is left at a place when one is chosen. */
+  /**
+   * Close the pot, filing what is left at a place when one is chosen. The
+   * places offered are the ones this seat owns; a Judge owns every one.
+   */
   static async #onClose() {
     const esc = foundry.utils.escapeHTML;
-    const places = providers().map((p) => `<option value="${esc(p.uuid)}">${esc(p.name)}</option>`).join("");
+    const places = providers().filter((p) => p.isOwner).map((p) => `<option value="${esc(p.uuid)}">${esc(p.name)}</option>`).join("");
     const got = await DialogV2.prompt({
       classes: DIALOG_CLASSES,
       window: { title: loc("close.title"), icon: "fa-solid fa-box-archive" },
@@ -699,7 +704,6 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       rejectClose: false,
     });
     if (!got) return;
-    const result = await closePot(this.document, { placeUuid: got.place || null });
-    if (!result.ok) ui.notifications?.warn(loc(`refuse.${result.reason}`));
+    report(await closePot(this.document, { placeUuid: got.place || null }));
   }
 }

@@ -47,7 +47,9 @@ swept with `api.sweepTracked()`.
   `acksExtras.treasure.newDealPot()` and opens with an empty list), is marked
   `flags.world.fixture = "treasure/pot"` by the run (`newPot` sets none; the
   run retires a standing one first, since a marker names one document), and is
-  deleted by the close step. A pot left behind is tracked and swept.
+  deleted by the close step. A pot left behind is tracked and swept. The Player
+  seat's Close step makes a second pot the same way and marks it
+  `treasure/pot-owner-close`, since the Judge's close deletes the first.
 
 ## Judge seat (Gamemaster)
 
@@ -134,7 +136,9 @@ swept with `api.sweepTracked()`.
   before Open. **A closed pot is deleted**, so a request after the close answers
   `noPot`; `phase` is not reachable on a closed pot.
 
-## Close (Judge seat)
+## Close (both seats)
+
+**Judge seat.**
 
 1. Leave cards unclaimed. **Close the pot** and choose `treasure/place` as "Put
    what is left at".
@@ -145,6 +149,30 @@ swept with `api.sweepTracked()`.
    when no place is chosen), and no longer has an Open the table button; the
    pile is gone from the Cards directory and from both seats; **no** "pot deleted"
    or other chat message is created by the delete.
+
+**Player seat, OWNER of the pile.** Close is the pile's owner's. Opening gives a
+seat LIMITED, so no player owns a pot until a Judge sets that seat to OWNER in
+Configure Ownership on the pile; this walk does that by hand. It needs a pot of
+its own (the Judge's close deletes the first), open, with at least one card left
+to file, and the Player seat's level written on the pile and on `treasure/place`
+at each step's start, since the kept place may carry either default.
+
+1. At LIMITED on the pile, open the window from the doorway card. Observable: no
+   Close control; a `close` request sent from the Player page through
+   `executeAsGM("treasurePot", {potId, op: "close"})` answers `notAllowed` and the
+   pot stays open.
+2. Set the seat to OWNER on the pile. Observable: Close appears in the Player's
+   window (poll for it; the sheet re-renders on the ownership write). With the
+   seat at OBSERVER on `treasure/place`, a `close` request naming the place answers
+   `notAllowed` and the pot stays open, and the Close dialog does not offer the
+   place.
+3. Set the seat to OWNER on the place and press **Close the pot**, choose the
+   place and confirm. Observables: the pile is gone from both seats; the
+   leftover card's goods are at the place as house goods; the chat card is
+   the record on both seats, listing the card "to" the place.
+
+A player who owns the pile and not the place can still close with no place
+chosen; the place's owner is asked for because the filing writes the place.
 
 ## Party aside, drag and Quick grab (both seats)
 
@@ -250,7 +278,8 @@ not cut off.
 
 `api.sweepTracked({only})` over the run's own ids and the quoted result
 (removed / could not find / refused). The fixtures with markers stay; the pot,
-its chat card, the planted Card and the rows the claims and the close built on
+its chat card (the Player seat's Close step has a pot and a chat card of its
+own, tracked and deleted by id if its close fails), the planted Card and the rows the claims and the close built on
 the character and the place were created by this run and are tracked by their
 ids as they are made: the rows by the ids read back from the actor and the
 place, the chat card by the message id in the pile flag.

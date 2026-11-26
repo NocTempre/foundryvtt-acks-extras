@@ -121,7 +121,8 @@ passes it. The `audience` flag is the opening's record of who it gave LIMITED
 to and is read by no act, so a seat a Judge sets to None after the opening is
 refused and a seat given LIMITED afterwards is admitted. The in-flight key
 `potId:op:cardId` is claimed before the first await (`potId:grab:` for a grab);
-one request runs at a time per pot. A `grab` is the third op, below.
+one request runs at a time per pot. A `grab` is the third op, below, and a
+`close` the fourth, in the Close paragraph.
 
 **A claim** builds an item from the snapshot through `disguiseData(data, mask)`
 and writes `markets.detected: false` only where the card says undetected
@@ -141,6 +142,21 @@ and when a Card of that pile changes; no message is rewritten for a flip.
 (`stockProvider` for items, `creditCoin`/`mintCoin` for coin, each marked as it
 goes so a retry never files twice), rewrites the doorway as the record of the
 haul, and deletes the pile by its own id with `{chatNotification: false}`.
+
+Close belongs to the pile's owner. The window draws its Close control, and
+offers the places to file at, from the seat's own ownership: Close shows where
+`this.document.isOwner` (a Judge owns every pile) and the dialog lists the
+storage providers the seat owns. `closePot` writes on a Judge's client; any other
+seat's call is forwarded as the relay's `close` op (`requestClose`), which
+refuses a seat without OWNER on the pile (`ownsPot` dep, read when the request
+arrives, `notAllowed`), a pot already closed (`planClose`, `phase`), a staging pot
+for a seat that is not a Judge (`phase`; the window draws Close on an open pot
+only for that seat), and a named
+place that is an actor the seat does not own (`owns` dep, `notAllowed`), and then
+calls `closePot` inside the queue. A uuid that names no actor reaches `closePot`,
+which answers `noTarget`. Opening gives a seat LIMITED and never OWNER, so a
+player closes a pot only where a Judge has set that seat to OWNER of the pile in
+Configure Ownership.
 
 ## The Judge's way in
 

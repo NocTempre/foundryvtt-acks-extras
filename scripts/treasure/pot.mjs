@@ -8,18 +8,20 @@
  * A pot is one core `pile` Cards document, GM-only through staging; opening
  * gives its audience LIMITED sight and never OWNER, so no seat can pass or
  * delete a card except through the relay. Closing deletes the pile by its own
- * id, with no chat notification.
+ * id, with no chat notification; a seat the Judge has made OWNER of the pile
+ * closes it through the relay.
  */
 import { ITEM_FLAGS } from "../equipment/constants.mjs";
 import { disguiseData } from "../equipment/disguise-logic.mjs";
 import { makeLoc } from "../lib/util.mjs";
+import { executeAsGM } from "../lib/sockets.mjs";
 import { listsGoods, deliverItems, droppedGoods } from "../lib/bundles.mjs";
 import { HOUSE_OWNER, coinTemplate, creditCoin, mintCoin, mintedWeights6 } from "../lib/money.mjs";
 import { isProvider, stockProvider } from "../lib/storage.mjs";
 import { magicKnowledge, physicalItems } from "../lib/item-model.mjs";
 import { capacity6, load6 } from "../lib/capacity.mjs";
 import * as services from "../lib/services.mjs";
-import { ARMS_LAST_FLAG, CARD_FLAG, LANG, MODULE_ID, PHASE, POOL, POT_FLAG, POT_SHEET_KEY, REFUSAL } from "./constants.mjs";
+import { ARMS_LAST_FLAG, CARD_FLAG, LANG, MODULE_ID, PHASE, POOL, POT_FLAG, POT_HANDLER, POT_SHEET_KEY, REFUSAL } from "./constants.mjs";
 import {
   buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planFound, planOpen, seatCards, addHand, addMonster, removeRow, setDealChoice, setMetInLair, setMonsters, stepRow, setToggle,
   stage, turnedOf, unstage, cardView,
@@ -314,14 +316,20 @@ async function fileAt(pile, place, card) {
   await pile.cards.get(card.id)?.update({ [`${cardPath}.claimedBy`]: { placeUuid: place.uuid, placeName: place.name } });
 }
 
+/** Ask the Judge's client, through the pot relay, to close a pot for this seat. */
+const requestClose = (pile, placeUuid) => executeAsGM(POT_HANDLER, { potId: pile.id, op: "close", placeUuid });
+
 /**
  * Close a pot: what is unclaimed goes to `placeUuid` (a storage provider) when
  * one is named, the doorway card is rewritten as the record of the haul, and
- * the pile is deleted by its own id with no chat notification. Judge-only.
- * @returns {Promise<{ok: boolean, reason?: string, filed?: number}>}
+ * the pile is deleted by its own id with no chat notification. The writes run
+ * on a Judge's client; any other seat's call is forwarded to the relay, which
+ * admits the pile's owner and, for a named place, that place's owner. The
+ * forward answers nothing when no Judge is connected.
+ * @returns {Promise<{ok: boolean, reason?: string, filed?: number}|undefined>}
  */
 export async function closePot(pile, { placeUuid = null } = {}) {
-  if (!game.user.isGM) return { ok: false, reason: REFUSAL.notAllowed };
+  if (!game.user.isGM) return requestClose(pile, placeUuid);
   const plan = planClose(viewOf(pile));
   if (!plan.ok) return plan;
   let filed = 0;
@@ -479,6 +487,8 @@ export function createPotRelay() {
       await findPot(id)?.updateEmbeddedDocuments("Card", [update]);
     },
     seated: (id, user) => !!findPot(id)?.testUserPermission(user, "LIMITED"),
+    ownsPot: (id, user) => !!findPot(id)?.testUserPermission(user, "OWNER"),
+    closePot: (id, placeUuid) => closePot(findPot(id), { placeUuid }),
     owns: (user, uuid) => !!actorOf(uuid)?.testUserPermission(user, "OWNER"),
     hasActor: (uuid) => !!actorOf(uuid),
     ownedByTable: (uuid) => {

@@ -11,7 +11,7 @@
         <li class="acks-extras-treasure__legend-item"><span class="acks-extras-treasure__swatch is-band-{{rank}}" aria-hidden="true"></span>{{name}}</li>
       {{/each}}
     </ul>
-    {{#if isGM}}
+    {{#if canClose}}
       <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="closePot">{{localize "ACKS-TREASURE.judge.close"}}</button>
     {{/if}}
   </header>

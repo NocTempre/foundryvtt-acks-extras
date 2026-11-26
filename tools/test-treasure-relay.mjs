@@ -29,6 +29,7 @@ const owners = { "Actor.cleo": ["anna"], "Actor.dina": ["ben"], "Actor.npc": [] 
 const NONE = 0;
 const LIMITED = 1;
 const OBSERVER = 2;
+const OWNER = 3;
 
 /** A relay over one fake pot, with a log of every write and every delivery. */
 function world({ pot = {}, cards, deliver, setClaimDelay = 0, levels = { anna: LIMITED, ben: LIMITED } } = {}) {
@@ -40,7 +41,7 @@ function world({ pot = {}, cards, deliver, setClaimDelay = 0, levels = { anna: L
       { id: "planted", face: 0, value: 0, truth: normalizeTruth({ label: "Plant" }) },
     ],
   };
-  const log = { flips: [], claims: [], delivered: [] };
+  const log = { flips: [], claims: [], delivered: [], closes: [] };
   const relay = createRelay({
     user: (id) => users[id] ?? null,
     self: () => users.gm,
@@ -51,6 +52,11 @@ function world({ pot = {}, cards, deliver, setClaimDelay = 0, levels = { anna: L
       c.face = update.face;
     },
     seated: (_id, user) => user.isGM || (levels[user.id] ?? NONE) >= LIMITED,
+    ownsPot: (_id, user) => user.isGM || (levels[user.id] ?? NONE) >= OWNER,
+    closePot: async (_id, placeUuid) => {
+      log.closes.push(placeUuid);
+      return { ok: true, filed: placeUuid ? 1 : 0 };
+    },
     party: () => ({ members: [{ id: "m1", uuid: "Actor.cleo", name: "Cleo", capacity6: null, load6: null, casualty: false, hasDocument: true }], paceWith: () => 0 }),
     owns: (user, uuid) => user.isGM || (owners[uuid] ?? []).includes(user.id),
     hasActor: (uuid) => uuid in owners,
@@ -174,6 +180,86 @@ const send = (w, payload) => w.relay.handle({ potId: "pot1", ...payload });
   const g = world({ levels: {} });
   ok((await send(g, { op: "flip", cardId: "a", requestUserId: "gm" })).ok, "a Judge flips with no level in the table");
   ok((await send(g, { op: "claim", cardId: "b", actorUuid: "Actor.npc" })).ok, "a Judge's own call claims");
+}
+
+/* --- close: the pile's owner's, and the named place's --- */
+{
+  const w = world({ levels: { anna: OWNER, ben: LIMITED } });
+  const r = await send(w, { op: "close", placeUuid: "Actor.cleo", requestUserId: "anna" });
+  ok(r.ok && r.filed === 1, "an owner of the pile who owns the place closes and files there");
+  eq(w.log.closes, ["Actor.cleo"], "the place reached the close");
+  const bare = world({ levels: { anna: OWNER } });
+  ok((await send(bare, { op: "close", requestUserId: "anna" })).ok, "an owner closes with no place named");
+  eq(bare.log.closes, [null], "no place is passed on as null");
+  const blank = world({ levels: { anna: OWNER } });
+  ok((await send(blank, { op: "close", placeUuid: "", requestUserId: "anna" })).ok, "an empty place is no place");
+  eq(blank.log.closes, [null]);
+}
+{
+  // A seat holding LIMITED, even one that owns the place, is not the pile's owner.
+  const w = world({ levels: { anna: LIMITED, ben: OBSERVER } });
+  eq((await send(w, { op: "close", placeUuid: "Actor.cleo", requestUserId: "anna" })).reason, REFUSAL.notAllowed, "a seat with LIMITED on the pile that owns the place is refused");
+  eq((await send(w, { op: "close", requestUserId: "ben" })).reason, REFUSAL.notAllowed, "and OBSERVER is not enough");
+  eq((await send(w, { op: "close", requestUserId: "out" })).reason, REFUSAL.notAllowed, "a seat with no level is refused");
+  eq(w.log.closes.length, 0, "no close ran");
+}
+{
+  // The pile's owner needs the named place too: a place another seat owns, and one nobody at the table owns.
+  const w = world({ levels: { anna: OWNER } });
+  eq((await send(w, { op: "close", placeUuid: "Actor.dina", requestUserId: "anna" })).reason, REFUSAL.notAllowed, "an owner of the pile is refused a place another seat owns");
+  eq((await send(w, { op: "close", placeUuid: "Actor.npc", requestUserId: "anna" })).reason, REFUSAL.notAllowed, "and a place no seat owns");
+  eq(w.log.closes.length, 0, "no close ran");
+  eq((await send(w, { op: "close", placeUuid: "Actor.nowhere", requestUserId: "anna" })).ok, true, "a uuid that names no actor reaches the close, which answers for it");
+  eq(w.log.closes, ["Actor.nowhere"]);
+}
+{
+  // The phase and the pot: an owner who owns everything is still refused a closed pot or an unknown one.
+  const w = world({ pot: { phase: PHASE.closed }, levels: { anna: OWNER } });
+  eq((await send(w, { op: "close", placeUuid: "Actor.cleo", requestUserId: "anna" })).reason, REFUSAL.phase, "a closed pot is refused by phase");
+  eq((await send(w, { op: "close", placeUuid: "Actor.cleo", requestUserId: "gm" })).reason, REFUSAL.phase, "a Judge is refused the same");
+  eq(w.log.closes.length, 0, "no close ran");
+  const x = world({ levels: { anna: OWNER } });
+  eq((await send(x, { op: "close", requestUserId: "anna", potId: "other" })).reason, REFUSAL.noPot, "an unknown pot");
+  eq((await send(x, { op: "close", requestUserId: "nobody" })).reason, REFUSAL.noUser, "an unknown sender");
+  eq(x.log.closes.length, 0);
+  // Staging is the Judge's surface: an owner who is not a Judge is refused a staging pot, and a Judge closes it.
+  const s = world({ pot: { phase: PHASE.staging }, levels: { anna: OWNER } });
+  eq((await send(s, { op: "close", requestUserId: "anna" })).reason, REFUSAL.phase, "an owner who is not a Judge is refused a staging pot");
+  eq(s.log.closes.length, 0, "no close ran");
+  ok((await send(s, { op: "close", requestUserId: "gm" })).ok, "a Judge closes a staging pot");
+}
+{
+  // A Judge passes on the attested id and on its own call, with no level in the table and any place.
+  const g = world({ levels: {} });
+  ok((await send(g, { op: "close", placeUuid: "Actor.dina", requestUserId: "gm" })).ok, "a Judge closes with a place a player owns");
+  ok((await send(g, { op: "close", placeUuid: "Actor.npc" })).ok, "a Judge's own call closes at a place nobody owns");
+  eq(g.log.closes, ["Actor.dina", "Actor.npc"]);
+  // The level is read at each act: a seat dropped to LIMITED after being OWNER is refused its next close.
+  const m = world({ levels: { anna: OWNER } });
+  m.levels.anna = LIMITED;
+  eq((await send(m, { op: "close", requestUserId: "anna" })).reason, REFUSAL.notAllowed, "an owner whose level was lowered is refused");
+  m.levels.anna = OWNER;
+  ok((await send(m, { op: "close", requestUserId: "anna" })).ok, "and admitted again at OWNER");
+}
+{
+  // One close at a time per pot: a second in flight is busy, and the first settles.
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const w = world({ levels: { anna: OWNER } });
+  const slow = createRelay({
+    user: (id) => users[id] ?? null,
+    self: () => users.gm,
+    readPot: () => ({ id: "pot1", pot: w.store.pot, cards: w.store.cards }),
+    seated: () => true,
+    ownsPot: () => true,
+    closePot: async () => { await gate; return { ok: true, filed: 0 }; },
+    owns: () => true,
+    hasActor: () => true,
+  });
+  const first = slow.handle({ potId: "pot1", op: "close", requestUserId: "anna" });
+  eq((await slow.handle({ potId: "pot1", op: "close", requestUserId: "anna" })).reason, REFUSAL.busy, "a second close while one is in flight is refused busy");
+  release();
+  ok((await first).ok, "the first settles");
 }
 
 console.log(`test-treasure-relay: ${checks} checks passed`);
