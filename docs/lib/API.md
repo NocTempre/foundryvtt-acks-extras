@@ -1,4 +1,4 @@
-# lib API (apiVersion 97)
+# lib API (apiVersion 98)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 97,
+  apiVersion: 98,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -80,6 +80,7 @@ acksExtras.lib = {
   // 95: itemRun.{postOutcomeCard, swigHeal, swigAskSave}; a `consume` activation is run (Swig); itemRun.logic.readItemRun answers a consume activation's `left` and `bearerUuid`; itemRun.logic.itemRunUsedUp counts a consume item with no swigs left (below, "apiVersion 95, the consume item")
   // 96: templateLogic.chooseAxes and generateFromTemplate take `noRoll`, axis keys left unchosen rather than rolled (below, "`acks-extras.template` — the generator actor")
   // 97: itemRun.pressRoll takes `declared` (the Judge's verdict on a card that names no save); itemRun.logic.checkPressRequest takes `req.declared`; itemRun.logic.readItemRun answers a consume activation's `leftFrom`; itemRun.logic.litCountOf (below, "apiVersion 97, the rows and the Judge's call")
+  // 98: templateLogic.chooseAxes keeps a pin on an option the variant's tables do not give (logged `source: "pinned"`, `unavailable`) and takes `carryOf`; templateLogic gains `optionStands` and `pinOptionRows` (below, "`acks-extras.template` — the generator actor")
 }
 ```
 
