@@ -109,7 +109,7 @@ export function manifestOf(holders, { market = null, traderUuid = null } = {}) {
  * stacks in the order a sale draws them. Whole loads only; a draw the stacks
  * cannot meet takes nothing and answers `{ok: false, reason: "noLoads", held}`.
  * On success `removed` holds one detached plain copy per stack drawn from —
- * `_id` dropped, `system.quantity` set to the stones taken from it — so
+ * `_id` dropped, `system.quantity` set to the whole loads taken from it — so
  * the goods can be re-created later with `createEmbeddedDocuments` by a
  * caller that knows nothing of the load flag.
  * @returns {Promise<{ok: true, removed: object[]}|{ok: false, reason: "noLoads", held: number}>}
@@ -124,7 +124,7 @@ export async function removeLoads(holder, category, stones, { traderUuid = null 
   for (const stack of stacks) {
     const gone = draw.deletes.includes(stack.id);
     if (!gone && !left.has(stack.id)) continue;
-    const taken = Math.round((stonesOf(stack) - (gone ? 0 : left.get(stack.id))) * 1e6) / 1e6;
+    const taken = Math.floor(stonesOf(stack)) - (gone ? 0 : left.get(stack.id));
     const copy = foundry.utils.deepClone(stack.toObject());
     delete copy._id;
     setPath(copy, quantityOf(copy)?.path ?? "system.quantity", taken);

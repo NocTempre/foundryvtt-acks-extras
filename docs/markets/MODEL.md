@@ -156,8 +156,8 @@ party's find.
   bought into and sold from the hold a trade names — the trader's own packs,
   or one of the vehicles on the venture row (`vehicleUuids`). A purchase
   into a vehicle is refused past its free room before anything is rolled; a
-  sale draws across the hold's stacks (`rules/arbitrage.mjs` `planLoadDraw`,
-  all or nothing); a load kept aboard for another character is never counted
+  sale draws across the hold's stacks in whole loads (`rules/arbitrage.mjs`
+  `planLoadDraw`, all or nothing); a load kept aboard for another character is never counted
   or drawn. The seat must own the hold as well as the trader.
   A day that cannot resolve because its imported table is missing posts a
   card to the actor's owners and the GM naming the table.

@@ -112,6 +112,15 @@ check(() => {
 });
 check(() => assert.equal(holder.items[0].system.quantity, 3, "the live stack data is not mutated by the snapshot"));
 
+const fracHolder = holderOf([load("f1", "alpha", 2.5), load("f2", "alpha", 3.5)]);
+const frac = await removeLoads(fracHolder, "alpha", 4);
+check(() => {
+  assert.equal(frac.ok, true);
+  assert.deepEqual(frac.removed.map((r) => r.system.quantity), [2, 2], "each snapshot counts the whole loads drawn, never a fraction");
+  assert.deepEqual(fracHolder.log.deletes, ["f1"], "a stack of 2.5 drawn by 2 is emptied and deleted");
+  assert.deepEqual(fracHolder.log.updates, [{ _id: "f2", "system.quantity": 1 }], "and a broken one keeps a whole number of loads");
+});
+
 const shortHolder = holderOf([load("s1", "alpha", 3), load("s3", "alpha", 2, { owner: "Actor.other" })]);
 const short = await removeLoads(shortHolder, "alpha", 4);
 check(() => {

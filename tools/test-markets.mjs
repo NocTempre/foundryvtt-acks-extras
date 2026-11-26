@@ -1105,8 +1105,10 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
     "a draw that lands on a stack's edge breaks nothing");
   assert.deepStrictEqual(planLoadDraw(sacks, 10), { updates: [], deletes: [], held: 9, short: true },
     "short: the plan says what is held and takes nothing");
-  assert.deepStrictEqual(planLoadDraw([{ id: "x", qty: 0 }, { id: "y", qty: 2.5 }], 2), { updates: [{ id: "y", qty: 0.5 }], deletes: [], held: 2, short: false },
-    "an empty stack is passed over; a fraction of a load is not sold, and not thrown away");
+  assert.deepStrictEqual(planLoadDraw([{ id: "x", qty: 0 }, { id: "y", qty: 2.5 }], 2), { updates: [], deletes: ["y"], held: 2, short: false },
+    "an empty stack is passed over; a stack of 2.5 is 2 whole loads, so a draw of 2 leaves nothing and the row is deleted, never written back as a fraction");
+  assert.deepStrictEqual(planLoadDraw([{ id: "y", qty: 3.5 }], 2), { updates: [{ id: "y", qty: 1 }], deletes: [], held: 3, short: false },
+    "a broken stack keeps a whole number of loads");
   assert.strictEqual(planLoadDraw([{ id: "y", qty: 2.5 }], 3).short, true, "half a load does not make up a third");
   assert.deepStrictEqual(planLoadDraw(null, 0), { updates: [], deletes: [], held: 0, short: false }, "nothing asked, nothing taken");
 }
