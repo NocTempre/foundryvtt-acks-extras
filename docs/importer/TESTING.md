@@ -3508,6 +3508,60 @@ price, all on documents the marker names.
 The sweep removes the ledger's documents; the edited copies are the kept
 fixtures and are rewritten by step 2.
 
+## A pregenerated character imported before system 14.2.0, repaired
+
+MODEL, "Pregenerated characters". The system's 14.2.0 migration rewrites a
+character's stored `system` and its items' `system` (an item's quantity
+becomes a whole number; a spell level keeps only its `max`), so a play stamp
+recorded under 14.1.0 no longer matches a character nobody played. No
+migration answers it: a repair import does. This recipe checks that each
+answer leaves a character the next repair reads as matching. Offline:
+`tools/importer/test-import-kinds.mjs` (the stamp). Live: unwalked;
+`tools/live/importer-forced-places.mjs`'s `P.repair` drives a repair and its
+`choose`.
+
+### Fixtures
+
+One pregenerated character of an adventure book (ax1 holds several), imported
+by this world, owned by no player, marked
+`importer/pregen-pre-14-2@<tag>`. The test world was never on 14.1.0 with a
+stamped character, so the pre-upgrade stamp is written by hand: in page
+context, import `scripts/importer/held-edits.mjs`, take the character's
+`toObject()`, put each item's numeric `system.quantity` back as
+`{value: <n>, max: 0}` (weapons and armour included) and give each
+`system.spells.<n>` a `value: 0` beside its `max`, then write
+`flags.acks-extras.playStamp` to `playStamp(<that shape>)`. That is the
+stamp a 14.1.0 import recorded over the data the migration then rewrote
+(inferred from both schemas; a world character's exact 14.1.0 shape is not
+reachable on a 14.2.0 server). Call it the old stamp.
+
+### Steps
+
+1. GM seat: repair the book, `choose` answering the character `leave`.
+   *Observable:* the choice lists it `changed: true`, not `unstamped`, so its
+   default (`pregenDefault`) is restore; with `leave` nothing on it moves (its
+   `modifiedTime` and its stamp are the old stamp's write).
+2. Repair again, answering `rewrite`.
+   *Observable:* `rewritten` is 1 and `pregenRefused` 0; the character keeps
+   its uuid and holds each item once (no twin); its stamp is written again.
+3. Repair a third time, answering nothing.
+   *Observable:* the character is listed `changed: false`, its default
+   `leave`.
+4. Write the old stamp again and repair answering `restore`.
+   *Observable:* `restored` is 1; a "(kept)" copy with no cookbook claim and
+   no stamp; the book's character stands under its own uuid, stamped; a
+   fourth repair lists it `changed: false`.
+5. Throughout: no console error on the GM seat from the first repair's start
+   (a recorder attached before step 1).
+
+A step whose observable fails is the defect this recipe looks for; a run in
+which all pass shows the repair covers the upgrade, as ruled.
+
+### Teardown
+
+The ledger's own: step 4's "(kept)" copy (`api.track` its uuid from the
+result's `kept`). The character stays, marked, for the next run.
+
 ## Overhead token art from an installed compendium
 
 MODEL, "Overhead token art from an installed compendium". Offline:
