@@ -807,9 +807,9 @@ is the largest `{daylight, bright, dim}` among the entries whose `state` is
 light too: every reader of bright reach (mapping, a column point, the token)
 counts a light that states only daylight. A flame sheds no daylight, so
 `mergeLight` and `shedLight` carry the magic light's `daylight` alone. Foundry
-draws two radii, so a token takes `bright` and `dim`; no reader yet tells
-daylight from bright light (ROADMAP, "What daylight from a magic light does
-not do yet").
+draws two radii, so a token takes `bright` and `dim`; `lightLevelAt` tells
+daylight from bright light (below), and nothing else yet does (ROADMAP, "What
+daylight from a magic light does not do yet").
 `shedLight(actor)` is the stronger of `emittedLight(bearerLights)` and
 `effectLight`, each radius taking the larger, with the `kind` that won
 (`mergeLight`): `magic` when the effect has the larger bright radius (the dim on
@@ -838,19 +838,51 @@ carried and put away. The result is `shining`, `shuttered` or `stowed`;
 which the surfaces turn into tooltips (`lightControl`). `effectLight`, and so
 `shedLight` and a column point, count only a shining light.
 
+**A placed light can shed daylight.** An AmbientLight document carries
+`flags.acks-extras.daylight`, a radius in the scene's distance units like core's
+`bright` and `dim` beside it (RR p. 228). `ambientDaylight(lightDoc)` reads it:
+the radius, or null for a blank, absent, zero or non-finite flag, which sheds
+none. The Light Source configuration window gets one control for it
+(`ambient-daylight.mjs`): a "Daylight radius" number field on the Basic tab
+directly after the group holding core's radii, named for the flag, so core's own
+submit and its live preview carry the value and nothing of this module writes
+it. A render hook on core's `AmbientLightConfig` adds the control after the first
+render and again after any part's re-render replaces it; it is seeded from the
+preview document's data, so an unsaved entry survives. Core's two radii are
+never written. `strongestSource` reads the flag under the test the light's own
+radii pass (`shinesNow` for a strict reader: a darkness source or an activation
+range outside the scene's darkness sheds nothing, a hidden light sheds nothing),
+and a daylight radius is bright light as well, so a placed light's bright reach
+is the larger of core's `bright` and the flag, in `brightestLightAt` and
+`brightestLightReaching` alike.
+
 **The light level at a point.** `lightLevelAt(scene, point, {extra, daylit,
-elevation})` answers `{level, by}`, `level` one of `LIGHT_LEVELS` (`daylight`,
-`bright`, `dim`, `dark`, brightest first; `lightAtLeast` orders them) and `by`
-`sky`, `light` or `none`; `lightLevelOf(tokenDoc)` asks it at a token's centre.
-The sky is daylight when the scene's global light is on, its darkness sits
-inside the global light's range and below one half, and the point is inside no
-Region flagged `cookbook.indoors`; `daylit` replaces the scene's sky reading (a
-journey's clock), and an indoors Region still roofs the point. A scene with no
-global light has no sky. Otherwise a light decides: daylight from a token whose
-actor sheds a magic daylight radius (`shedLight`, converted to the scene's
-units), a column point or `extra`; then the bright and dim reach
-`strongestReach` reads per band. Straight-line, ignoring walls. No scene or no
-point is null, which a reader takes as "cannot say".
+elevation})` answers `{level, by, source}`, `level` one of `LIGHT_LEVELS`
+(`daylight`, `bright`, `dim`, `dark`, brightest first; `lightAtLeast` orders
+them) and `by` `sky`, `light` or `none`; `lightLevelOf(tokenDoc)` asks it at a
+token's centre. The sky is daylight when the scene's global light is on, its
+darkness sits inside the global light's range and below one half, and the point
+is inside no Region flagged `cookbook.indoors`; `daylit` replaces the scene's
+sky reading (a journey's clock), and an indoors Region still roofs the point. A
+scene with no global light has no sky. Otherwise a light decides: daylight from
+a placed light's flag, a token whose actor sheds a magic daylight radius
+(`shedLight`, converted to the scene's units), a column point or `extra`; then
+the bright and dim reach `strongestSource` reads per band. Straight-line,
+ignoring walls. No scene or no point is null, which a reader takes as "cannot
+say".
+
+**The reading names its source.** `source` is `{kind, name, cite}`, null for a
+dark point. `kind` is `sky`, `ambient`, `token`, `column` or `extra`; `name` is
+the deciding thing's own name (a token's, a placed light's label) and null where
+it has none; `cite` is the page naming the level: the sky's (RR ch. 6) for
+`sky`, a light's daylight band (RR p. 228) for a daylight reading from an
+ambient light, a token or the column, and null for every other reading, a
+caller's `extra` point included, since nothing the module knows names a page for
+them. Of several sources reaching the point in the deciding band, the one with
+the largest radius is named; a tie goes by kind in the order ambient, token,
+column, extra, then by document order within its kind. The sky is read before
+any light. `level` and `by` are what they were before `source` was added, so
+`lightAtLeast` and the light gate read them unchanged.
 
 **The light gate.** A typed modifier with `gate: {kind: "light", light}` is
 read at the roll (`registerGate`'s `{at: "roll"}`, `isRollGate`): its

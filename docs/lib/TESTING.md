@@ -4233,8 +4233,8 @@ no indoors Region, and no magic light on the roller.
    gives.
 3. **A magic daylight radius.** Still at darkness 1, give the roller a magic
    light effect with daylight 10. *Observable:* the row returns, and
-   `lightLevelOf(token)` is `{level: "daylight", by: "light"}`. Shutter it: the
-   row goes.
+   `lightLevelOf(token)` reads level `daylight`, by `light`, with a `source` of
+   kind `token`. Shutter it: the row goes.
 4. **Indoors.** Darkness 0, magic light deleted, and a Region flagged
    `cookbook.indoors` covering the token. *Observable:* no row; delete the
    Region and it returns.
@@ -4248,6 +4248,54 @@ no indoors Region, and no magic light on the roller.
 
 Teardown: put darkness back to 0, delete the Region and any effect the run
 made, by the ledger; the fixtures stay.
+
+## Daylight from a placed light
+
+Covers the Daylight radius field `ambient-daylight.mjs` adds to core's Light
+Source configuration window, the flag it writes, and the `source` that
+`lightLevelAt` names. The injected control cannot be seen offline: core's
+render and submit are the subject. Every figure is invented.
+
+**Fixtures, kept and found by marker.**
+- The scene `formation/daylight-ambient`: square grid, 5 ft, darkness 1, global
+  light off, never activated for players, holding one ambient light the marker
+  `formation/daylight-ambient` names (`flags.world.fixture` on the light):
+  bright and dim radii typed by hand, Daylight radius blank, no activation
+  range.
+
+Each run brings the scene to shape at its start: darkness 1, the light
+visible and not a darkness source, its Daylight radius blank.
+
+1. **The field is there.** As the GM, open Scene controls → Lighting Controls,
+   double-click the light, Basic Configuration tab. *Observable:* a Daylight
+   radius field stands directly after the group holding core's two radii, with
+   the scene's unit beside its label and a tooltip carrying the page reference;
+   the field is blank.
+2. **Set it.** Type a radius that reaches a point of the scene past core's
+   bright radius, and press Update Ambient Light. *Observable:* the light's
+   `flags["acks-extras"].daylight` holds the number; core's `config.bright`
+   and `config.dim` are as typed before. `lightLevelAt(scene, point)` at a point
+   inside the radius reads level `daylight`, by `light`, with `source.kind`
+   `ambient`; a point past it but inside core's bright radius reads `bright`.
+3. **It survives a re-render and a reopen.** Type a value without saving, then
+   press Reset Advanced Options on the Advanced Options tab (a full render),
+   and switch back to Basic Configuration. *Observable:* the field is still
+   there and still holds the unsaved value. Close the window and reopen it: the
+   saved value is in the field.
+4. **Clear it.** Empty the field and save. *Observable:* the flag is blank or
+   null, `lightLevelAt` at the same point falls back to `bright`, and
+   `source.kind` is still `ambient`.
+5. **A hidden light and an activation range.** Set the radius again, hide the
+   light, read the point: the reading falls to whatever else reaches, or
+   `dark`. Show it; give it an activation range that excludes darkness 1 and
+   read again: the same. *Observable:* in neither case does the reading name the
+   light.
+6. **A new light.** Place a new light and open its configuration before
+   saving. *Observable:* the field is there, and a radius typed before pressing
+   Create Ambient Light is written to the flag on the created light.
+
+Teardown: restore the fixture's shape from the run's start; delete any light
+the run created, by the ledger. The fixtures stay.
 
 ## A weapon or armour is a stack (unwalked but for a delivery)
 

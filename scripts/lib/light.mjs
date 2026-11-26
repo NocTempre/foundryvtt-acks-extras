@@ -700,53 +700,95 @@ function tokenDaylight(scene, token) {
 }
 
 /**
- * The largest radius of one band, in scene units, among the scene's sources
- * that reach `me` (a pixel point): ambient lights, tokens' own lights and a
- * marching column's lights. Straight-line, ignoring walls. `band` is `"bright"`,
- * `"dim"` or `"daylight"`; an ambient light states no daylight radius, and a
- * token's comes from its actor's light (`tokenDaylight`). `strict` also leaves
- * out a source that does not shine (`shinesNow`); `extra` is more points,
- * `{x, y, bright, dim?, daylight?}`, a caller holds that no document stores.
+ * The flag on an AmbientLight document, under this module's namespace, holding
+ * its daylight radius in the scene's distance units, beside core's own bright
+ * and dim radii (`ambient-daylight.mjs` edits it in the light's config window).
  */
-function strongestReach(scene, me, { strict = false, extra = [], band = "bright" } = {}) {
+export const AMBIENT_DAYLIGHT_FLAG = "daylight";
+
+/**
+ * The daylight radius a placed light sheds, in scene units, or null when its
+ * flag is blank, absent, zero or not a finite figure. Core's `bright` and `dim`
+ * are never read or written here.
+ * @param {AmbientLightDocument|object} lightDoc
+ * @returns {number|null}
+ */
+export function ambientDaylight(lightDoc) {
+  const stored = lightDoc?.getFlag?.(MODULE_ID, AMBIENT_DAYLIGHT_FLAG) ?? lightDoc?.flags?.[MODULE_ID]?.[AMBIENT_DAYLIGHT_FLAG];
+  return positiveFigure(stored);
+}
+
+/** The page naming the sky's daylight, shown beside a reading the sky decided. */
+const SKY_CITE = "RR ch. 6";
+/** The page naming a light's daylight band, shown beside a reading a light's daylight decided. */
+const DAYLIGHT_BAND_CITE = "RR p. 228";
+
+/** A source's own name, or null when it has none. */
+const sourceName = (thing) => String(thing?.name ?? "").trim() || null;
+
+/**
+ * The deciding source of one band at `me` (a pixel point), `{reach, source}`:
+ * the largest radius, in scene units, among the scene's sources that reach it,
+ * and which source that is (`source` is `{kind, name, cite}`, null with `reach`
+ * 0 when nothing reaches). Sources are ambient lights, tokens' own lights and a
+ * marching column's lights. Straight-line, ignoring walls. `band` is `"bright"`,
+ * `"dim"` or `"daylight"`. An ambient light's daylight is its flag
+ * (`ambientDaylight`), and its bright reach is the larger of core's `bright`
+ * and that flag, since daylight is bright light as well; a token's daylight comes
+ * from its actor's light (`tokenDaylight`). `strict` also leaves out a source
+ * that does not shine (`shinesNow`); `extra` is more points,
+ * `{x, y, name?, bright, dim?, daylight?}`, a caller holds that no document stores.
+ *
+ * Where two sources reach by the same radius the first considered keeps the
+ * reading: ambient lights in document order, then tokens, then the column's
+ * points, then `extra`.
+ */
+function strongestSource(scene, me, { strict = false, extra = [], band = "bright" } = {}) {
   const perUnit = pixelsPerUnit(scene);
-  if (!perUnit) return 0;
+  if (!perUnit) return { reach: 0, source: null };
   const darkness = darknessOf(scene);
 
-  let best = 0;
+  let best = { reach: 0, source: null };
   const bodyOf = (token) => tokenCentre(token, scene);
-  const consider = (source, radius, centreOf = pointOf) => {
+  // The page is the daylight band's, and only where a module-known source states it.
+  const citeFor = (kind) => (band === "daylight" && kind !== "extra" ? DAYLIGHT_BAND_CITE : null);
+  const consider = (kind, thing, radius, centreOf = pointOf) => {
     const reach = Number(radius) || 0;
-    if (reach <= best) return; // cannot win; skip the distance work
-    const at = centreOf(source);
+    if (reach <= best.reach) return; // cannot win; skip the distance work
+    const at = centreOf(thing);
     const feet = Math.hypot(at.x - me.x, at.y - me.y) / perUnit;
-    if (feet <= reach) best = reach;
+    if (feet <= reach) best = { reach, source: { kind, name: sourceName(thing), cite: citeFor(kind) } };
   };
 
-  if (band !== "daylight") {
-    for (const light of scene.lights ?? []) {
-      if (light.hidden || (strict && !shinesNow(light.config, darkness))) continue;
-      consider(light, light.config?.[band]);
-    }
+  for (const light of scene.lights ?? []) {
+    if (light.hidden || (strict && !shinesNow(light.config, darkness))) continue;
+    const daylight = ambientDaylight(light) ?? 0;
+    const radius = band === "daylight" ? daylight : band === "bright" ? Math.max(Number(light.config?.bright) || 0, daylight) : light.config?.[band];
+    consider("ambient", light, radius);
   }
   for (const other of scene.tokens ?? []) {
     if (other.hidden) continue;
     if (band === "daylight") {
-      consider(other, tokenDaylight(scene, other), bodyOf);
+      consider("token", other, tokenDaylight(scene, other), bodyOf);
       continue;
     }
     if (strict && !shinesNow(other.light, darkness)) continue;
-    consider(other, other.light?.[band], bodyOf);
+    consider("token", other, other.light?.[band], bodyOf);
   }
   // The lights a marching column sheds from its bearers' cells, which no
   // document stores. Asked through the shared namespace, as `bearerLights`
   // asks: each point is a pixel centre with radii in scene units.
   const columnPoints = globalThis.acksExtras?.formation?.carriedLightPoints;
   if (typeof columnPoints === "function") {
-    for (const point of columnPoints(scene) ?? []) consider(point, point[band]);
+    for (const point of columnPoints(scene) ?? []) consider("column", point, point[band]);
   }
-  for (const point of extra) consider(point, point[band]);
+  for (const point of extra) consider("extra", point, point[band]);
   return best;
+}
+
+/** The largest radius of one band that reaches `me`, in scene units: `strongestSource`'s `reach`. */
+function strongestReach(scene, me, options) {
+  return strongestSource(scene, me, options).reach;
 }
 
 /**
@@ -775,7 +817,9 @@ export function brightestLightReaching(tokenDoc) {
  * column or a token's centre. Reads what `brightestLightReaching` reads, but
  * counts only a source that shines now: a darkness source (`negative`) never
  * does, and a source with an activation range does only while the scene's
- * darkness sits in it. Straight-line, ignoring walls, and answers for a scene
+ * darkness sits in it. An ambient light's daylight radius (`ambientDaylight`)
+ * counts here as bright reach, so a light's reach is the larger of its `bright`
+ * and its daylight. Straight-line, ignoring walls, and answers for a scene
  * nobody is viewing.
  *
  * @param {Scene} scene
@@ -839,13 +883,22 @@ function indoorsAt(scene, point, elevation) {
 }
 
 /**
- * How brightly a point of a scene is lit: `{level, by}` with `level` one of
- * `LIGHT_LEVELS` and `by` what decided it: `"sky"` (the scene's daylight, with
+ * How brightly a point of a scene is lit: `{level, by, source}` with `level` one
+ * of `LIGHT_LEVELS` and `by` what decided it: `"sky"` (the scene's daylight, with
  * the point not inside an indoors Region), `"light"` (a source's daylight,
  * bright or dim reach, `brightestLightAt`'s reading) or `"none"` (dark).
  * Straight-line, ignoring walls, and answers for a scene nobody is viewing.
- * Daylight from a light is a token's own actor's daylight band
- * (`shedLight`), the marching column's lights and `extra`.
+ * Daylight from a light is a placed light's flag (`ambientDaylight`), a token's
+ * own actor's daylight band (`shedLight`), the marching column's lights and
+ * `extra`.
+ *
+ * `source` names the thing that decided, `{kind, name, cite}`: `kind` is `sky`,
+ * `ambient`, `token`, `column` or `extra`; `name` is that thing's own name, null
+ * where it has none; `cite` is the page that names the level (the sky's, or a
+ * light's daylight band), null where the module knows none. It is null for a dark
+ * point. Of several sources reaching a point, the one reaching furthest in the
+ * level's band is named, and a tie goes by kind (ambient, token, column, extra)
+ * and then by order among its kind; the sky is read before every light.
  *
  * @param {Scene} scene
  * @param {{x: number, y: number}} point pixel centre
@@ -855,16 +908,18 @@ function indoorsAt(scene, point, elevation) {
  * @param {boolean} [opts.daylit] replaces the scene's own sky reading (a journey's
  *   clock states the hour the scene's darkness does not); an indoors Region still roofs the point
  * @param {number} [opts.elevation] the point's elevation, for a Region bounded in height
- * @returns {{level: string, by: string}|null} null with no scene or no point
+ * @returns {{level: string, by: string, source: {kind: string, name: string|null, cite: string|null}|null}|null}
+ *   null with no scene or no point
  */
 export function lightLevelAt(scene, point, { extra = [], daylit, elevation = 0 } = {}) {
   if (!scene || !Number.isFinite(point?.x) || !Number.isFinite(point?.y)) return null;
   const sky = typeof daylit === "boolean" ? daylit : skyIsDaylight(scene);
-  if (sky && !indoorsAt(scene, point, elevation)) return { level: "daylight", by: "sky" };
+  if (sky && !indoorsAt(scene, point, elevation)) return { level: "daylight", by: "sky", source: { kind: "sky", name: null, cite: SKY_CITE } };
   for (const band of ["daylight", "bright", "dim"]) {
-    if (strongestReach(scene, point, { strict: true, extra, band }) > 0) return { level: band, by: "light" };
+    const { reach, source } = strongestSource(scene, point, { strict: true, extra, band });
+    if (reach > 0) return { level: band, by: "light", source };
   }
-  return { level: "dark", by: "none" };
+  return { level: "dark", by: "none", source: null };
 }
 
 /** How brightly a token's centre is lit; see `lightLevelAt`. Null for a token on no scene. */

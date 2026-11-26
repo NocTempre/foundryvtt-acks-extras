@@ -60,6 +60,7 @@ import { registerManagedEffectGuard, lockManagedEffectRows } from "./managed-eff
 import { associateLabels } from "./a11y.mjs";
 import { watchWindowTitle } from "./window-title.mjs";
 import { installWindowResize } from "./window-resize.mjs";
+import { installAmbientDaylightField } from "./ambient-daylight.mjs";
 import { keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "./client-pins.mjs";
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
@@ -1093,6 +1094,9 @@ Hooks.on("renderApplicationV2", (app, element) => {
 });
 
 installWindowResize();
+
+// The Daylight radius field on core's Light Source configuration window.
+installAmbientDaylightField();
 
 /**
  * Lock the trash control on module-managed effect rows, wherever core lists

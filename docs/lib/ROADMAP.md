@@ -213,9 +213,23 @@ at a point"). Not yet:
 - **Other throws under the light gate.** Saving throws, proficiency throws and
   morale do not read a `light` gate; an MM entry prints its penalty on all
   three, and only its attack throw row is imported.
-- **An ambient light's daylight band.** A placed light stores only bright and
-  dim, so only a token whose actor sheds a magic daylight radius, or the sky,
-  makes daylight.
+- **Sunlight-only consumers.** A rule that names the sun and not daylight at
+  large can ask `source.kind === "sky"` of `lightLevelAt`: MM p. 114, p. 237,
+  p. 321; RR ch. 2, JJ ch. 15, RR App. C (the nocturnal throws); JJ ch. 12;
+  JJ ch. 4; and the cast condition at RR p. 252.
+- **Barred from a lit area.** MM p. 274; MM ch. 4's special-ability list.
+- **Hindered in bright light.** MM p. 238.
+- **A perpetual area cast writes a placed light.** The cast at RR p. 228 lands
+  on its target as an ambient light, not on the caster's record
+  (`lightRowsOnCaster`).
+- **One sky answer.** `skyIsDaylight`, `journeyIsNight` and `sceneIsDark` read
+  the sky three ways.
+- **Ranges recalculated per ability (set aside by the owner).** Each rederives a
+  range from the bright reach: `lib/senses.mjs` `nightReach` and
+  `senseProfile({litBy})`; `lib/light.mjs` `brightestLightReaching`;
+  `lib/token-sync.mjs` `syncNightVisionTokens`; `lib/module.mjs`
+  `relightNightVision`; `formation/column-light.mjs` `carriedLightPoints`;
+  `character-sheet/tabs/stats.mjs`.
 - **"Clear" weather.** A penalty printed for clear daylight is read as any
   daylight; the weather is not consulted.
 - **Walls.** The level is read straight-line, as every light reader is.

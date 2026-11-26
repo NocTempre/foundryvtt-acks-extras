@@ -926,6 +926,8 @@
   "ACKS-LIB.light.level.bright": "Bright light",
   "ACKS-LIB.light.level.dim": "Dim light",
   "ACKS-LIB.light.level.dark": "Dark",
+  "ACKS-LIB.ambientDaylight.label": "Daylight radius",
+  "ACKS-LIB.ambientDaylight.tooltip": "How far this light sheds daylight, in the scene's distance units. Blank sheds none. This module's light readers use it; Foundry draws only the two radii beside it. (RR p. 228)",
   "ACKS-LIB.gate.targetCondition": "against a target that is {condition}",
   "ACKS-LIB.gate.combatRound": "in round {round}",
   "ACKS-LIB.gate.combatRoundRange": "in rounds {from} to {to}",

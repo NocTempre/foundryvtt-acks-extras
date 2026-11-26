@@ -65,11 +65,12 @@ import {
   senseProfile,
 } from "../scripts/lib/senses.mjs";
 import {
-  LIGHT_DOC, LIGHT_LEVELS, LIGHT_SHUTTER_FLAG, LIGHT_STATE, LIGHT_TABLE, MAGIC_LIGHT_CHANGE_KEYS, MAGIC_LIGHT_CITE_FLAG, brightestLightReaching, effectLight, emittedLight,
+  LIGHT_DOC, LIGHT_LEVELS, LIGHT_SHUTTER_FLAG, LIGHT_STATE, LIGHT_TABLE, MAGIC_LIGHT_CHANGE_KEYS, MAGIC_LIGHT_CITE_FLAG, brightestLightAt, brightestLightReaching, effectLight, emittedLight,
   isLightShuttered, lightAtLeast, lightCite, lightControl, lightFigures, lightLevelAt, lightLevelOf, lightStateDetail, lightStateOf, magicLightChanges, magicLightCite,
   magicLightRecord, magicLights, mergeLight, setLightShutter,
   shedLight, writesMagicLight,
 } from "../scripts/lib/light.mjs";
+import * as lightLib from "../scripts/lib/light.mjs";
 import { MAGIC_LIGHT_LOOK, applyTokenLight, applyTokenVision, isManagedLight, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { installTokenLightPaddingPatch, unpaddedRadius } from "../scripts/lib/patches/token-light-padding.mjs";
 import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } from "../scripts/lib/patches/spell-use.mjs";
@@ -2835,6 +2836,13 @@ const litScene = ({ units = "ft", distance = 10, darkness = 0, global = null, li
   regions,
 });
 const lightTok = (x, y, over = {}) => ({ x, y, width: 1, height: 1, ...over });
+/** The `source` a reading names: `{kind, name, cite}`. */
+const SRC = (kind, name = null, cite = null) => ({ kind, name, cite });
+/** An ambient light at (x, y) with the stored figures; `daylight` is the module's flag on it. */
+const ambient = (x, y, config, { daylight, name, ...over } = {}) => ({
+  x, y, width: 0, height: 0, config, ...(name ? { name } : {}),
+  ...(daylight === undefined ? {} : { flags: { "acks-extras": { daylight } } }), ...over,
+});
 const indoorsRegion = (inside, flagged = true) => ({
   getFlag: (scope, key) => (flagged && scope === "acks-extras" && key === "cookbook" ? { indoors: true } : undefined),
   testPoint: ({ x, y }) => inside(x, y),
@@ -2844,13 +2852,13 @@ t("lightLevelAt: the levels in order, and what decided each", () => {
   const origin = { x: 50, y: 50 };
   const scene = litScene();
   assert.deepEqual(LIGHT_LEVELS, ["daylight", "bright", "dim", "dark"]);
-  assert.deepEqual(lightLevelAt(scene, origin), { level: "dark", by: "none" });
+  assert.deepEqual(lightLevelAt(scene, origin), { level: "dark", by: "none", source: null });
 
   // A lamp 30' away (300px): its dim radius reaches 40', its bright radius 20'.
   scene.lights = [{ x: 350, y: 50, width: 0, height: 0, config: { bright: 20, dim: 40 } }];
-  assert.deepEqual(lightLevelAt(scene, origin), { level: "dim", by: "light" });
+  assert.deepEqual(lightLevelAt(scene, origin), { level: "dim", by: "light", source: SRC("ambient") });
   scene.lights[0].config.bright = 35;
-  assert.deepEqual(lightLevelAt(scene, origin), { level: "bright", by: "light" });
+  assert.deepEqual(lightLevelAt(scene, origin), { level: "bright", by: "light", source: SRC("ambient") });
   scene.lights[0].hidden = true;
   assert.equal(lightLevelAt(scene, origin).level, "dark", "a hidden lamp lights nothing");
   scene.lights[0].hidden = false;
@@ -2862,13 +2870,13 @@ t("lightLevelAt: the levels in order, and what decided each", () => {
   // A token's own light counts like any other.
   scene.lights = [];
   scene.tokens = [lightTok(0, 0, { light: { bright: 0, dim: 12 } })];
-  assert.deepEqual(lightLevelAt(scene, origin), { level: "dim", by: "light" });
+  assert.deepEqual(lightLevelAt(scene, origin), { level: "dim", by: "light", source: SRC("token") });
 });
 
 t("lightLevelAt: the scene's sky is daylight while its global light is on and the darkness is inside its range, below one half", () => {
   const origin = { x: 50, y: 50 };
   const sky = (darkness, over = {}) => lightLevelAt(litScene({ darkness, global: { enabled: true, darkness: { min: 0, max: 0.8 }, ...over } }), origin);
-  assert.deepEqual(sky(0.2), { level: "daylight", by: "sky" });
+  assert.deepEqual(sky(0.2), { level: "daylight", by: "sky", source: SRC("sky", null, "RR ch. 6") });
   assert.equal(sky(0.5).level, "dark", "half darkness is no longer day");
   assert.equal(sky(0.7).level, "dark", "inside the range but past half");
   assert.equal(sky(0.2, { darkness: { min: 0.3, max: 1 } }).level, "dark", "darkness below the range the global light is limited to");
@@ -2876,12 +2884,12 @@ t("lightLevelAt: the scene's sky is daylight while its global light is on and th
 
   // A night scene still reads the lights on it.
   const night = litScene({ darkness: 0.9, global: { enabled: true, darkness: { min: 0, max: 1 } }, lights: [{ x: 50, y: 50, width: 0, height: 0, config: { bright: 10, dim: 20 } }] });
-  assert.deepEqual(lightLevelAt(night, origin), { level: "bright", by: "light" });
+  assert.deepEqual(lightLevelAt(night, origin), { level: "bright", by: "light", source: SRC("ambient") });
 
   // The caller's own reading of the hour replaces the scene's.
   const noon = litScene({ darkness: 0, global: { enabled: true, darkness: { min: 0, max: 1 } } });
   assert.equal(lightLevelAt(noon, origin, { daylit: false }).level, "dark");
-  assert.deepEqual(lightLevelAt(litScene(), origin, { daylit: true }), { level: "daylight", by: "sky" });
+  assert.deepEqual(lightLevelAt(litScene(), origin, { daylit: true }), { level: "daylight", by: "sky", source: SRC("sky", null, "RR ch. 6") });
 });
 
 t("lightLevelAt: a point inside a Region flagged indoors is not under the sky", () => {
@@ -2895,7 +2903,7 @@ t("lightLevelAt: a point inside a Region flagged indoors is not under the sky", 
   const broken = { getFlag: () => ({ indoors: true }), testPoint: () => { throw new Error("no geometry"); } };
   assert.equal(lightLevelAt(litScene({ global: sky, regions: [broken] }), { x: 100, y: 50 }).level, "daylight", "a Region that cannot be tested roofs nothing");
   const lit = litScene({ global: sky, regions: [indoorsRegion(inside)], lights: [{ x: 100, y: 50, width: 0, height: 0, config: { bright: 10, dim: 20 } }] });
-  assert.deepEqual(lightLevelAt(lit, { x: 100, y: 50 }), { level: "bright", by: "light" }, "indoors, the lamp decides");
+  assert.deepEqual(lightLevelAt(lit, { x: 100, y: 50 }), { level: "bright", by: "light", source: SRC("ambient") }, "indoors, the lamp decides");
 });
 
 t("lightLevelAt: a magic light's daylight radius lights its reach as daylight, in the scene's own units", () => {
@@ -2903,7 +2911,7 @@ t("lightLevelAt: a magic light's daylight radius lights its reach as daylight, i
   // 30' of daylight on a yard scene (5 yd a square, so 20px a yard): 10 yd, 200px.
   const bearer = lightTok(0, 0, { actor: effectActor([{ id: "e1", daylight: "30" }]) });
   const near = litScene({ units: "yd", distance: 5, tokens: [bearer] });
-  assert.deepEqual(lightLevelAt(near, { x: 50 + 150, y: 50 }), { level: "daylight", by: "light" });
+  assert.deepEqual(lightLevelAt(near, { x: 50 + 150, y: 50 }), { level: "daylight", by: "light", source: SRC("token", null, "RR p. 228") });
   assert.equal(lightLevelAt(near, { x: 50 + 250, y: 50 }).level, "dark", "past ten yards");
   assert.equal(lightLevelAt(litScene({ tokens: [bearer] }), { x: 50 + 250, y: 50 }).level, "daylight", "the same 30' on a feet scene reaches 250px");
 
@@ -2914,14 +2922,14 @@ t("lightLevelAt: a magic light's daylight radius lights its reach as daylight, i
 
   // A bearer whose light states bright and dim only is bright, never daylight.
   const lamp = lightTok(0, 0, { actor: effectActor([{ id: "e1", bright: "20", dim: "40" }]), light: { bright: 20, dim: 40 } });
-  assert.deepEqual(lightLevelAt(litScene({ tokens: [lamp] }), origin), { level: "bright", by: "light" });
+  assert.deepEqual(lightLevelAt(litScene({ tokens: [lamp] }), origin), { level: "bright", by: "light", source: SRC("token") });
 
   // Extra points and the column's points carry daylight too.
   const empty = litScene();
   assert.equal(lightLevelAt(empty, origin, { extra: [{ x: 50, y: 50, daylight: 5, bright: 5 }] }).level, "daylight");
   globalThis.acksExtras = { ...(globalThis.acksExtras ?? {}), formation: { carriedLightPoints: () => [{ x: 50, y: 50, daylight: 0, bright: 8, dim: 16 }] } };
   try {
-    assert.deepEqual(lightLevelAt(empty, origin), { level: "bright", by: "light" });
+    assert.deepEqual(lightLevelAt(empty, origin), { level: "bright", by: "light", source: SRC("column") });
     assert.equal(brightestLightReaching({ ...lightTok(0, 0), parent: empty }), 8, "the bright reader is unchanged by the new fields");
   } finally {
     delete globalThis.acksExtras.formation;
@@ -2931,13 +2939,106 @@ t("lightLevelAt: a magic light's daylight radius lights its reach as daylight, i
 t("lightLevelOf reads a token's centre; no scene, no grid or no point gives null", () => {
   const scene = litScene({ lights: [{ x: 150, y: 50, width: 0, height: 0, config: { bright: 5, dim: 15 } }] });
   const me = { ...lightTok(0, 0), parent: scene };
-  assert.deepEqual(lightLevelOf(me), { level: "dim", by: "light" });
+  assert.deepEqual(lightLevelOf(me), { level: "dim", by: "light", source: SRC("ambient") });
   assert.equal(lightLevelOf({ ...me, parent: null }), null);
   assert.equal(lightLevelOf({ ...me, parent: { grid: {} } }), null);
   assert.equal(lightLevelOf(null), null);
   assert.equal(lightLevelAt(null, { x: 0, y: 0 }), null);
   assert.equal(lightLevelAt(scene, { x: NaN, y: 0 }), null);
   assert.equal(lightLevelAt(scene, null), null);
+});
+
+t("ambientDaylight: a positive figure on the module's flag, else null", () => {
+  assert.equal(lightLib.AMBIENT_DAYLIGHT_FLAG, "daylight");
+  const of = (value) => lightLib.ambientDaylight({ flags: { "acks-extras": { daylight: value } } });
+  assert.equal(of(25), 25);
+  assert.equal(of("25"), 25, "a stored text figure reads as its number");
+  for (const blank of [undefined, null, "", 0, -5, NaN, "far"]) assert.equal(of(blank), null, `${String(blank)} sheds none`);
+  assert.equal(lightLib.ambientDaylight({ flags: {} }), null);
+  assert.equal(lightLib.ambientDaylight(null), null);
+  assert.equal(lightLib.ambientDaylight({ getFlag: (scope, key) => (scope === "acks-extras" && key === "daylight" ? 12 : undefined) }), 12, "a document is read through getFlag");
+});
+
+t("lightLevelAt: an ambient light's daylight radius lights its reach as daylight at night, and names the light", () => {
+  const origin = { x: 50, y: 50 };
+  // The lamp is 30 units away; core's bright radius is 20, the flag's daylight radius 35.
+  const night = (lamp, rest = {}) => litScene({ darkness: 0.9, lights: [lamp], ...rest });
+  const flagged = ambient(350, 50, { bright: 20, dim: 40 }, { daylight: 35, name: "Test Lamp" });
+  assert.deepEqual(lightLevelAt(night(flagged), origin), { level: "daylight", by: "light", source: SRC("ambient", "Test Lamp", "RR p. 228") });
+  assert.deepEqual(lightLevelOf({ ...lightTok(0, 0), parent: night(flagged) }), { level: "daylight", by: "light", source: SRC("ambient", "Test Lamp", "RR p. 228") });
+
+  // The flag blank: the light is the bright light core's radius states, and still names itself.
+  for (const blank of [undefined, null, "", 0]) {
+    const plain = ambient(350, 50, { bright: 35, dim: 40 }, { daylight: blank, name: "Test Lamp" });
+    assert.deepEqual(lightLevelAt(night(plain), origin), { level: "bright", by: "light", source: SRC("ambient", "Test Lamp") }, `flag ${String(blank)}`);
+  }
+
+  // Beyond the daylight radius but inside core's bright radius: bright light.
+  const wide = ambient(350, 50, { bright: 35, dim: 40 }, { daylight: 20, name: "Test Lamp" });
+  assert.deepEqual(lightLevelAt(night(wide), origin), { level: "bright", by: "light", source: SRC("ambient", "Test Lamp") });
+  // Beyond both radii but inside dim: dim light, with no page named.
+  const far = ambient(350, 50, { bright: 10, dim: 40 }, { daylight: 20, name: "Test Lamp" });
+  assert.deepEqual(lightLevelAt(night(far), origin), { level: "dim", by: "light", source: SRC("ambient", "Test Lamp") });
+  // Past every radius: dark.
+  assert.deepEqual(lightLevelAt(night(ambient(350, 50, { bright: 10, dim: 20 }, { daylight: 20 })), origin), { level: "dark", by: "none", source: null });
+
+  // The activation range, a hidden light and a darkness source stop every radius, daylight included;
+  // the next band down is whatever else reaches.
+  const backup = lightTok(0, 0, { name: "Test Bearer", light: { bright: 0, dim: 12 } });
+  const reading = (over) => lightLevelAt(night(ambient(350, 50, { bright: 20, dim: 40, ...over.config }, { daylight: 35, ...over.light }), { tokens: [backup] }), origin);
+  assert.deepEqual(reading({}), { level: "daylight", by: "light", source: SRC("ambient", null, "RR p. 228") });
+  assert.deepEqual(reading({ config: { darkness: { min: 0, max: 0.5 } } }), { level: "dim", by: "light", source: SRC("token", "Test Bearer") }, "outside its activation range");
+  assert.deepEqual(reading({ light: { hidden: true } }), { level: "dim", by: "light", source: SRC("token", "Test Bearer") }, "hidden");
+  assert.deepEqual(reading({ config: { negative: true } }), { level: "dim", by: "light", source: SRC("token", "Test Bearer") }, "a darkness source");
+
+  // A daylight radius is a scene unit like core's: ten yards of daylight on a yard scene is 200px.
+  const yards = litScene({ units: "yd", distance: 5, darkness: 0.9, lights: [ambient(250, 50, { bright: 0, dim: 0 }, { daylight: 10 })] });
+  assert.equal(lightLevelAt(yards, origin).level, "daylight");
+  assert.equal(lightLevelAt(yards, { x: 50 - 100, y: 50 }).level, "dark", "past ten units");
+});
+
+t("brightestLightAt: a daylight radius is bright light too, so the larger of the two counts", () => {
+  const at = { x: 50, y: 50 };
+  const reach = (config, daylight, over = {}) => brightestLightAt(litScene({ lights: [ambient(350, 50, config, { daylight, ...over })] }), at);
+  assert.equal(reach({ bright: 20, dim: 40 }, 35), 35, "daylight wider than bright");
+  assert.equal(reach({ bright: 50, dim: 60 }, 35), 50, "bright wider than daylight");
+  assert.equal(reach({ bright: 50, dim: 60 }, undefined), 50, "no flag, core's radius");
+  assert.equal(reach({ bright: 0, dim: 60 }, 35), 35, "daylight alone");
+  assert.equal(reach({ bright: 20, dim: 40 }, 25), 0, "out of both radii, the 30 away point is past 25");
+  assert.equal(reach({ bright: 20, dim: 40 }, 35, { hidden: true }), 0);
+  assert.equal(reach({ bright: 20, dim: 40, negative: true }, 35), 0);
+  assert.equal(reach({ bright: 20, dim: 40, darkness: { min: 0.5, max: 1 } }, 35), 0, "not shining at darkness 0");
+  // The non-strict reader counts the daylight radius as bright reach as well.
+  const scene = litScene({ lights: [ambient(350, 50, { bright: 20, dim: 40 }, { daylight: 35 })] });
+  assert.equal(brightestLightReaching({ ...lightTok(0, 0), parent: scene }), 35);
+});
+
+t("lightLevelAt: the source is chosen by the largest reach, then by kind order, then by document order", () => {
+  const origin = { x: 50, y: 50 };
+  // Two ambient lights of one radius: the first listed names the reading.
+  const two = litScene({ lights: [ambient(150, 50, { bright: 20, dim: 20 }, { name: "First" }), ambient(50, 150, { bright: 20, dim: 20 }, { name: "Second" })] });
+  assert.equal(lightLevelAt(two, origin).source.name, "First");
+  // A wider radius wins over an earlier narrower one.
+  const wider = litScene({ lights: [ambient(150, 50, { bright: 20, dim: 20 }, { name: "First" }), ambient(50, 150, { bright: 30, dim: 30 }, { name: "Second" })] });
+  assert.equal(lightLevelAt(wider, origin).source.name, "Second");
+  // Equal radii across kinds: ambient, then token, then column, then extra.
+  const token = lightTok(0, 0, { name: "Test Bearer", light: { bright: 20, dim: 20 } });
+  const kindOf = (scene, opts) => lightLevelAt(scene, origin, opts).source.kind;
+  const both = litScene({ tokens: [token], lights: [ambient(150, 50, { bright: 20, dim: 20 })] });
+  assert.equal(kindOf(both, { extra: [{ x: 50, y: 50, bright: 20 }] }), "ambient");
+  assert.equal(kindOf(litScene({ tokens: [token] }), { extra: [{ x: 50, y: 50, bright: 20 }] }), "token");
+  assert.deepEqual(lightLevelAt(litScene(), origin, { extra: [{ x: 50, y: 50, bright: 20, name: "Test Torch" }] }).source, SRC("extra", "Test Torch"));
+  assert.equal(lightLevelAt(litScene(), origin, { extra: [{ x: 50, y: 50, daylight: 5, bright: 5 }] }).source.cite, null, "a caller's own point names no page");
+  globalThis.acksExtras = { ...(globalThis.acksExtras ?? {}), formation: { carriedLightPoints: () => [{ x: 50, y: 50, daylight: 6, bright: 6, dim: 6 }] } };
+  try {
+    assert.deepEqual(lightLevelAt(litScene(), origin).source, SRC("column", null, "RR p. 228"));
+    assert.equal(kindOf(litScene(), { extra: [{ x: 50, y: 50, daylight: 6, bright: 6 }] }), "column", "equal reach: the column before extra");
+  } finally {
+    delete globalThis.acksExtras.formation;
+  }
+  // The sky decides before any light, and names no thing.
+  const noon = litScene({ darkness: 0, global: { enabled: true, darkness: { min: 0, max: 1 } }, lights: [ambient(50, 50, { bright: 50, dim: 50 }, { daylight: 50 })] });
+  assert.deepEqual(lightLevelAt(noon, origin).source, SRC("sky", null, "RR ch. 6"));
 });
 
 t("lightAtLeast: brighter satisfies dimmer, and daylight is met by daylight alone", () => {

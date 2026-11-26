@@ -3160,3 +3160,35 @@ The 2026-11-25 entry "\"How it is used\" folds once, fuse and consume into one o
 **Rejected.** Spending every once-only item's count: every item carries a Quantity of one, so each reusable once-press item, the imported one included, would read Used up after its first use, which no page says. Deleting the item at its last use: the row's Used up state would never be seen.
 
 **Cost.** The option is named Used up and the box under it says whether a use spends one, two controls where a reader may expect one. An imported once-only item arrives unticked; the importer reads nothing that says a thing is spent by its use.
+
+## 2026-11-26 — A placed light sheds daylight by a module flag, and the reader names its source
+
+**Ruled.** The owner, on the stage fix: "The stage fix is tracking light as more
+than 2 bands, and giving bright light the groundwork for functionally distinct
+status (hinders low-light creatures, protects from some shadows, etc) as well as
+formalizing the low-light ranges with the light source instead of trying to
+recalc on any ability." Then: "Scratch the low-light actually. just worry about
+adding daylight". And: "As always, follow RAW". Daylight is the band added,
+above bright (RR p. 228 names daylight, bright light, dim light and pitch
+blackness); `LIGHT_LEVELS` already carried it, and a Judge can now place a light
+that sheds it. Core's AmbientLight carries two radii, so the daylight radius is
+`flags.acks-extras.daylight`, in the scene's distance units, edited by one
+"Daylight radius" control injected into core's Light Source configuration
+window. Blank sheds none. A daylight radius is bright light as well (the
+2026-11-15 fold), so a placed light's bright reach is the larger of core's
+`bright` and the flag. `lightLevelAt` and `lightLevelOf` answer
+`{level, by, source}`, `source` naming the sky, an ambient light, a token, the
+column or a caller's point, with the page that names the level where the module
+knows one, so a later rule that reads only sunlight can ask for the sky. This adds
+to "A magic light can state a daylight radius" (2026-11-15), which it does not
+reverse: that entry's flames-shed-none and no-fourth-radius rulings stand.
+
+**Rejected.** A third radius written to core's light (`config.bright` and
+`config.dim` stay as the Judge set them, and no token or light is rewritten); a
+low-light band or range, and recalculating ranges per ability, which the owner set
+aside (registered in ROADMAP, "What daylight from a magic light does not do yet").
+
+*Cost:* the reading gains a key, so a caller comparing the whole object, where it
+held `{level, by}` alone, sees `source` too; every caller in the repo reads
+`level` or `by`. The field is core's window carrying a control it did not
+declare, which only a live run proves.
