@@ -146,6 +146,45 @@ function oneRowPerEngagedKind(rows) {
 }
 
 /**
+ * The rows of the reaches that name a body's token, one per reach and one per
+ * engaged kind, with no seat test: the strip and the canvas glyph's readout
+ * both read them. `select` narrows the `{region, behavior}` pairs the token
+ * stands in before any row is read, so a collapse to the nearest engaged bearer
+ * never lets a pair the seat is not shown hide one it is.
+ *
+ * @param {TokenDocument} token  The body's token.
+ * @param {Actor} actor  The body.
+ * @param {(found: Array<{region: object, behavior: object}>) => Array<{region: object, behavior: object}>} [select]
+ * @returns {object[]}
+ */
+export function reachRowsOn(token, actor, select = (found) => found) {
+  const found = select(behaviorsUnder(token, AURA_BEHAVIOR_TYPE));
+  return oneRowPerEngagedKind(found.map((pair) => readReachOn(pair, token, actor)).filter(Boolean));
+}
+
+/**
+ * One reach's row as the single line the canvas readout shows: the item (and
+ * its state, where `withTag`), the source and its distance, the reach and the
+ * page, the standing figure. A radius left blank drops out and the page stays.
+ *
+ * @param {object} row  A `reachRowsOn` row.
+ * @param {{withTag?: boolean}} [opts]  `withTag` adds the state and the turns left.
+ * @returns {string}
+ */
+export function reachLineOf(row, { withTag = false } = {}) {
+  const left = row.left === null || row.left === undefined ? "" : loc("itemRun.strip.left", { turns: row.left });
+  const state = withTag ? [loc(`itemRun.strip.tag.${row.tag}`), left].filter(Boolean).join(" · ") : "";
+  const pieces = [
+    state ? `${row.name} (${state})` : row.name,
+    `${row.source}${row.feet === null ? "" : `, ${row.feet}′ ${loc("itemRun.strip.away")}`}`,
+    row.radius === null ? "" : `${loc("itemRun.strip.reach")} ${row.radius}′`,
+    row.cite,
+    row.part ? `${row.part.rolls} ${row.part.value}` : "",
+  ];
+  return pieces.filter(Boolean).join(" · ");
+}
+
+/**
  * The strip model for a body, localized, or null where the strip is absent: the
  * seat does not own the body, the body has no token on the viewed scene, or no
  * reach names it.
@@ -157,8 +196,7 @@ export function reachStripFor(actor) {
   if (!actor?.testUserPermission?.(game.user, "OWNER")) return null;
   const token = viewedToken(actor);
   if (!token) return null;
-  const reaches = oneRowPerEngagedKind(behaviorsUnder(token, AURA_BEHAVIOR_TYPE).map((found) => readReachOn(found, token, actor)).filter(Boolean));
-  const strip = stripModel(reaches);
+  const strip = stripModel(reachRowsOn(token, actor));
   if (!strip.count) return null;
   return {
     title: loc("itemRun.strip.title"),
