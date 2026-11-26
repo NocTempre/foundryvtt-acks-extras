@@ -1,4 +1,4 @@
-# lib API (apiVersion 94)
+# lib API (apiVersion 95)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 94,
+  apiVersion: 95,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -77,6 +77,7 @@ acksExtras.lib = {
   // 89: summons.dismissSummons refuses a non-GM only a creature whose control ended hostile; a bare summon reads Foundry's Create Tokens grant; the party-roster contract's v5 `amendSummons` (below, "`summons`" and "Contract `party-roster` v5")
   // 91: groups.registerCarryResolver; groups.deploy takes `extraDelta`; a group roster record carries `carries` (docs/lib/GROUPS.md, "A body sent out carrying its item"); itemRun.logic.{itemRunUsedUp, SPENDING_KINDS} (below, "`itemUse`, `itemRun` and `auraReach`")
   // 94: groups.{deployAnchor, registerStackRowControl, stackRowControls, pressStackRowControl}; groups.deploy takes `carrying` (docs/lib/GROUPS.md, "A body sent out carrying its item"); actorRead.kindKeys (below, "`itemUse`, `itemRun` and `auraReach`")
+  // 95: itemRun.{postOutcomeCard, swigHeal, swigAskSave}; a `consume` activation is run (Swig); itemRun.logic.readItemRun answers a consume activation's `left` and `bearerUuid`; itemRun.logic.itemRunUsedUp counts a consume item with no swigs left (below, "apiVersion 95, the consume item")
 }
 ```
 
@@ -2372,3 +2373,4 @@ Rows on the lib api from `apiVersion` 76.
 - apiVersion 91, the presses (S8b-2): `itemRun.logic` gains `itemRunUsedUp(item)` (a run item whose activation spends a count and whose count is none; never a raised one) and `SPENDING_KINDS`. Internal, indexed in `scripts/lib/README.md`: the sheet rows' model and view (`item-run-row.mjs`, `item-run-row-view.mjs`), the Token HUD's controls (`item-run-hud.mjs`), the reach glyph (`reach-glyph-logic.mjs`, `reach-glyph.mjs`), a carried item's effect rows on its sheet (`gear-effect-rows.mjs` `gearEffectStore`, `gear-effect-sheet.mjs`), the item-sheet host finder (`item-sheet-host.mjs`), `item-run.mjs` `hasActivationRunner(kind)`, `aura-reach.mjs` `engagedStateOf(token, item, row)`, `item-run-strip.mjs` `reachRowsOn`, `reachLineOf` and `radiusFigure`, `vocab.GEAR_DOMAIN`, and `constants.MINTED_ITEM_IMG`.
 - apiVersion 92, a split asks for the right to create (T-0792 B4): `places.splitPlace(place, take)` answers null and writes nothing where the seat lacks `Actor.canUserCreate(game.user)` as well as where it does not own the place, and lowers the stack's count only once the new member exists, so a refused or failed create loses no instance.
 - apiVersion 93, the fuse item (gear S9a): `itemRun` gains `registerPressOutcome(cardKind, fn)` (a card kind's writer, consulted by the Save and Apply presses: `fn({phase, card, entry, key, saved, subjectToken, actor, userId})` answers `{records, names, life, hp?, state?, judge?, why?, amount?}`), `registerStructureDamage(fn)` (one writer, `fn({vehicleUuid, total, userId})`, filled by vehicles), `setProficiencyReader(fn)` (filled by monsters), `burstFuse({actor, record})`, and the card presses `moveFuseSpot({activationId, spot})`, `setFuseOffNow({activationId})`, `applyEntry({messageId, entryKey})`, `applyAllEntries({messageId})` and `handOn({messageId, vehicleUuid})`, callable from any seat and re-checked by Foundry ownership on the GM's window; `litStateOf(effects, itemUuid)` answers a lit item's `{roundsLeft, combat, dueAt}`. A `fuse` activation is registered (`runFuse`). `itemRun.logic` gains `fuseLight`, `blastOf`, `burstAmount` (a passed save takes `reduction` off), `fuseWorldFlag`, `fuseSpot`, `fuseRecordData`, `proficiencyBonus`, `checkApplyRequest` and `litStateOf`; `readItemRun` answers `proficiency`, `sizes`, `blast` and `variant`; `readReach` and `reachFigures` answer `fraction`; `undoPlan` answers `hp`. `lib/point-pick.mjs` `pickPoint({text})` is internal.
+- apiVersion 95, the consume item (gear S9b-2): `itemRun` gains `postOutcomeCard({kind, itemUuid, title, subtitle, subjects, saveName, saveMod, facts, speakerActorUuid})` (a prompt card of a kind with a registered press writer, or `swigUnknown`, posted from any seat: a Player's seat relays and the GM's window posts only where the sender owns `speakerActorUuid`; a post's facts never set the keys a card holds for itself, and `burst` is refused), `swigHeal({messageId})` and `swigAskSave({messageId})` (an unknown drinker's card, by ownership of the drinker). A `consume` activation is registered (`runConsume`), and the `swig` press writer with it; a writer's `judge` answer at the Save writes nothing. A card's `saveMod` reaches the throw and the verdict as a situational modifier (`cardSaveOptions`, internal). `itemRun.logic.readItemRun` answers a consume activation's `left` and `bearerUuid`, and `itemRunUsedUp` is true for a consume item whose `left` is a number at or below none. `FLAG_DRINK` (`constants.mjs`) and `lib/swig-logic.mjs` (`swigOutcome`, `drinkerKindOf`, `swigStampPlan`) are internal.
