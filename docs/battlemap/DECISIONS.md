@@ -464,7 +464,7 @@ them.
 **Cost.** A Judge who picks Terrain to look under a territory brush and then
 paints sees the view switch back on the first stroke.
 
-## 2026-11-25 — The square's size in feet is a unit of measure and stays in source — SUPERSEDED IN PART 2026-11-25
+## 2026-11-25 — The square's size in feet is a unit of measure and stays in source — SUPERSEDED IN PART 2026-11-25, 2026-11-26
 
 The owner, the same day, on the import of the rounds to a dungeon turn: "Too
 aggressive, rounds per turn is very generic rules, not IP", and as the test:
@@ -602,4 +602,55 @@ Three calls from the map UI defect batch, drawn on one board and approved by the
   Dungeon, Wilderness, Settlement, and the clearing entry and the setup select say "Not declared", the face's own word
   for that state. The party sheet is where the mode runs; the map only declares it, so its words follow. No formation
   string moved. Cost: a Judge used to the old labels on the scene card, the picker and Map setup reads new ones.
+
+## 2026-11-26 — A world's square table is the Judge's override of the stated square
+
+Supersedes in part "The square's size in feet is a unit of measure and stays in
+source" (2026-11-25, above): its Ruled bullet that the `monsters` / `sizeSquare`
+table is not read, the first bullet of its Cost in part (a world that holds the
+table does edit the square in the Ruledata Browser), and its second, that an
+upgraded world's table is listed and "changes nothing". That entry is under seven days old, so
+the new evidence is named. The owner, 2026-11-25, on the design choices of the
+release hub: "make the call yourself and build, as long as it follows the repo's
+design rules and has had a reasonable pass for these general principles: every
+value has a control, everything has a manual override or entry point, and
+nothing is buried in a hidden table." On this row the owner had earlier said
+"only if they were dropped for "Not IP" grounds"; the entry above is such a
+drop, and its Cost records what it left: a table a world already holds, listed
+and editable in the Ruledata Browser, that nothing reads. The hub's call, T-0781: "Departs from the earlier direction, on the new
+principles. Do not drop the orphan table. Make the listed table the Judge's
+override of the constant stated in source".
+
+**Ruled.**
+- `sizeSquareFeet()` answers the `feet` of the world's `monsters` /
+  `sizeSquare` table, row `squares`, where it holds a positive figure, read
+  through `lib/tables.mjs` `getDoc` so a Judge's override layer wins, and
+  `SQUARE_FEET` otherwise. It still never answers null. A blank, zero,
+  negative, non-numeric or missing-row figure leaves the constant.
+- The constant stays in source with its page reference (MM p. 11), and a
+  token with no size category is one square in a world that holds no table. No
+  recipe produces the table and `expectTables` does not declare it: a
+  declaration would list it as outstanding in every world, and the import
+  stays one the module no longer makes.
+- An example: a world that imported `sizeSquare` while the square was imported
+  lists it in the Ruledata Browser (Settings tab → Game Settings → ACKS II —
+  Extras → Imported Rules Tables → Open Ruledata Browser). A Judge who edits its
+  `feet` to 7 now has `footprintFeet({})` answer 7 on each side and a category
+  of 7 × 3 squares answer 49 by 21 feet; clearing the edit returns the stated
+  square.
+
+**Rejected.** Dropping the table from every world (a tool, or the importer
+discarding it): the value would have lost its control, against the owner's
+principle. Declaring it with `expectTables` so a fresh world is offered it: the
+square is a unit the module states, so a fresh world has nothing to import.
+
+**Strongest counter, MEDIUM.** A Judge's table now shadows a constant the
+owner ruled a unit of measure, so a world can hold two squares: the footprint
+counts in the table's and engagement (`engagementFeet()`) in the constant's.
+Not HIGH: the table exists only where a Judge or an earlier import put it, and
+engagement is ruled the adjacent square of the book, not the footprint's unit.
+
+**Cost.** A table with no recipe and no declaration is listed in the Ruledata
+Browser by what a layer holds and never by an outstanding list, so a world that
+never held one cannot reach the override there.
 

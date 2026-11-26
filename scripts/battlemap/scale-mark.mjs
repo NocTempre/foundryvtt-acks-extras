@@ -220,7 +220,7 @@ const fmt = (n) => String(Number(Number(n).toFixed(2)));
 /**
  * The page reference of the figures behind a footprint: the page the frontage
  * table was imported from, else the reference the module ships for the size
- * table. The square is stated, so the line always has a page to name.
+ * table. The module ships that reference, so the line always has a page to name.
  */
 export function citeText() {
   return ` ${game.i18n.format(KEYS.cite, { cite: sizeCite() ?? game.i18n.localize(KEYS.sizesCite) })}`;

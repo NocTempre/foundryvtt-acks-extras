@@ -20,8 +20,9 @@ export const SPAN_MIN = 0.25;
 
 /**
  * Resolve a token's footprint in feet. A size category's squares are the
- * imported frontage cells (`monsters/sizes.mjs`) and a square's worth is the
- * stated one (`sizeSquareFeet`); a category the world holds no frontage for
+ * imported frontage cells (`monsters/sizes.mjs`) and a square's worth is
+ * `sizeSquareFeet`: the stated constant, or the world's own table where it
+ * holds one; a category the world holds no frontage for
  * has no footprint, so the answer is null and the caller leaves the token as
  * it is. A token with no category is one square. An override needs neither.
  * @param {object} input

@@ -15,7 +15,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
-import { TURNS_PER_HOUR } from "../lib/time-unit.mjs";
+import { turnsPerHour } from "../lib/time-unit.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 import { parseCount, countFrom } from "./survival-binding.mjs";
@@ -97,7 +97,7 @@ export function parseCadenceTurns(text) {
   const hours = /\((\d+|[a-z-]+)\s*hours?\)/.exec(t);
   if (hours) {
     const n = parseCount(hours[1]);
-    if (n != null) return n * TURNS_PER_HOUR;
+    if (n != null) return n * turnsPerHour();
   }
   return null;
 }

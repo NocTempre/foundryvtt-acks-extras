@@ -572,19 +572,46 @@ t("a frequency phrase reads to its key", () => {
 /*  Cast durations                                                     */
 /* ------------------------------------------------------------------ */
 
-t("the time unit answers a positive number from its own constants, and a registered formation document moves none of it", () => {
+t("the time unit answers a positive number from its own constants, and a world's formation tables stand in for them", () => {
   const readers = () => [timeUnit.roundsPerTurn(), timeUnit.turnsPerHour(), timeUnit.turnsPerDay(), timeUnit.turnSeconds(), timeUnit.roundSeconds()];
   const bare = readers();
   assert.ok(bare.every((n) => typeof n === "number" && n > 0), "with nothing registered, every reader answers a positive number");
   assert.deepEqual(bare, [TIME_COUNTS.roundsPerTurn, TIME_COUNTS.turnsPerHour, TIME_COUNTS.turnsPerHour * timeUnit.HOURS_PER_DAY, TURN_SECONDS, ROUND_SECONDS]);
   assert.equal(timeUnit.timeUnitCite(), "RR p.263");
-  registerTable({ id: "formation", tables: { roundsPerTurn: 20, turnsPerHour: 12 } }, { priority: PRIORITY.WORLD, source: "test" });
+  const HOUR = timeUnit.SECONDS_PER_HOUR;
+  const DAY = timeUnit.HOURS_PER_DAY;
+  const world = (tables, priority = PRIORITY.WORLD) => registerTable({ id: "formation", tables }, { priority, source: "test" });
   try {
-    assert.deepEqual(readers(), bare, "a formation document carrying other counts does not move the unit");
+    // Both tables held: both counts move, and every figure computed from them follows.
+    world({ roundsPerTurn: 20, turnsPerHour: 12 });
+    assert.deepEqual(readers(), [20, 12, 12 * DAY, HOUR / 12, HOUR / 12 / 20], "a world's tables move every reader");
+    assert.deepEqual(castDuration({ shape: "fixed", value: 2, unit: "turns" }), { value: 2 * (HOUR / 12), units: "seconds" }, "a duration in turns counts the world's turn");
+    // One table held: the other stays at its constant.
+    world({ roundsPerTurn: 20 });
+    assert.deepEqual(readers(), [20, TIME_COUNTS.turnsPerHour, TIME_COUNTS.turnsPerHour * DAY, TURN_SECONDS, TURN_SECONDS / 20], "a lone rounds table leaves the turns at their constant");
+    world({ turnsPerHour: 12 });
+    assert.deepEqual(readers(), [TIME_COUNTS.roundsPerTurn, 12, 12 * DAY, HOUR / 12, HOUR / 12 / TIME_COUNTS.roundsPerTurn], "a lone turns table leaves the rounds at their constant");
+    // An override layer above the import wins, and dropping it reverts.
+    world({ roundsPerTurn: 20, turnsPerHour: 12 });
+    world({ roundsPerTurn: 5, turnsPerHour: 4 }, PRIORITY.OVERRIDE);
+    assert.deepEqual(readers(), [5, 4, 4 * DAY, HOUR / 4, HOUR / 4 / 5], "the override layer wins");
+    unregisterTable("formation", { priority: PRIORITY.OVERRIDE });
+    assert.deepEqual(readers().slice(0, 2), [20, 12], "and dropping it reverts to the import");
+    // A figure that is no positive whole number falls back to its constant.
+    for (const bad of [undefined, null, "", "abc", 0, -3, "0", 2.5, NaN, Infinity, {}, [], { __missing: true }]) {
+      world({ roundsPerTurn: bad, turnsPerHour: bad });
+      assert.deepEqual(readers(), bare, `a figure of ${String(JSON.stringify(bad))} falls back to the constants`);
+    }
+    world({ restInterval: 3 });
+    assert.deepEqual(readers(), bare, "a formation document holding neither table answers the constants");
+    // A whole number written as text reads as that number.
+    world({ roundsPerTurn: "20", turnsPerHour: "12" });
+    assert.deepEqual(readers().slice(0, 2), [20, 12], "a count written as text is read as a number");
   } finally {
     unregisterTable("formation", { priority: PRIORITY.WORLD });
+    unregisterTable("formation", { priority: PRIORITY.OVERRIDE });
   }
-  assert.deepEqual(castDuration({ shape: "fixed", value: 2, unit: "turns" }), { value: 2 * TURN_SECONDS, units: "seconds" }, "a duration in turns counts the unit's seconds");
+  assert.deepEqual(readers(), bare, "with the world's tables gone the constants answer again");
 });
 
 t("every duration shape has a row in the duration table, and an untimed one answers none", () => {

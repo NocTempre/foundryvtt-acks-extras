@@ -120,7 +120,8 @@ Before the turn engine bills a delve it reads the scene's scale: a declared delv
 ## The turn's unit (RR p. 263)
 
 The rounds a turn counts for and the turns an hour holds are the module's own
-units of game time, stated in `lib/time-unit.mjs` and imported from nowhere:
+units of game time, stated in `lib/time-unit.mjs` as constants that a world's
+`formation` tables of the same names stand in for:
 `roundsPerTurn()`, `turnsPerHour()`, `turnSeconds()` (the hour over the turns
 it holds), `roundSeconds()`, `turnsPerDay()` and `timeUnitCite()` each answer a
 positive number, or the page for the cite. Every reader in this feature reads

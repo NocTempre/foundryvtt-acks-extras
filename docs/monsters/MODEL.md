@@ -441,13 +441,17 @@ table (MM Overview p. 11), imported into registry document `monsters`, table
 squares: the first printed pair, else a lone figure or fraction, each side held
 to one square at the least (a body never occupies less than a token square).
 What one of its squares is worth in feet, the unit the row's label names, is
-stated and not imported: `SQUARE_FEET` of `lib/distance-units.mjs` (MM p. 11),
-which `sizes.mjs` re-exports and
-`sizeSquareFeet()` answers whatever the world holds. No recipe produces a
-table for it. A world that imported one while the square was imported keeps
-it: the rules-table import carries forward every table its layer already
-holds (`tables-binding.mjs` `importTables`), so the Ruledata Browser still
-lists `sizeSquare` there, and nothing reads it. Two readers take the frontage: the battlemap's `footprintFeet`, which
+stated in source and not imported: `SQUARE_FEET` of `lib/distance-units.mjs`
+(MM p. 11), which `sizes.mjs` re-exports. `sizeSquareFeet()` answers the `feet`
+of the world's `sizeSquare` table, row `squares`, where it holds a positive
+figure, read through `lib/tables.mjs` `getDoc` so a Judge's override layer wins,
+and `SQUARE_FEET` otherwise, never null. No recipe produces the table and
+`expectTables` does not declare it, so a world holds one only from an import
+made while the square was imported, which the rules-table import carries
+forward with every table its layer already holds (`tables-binding.mjs`
+`importTables`). The Ruledata Browser lists a table a world layer holds and
+no other, so it lists `sizeSquare` there, and an override of that row is the
+Judge's control over the square. Two readers take the frontage: the battlemap's `footprintFeet`, which
 multiplies it by the square (`docs/battlemap/MODEL.md`, "Token sizing"), and
 the importer, which sets a monster's prototype token to the squares. The Judge
 edits the frontage in the Ruledata Browser like any imported table, and the

@@ -398,15 +398,31 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   unregisterTable(SIZE_DOC, { priority: PRIORITY.OVERRIDE });
   assert.deepEqual(sizeSquares("large"), { w: 7, h: 3 }, "and reverts");
 
-  // The square is stated, not read: a document registered with a `sizeSquare`
-  // table of its own, on any layer, moves neither it nor a footprint.
-  const otherSquare = { sizeSquare: { [SIZE_ROW]: { feet: SQUARE + 3 } } };
-  registerTable({ id: SIZE_DOC, tables: otherSquare }, { priority: PRIORITY.OVERRIDE });
-  registerTable({ id: SIZE_DOC, source: { pages: "XX 1" }, tables: { [SIZE_TABLE]: { [SIZE_ROW]: CELLS }, ...otherSquare } }, { priority: PRIORITY.WORLD });
-  assert.equal(sizeSquareFeet(), SQUARE, "a registered square of another size does not move the stated one");
-  assert.deepEqual(footprintFeet({ sizeKey: "large" }), { w: 7 * SQUARE, h: 3 * SQUARE }, "nor a footprint built on it");
-  assert.deepEqual(footprintFeet(), { w: SQUARE, h: SQUARE });
+  // The square is stated in source, and a world's `sizeSquare` table stands in
+  // for it: a layer holding one moves the square and every footprint built on
+  // it, an override layer above wins, and a figure that is no positive number
+  // falls back to the stated one.
+  const squareTable = (feet) => ({ sizeSquare: { [SIZE_ROW]: { feet } } });
+  const WORLD_FEET = 7;
+  assert.notEqual(WORLD_FEET, SQUARE, "the invented figure is not the stated one");
+  registerTable({ id: SIZE_DOC, source: { pages: "XX 1" }, tables: { [SIZE_TABLE]: { [SIZE_ROW]: CELLS }, ...squareTable(WORLD_FEET) } }, { priority: PRIORITY.WORLD });
+  assert.equal(sizeSquareFeet(), WORLD_FEET, "a world's square table answers");
+  assert.deepEqual(footprintFeet({ sizeKey: "large" }), { w: 7 * WORLD_FEET, h: 3 * WORLD_FEET }, "a footprint is counted in the world's square");
+  assert.deepEqual(footprintFeet(), { w: WORLD_FEET, h: WORLD_FEET }, "and a token with no category is one of them");
+  registerTable({ id: SIZE_DOC, tables: squareTable(10) }, { priority: PRIORITY.OVERRIDE });
+  assert.equal(sizeSquareFeet(), 10, "the override layer above it wins");
+  assert.deepEqual(footprintFeet({ sizeKey: "huge" }), { w: 90, h: 90 }, "and a footprint follows the override");
   unregisterTable(SIZE_DOC, { priority: PRIORITY.OVERRIDE });
+  assert.equal(sizeSquareFeet(), WORLD_FEET, "dropping the override reverts to the world's table");
+  for (const bad of [undefined, null, "", "abc", 0, -5, "0", NaN, {}, [], { __missing: true }]) {
+    registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: CELLS }, sizeSquare: { [SIZE_ROW]: bad === undefined ? {} : { feet: bad } } } }, { priority: PRIORITY.WORLD });
+    assert.equal(sizeSquareFeet(), SQUARE, `a square of ${JSON.stringify(bad)} falls back to the stated one`);
+  }
+  registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: CELLS }, sizeSquare: { [SIZE_ROW]: { __missing: true } } } }, { priority: PRIORITY.WORLD });
+  assert.equal(sizeSquareFeet(), SQUARE, "a missing-row placeholder falls back to the stated one");
+  registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: CELLS }, sizeSquare: {} } }, { priority: PRIORITY.WORLD });
+  assert.equal(sizeSquareFeet(), SQUARE, "a table with no row falls back to the stated one");
+  assert.deepEqual(footprintFeet({ sizeKey: "large" }), { w: 7 * SQUARE, h: 3 * SQUARE }, "and the footprint is counted in it");
   frontage(CELLS);
 
   assert.equal(parseFrontage(""), null);

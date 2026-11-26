@@ -224,9 +224,9 @@ outlines (a shot).
    (`sizeFrontage` among them), drop the Large monster onto
    the calibrated scene.
    *Observable:* its token lands at the squares the imported Large cell gives
-   times the stated square's feet, over the scene's `grid.distance` (the
+   times the square's feet (`sizeSquareFeet()`), over the scene's `grid.distance` (the
    `squares` row of `sizeFrontage`, read from `acksExtras.lib.tables`
-   `getDoc("monsters")`; `footprintFeet({})` returns the stated square on each
+   `getDoc("monsters")`; `footprintFeet({})` returns the square on each
    side), preCreateToken having sized it. Toggle autoScale off in scene
    config and drop again: the token keeps its prototype size.
 6a. **Frontage not imported.** Take the world layer of the
@@ -244,9 +244,13 @@ outlines (a shot).
 6b. **A Judge's override.** In the Ruledata Browser, override the `sizeFrontage`
    row's Large cell with a pair of your own, then press "Rescale tokens on scene".
    *Observable:* the Large monster's token takes the override's squares at the
-   stated square; clear the override and it returns to the imported cells.
-   Where the Ruledata Browser still lists a `sizeSquare` table, from an import
-   made while the square was imported, an override of it moves no token.
+   square's feet; clear the override and it returns to the imported cells.
+   Where the Ruledata Browser lists a `sizeSquare` table, from an import made
+   while the square was imported, its `squares` row's `feet` is the square: an
+   override of it moves every token the next rescale writes (a token with no
+   size category is that many feet on a side), and a blank, zero or negative
+   figure leaves the stated constant. Clear the override and the tokens
+   return.
 7. Press "Rescale tokens on scene" with the
    character token and the party token present.
    *Observable:* the character token resizes to one square at the

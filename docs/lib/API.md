@@ -969,12 +969,17 @@ read from, null where it is the Judge's own. The importer reads both ([docs/lib/
 ## `timeUnit` — the dungeon turn and the round (apiVersion 72)
 
 The dungeon turn and the round are the module's own units of game time (RR
-p. 263), stated in `time-unit.mjs` and read from nowhere else: `constants`
-carries no time constant, and no ruledata document holds one. The exports are
+p. 263), stated in `time-unit.mjs`: `constants` carries no time constant, and
+no recipe produces a ruledata table for either count. A world's `formation`
+document may hold a `roundsPerTurn` or `turnsPerHour` table (an import made
+while the figure was imported, and a Judge's override of it in the Ruledata
+Browser, read through `getDoc` so the override layer wins), and a table holding a positive whole
+number stands in for its constant. The exports are
 `ROUNDS_PER_TURN`, `TURNS_PER_HOUR`, `SECONDS_PER_HOUR` and `HOURS_PER_DAY`, and
 the readers over them, each a positive number: `roundsPerTurn()`,
 `turnsPerHour()`, `turnsPerDay()`, `turnSeconds()` (the hour over the turns it
-holds) and `roundSeconds()` (the turn over the rounds it counts).
+holds) and `roundSeconds()` (the turn over the rounds it counts), the last
+three computed from the two readers so an override reaches them.
 `timeUnitCite()` is the page, `"RR p.263"`. A consumer converting rounds to
 world seconds reads `roundSeconds()` at the time it converts. The ruling is in
 [DECISIONS](DECISIONS.md).

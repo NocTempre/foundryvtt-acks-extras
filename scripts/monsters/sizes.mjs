@@ -5,8 +5,10 @@
  * document's `sizeFrontage` table, one printed cell per category, and read
  * here; nothing in source states one. What one of those squares is worth in
  * feet is the unit the frontage is counted in: it is stated in
- * `lib/distance-units.mjs` as `SQUARE_FEET`, re-exported here, and read by
- * `sizeSquareFeet`. Foundry-free.
+ * `lib/distance-units.mjs` as `SQUARE_FEET`, re-exported here, and
+ * `sizeSquareFeet` answers it unless the world's `sizeSquare` table, left by an
+ * import made while the figure was imported and overridable by a Judge in the
+ * Ruledata Browser, stands in for it. Foundry-free.
  *
  * A cell is the page's own text. It prints a pair of squares, the first
  * arrangement being the one read, or a single figure for a body that fills at
@@ -15,6 +17,7 @@
  */
 import { SQUARE_FEET } from "../lib/distance-units.mjs";
 import { citeOf, expectTables, getDoc, hasDoc, isMissingRow } from "../lib/tables.mjs";
+import { positiveFigure } from "../lib/util.mjs";
 
 /** The registry document the frontage cells are read from. */
 export const SIZE_DOC = "monsters";
@@ -27,6 +30,9 @@ export const SIZE_ROW = "squares";
 
 /** What one battle-grid square is worth in feet (MM p. 11): the constant lives in `lib/distance-units.mjs`, and this module keeps exporting it for its readers. */
 export { SQUARE_FEET };
+
+/** The table of `SIZE_DOC` a world may hold the square's feet in, on the `SIZE_ROW` row, as `feet`. */
+export const SQUARE_TABLE = "sizeSquare";
 
 // Declared where it is read, so the import names the table as outstanding
 // whichever feature loads first. The id is SIZE_TABLE, written as a literal
@@ -71,8 +77,19 @@ export function sizeSquares(sizeKey) {
   return Object.hasOwn(row, sizeKey) ? parseFrontage(row[sizeKey]) : null;
 }
 
-/** What one battle-grid square is worth in feet: `SQUARE_FEET`, whatever the world holds, and never null. */
-export const sizeSquareFeet = () => SQUARE_FEET;
+/**
+ * What one battle-grid square is worth in feet, and never null: the `feet` of
+ * the world's `sizeSquare` table where it holds one with a positive figure,
+ * else `SQUARE_FEET`. Reads the layer a Judge's override sits on. The table is
+ * not declared with `expectTables`: nothing produces it, so a world holds one
+ * only from an earlier import, and a Judge's override sits on that table.
+ */
+export function sizeSquareFeet() {
+  if (!hasDoc(SIZE_DOC)) return SQUARE_FEET;
+  const row = getDoc(SIZE_DOC)?.tables?.[SQUARE_TABLE]?.[SIZE_ROW];
+  if (!row || typeof row !== "object" || isMissingRow(row)) return SQUARE_FEET;
+  return positiveFigure(row.feet) ?? SQUARE_FEET;
+}
 
 /** The page the frontage table was read from, or null where it was not read from one. */
 export function sizeCite() {

@@ -14,7 +14,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
-import { TURNS_PER_HOUR } from "../lib/time-unit.mjs";
+import { turnsPerHour } from "../lib/time-unit.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 
@@ -113,7 +113,7 @@ export function parseHours(text) {
   const turns = /(\d+|[a-z-]+)\s*turns?/i.exec(t);
   if (turns) {
     const n = parseCount(turns[1]);
-    if (n != null) return n / TURNS_PER_HOUR;
+    if (n != null) return n / turnsPerHour();
   }
   return null;
 }

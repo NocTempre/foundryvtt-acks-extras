@@ -6133,11 +6133,11 @@ Teardown: nothing the walks built is swept; the fixtures stay. `api.sweepTracked
 
 ## The turn's unit: rounds to a turn and turns to an hour (RR p. 263)
 
-Fixtures: the turn plan's kept party, marker `formation/plan-party`, on its scene `formation/plan-scene` ("The turn plan", above, which brings both to their start shape). Nothing is imported for this surface: the unit is stated in `lib/time-unit.mjs`.
+Fixtures: the turn plan's kept party, marker `formation/plan-party`, on its scene `formation/plan-scene` ("The turn plan", above, which brings both to their start shape). Nothing is imported for this surface: the unit is stated in `lib/time-unit.mjs`, and a world's `formation` tables `roundsPerTurn` and `turnsPerHour` stand in for it where it holds them.
 
 | Step | Do | Observable |
 | --- | --- | --- |
-| T1 | In the console, read `acksExtras.lib.timeUnit` | `roundsPerTurn()` and `turnsPerHour()` answer whole numbers, `turnSeconds()` and `roundSeconds()` answer numbers, and `timeUnitCite()` names RR p. 263; they answer the same in a world whose `formation` ruledata document carries other counts |
+| T1 | In the console, read `acksExtras.lib.timeUnit` | `roundsPerTurn()` and `turnsPerHour()` answer whole numbers, `turnSeconds()` and `roundSeconds()` answer numbers, and `timeUnitCite()` names RR p. 263; in a world whose `formation` ruledata document holds a `roundsPerTurn` or `turnsPerHour` table (registered at the override layer from the console, `acksExtras.lib.tables.registerTable({id: "formation", tables: {turnsPerHour: <n>}}, {priority: 30})`, and removed with `unregisterTable("formation", {priority: 30})`), the readers answer that count and `turnSeconds()`, `roundSeconds()` follow it, while a blank, zero or fractional figure leaves the constant |
 | T2 | Press the Dungeon tab's advance-turn and advance-round buttons | The turn count and its round count move; the card's elapsed line shows a time; the world clock moves by `turnSeconds()` for a turn |
 | T3 | Hover the strip's elapsed figure and its carry-over figure | The elapsed tip names the turns, the rounds and the page; the carry tip names a round's feet |
 | T4 | Drag the party token one turn's distance on the dungeon-scale scene | The turn count moves by one and the world clock by `turnSeconds()` |

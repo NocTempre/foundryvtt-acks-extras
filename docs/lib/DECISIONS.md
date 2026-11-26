@@ -1534,7 +1534,7 @@ is the method Foundry offers modules ("to introduce additional conditions under
 which a change is applied"), and without the module every effect is plain
 Foundry.
 
-## 2026-11-25 — The rounds to a turn and the turns to an hour are units of measure and stay in source
+## 2026-11-25 — The rounds to a turn and the turns to an hour are units of measure and stay in source — SUPERSEDED IN PART 2026-11-26
 
 A review during the Beastman work asked whether the rounds a dungeon turn
 counts for time-keeping were a printed value, ruled that they were, and moved
@@ -3324,3 +3324,52 @@ is scanned once for its index and twice for its documents at `ready`, where the
 design counted two scans. The first live rerun of `tools/live/perf-leads.mjs`
 (`rowsPublication`, `firstDocumentOf`, `firstDeal`) has not been made, so no
 figure of this entry is a result.
+
+## 2026-11-26 — A world's formation tables are the Judge's override of the time counts
+
+Supersedes in part "The rounds to a turn and the turns to an hour are units of
+measure and stay in source" (2026-11-25): its second Rejected bullet, that a
+Judge's override of either figure goes with the import, and the readers that
+ignore a table. That entry is under seven days old, so the new evidence is
+named. The owner, 2026-11-25, on the design choices of the release hub: "make
+the call yourself and build, as long as it follows the repo's design rules and
+has had a reasonable pass for these general principles: every value has a
+control, everything has a manual override or entry point, and nothing is buried
+in a hidden table." The entry above did not know it. It rejected keeping a
+Judge's override and noted that the owner was not asked, and the drop left a
+value with no control: a world that imported either figure keeps the table in
+the Ruledata Browser (the rules-table import carries forward every table its
+layer holds), editable, and nothing read it. The hub's call, T-0781: "Do not drop
+the orphan table. ... The same goes for the rounds-per-turn and turns-per-hour
+tables where a world holds them."
+
+**Ruled.**
+- `roundsPerTurn()` and `turnsPerHour()` answer the `formation` document's
+  `roundsPerTurn` / `turnsPerHour` table where the world holds one as a positive
+  whole number (read through `getDoc`, so a Judge's override layer wins), else
+  the constants of `lib/time-unit.mjs`, which stay with their page reference
+  (RR p. 263). `turnsPerDay`, `turnSeconds` and `roundSeconds` compute from the
+  readers, so an override reaches every reader of the unit, and the importer's
+  two bindings that converted hours to turns read `turnsPerHour()`. An absent,
+  blank, non-numeric, zero, negative or fractional figure leaves the constant.
+- The two tables stay undeclared and unproduced: the constants are the answer
+  in a world that holds none, so a declaration would list them as outstanding in
+  every world. The readers keep their names and shapes; `apiVersion` does not
+  change.
+- An example: a world holding `turnsPerHour` as 12 has `turnSeconds()` answer
+  300 and `roundSeconds()` answer 30 with its rounds count at the constant of
+  10, so a spell lasting two turns runs 600 seconds; clearing the override
+  returns a turn of 600 seconds, a round of 60 and the spell's 1200.
+
+**Rejected.** Dropping the tables from every world: the figure would lose its
+control. Declaring them with `expectTables`: nothing produces them, and the
+importer would keep naming them as missing.
+
+**Strongest counter, MEDIUM.** An override of one count under the unit's own
+ruling (a generic concept, not a page value) lets a Judge change a figure the
+book's procedures count in. Not HIGH: the override is the Judge's own control,
+nothing ships a replacement figure, and the constants answer wherever the world
+holds nothing.
+
+**Cost.** A table nothing produces is reachable in the Ruledata Browser only in
+a world that already holds one.

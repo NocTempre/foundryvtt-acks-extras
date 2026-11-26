@@ -828,9 +828,14 @@ imports → Rules tables). The battlemap's walk of the same figures is
    *Observable:* `sizeFrontage` is listed with one `squares` row holding a
    cell per size category and citing the Monster Size table's page. A world
    whose first import is this one lists no `sizeSquare` table; one that
-   imported while the square was imported still lists it, and nothing reads
-   it. In the console the frontage cells parse
-   through `sizes.mjs` `sizeSquares`.
+   imported while the square was imported still lists it, and
+   `sizes.mjs` `sizeSquareFeet()` answers its `squares` row's `feet`. In the
+   console the frontage cells parse through `sizes.mjs` `sizeSquares`.
+1a. In a world that lists `sizeSquare`, override the `squares` row's `feet`
+   with a figure of your own, and read `sizeSquareFeet()`.
+   *Observable:* it answers the override and the battlemap's `footprintFeet({})`
+   is that many feet on each side; clearing the override returns the imported
+   figure, and a world that lists no `sizeSquare` answers the stated square.
 2. Override `sizeFrontage`'s Large cell with a pair of your own and read it
    back.
    *Observable:* the override wins and its cite is empty; clearing it returns

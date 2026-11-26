@@ -305,7 +305,7 @@ nothing rewrites it.
   chosen unit is the scene's own (`resolveCellWorth`, the unit compared
   folded): under a new unit the field is blank and the needs list asks for it.
   The Token sizes chips are one per size category the world imported a
-  frontage for, each stamping that frontage times the stated square, and
+  frontage for, each stamping that frontage times the square's feet (`sizeSquareFeet()`), and
   there are none without the import. A scene with no usable distance offers
   no chips and no default.
 - **Arming is a mode, and the group has a resting state.** Each capture mode
@@ -457,8 +457,12 @@ frontage is imported and the square is stated: the frontage is the Frontage
 (squares) line of MM Overview p. 11, read into registry document `monsters`,
 table `sizeFrontage`, and the square is the unit that line counts in, the
 constant `SQUARE_FEET` of `lib/distance-units.mjs` (MM p. 11; `monsters/sizes.mjs`
-re-exports it, and `engagementFeet()` answers the same square), which
-`sizeSquareFeet()` answers and which `footprintFeet` reads itself
+re-exports it, and `engagementFeet()` answers the same square).
+`sizeSquareFeet()` answers the `feet` of the world's `monsters` / `sizeSquare`
+table where it holds a positive figure (an import made while the square was
+imported, or a Judge's own override of it, which wins over the import) and
+`SQUARE_FEET` otherwise, never null, and `footprintFeet` reads it, so an
+override of the table moves every footprint and token it sizes
 (`docs/monsters/MODEL.md`, "The size frontage"). A category the world holds no
 frontage for has no footprint: `footprintFeet` answers null (an override still
 wins, and needs no table), `sizeForToken` answers null, and the token keeps the
