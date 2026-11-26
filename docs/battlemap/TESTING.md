@@ -395,7 +395,7 @@ outlines (a shot).
     apply writes auto-sizing off. Turn it on (Scene configuration → Basics →
     Battlemap → Auto-size tokens) and drop again: the token lands at the
     quarter-square floor (0.25), not 0.5. `tokenSpan(5, 10)` gives the
-    unconverted answer, which must not ship. Then drop a party actor. It takes Wilderness
+    unconverted answer, which must not ship. Then drop a party actor. It takes Journey
     with a notice naming the scale as the reason, and the formation's
     `travel.mode` is `journey`. Set the scene's units to `ft` with the party
     there, return its mode to delve, then set `mi` again. It switches back,
@@ -415,15 +415,15 @@ outlines (a shot).
     again. A Player seat sees it only on a token it can see, and its hover
     reads the first two lines alone. No `updateToken` is written by either
     seat while the mark draws.
-16. **The scene's party system.** Set "Party system here" to Settlement.
+16. **The scene's party system.** Set "Party system here" to In the city.
     *Observable:* the scene flag carries `mapSystem: "settlement"` at once,
     with no apply. Place a party token on the scene by hand (drag from the
     sidebar — a token created carrying a formation flag is a module placement
     and takes a different branch): the formation's `travel.mode` becomes
     `settlement`, its clock pauses, and a notification names the switch. Change
-    the select to Wilderness with the party still there: it follows. Set it
-    back to "Leave to the party": a formation already in a mode keeps it.
-    Apply the grid with Settlement declared: the declared system is not
+    the select to Journey with the party still there: it follows. Set it
+    back to "Not declared": a formation already in a mode keeps it.
+    Apply the grid with In the city declared: the declared system is not
     rewritten, and no travel-system row is listed.
 17. The party token on the calibrated scene: see `docs/formation/TESTING.md`,
     "The column and its lights" (steps 1, 8 and 9). It is one cell at every

@@ -389,12 +389,12 @@ function installRoadRow(app, element) {
         ${option("", loc("routes.notARoad"), !road)}
         ${roadSurfaceKeys().map((k) => option(k, roadSurfaceLabel(k), road?.surface === k)).join("")}
       </select>
-      <select class="acks-extras-road-street" aria-label="${esc(loc("routes.streetLabel"))}">
+      <select class="acks-extras-road-street" aria-label="${esc(loc("routes.streetLabel"))}"${road ? "" : " disabled"}>
         ${option("", loc("routes.streetNone"), !road?.street)}
         ${ROAD_STREETS.map((k) =>
     option(k, loc(`routes.street.${k}`), road?.street === k)).join("")}
       </select>
-      <input type="text" class="acks-extras-road-name" value="${esc(road?.name)}"
+      <input type="text" class="acks-extras-road-name" value="${esc(road?.name)}"${road ? "" : " disabled"}
              aria-label="${esc(loc("routes.namePlaceholder"))}" placeholder="${esc(loc("routes.namePlaceholder"))}">
     </div>
     <p class="hint">${esc(loc(road && blocksMovement(wall) ? "routes.wallBlocks" : "routes.wallHint"))}</p>`;
@@ -417,6 +417,12 @@ function installRoadRow(app, element) {
       patch().catch((err) => console.error(`${MODULE_ID} | road row failed`, err));
     });
   }
+  // A street and a name mean nothing off a road, and the write drops them, so
+  // they are disabled until a surface is picked — at once, not on the re-render.
+  const surfaceSelect = row.querySelector(".acks-extras-road-surface");
+  surfaceSelect.addEventListener("change", () => {
+    for (const sel of [".acks-extras-road-street", ".acks-extras-road-name"]) row.querySelector(sel).disabled = !surfaceSelect.value;
+  });
 
   wallSheetFields(root).append(row);
 }

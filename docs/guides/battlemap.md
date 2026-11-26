@@ -97,7 +97,9 @@ working.
   hex far from the others, add boxes between, since a box too far from the
   rest to place is left out until one is.
 - **Pick corners** — click grid intersections on a square map. Corners
-  several squares apart are the most informative kind of sample. On a hex
+  several squares apart are the most informative kind of sample. With three
+  or more and **Allow skew** ticked under **Fit**, the fit sees rotation and
+  skew; unticked, it reads the squares straight. On a hex
   map corners are not used: picking the tool says so and names **Draw box**.
 - **Scale bar** — drag end-to-end along the map's printed scale bar, then
   type what it **reads** on the bar's own row. On a hex map the bar suggests
@@ -135,7 +137,8 @@ you can instead ask for 5' squares, and each drawn box carries a neat 20×20
 of them. A warning appears if the two grids cannot share lines. **Square
 size (px)** sets how many pixels a Foundry square takes after applying; it
 defaults to keeping the map the size it is now. A hex map has no second
-choice: one drawn hex is one Foundry hex.
+choice: one drawn hex is one Foundry hex, and **Hex size (px)** sets how
+many pixels it takes after applying.
 
 ## Applying
 
@@ -167,7 +170,7 @@ small to see. Where that changes it, the token-sizing row says so. Change it aft
 Battlemap**.
 
 On a scene whose cell is a mile or more, a party formation that arrives
-takes the day's march (Wilderness) by itself, with a notice, unless the scene
+takes the day's march (Journey) by itself, with a notice, unless the scene
 declares a system (below).
 
 **Party system here**, **Ground here**, **Territory here** and **Climate of
@@ -175,17 +178,17 @@ this map** sit together under **Saved as you choose**: each is written to the
 scene the moment you pick it, and Apply does not write them.
 
 **Party system here** says what a party formation does on this scene:
-**Dungeon** runs its turn clock, **Wilderness** runs the day's march,
-**Settlement** crosses in blocks. A formation arriving takes that system, and
-follows if you change it while they are standing there. Leave it at *Leave to
-the party* and nothing is imposed. There is no need to apply a grid to label
+**Delve** runs its turn clock, **Journey** runs the day's march, **In the
+city** crosses in blocks — the party sheet's own names for its modes. A
+formation arriving takes that system, and follows if you change it while they
+are standing there. Leave it at *Not declared* and nothing is imposed. There is no need to apply a grid to label
 a map.
 
 You do not need the window to see or set it. Every scene's card in the
 navigation bar carries an icon for the system the map declares — a dungeon,
 a wilderness map, a settlement — and a faint question mark for a map that
 declares nothing. Hover it for what it means. Click the icon to pick a system
-(the one declared is marked, and *Leave to the party* clears it); right-click
+(the one declared is marked, and *Not declared* clears it); right-click
 the icon to clear it outright. A party standing on the map switches as soon
 as you choose. Players see no icon.
 
@@ -282,7 +285,8 @@ your next stroke on the brush's layer, which shows that layer's mode again.
 
 The window lists what each colour means, what a hex with no border reads as
 (the scene's own territory), and the map's climate. **Opacity** fades the
-borders; **Handout view** hides them, and the road and water markers, while
+borders, with its figure beside the slider; on Terrain, which draws no
+borders, it waits for you to pick a mode. **Handout view** hides them, and the road and water markers, while
 you show your screen, until your next Territory or Domains stroke turns it off. Players never see a map mode. The territory regions
 themselves show only on the Regions control.
 
@@ -323,7 +327,9 @@ notification says so, because the party cannot travel along it.
 
 The wall's own sheet gains a water row: river or coast, **A boat can follow
 it**, and the line's name. A river starts out one a boat can follow; a
-coastline does not. While you are on the Walls or Battlemap controls the lines
+coastline does not. Under *Not water* the tick and the name are greyed out
+until you pick river or coast, and the road row's street kind and name wait
+on a surface the same way. While you are on the Walls or Battlemap controls the lines
 are drawn over the map for you — a river solid, a line no boat can follow
 dashed — and players see none of it.
 

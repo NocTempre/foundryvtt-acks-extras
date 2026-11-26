@@ -442,6 +442,43 @@ await okAsync("the road row names each of its controls", async () => {
     const tag = new RegExp(`<(select|input)[^>]*class="${cls}"[^>]*>`).exec(built.innerHTML)?.[0] ?? "";
     assert.match(tag, /aria-label="[^"]+"/, `${cls} names itself`);
   }
+
+  // With no surface the street and the name cannot act, so they are disabled; picking one enables them.
+  const tagOf = (cls) => new RegExp(`<(select|input)[^>]*class="${cls}"[^>]*>`).exec(built.innerHTML)?.[0] ?? "";
+  for (const cls of ["acks-extras-road-street", "acks-extras-road-name"]) assert.doesNotMatch(tagOf(cls), /disabled/, `${cls} is live on a road`);
+  built = null;
+  roadRowHook({ document: makeWall([0, 0, 100, 0]), render() {} }, root);
+  for (const cls of ["acks-extras-road-street", "acks-extras-road-name"]) assert.match(tagOf(cls), / disabled/, `${cls} is disabled under Not a road`);
+  const surface = built.controls.get(".acks-extras-road-surface");
+  surface.value = "paved";
+  for (const fn of surface.listeners) fn();
+  assert.equal(built.controls.get(".acks-extras-road-street").disabled, false, "a surface picked enables the street at once");
+  assert.equal(built.controls.get(".acks-extras-road-name").disabled, false, "and the name");
+  surface.value = "";
+  for (const fn of surface.listeners) fn();
+  assert.equal(built.controls.get(".acks-extras-road-name").disabled, true, "Not a road disables them again");
+  await settle();
+});
+
+await okAsync("the water row disables the tick and the name under Not water", async () => {
+  const root = {
+    nodeType: 1,
+    querySelector: (sel) => (sel === ".window-content .standard-form" ? { append() {} } : null),
+  };
+  const waterHook = hooks.get("renderApplicationV2")[0];
+  const tagOf = (cls) => new RegExp(`<input[^>]*class="${cls}"[^>]*>`).exec(built.innerHTML)?.[0] ?? "";
+  built = null;
+  waterHook({ document: makeWall([0, 0, 100, 0]), render() {} }, root);
+  for (const cls of ["acks-extras-water-navigable", "acks-extras-water-name"]) assert.match(tagOf(cls), / disabled/, `${cls} is disabled under Not water`);
+  const kind = built.controls.get(".acks-extras-water-kind");
+  kind.value = "river";
+  for (const fn of kind.listeners) fn();
+  assert.equal(built.controls.get(".acks-extras-water-name").disabled, false, "a kind picked enables the name at once");
+  assert.equal(built.controls.get(".acks-extras-water-navigable").disabled, false, "and the tick");
+  await settle();
+  built = null;
+  waterHook({ document: makeWall([0, 0, 100, 0], { water: { kind: "river" } }), render() {} }, root);
+  for (const cls of ["acks-extras-water-navigable", "acks-extras-water-name"]) assert.doesNotMatch(tagOf(cls), /disabled/, `${cls} is live on water`);
 });
 
 console.log(`test-water: OK (${passed} checks: the line's shape and read, reach, a shore beside a river, never a road, presets, from selection, the tool, the wall row, the road row's names)`);

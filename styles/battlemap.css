@@ -632,6 +632,12 @@
   min-width: 0;
 }
 
+/* The figure holds its width, so the slider does not shift as it changes. */
+.acks-extras-map-opacity-figure {
+  min-width: 3.5em;
+  text-align: end;
+}
+
 /* The navigation card's system icon: a bare glyph in the card's own colour
    and type, since the card is core's and its size answers to core's knob;
    core's button chrome is taken off. A map that declares nothing is drawn

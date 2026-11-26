@@ -206,10 +206,10 @@ function installWaterRow(app, element) {
         ${WATER_KINDS.map((k) => option(k, waterKindLabel(k), water?.kind === k)).join("")}
       </select>
       <label class="checkbox">
-        <input type="checkbox" class="acks-extras-water-navigable"${water?.navigable ? " checked" : ""}>
+        <input type="checkbox" class="acks-extras-water-navigable"${water?.navigable ? " checked" : ""}${water ? "" : " disabled"}>
         ${esc(loc("water.navigable"))}
       </label>
-      <input type="text" class="acks-extras-water-name" value="${esc(water?.name)}"
+      <input type="text" class="acks-extras-water-name" value="${esc(water?.name)}"${water ? "" : " disabled"}
              aria-label="${esc(loc("water.namePlaceholder"))}" placeholder="${esc(loc("water.namePlaceholder"))}">
     </div>
     <p class="hint">${esc(loc(water && blocksMovement(wall) ? "water.wallBlocks" : "water.wallHint"))}</p>`;
@@ -232,6 +232,12 @@ function installWaterRow(app, element) {
       patch().catch((err) => console.error(`${MODULE_ID} | water row failed`, err));
     });
   }
+  // The tick and the name mean nothing off water, and the write drops them, so
+  // they are disabled until a kind is picked — at once, not on the re-render.
+  const kindSelect = row.querySelector(".acks-extras-water-kind");
+  kindSelect.addEventListener("change", () => {
+    for (const sel of [".acks-extras-water-navigable", ".acks-extras-water-name"]) row.querySelector(sel).disabled = !kindSelect.value;
+  });
 
   wallSheetFields(root).append(row);
 }

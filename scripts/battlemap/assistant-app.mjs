@@ -419,7 +419,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       mapCellLabel: loc(this.isHex ? "fields.mapCellHex" : "fields.mapCellFeet"),
       mapCellHint: loc(this.isHex ? "fields.mapCellHexHint" : "fields.mapCellFeetHint"),
       gridPxLabel: loc(this.isScaleOnly ? "scale.gridPxRuler" : this.isHex ? "scale.gridPxHex" : "scale.gridPx"),
-      gridPxHint: loc(this.isScaleOnly ? "scale.gridPxHintScale" : "scale.gridPxHint"),
+      gridPxHint: loc(this.isScaleOnly ? "scale.gridPxHintScale" : this.isHex ? "scale.gridPxHintHex" : "scale.gridPxHint"),
       independentXY: this.independentXY,
       allowSkew: this.allowSkew,
       opts: this.opts,

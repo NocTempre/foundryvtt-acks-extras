@@ -368,13 +368,13 @@ try {
   check("N1: every scene card carries one icon, none two, and no level row carries one", n.cards > 0 && n.withOne === n.cards && n.withMore === 0 && n.levelsWithIcon === 0, { cards: n.cards, withOne: n.withOne, withMore: n.withMore, levelsWithIcon: n.levelsWithIcon });
   check("N1: the map's icon is a button with its own action, the undeclared face, the tooltip key and the spoken label, visible on the card", n.map?.tag === "BUTTON" && n.map.type === "button" && n.map.action === "acksExtrasSceneSystem" && n.map.system === "none" && n.map.glyph === "fa-solid fa-circle-question" && n.map.tooltip === "ACKS-BATTLEMAP.nav.tip.none" && n.map.label === n.expected.none && n.map.haspopup === "menu" && n.map.title === null && n.map.visible && n.map.inCard === map.id, n.map);
 
-  section("nav 2. a left click opens the picker; Dungeon declares the map and the standing party switches");
+  section("nav 2. a left click opens the picker; Delve declares the map and the standing party switches");
   let o = await page(gm, P.openPicker, { mapId: map.id });
   note("picker", o);
   check("N2: the click opens the picker and views no scene", o.opened && o.contextIsOurs && o.viewing === other.id, { opened: o.opened, ours: o.contextIsOurs, viewing: o.viewing });
   check("N2: the picker offers the three systems and, with nothing declared, no clearing entry and nothing marked", Array.isArray(o.items) && o.items.map((i) => i.text).join("|") === [LABELS.delve, LABELS.journey, LABELS.settlement].join("|") && o.items.every((i) => !i.current), o.items);
   let p = await page(gm, P.pick, { mapId: map.id, label: LABELS.delve, fid, wantSystem: "delve" });
-  note("pick Dungeon", p);
+  note("pick Delve", p);
   check("N2: the flag reads delve, the card's icon follows on core's re-render, the picker closes, and the GM still views the other scene", p.declared && p.iconSays && p.closed && p.viewing === other.id, p);
   check("N2: the party standing on the map adopts the dungeon turn within the wait, announced as a toast naming it", p.mode === "delve" && p.adoptedInTime && p.notes.some((t) => t.kind === "info" && t.text.includes("QA Scene Nav Company")), { mode: p.mode, notes: p.notes });
   n = await page(gm, P.nav, { mapId: map.id });
@@ -389,11 +389,11 @@ try {
   const aboutParty = (notes) => notes.filter((t) => t.text.includes("QA Scene Nav Company"));
   check("N3: a map that declares nothing leaves the party where it was: still delve, no toast names the party", c.mode === "delve" && aboutParty(c.notes).length === 0, { mode: c.mode, notes: aboutParty(c.notes), others: c.notes.length });
 
-  section("nav 4. Wilderness through the picker, then the clearing entry");
+  section("nav 4. Journey through the picker, then the clearing entry");
   o = await page(gm, P.openPicker, { mapId: map.id });
   p = await page(gm, P.pick, { mapId: map.id, label: LABELS.journey, fid, wantSystem: "journey" });
-  note("pick Wilderness", p);
-  check("N4: Wilderness declares the map and the party switches to the journey", p.declared && p.iconSays && p.mode === "journey" && p.adoptedInTime, { declared: p.declared, mode: p.mode });
+  note("pick Journey", p);
+  check("N4: Journey declares the map and the party switches to the journey", p.declared && p.iconSays && p.mode === "journey" && p.adoptedInTime, { declared: p.declared, mode: p.mode });
   o = await page(gm, P.openPicker, { mapId: map.id });
   note("picker, declared", o);
   check("N4: with a system declared the picker marks it and offers the clearing entry last", Array.isArray(o.items) && o.items.length === 4 && o.items[1].text === LABELS.journey && o.items[1].current && o.items.filter((i) => i.current).length === 1 && o.items[3].text === LABELS.none, o.items);
@@ -404,10 +404,10 @@ try {
   section("nav 5. the open setup panel follows the viewed map's card");
   let w = await page(gm, P.openPanel, { mapId: map.id });
   note("panel", w);
-  check("N5: the panel opens over the map with the select on Leave to the party", w.viewing === map.id && w.open && w.select === "" && w.session === null && w.sessionScene === map.id, w);
+  check("N5: the panel opens over the map with the select on Not declared", w.viewing === map.id && w.open && w.select === "" && w.session === null && w.sessionScene === map.id, w);
   o = await page(gm, P.openPicker, { mapId: map.id });
   p = await page(gm, P.pick, { mapId: map.id, label: LABELS.settlement, fid, wantSystem: "settlement" });
-  note("pick Settlement on the viewed card", p);
+  note("pick In the city on the viewed card", p);
   let v = await page(gm, P.panel);
   note("panel after", v);
   check("N5: the viewed card's pick lands in the panel's select and the session", p.declared && v.select === "settlement" && v.session === "settlement", { declared: p.declared, select: v.select, session: v.session });

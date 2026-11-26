@@ -479,8 +479,14 @@ export class MapModesApp extends HandlebarsApplicationMixin(ApplicationV2) {
   _onRender(context, options) {
     super._onRender?.(context, options);
     const root = this.element;
-    root.querySelector('input[name="opacity"]')?.addEventListener("change", (ev) => {
+    const opacity = root.querySelector('input[name="opacity"]');
+    opacity?.addEventListener("change", (ev) => {
       setMapView({ opacity: Number(ev.currentTarget.value) / 100 });
+    });
+    // The figure follows the drag; the view is written once, on release.
+    const figure = root.querySelector(".acks-extras-map-opacity-figure");
+    opacity?.addEventListener("input", (ev) => {
+      if (figure) figure.textContent = game.i18n.format(`${LANG_PREFIX}.mapMode.opacityFigure`, { value: ev.currentTarget.value });
     });
     root.querySelector('input[name="handout"]')?.addEventListener("change", (ev) => {
       setMapView({ handout: ev.currentTarget.checked });

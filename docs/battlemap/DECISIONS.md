@@ -585,3 +585,21 @@ shape told it before.
   other family squeezed. A box around a block beside one honest box on a
   stretched scene of regular image hexes still takes the block for the hex,
   as the canvas reading did.
+
+## 2026-11-26 — Map UI defects: dependent fields wait, the opacity shows its figure, and the map speaks the party sheet's mode names
+
+Three calls from the map UI defect batch, drawn on one board and approved by the release hub under the owner's
+"Bugs: just fix them" ruling (every value has a control, everything has a manual override, nothing hidden):
+
+- **A wall row's dependent fields are disabled until their layer is chosen.** Under "Not a road" the street kind and
+  name, and under "Not water" the boat tick and name, took input that the write then dropped. They are disabled until a
+  surface or a kind is picked, and enabled at once when one is, so nothing typed is thrown away. Rejected: writing
+  them anyway onto a wall with no layer (a value no reader consults).
+- **The Map modes window's opacity shows its figure and waits on a mode.** The slider gained its percentage as text
+  beside it, a name and a tooltip; on Terrain, which draws no overlay, it is disabled with the reason as a visible
+  line. Rejected: hiding it on Terrain (the stored figure would vanish with it).
+- **The map tools use the party sheet's names for the three modes**: Delve, Journey, In the city, in place of
+  Dungeon, Wilderness, Settlement, and the clearing entry and the setup select say "Not declared", the face's own word
+  for that state. The party sheet is where the mode runs; the map only declares it, so its words follow. No formation
+  string moved. Cost: a Judge used to the old labels on the scene card, the picker and Map setup reads new ones.
+

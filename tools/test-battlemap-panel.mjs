@@ -1584,4 +1584,46 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.doesNotMatch(swatch, /data-tooltip="\{\{label\}\}"/, "and not in data-tooltip, which renders HTML");
 }
 
+{
+  // The grid-size hint names the cell the family writes.
+  setup({ family: "hexRows", scene: makeScene(), samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "ft" });
+  assert.equal(keyOf((await ctx()).gridPxHint), "scale.gridPxHintHex", "a hex family's hint speaks of a hex");
+  setup({ family: "square", scene: makeScene({ type: 1 }), samples: { squares: [squareBox(0, 0)] } });
+  assert.equal(keyOf((await ctx()).gridPxHint), "scale.gridPxHint", "a square family keeps the square's hint");
+}
+
+{
+  // The Map modes window's opacity: its figure as text, a name, a tooltip, and in Terrain a reason in view.
+  const template = Handlebars.create();
+  template.registerHelper("localize", (key, opts) => `${key}${opts?.hash && Object.keys(opts.hash).length ? JSON.stringify(opts.hash) : ""}`);
+  const render = template.compile(read("templates/battlemap/map-modes.hbs"));
+  const base = { modes: [], rows: [], opacity: 85, opacityFloor: 20, handout: false, hexScene: true };
+  const slider = (html) => /<input type="range"[^>]*>/.exec(html)?.[0] ?? "";
+  const mode = render({ ...base, terrain: false });
+  assert.doesNotMatch(slider(mode), /disabled/, "a mode's slider is live");
+  assert.match(slider(mode), /aria-label="ACKS-BATTLEMAP\.mapMode\.opacity"/, "the slider names itself");
+  assert.match(slider(mode), /data-tooltip="ACKS-BATTLEMAP\.mapMode\.opacityTip"/, "and carries its tooltip");
+  assert.match(mode, /<output[^>]*>ACKS-BATTLEMAP\.mapMode\.opacityFigure[^<]*value[^<]*85[^<]*<\/output>/, "its figure is text beside it");
+  assert.doesNotMatch(mode, /mapMode\.opacityTerrain/, "no Terrain reason off Terrain");
+  const terrain = render({ ...base, terrain: true });
+  assert.match(slider(terrain), /disabled/, "in Terrain the slider is disabled");
+  assert.match(terrain, /<p class="hint">ACKS-BATTLEMAP\.mapMode\.opacityTerrain<\/p>/, "with the reason as a visible line");
+  assert.match(terrain, /<output[^>]*>ACKS-BATTLEMAP\.mapMode\.opacityFigure/, "and the stored figure still shown");
+  const app = read("scripts/battlemap/map-modes.mjs");
+  assert.match(app, /addEventListener\("input"/, "the figure follows the slider while it is dragged");
+}
+
+{
+  // The map tools speak the party sheet's words for its modes and the face's word for none.
+  const lang = JSON.parse(read("lang/en.json"));
+  const at = (k) => lang[k] ?? k.split(".").reduce((o, p) => o?.[p], lang);
+  assert.equal(at("ACKS-BATTLEMAP.system.delve"), at("ACKS-FORMATION.strip.modeDelve"), "delve");
+  assert.equal(at("ACKS-BATTLEMAP.system.journey"), at("ACKS-FORMATION.travel.legend"), "journey");
+  assert.equal(at("ACKS-BATTLEMAP.system.settlement"), at("ACKS-FORMATION.settlement.legend"), "settlement");
+  assert.equal(at("ACKS-BATTLEMAP.setup.systemNone").toLowerCase(), at("ACKS-BATTLEMAP.nav.none").toLowerCase(), "the clearing entry names the state the face shows");
+  // The corners hint names the box, and the section it sits under, that let the fit see skew.
+  const corners = at("ACKS-BATTLEMAP.modeHint.corners");
+  assert.ok(corners.includes(at("ACKS-BATTLEMAP.fit.allowSkew")) && corners.includes(at("ACKS-BATTLEMAP.fit.title")), corners);
+}
+
 console.log("battlemap panel: ok");

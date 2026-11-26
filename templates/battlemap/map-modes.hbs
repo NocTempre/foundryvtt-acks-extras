@@ -35,8 +35,11 @@
   </p>
   <label class="acks-extras-map-opacity">
     <span>{{localize "ACKS-BATTLEMAP.mapMode.opacity"}}</span>
-    <input type="range" name="opacity" min="{{opacityFloor}}" max="100" step="5" value="{{opacity}}">
+    <input type="range" name="opacity" min="{{opacityFloor}}" max="100" step="5" value="{{opacity}}" aria-label="{{localize 'ACKS-BATTLEMAP.mapMode.opacity'}}" data-tooltip="ACKS-BATTLEMAP.mapMode.opacityTip"{{#if terrain}} disabled{{/if}}>
+    <output class="acks-extras-map-opacity-figure">{{localize "ACKS-BATTLEMAP.mapMode.opacityFigure" value=opacity}}</output>
   </label>
+  {{! Terrain draws no overlay, so the opacity has nothing to act on there. }}
+  {{#if terrain}}<p class="hint">{{localize "ACKS-BATTLEMAP.mapMode.opacityTerrain"}}</p>{{/if}}
   <label class="acks-extras-map-handout">
     <input type="checkbox" name="handout" {{#if handout}}checked{{/if}}>
     <span>{{localize "ACKS-BATTLEMAP.mapMode.handout"}}</span>
