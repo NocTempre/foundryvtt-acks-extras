@@ -338,7 +338,9 @@ const P = {
       selects: [...(root?.querySelectorAll("select.acks-lib-template-pin") ?? [])].map((s) => ({
         axis: s.dataset.axis,
         named: !!s.getAttribute("name"),
-        marked: [...s.options].some((o) => o.disabled && /\(.+\)$/.test(o.textContent.trim())),
+        // A choice the variant's tables do not give is marked by its words and stays pickable.
+        marked: [...s.options].some((o) => !o.disabled && /\(.+\)$/.test(o.textContent.trim())),
+        anyDisabled: [...s.options].some((o) => o.disabled),
       })),
     };
   },
@@ -493,7 +495,7 @@ try {
   check("an observer's template sheet draws its axis selects with no name and no Generate", before.selects.length === 2 && before.selects.every((s) => !s.named) && !before.generate, before);
   const pin = await run(player, P.observePin, { actorId: tpl.id, pins: [["variant", "b"]] });
   const after = await run(player, P.templateSelects);
-  check("pinning a variant re-marks the roles it has no cell for, and the client attempts no write", pin.ok && pin.attempted === 0 && pin.unchanged && after.selects.find((s) => s.axis === "role")?.marked, { ...pin, marked: after.selects.find((s) => s.axis === "role")?.marked });
+  check("pinning a variant re-marks the roles it has no cell for, each still pickable, and the client attempts no write", pin.ok && pin.attempted === 0 && pin.unchanged && after.selects.find((s) => s.axis === "role")?.marked && !after.selects.find((s) => s.axis === "role")?.anyDisabled, { ...pin, marked: after.selects.find((s) => s.axis === "role")?.marked, anyDisabled: after.selects.find((s) => s.axis === "role")?.anyDisabled });
   note("closed (player)", await run(player, P.closeAll));
 
   section("a repair in place");
