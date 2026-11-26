@@ -1,4 +1,4 @@
-# lib API (apiVersion 100)
+# lib API (apiVersion 101)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 100,
+  apiVersion: 101,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -83,6 +83,7 @@ acksExtras.lib = {
   // 98: templateLogic.chooseAxes keeps a pin on an option the variant's tables do not give (logged `source: "pinned"`, `unavailable`) and takes `carryOf`; templateLogic gains `optionStands` and `pinOptionRows` (below, "`acks-extras.template` — the generator actor")
   // 99: itemRun.logic.secondLight; the fuse runner refuses a Player's light past the stack `noSpare` and warns the Judge's seat; itemRun.pressRoll from a second GM's window is written on the primary GM's (below, "apiVersion 99, the second seats")
   // 100: org.{sendOutHolder, recallHolder, placesOf}; org-chart-ui.mjs `serviceChartContext` and `serviceLocationsContext` draw a character's service tree through the chart partials (docs/lib/ORGANISATION.md, "The Followers tab's service mode"; below, "`org`")
+  // 101: templateLogic.{setAxisDefault, removeAxisOption}; itemRun.cardSaveOptions reads a card's `saveMagical: false` as no save against magic; a `targetAc` stamp row may be `{name, waived: true, by: [{name, cite}]}` (a monster target's waived step, no `value`)
 }
 ```
 
