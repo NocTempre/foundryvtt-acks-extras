@@ -426,6 +426,18 @@ await ta("applying a cast's control end resolves the outcome from the spell and 
   assert.deepEqual(await applyCastControl({ casterUuid: "Actor.none", castId: "cast1" }, { ...deps, caster: () => null }), { ok: false, reason: "noCaster" });
 });
 
+await ta("the cause a control end names never changes the outcome: a conjuration whose row says hostile turns hostile whether time, damage or a hand ended the hold, and a stash is read as a token is", async () => {
+  const caster = ctlCaster([{ type: "summon", ref: "Alphamoth", name: "Alphamoth", amount: 1, summonFormat: "conjuration", controlEnd: "hostile" }]);
+  for (const cause of ["time", "damage", "save", "cast", "removed"]) {
+    for (const standing of [{ tokens: [ctlToken("Alphamoth", "t1")], held: [] }, { tokens: [], held: [{ name: "Alphamoth", record: ctlRecord("Alphamoth") }] }]) {
+      const applied = [];
+      const deps = { caster: () => caster, standing: () => standing, lookups: ctlLookups, apply: async (who, o) => (applied.push(o), { ok: true, outcome: o.outcome }) };
+      assert.equal((await applyCastControl({ casterUuid: "Actor.c1", castId: "cast1", cause }, deps)).outcome, "hostile", cause);
+      assert.deepEqual(applied, [{ castId: "cast1", outcome: "hostile" }], `${cause}: lib is handed the cast id and the row's outcome only`);
+    }
+  }
+});
+
 await ta("at a timed end creatures that go post no card, while creatures that stay or turn hostile keep theirs; the outcome rides to the card, and with nothing applied the card is as it was", async () => {
   const mark = { spellUuid: "s", castId: "cast1", casterUuid: "Actor.c1", role: "caster" };
   const doc = (uuid) => ({ uuid, _source: { start: { time: 0 }, duration: { value: 1, units: "minutes" } }, flags: { "acks-extras": { spellEffect: mark } } });

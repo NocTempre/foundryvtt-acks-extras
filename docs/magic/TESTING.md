@@ -299,6 +299,15 @@ one reading the cast's refusal takes. The relay itself is not exercised.
     Dismiss (pressing it removes the creature), and past one whose row says
     `hostile` a card whose flag `outcome` is `hostile`, which the Player's
     rendering draws with no Dismiss and the Judge's with one.
+    The cap end of a conjuration follows the held test (DECISIONS, "A
+    conjuration's control ends hostile on a loss or a run-out"): a row with
+    `summonFormat` `conjuration`, `controlEnd` `hostile` and a timed duration
+    casts held with that duration as its cap. The creature is left standing,
+    the world clock is advanced past the cap, and no one dismisses it.
+    *Observable:* one funnel card whose cause reads time and whose flag
+    `outcome` is `hostile`; the creature is stamped `lost`, hostile and owned
+    by no player. A second cast, dismissed by the Player's sheet before the
+    cap, leaves nothing standing at the cap and its card lists no creature.
 12. The delete path, cast from `magic/summon-spell-gone`, whose row's `controlEnd` is `gone` (duration two hours; the standing spell is first put back to its standing shape).
     The Player casts two creatures; the Judge places by hand a token of the same
     creature (the decoy, which carries no summons record) and the world clock

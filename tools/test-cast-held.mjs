@@ -318,6 +318,20 @@ await ta("the end asks the GM's client to end the creatures' control, only where
   await endHeldCast(held(), { cause: "damage", caster, deps: none.deps });
 });
 
+await ta("every cause of a held end asks for the control end alike and the card carries what it answered: a conjuration capped by time ends as one broken by damage, by a save, by a new cast or by a hand", async () => {
+  const standing = async () => ({ tokens: [{ name: "Invented Wisp", uuid: "Scene.s1.Token.t1" }], held: [] });
+  for (const cause of HELD_CAUSES) {
+    const asked = [];
+    const r = funnelDeps({ recipients: [] });
+    r.deps.standing = standing;
+    r.deps.control = async (req) => (asked.push(req), { ok: true, outcome: "hostile" });
+    const flag = await endHeldCast(held(), { cause, caster, deps: r.deps });
+    assert.equal(asked.length, 1, `${cause}: the GM's client is asked once`);
+    assert.equal(flag.outcome, "hostile", `${cause}: the card carries the outcome`);
+    assert.equal(flag.cause, cause);
+  }
+});
+
 await ta("the card lists the standing creatures, a Dismiss on each row and one for all, the page reference once on the control-lost line; every name is escaped", async () => {
   const html = await heldEndContent({ ...FLAG(), summons: SUMMONS() }, loc);
   assert.equal(count(html, "data-acks-extras-held-dismiss"), 4, "one per creature, and one for the whole cast");
