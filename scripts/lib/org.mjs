@@ -152,12 +152,14 @@ export async function setHolder(host, key, holderUuid) {
 /**
  * The group that holds a row: its holder where one resolves, else a new empty
  * group named from the row and written to the row as its holder, so the press
- * that needs a group never meets a refusal for an empty row.
- * @returns {Promise<{doc: Actor|null, made: boolean}>}
+ * that needs a group never meets a refusal for an empty row. A seat that may not
+ * create actors makes nothing and is answered `noCreate`, since core would throw.
+ * @returns {Promise<{doc: Actor|null, made: boolean, reason?: "noCreate"}>}
  */
 async function holderOf(host, row) {
   const held = row.holderUuid ? docOf(row.holderUuid) : null;
   if (held) return { doc: held, made: false };
+  if (!game.user?.can?.("ACTOR_CREATE")) return { doc: null, made: false, reason: "noCreate" };
   const name = row.label || row.kind || game.i18n.localize(`${GROUP_LANG_PREFIX}.unit`);
   const doc = await Actor.implementation.create({ name, type: GROUP_ACTOR_TYPE });
   if (!doc) return { doc: null, made: false };
@@ -388,7 +390,7 @@ export function rostersHolding(uuid) {
  * Send a row's group out to a place. The place's roster is written first, then the
  * group leaves the group it stood inside, and any other roster that held it lets it
  * go. The row's own place in the chart does not change. An empty row's press makes
- * its group first, and nothing refuses it.
+ * its group first, refused `noCreate` only for a seat that may not create actors.
  *
  * @param {Actor} host the faction or group hosting the row
  * @param {string} key the row
@@ -403,8 +405,8 @@ export async function sendOut(host, key, placeUuid) {
   const place = placeUuid ? docOf(placeUuid) : null;
   if (!hasRoster(place)) return refused("noPlace");
   if (!place.isOwner) return refused("notOwner");
-  const { doc, made } = await holderOf(host, row);
-  if (!doc) return refused("failed");
+  const { doc, made, reason } = await holderOf(host, row);
+  if (!doc) return refused(reason ?? "failed");
   const plan = planSendOut({
     holderUuid: doc.uuid,
     holderIsGroup: isGroupActor(doc),

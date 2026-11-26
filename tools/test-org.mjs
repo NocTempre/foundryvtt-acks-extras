@@ -48,7 +48,7 @@ class Coll extends Map {
   }
 }
 const actors = new Coll();
-globalThis.game = { actors, scenes: new Coll(), users: new Coll(), user: { isGM: true, id: "u1" }, i18n: { localize: (k) => k, format: (k) => k } };
+globalThis.game = { actors, scenes: new Coll(), users: new Coll(), user: { isGM: true, id: "u1", can: () => true }, i18n: { localize: (k) => k, format: (k) => k } };
 globalThis.fromUuid = async (uuid) => world.get(uuid) ?? null;
 globalThis.fromUuidSync = (uuid) => world.get(uuid) ?? null;
 
@@ -278,6 +278,26 @@ t("send out of an empty row makes its group, named from the row, and no press re
   assert.deepEqual(ford.system.roster.map((r) => r.uuid), [sent.group.uuid]);
   const again = await org.sendOut(f, "e", ford.uuid);
   assert.equal(again.made, false, "a second press finds the group it made");
+});
+
+t("send out of an empty row from a seat that may not create actors is refused noCreate, and nothing is made or written", async () => {
+  reset();
+  const ford = place("Ford");
+  const f = faction("Village", [row("e", "", "", { label: "Third band" })]);
+  const seat = game.user;
+  game.user = { ...seat, isGM: false, can: (p) => p !== "ACTOR_CREATE" };
+  globalThis.createRefuses = true;
+  try {
+    const sent = await org.sendOut(f, "e", ford.uuid);
+    assert.equal(sent.ok, false);
+    assert.equal(sent.reason, "noCreate");
+    assert.ok(!writes.some((w) => w.startsWith("create:")), "no create is attempted");
+    assert.equal(f.system.units[0].holderUuid, "", "the row stays empty");
+    assert.deepEqual(ford.system.roster, []);
+  } finally {
+    game.user = seat;
+    globalThis.createRefuses = false;
+  }
 });
 
 t("send out is refused for a place with no roster, a row that is not there, and a seat that cannot write", async () => {
