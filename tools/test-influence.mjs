@@ -32,8 +32,7 @@ import { MORALE_DOC, attitudeFigure, figureOrigin, modeRows, printedBands, print
 import { conditionEntries, conditionRows } from "../scripts/influence/condition-rows.mjs";
 import { PRIORITY, registerTable, resetTables } from "../scripts/lib/tables.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "../scripts/influence/ability-effects.mjs";
-import { kindOf, parseKindList, relationFor } from "../scripts/influence/racial.mjs";
-import { raceOfCharacter, registerCharacterRace } from "../scripts/lib/actor-read.mjs";
+import { inferRace, kindOf, parseKindList } from "../scripts/influence/racial.mjs";
 
 // The ladder authority is reached through the public global at runtime; the
 // tests supply the same implementation the module would find in a live world.
@@ -1006,15 +1005,8 @@ t("an age category is read off the imported aging table, and none without it", (
     },
   }, { priority: PRIORITY.WORLD });
   assert.deepEqual([5, 10, 19, 20, 45, 60, 85, 400].map((age) => ageCategoryIndex(aged("Fighter", age))), [0, 0, 0, 1, 2, 3, 4, 4]);
-  // The class's race arrives through the classes feature's reader, never the name's words.
-  registerCharacterRace((name) => ({ "elven spellsword": "elf", "gnomish illusionist": "gnome" })[String(name).toLowerCase()] ?? null);
-  try {
-    assert.deepEqual([12, 40, 250].map((age) => ageCategoryIndex(aged("Elven Spellsword", age))), [0, 1, 1], "a race with two categories has two");
-    assert.equal(ageCategoryIndex(aged("Gnomish Illusionist", 45)), 2, "a race the table has no row for counts as human");
-  } finally {
-    registerCharacterRace(null);
-  }
-  assert.equal(ageCategoryIndex(aged("Elven Spellsword", 45)), 2, "a class no reader places counts as human");
+  assert.deepEqual([12, 40, 250].map((age) => ageCategoryIndex(aged("Elven Spellsword", age))), [0, 1, 1], "a race with two categories has two");
+  assert.equal(ageCategoryIndex(aged("Gnomish Illusionist", 45)), 2, "a race the table has no row for counts as human");
   assert.equal(ageCategoryIndex(aged("Fighter", undefined)), 1, "an unstated age is taken as Adult");
   resetTables();
 });
@@ -1068,72 +1060,52 @@ t("no lang string of the tone pages carries a magnitude", () => {
   }
 });
 
-/** A monster as the Full Monster Sheet types it: the extras flag read through `getFlag`, as core's documents answer it. */
-const monsterOf = (name, extras = null) => ({ type: "monster", name, system: { details: { class: "" } }, getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? extras : undefined) });
-
-/** Registers the classes feature's answer from a class name to a race key, runs `fn`, and clears it. */
-const withRaces = (answers, fn) => {
-  registerCharacterRace((name) => answers[String(name).toLowerCase()] ?? null);
-  try {
-    fn();
-  } finally {
-    registerCharacterRace(null);
-  }
-};
-
-t("a character's race is the race of the class its name answers to, through lib's reader, and nothing a name's words say", () => {
+t("a race word inside another word is not a race: Sorcerer, Enforcer and Delver stay human", () => {
   const actor = (cls) => ({ type: ACTOR_TYPE.character, system: { details: { class: cls } } });
-  withRaces({ "marsh warden": "people1", "fen reaver": "people2", delver: "human", "elven ranger": "elf" }, () => {
-    const people = kindOf(actor("Fen Reaver"));
-    assert.equal(people.race, "people2");
-    assert.ok(people.categories.has("human") && !people.categories.has("demi-human"), "a people race counts as human");
-    assert.equal(kindOf(actor("Marsh Warden")).race, "people1");
-    assert.equal(kindOf(actor("Delver")).race, "human");
-    assert.equal(raceOfCharacter(actor("Elven Ranger")), "elf");
-    // A name no class answers to takes no race from its words.
-    for (const cls of ["Dwarven Vaultguard", "Gnomish Trickster", "Orc Berserker", "Half-Elf Scout"]) {
-      const kinds = kindOf(actor(cls));
-      assert.equal(kinds.race, "", cls);
-      assert.equal(kinds.categories.size, 0, `${cls}: no category`);
-    }
-  });
+  const saved = globalThis.acksExtras.classes;
+  try {
+    globalThis.acksExtras.classes = undefined;
+    for (const cls of ["Sorcerer", "Enforcer", "Delver", "Reaver Enforcer"]) assert.equal(inferRace(actor(cls)), "human", cls);
+    assert.equal(inferRace(actor("Elven Ranger")), "elf");
+    assert.equal(inferRace(actor("Half-Elf Scout")), "elf", "a hyphen is a word edge");
+    assert.equal(inferRace(actor("Dwarven Vaultguard")), "dwarf");
+    assert.equal(inferRace(actor("Orc Berserker")), "beastman");
+    assert.equal(inferRace(actor("Gnomish Trickster")), "gnome");
+  } finally {
+    globalThis.acksExtras.classes = saved;
+  }
 });
 
-t("a character whose class the classes feature cannot place is of no race and no category, not a human", () => {
-  const actor = { type: ACTOR_TYPE.character, system: { details: { class: "Lamplighter" } } };
-  const none = kindOf(actor);
-  assert.equal(none.race, "", "no reader registered");
-  assert.equal(none.categories.size, 0);
-  withRaces({}, () => {
-    const unknown = kindOf(actor);
-    assert.equal(unknown.race, "");
-    assert.ok(!unknown.categories.has("human"), "no human default");
-    assert.equal(relationFor(unknown, { race: "dwarf", categories: new Set(["dwarf"]) }), null, "and no relation reads off it");
-  });
-});
-
-t("a monster is typed by its sheet's types and subtype, never by its name", () => {
-  const goblinByName = kindOf(monsterOf("Goblin Raider"));
-  assert.deepEqual([...goblinByName.categories], ["monster"], "an untyped monster is only a monster");
-  assert.equal(goblinByName.race, "");
-  assert.deepEqual([...kindOf(monsterOf("Dwarven Guard", null)).categories], ["monster"]);
-  const typed = kindOf(monsterOf("Raider", { types: ["Construct"], subtype: "Goblin" }));
-  assert.ok(typed.categories.has("goblin") && typed.categories.has("beastman") && typed.categories.has("construct"), "the typing, and the beastman umbrella over a typed goblin");
-  assert.equal(typed.race, "goblin");
-  const dwarf = kindOf(monsterOf("Guard", { types: [], subtype: "Dwarf" }));
-  assert.ok(dwarf.categories.has("dwarf") && dwarf.categories.has("demi-human"), "a typed dwarf is a demi-human");
+t("a character's race is the race of the class its name answers to, through the classes api", () => {
+  const actor = (cls) => ({ type: ACTOR_TYPE.character, system: { details: { class: cls } } });
+  const saved = globalThis.acksExtras.classes;
+  try {
+    // The api answers by the class's own record, never the name's words.
+    globalThis.acksExtras.classes = { raceKeyOfClass: (name) => ({ "marsh warden": "people1", "fen reaver": "people2" })[name] ?? null };
+    assert.equal(inferRace(actor("Marsh Warden")), "people1");
+    assert.equal(inferRace(actor("Fen Reaver")), "people2");
+    const kinds = kindOf(actor("Fen Reaver"));
+    assert.equal(kinds.race, "people2");
+    assert.ok(kinds.categories.has("human") && !kinds.categories.has("demi-human"), "a people race counts as human");
+    // A name no class answers to falls to its common words, then to human.
+    assert.equal(inferRace(actor("Elven Ranger")), "elf");
+    assert.equal(inferRace(actor("Lamplighter")), "human");
+    globalThis.acksExtras.classes = undefined;
+    assert.equal(inferRace(actor("Marsh Warden")), "human", "with no classes api, a name without a common race word is human");
+  } finally {
+    globalThis.acksExtras.classes = saved;
+  }
 });
 
 t("the race sets and the kind token lib holds still sort a character into its category and fold a monster's types and subtype", () => {
   const character = (cls) => ({ type: ACTOR_TYPE.character, system: { details: { class: cls } } });
-  withRaces({ "dwarven delver": "dwarf", "elven scout": "elf", "gnomish tinker": "gnome" }, () => {
-    for (const [cls, race, category] of [["Dwarven Delver", "dwarf", "demi-human"], ["Elven Scout", "elf", "demi-human"], ["Gnomish Tinker", "gnome", "demi-human"]]) {
-      const kinds = kindOf(character(cls));
-      assert.equal(kinds.race, race);
-      assert.ok(kinds.categories.has(category) && !kinds.categories.has("human"), `${race} is a ${category}`);
-    }
-  });
-  const mk = kindOf(monsterOf("Plain Thing", { types: ["Construct"], subtype: "Odd Kind" }));
+  for (const [cls, race, category] of [["Dwarven Delver", "dwarf", "demi-human"], ["Elven Scout", "elf", "demi-human"], ["Gnomish Tinker", "gnome", "demi-human"]]) {
+    const kinds = kindOf(character(cls));
+    assert.equal(kinds.race, race);
+    assert.ok(kinds.categories.has(category) && !kinds.categories.has("human"), `${race} is a ${category}`);
+  }
+  const monster = { type: "monster", name: "Plain Thing", system: { details: { class: "" } }, flags: { "acks-extras": { extras: { types: ["Construct"], subtype: "Odd Kind" } } } };
+  const mk = kindOf(monster);
   assert.ok(mk.categories.has("monster") && mk.categories.has("construct") && mk.categories.has("odd-kind"), "types and subtype, folded");
   assert.equal(mk.race, "odd-kind", "the subtype is the race");
   assert.deepEqual(parseKindList(" Odd  Kind, ,Other_Thing "), ["odd-kind", "other-thing"]);

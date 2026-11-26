@@ -3,15 +3,14 @@
  * Racial & cross-species reaction support (docs/influence/DECISIONS.md,
  * "Racial and cross-species reactions ship strict-RAW"):
  *  - kind typing: what races/categories an actor belongs to, read from the
- *    classes feature (characters) or the Full Monster Sheet (monsters), through
- *    lib's creature-kind reader;
+ *    class name (characters) or the Full Monster Sheet (monsters);
  *  - the asymmetric campaign race-relations registry (world setting + api);
  *  - the RAW hard-hatred pairs (chat notes only, never forced results);
  *  - optional-rule gating for compendium effects (BTA dwarven caste).
  */
 import { MODULE_ID } from "./constants.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
-import { DEMI_HUMAN_RACES, creatureKinds, kindToken, raceOfCharacter } from "../lib/actor-read.mjs";
+import { DEMI_HUMAN_RACES, MEN_RACES, kindToken } from "../lib/actor-read.mjs";
 
 /** Parse a comma-separated kind list into slug tokens. */
 export function parseKindList(value) {
@@ -19,45 +18,96 @@ export function parseKindList(value) {
   return raw.map(kindToken).filter(Boolean);
 }
 
-// Specific beastman kinds a monster's typing can name; each also counts as the beastman category.
+/**
+ * Infer race from the class name (ACKS has no race field); defaults to human.
+ * The common race words a name carries decide first; a name with none takes
+ * the race of the class it answers to in the library (the classes API, absent
+ * outside Foundry), else human.
+ */
+export function inferRace(actor) {
+  const cls = String(actor?.system?.details?.class ?? "").toLowerCase();
+  // Each word opens at a word boundary: "Sorcerer" is no orc, "Delver" no elf.
+  if (/\b(?:dwarv|dwarf)/.test(cls)) return "dwarf";
+  if (/\b(?:elv|elf)/.test(cls)) return "elf";
+  if (/\bgnom/.test(cls)) return "gnome";
+  if (/\blizard/.test(cls)) return "lizardman";
+  if (/\b(?:beastman|bugbear|gnoll|goblin|hobgoblin|kobold|orc)/.test(cls)) return "beastman";
+  return globalThis.acksExtras?.classes?.raceKeyOfClass?.(cls) || "human";
+}
+
+// Specific beastman kinds recognisable from a monster's name/subtype.
 const BEASTMAN_KINDS = ["hobgoblin", "goblin", "kobold", "orc", "gnoll", "bugbear", "ogre", "troll"];
+
+/** Name/subtype matchers for monsters without (or beyond) stat-block typing. */
+const NAME_KIND_MATCHERS = [
+  ["hobgoblin", /hobgoblin/],
+  ["goblin", /(?:^|[^b])goblin/], // avoid matching "hobgoblin"
+  ["kobold", /kobold/],
+  ["orc", /\borc/],
+  ["gnoll", /gnoll/],
+  ["bugbear", /bugbear/],
+  ["ogre", /\bogre/],
+  ["troll", /\btroll/],
+  ["lizardman", /lizard\s*m[ae]n/],
+  ["dwarf", /dwarv|dwarf/],
+  ["elf", /\belv(?:es|en|ish)?\b|\belf\b/],
+  ["gnome", /\bgnome/],
+];
 
 /**
  * The race and category tokens an actor belongs to, for `vs`-scoped effects,
- * the race-relations registry, and the hard-hatred notes. The tokens are lib's
- * `creatureKinds` reading, so what a creature is typed as here is what every
- * other kind-scoped reader sees: nothing is guessed from a name.
+ * the race-relations registry, and the hard-hatred notes.
  *
- * Characters: the race key their class answers through the classes feature
- * (`raceOfCharacter`) and its category; a class that names no race carries
- * neither (empty `race`, no categories). Monsters: `monster`, the enhanced-sheet
- * types and the subtype (`flags.acks-extras.extras`), the first subtype word
- * as the race, and the umbrella categories a typed kind falls under (the
- * beastman kinds, `demi-human` for the demi-human races).
+ * Characters: race inferred from class; dwarves/elves/gnomes also count as
+ * `demi-human`, races of men as `human`. Monsters: `monster`, plus the
+ * enhanced-sheet typing (`flags.acks-extras.extras.types` and
+ * `.subtype`) when present, plus name-recognised kinds (goblin, dwarf, …).
  *
  * @returns {{race: string, categories: Set<string>}}
  */
 export function kindOf(actor) {
   const categories = new Set();
   if (!actor) return { race: "", categories };
-  const kinds = creatureKinds(actor);
 
   if (actor.type === ACTOR_TYPE.character) {
-    kinds.delete("character");
-    for (const kind of kinds) categories.add(kind);
-    const race = raceOfCharacter(actor);
+    const race = inferRace(actor);
+    categories.add(race);
+    if (DEMI_HUMAN_RACES.has(race)) categories.add("demi-human");
+    if (MEN_RACES.has(race)) categories.add("human");
     if (race === "beastman") categories.add("beastman");
     return { race, categories };
   }
 
   // Monster (or any non-character actor).
   categories.add("monster");
-  for (const kind of kinds) categories.add(kind);
-  const race = kindToken(String(actor.getFlag?.(MODULE_ID, "extras")?.subtype ?? "").split(",")[0]);
+  let race = "";
+
+  // Full Monster Sheet typing, when the monster carries a stat block.
+  const extras = actor.flags?.["acks-extras"]?.extras ?? null;
+  const types = extras?.types;
+  const typeList = types instanceof Set ? [...types] : Array.isArray(types) ? types : [];
+  for (const t of typeList) {
+    const token = kindToken(t);
+    if (token) categories.add(token);
+  }
+  const subtype = kindToken(extras?.subtype);
+  if (subtype) {
+    categories.add(subtype);
+    race = subtype;
+  }
+
+  // Name/class recognition (covers un-typed monsters; MM dwarf/goblin actors).
+  const name = `${actor.name ?? ""} ${actor.system?.details?.class ?? ""}`.toLowerCase();
+  for (const [token, re] of NAME_KIND_MATCHERS) {
+    if (re.test(name)) {
+      categories.add(token);
+      if (!race) race = token;
+    }
+  }
 
   // Umbrella categories derived from specific kinds.
   for (const kind of BEASTMAN_KINDS) if (categories.has(kind)) categories.add("beastman");
-  for (const kind of DEMI_HUMAN_RACES) if (categories.has(kind)) categories.add("demi-human");
+  if (categories.has("dwarf") || categories.has("elf") || categories.has("gnome")) categories.add("demi-human");
 
   return { race, categories };
 }

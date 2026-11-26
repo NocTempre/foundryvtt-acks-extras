@@ -209,8 +209,8 @@ export function registerCharacterRace(fn) {
   characterRace = typeof fn === "function" ? fn : null;
 }
 
-/** A character's race key from its class name through the registered reader, lowercase, or "" where none is registered or the class names no race. */
-export function raceOfCharacter(actor) {
+/** A character's race key from its class name through the registered reader, lowercase, or "". */
+function raceOfCharacter(actor) {
   const name = String(actor?.system?.details?.class ?? "").trim();
   if (!name || !characterRace) return "";
   try {

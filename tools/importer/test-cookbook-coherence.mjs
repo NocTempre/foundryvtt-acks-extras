@@ -14,7 +14,6 @@ import { fileURLToPath } from "node:url";
 import { citeFor } from "../../scripts/importer/books.mjs";
 import { materializeEffects } from "../../scripts/importer/executor.mjs";
 import { kindOf } from "../../scripts/influence/racial.mjs";
-import { kindKeys } from "../../scripts/lib/actor-read.mjs";
 import { MONSTER_TYPES } from "../../scripts/monsters/config.mjs";
 import { inCropOf, isLinkRow, isSceneRecipe, isZoneRow, linkBoxOnFirstStorey } from "../../scripts/importer/scene-binding.mjs";
 
@@ -287,9 +286,8 @@ for (const e of pairs) {
 
 /* A slayer proficiency's bonus is scoped by `vsKinds` and sized off the page. */
 {
-  // A monster is typed by its sheet (a type, or a subtype word), a character by the race keys lib holds; no name is guessed from.
-  const MONSTER_KIND = (token) => !!MONSTER_TYPES[token] || kindOf({ type: "monster", name: "", getFlag: () => ({ subtype: token }) }).categories.has(token);
-  const CHARACTER_KIND = (token) => kindKeys().includes(token);
+  const MONSTER_KIND = (token) => !!MONSTER_TYPES[token] || kindOf({ type: "monster", name: token }).categories.has(token);
+  const CHARACTER_KIND = (token) => kindOf({ type: "character", system: { details: { class: token } } }).categories.has(token);
   for (const id of ["def.prof.goblinSlaying", "def.prof.kinSlaying", "def.prof.verminSlaying"]) {
     const specs = entries.get(id)?.fields?.effects?.specs ?? [];
     const scoped = specs.filter((s) => s.type === "modifier" && s.vsKinds?.length);
