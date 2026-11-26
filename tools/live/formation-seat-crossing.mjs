@@ -205,12 +205,15 @@ const P = {
   open: async ({ partyId, width = 920, height = 860 }) => {
     const H = globalThis.__sc;
     const app = game.actors.get(partyId).sheet;
-    await app.render(true);
+    let renderError = null;
+    try { await app.render(true); } catch (err) { renderError = String(err?.message ?? err).slice(0, 200); }
+    // The window's element is there once its frame is drawn; read it for up to ten seconds before positioning it.
+    for (let n = 0; n < 40 && !app.element; n++) await H.sleep(250);
     await H.sleep(1000);
-    app.setPosition({ left: 16, top: 16, width, height });
+    if (app.element) app.setPosition({ left: 16, top: 16, width, height });
     H.root(app)?.querySelector('.tabs [data-group="primary"][data-tab="mode"]')?.click();
     await H.sleep(700);
-    return { id: app.id };
+    return { id: app.id, rendered: !!app.element, renderError };
   },
   close: async ({ partyId }) => {
     try { await game.actors.get(partyId).sheet.close({ animate: false }); } catch (_e) { /* closed */ }

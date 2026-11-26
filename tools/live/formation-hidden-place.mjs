@@ -174,7 +174,7 @@ const P = {
   /** A place made by hand, with or without the importer's stamp; nothing names its ownership. */
   handMade: async ({ name, type, mod, stamped }) => {
     const actor = await Actor.create({ name, type, ...(stamped ? { flags: { [mod]: { cookbook: { id: "def.invented.hiddenPlaceWalk", book: "inv", kind: "kind.location" } } } } : {}) });
-    return { uuid: actor.uuid, default: actor._source.ownership?.default ?? null };
+    return { uuid: actor.uuid, default: actor._source.ownership?.default ?? null, stamp: actor.flags?.[mod]?.cookbook?.id ?? null, ownership: { ...actor._source.ownership } };
   },
 
   /** An imported place dragged out of its shelf, where the world holds one. */
