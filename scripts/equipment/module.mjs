@@ -21,6 +21,7 @@ import { releaseContents } from "./containers.mjs";
 import { registerClothingDeclaration } from "./clothing-declaration.mjs";
 import { registerEncumbranceWrap, registerRollWrap } from "./roll-wrap.mjs";
 import { registerDamagePrompt } from "./damage-prompt.mjs";
+import { installOnHit } from "./on-hit.mjs";
 import { registerSheet } from "./sheet.mjs";
 import { registerItemSheet, ITEM_SHEET_TEMPLATES } from "./item-sheet/sheet.mjs";
 import { advanceWieldedOnLevelUp, levelsGained } from "./overlays/named.mjs";
@@ -156,6 +157,9 @@ Hooks.once("setup", () => {
   } catch (err) {
     console.error(`${MODULE_ID} | failed to register the damage-formula prompt`, err);
   }
+  // The writer of the on-hit card's Save press, which runs on the GM's window
+  // whatever the roll setting says.
+  installOnHit().catch((err) => console.error(`${MODULE_ID} | failed to register the on-hit outcome`, err));
   if (!game.settings.get(MODULE_ID, SETTINGS.ROLL_AUTOMATION)) return;
   try {
     registerRollWrap();

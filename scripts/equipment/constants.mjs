@@ -6,7 +6,7 @@
  * as hardcoded name lists. The effect collector in effects.mjs reads them.
  */
 
-import { MODULE_ID } from "../lib/constants.mjs";
+import { MODULE_ID, FLAG_DRINK } from "../lib/constants.mjs";
 export { MODULE_ID };
 
 /** The feature's lang root — every `ACKS-EQUIPMENT.*` key hangs off it. */
@@ -117,7 +117,7 @@ export const ITEM_FLAGS = Object.freeze({
   // A consumable a bearer drinks from: `{healDice, saveKind, condition,
   // successHealDice, swigDice}`, the figures a gear row printed, `condition` a
   // conditions-catalogue id (`lib/swig-logic.mjs` `swigOutcome`).
-  DRINK: "drink",
+  DRINK: FLAG_DRINK,
   LOSS_CATEGORY: "lossCategory", // explicit position in the item-loss order
   ITEM_LOSS_AC: "itemLossAc", // armour class an armour has lost to item loss: a lasting layer, apart from the scavenged record
   LAYER: "layer", // clothing: "over" | "under" (armour)
