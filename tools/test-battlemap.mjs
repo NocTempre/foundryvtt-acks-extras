@@ -1786,6 +1786,25 @@ const LADDER = [[0, 0], [0, 1], [0, 3], [0, 8], [0, 25]];
       });
     }
   }
+  // At the reported hex, regular on canvas, two boxes' noise sits near `TIGHT_PX`
+  // on both lattices: the right family is never read as the other one from two
+  // boxes on, and the wrong family never reads clean.
+  const small = IMAGES.stretched;
+  const pairs = { "a diagonal pair": [[0, 0], [1, 0]], "two neighbours in a row": [[0, 0], [0, 1]], "a row of four": [[0, 0], [0, 1], [0, 2], [0, 3]] };
+  for (const t of HEX_TYPES_UNDER_TEST) {
+    for (const [setName, cells] of Object.entries(pairs)) {
+      for (const noise of ["edge", "position"]) {
+        for (let seed = 1; seed <= 100; seed++) {
+          const where = `${t.name}, ${setName}, ${noise} noise, seed ${seed}, small hex`;
+          const draw = () => { const rnd = seeded(seed * 7919); return boxesAt(t, small, cells).map((b) => HAND[noise](b, rnd)); };
+          const right = fitFor(t, small, draw());
+          assert.equal(right.warnings.some((w) => w.id === "familyMismatch"), false, `${where}: the right family`);
+          const wrong = fitHexLattice({ boxes: draw(), probe: otherOf(t).probe, scale: small.scale, otherProbe: t.probe });
+          assert.equal(!wrong.ok || wrong.warnings.length > 0, true, `${where}: the wrong family`);
+        }
+      }
+    }
+  }
 }
 
 // A map whose hexes are regular in the image, laid on a scene of another aspect,

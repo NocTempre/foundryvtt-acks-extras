@@ -553,8 +553,13 @@ the other family now clears the line, which `familyMismatchLone` promised and
 the old gate did not keep. Flat columns regular in the image on a 4:3 scene
 got no fit in 200 of 200 draws for every set; after, every set fits with
 every box used and no warning. The wrong family on a true canvas never reads
-clean, before or after. The architect's sweep of the same gate (B02,
-2026-11-25) changed 38 of 288 corpus cells, none for the worse.
+clean, before or after. At the reported hex (the 30.7 by 47.3 px box on the
+4:3 scene), over all four types with edge and with position noise, for a
+diagonal pair, two neighbours in a row and a row of four: the right family
+reads the other family in no draw before or after, and its ambiguous reads
+fall from 74 to 99 of 200 for a pair to 2 to 9; the wrong family reads clean
+in no draw, and is now told by the lattice in 165 to 196 of 200 where the
+shape told it before.
 
 **Supersedes in part.** Nothing in force here; the threshold was a slice's.
 
