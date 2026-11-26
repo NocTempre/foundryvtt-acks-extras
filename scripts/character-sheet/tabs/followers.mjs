@@ -11,7 +11,7 @@ import { MODULE_ID, LANG } from "../constants.mjs";
 import { makeLoc } from "../../lib/util.mjs";
 import { renderFollowerCard } from "../../lib/follower-card.mjs";
 import { wageBill } from "../../henchmen/engine/events.mjs";
-import { hirelingBuckets, serviceNodes } from "../../henchmen/engine/service-tree.mjs";
+import { serviceNodes, serviceReads } from "../../henchmen/engine/service-tree.mjs";
 import { daysUntil } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 
@@ -70,11 +70,11 @@ export function followersSwitch(view, nodes) {
 /**
  * Build the tab's data (async: the cards render through a template).
  * @param {Actor} actor
- * @param {{view?: string, nodes?: object[]}} [options] the kept view choice and the lord's service nodes, which the sheet reads once for both this and the lib view it draws
+ * @param {{view?: string, nodes?: object[], reads?: ReturnType<typeof serviceReads>}} [options] the kept view choice, the lord's service nodes (which the sheet reads once for both this and the lib view it draws) and the memo of hireling reads those nodes came from, so the lord's hirelings are read once for the render
  */
-export async function buildFollowersTab(actor, { view = "cards", nodes = serviceNodes(actor) } = {}) {
+export async function buildFollowersTab(actor, { view = "cards", reads = serviceReads(), nodes = serviceNodes(actor, reads) } = {}) {
   const current = followersViewOf(view, nodes);
-  const buckets = hirelingBuckets(actor);
+  const buckets = reads.buckets(actor);
   const defs = [
     { key: "henchmen", title: game.i18n.localize("ACKS-HENCHMEN.bucket.henchmen"), list: buckets.henchmen },
     { key: "mercenaries", title: game.i18n.localize("ACKS-HENCHMEN.bucket.mercenaries"), list: buckets.mercenaries },

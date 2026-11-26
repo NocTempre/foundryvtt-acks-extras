@@ -53,6 +53,24 @@ export const hiredUnitsOf = (employer) =>
   employer?.uuid ? game.actors.filter((a) => a.type === GROUP_ACTOR_TYPE && a.system?.unit?.employerUuid === employer.uuid) : [];
 
 /**
+ * A memo of `hirelingBuckets` and `hiredUnitsOf`, one answer per employer, for the
+ * surfaces that draw one render from the same reads (`serviceNodes` and the
+ * Followers tab). Core's `getHirelings` duplicates every henchman it lists, so a
+ * reader is made per render and dropped with it: it never outlives the world it read.
+ * @returns {{buckets: (employer: Actor) => ReturnType<typeof hirelingBuckets>, units: (employer: Actor) => Actor[]}}
+ */
+export function serviceReads() {
+  const bucketsOf = new Map();
+  const unitsOf = new Map();
+  const memo = (cache, read) => (employer) => {
+    if (!employer || typeof employer !== "object") return read(employer);
+    if (!cache.has(employer)) cache.set(employer, read(employer));
+    return cache.get(employer);
+  };
+  return { buckets: memo(bucketsOf, hirelingBuckets), units: memo(unitsOf, hiredUnitsOf) };
+}
+
+/**
  * The service tree under `employer`, as `{key, parentKey, label, holderUuid,
  * kind}` nodes in breadth-first order. The employer is the root; under each
  * actor stand its hired units, then its hirelings in the Followers tab's order,
@@ -64,9 +82,10 @@ export const hiredUnitsOf = (employer) =>
  * data carries (`retainer.category`, `unit.category`), blank for the root.
  * Reads only.
  * @param {Actor} employer
+ * @param {ReturnType<typeof serviceReads>} [reads] the render's memo, shared with the Followers tab
  * @returns {{key: string, parentKey: string, label: string, holderUuid: string, kind: string}[]}
  */
-export function serviceNodes(employer) {
+export function serviceNodes(employer, reads = serviceReads()) {
   if (!employer?.uuid) return [];
   const nodes = [];
   const seen = new Set();
@@ -82,12 +101,12 @@ export function serviceNodes(employer) {
   const queue = [employer];
   while (queue.length) {
     const boss = queue.shift();
-    const units = hiredUnitsOf(boss);
+    const units = reads.units(boss);
     for (const unit of units) stand(unit, boss.uuid, unit.system?.unit?.category);
     // A unit's leader is its card's head (`officerUuid`), never a node, so the
     // roster's copy of the same actor is left out too.
     const leaders = new Set(units.map((unit) => unit.system?.unit?.officerUuid).filter(Boolean));
-    const { henchmen, mercenaries, specialists } = hirelingBuckets(boss);
+    const { henchmen, mercenaries, specialists } = reads.buckets(boss);
     for (const hireling of [...henchmen, ...mercenaries, ...specialists]) {
       if (leaders.has(hireling.uuid)) continue;
       if (stand(hireling, boss.uuid, kindOf(hireling))) queue.push(hireling);

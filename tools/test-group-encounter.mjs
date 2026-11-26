@@ -930,6 +930,63 @@ await ok("a Judge's nameplate reads the count, and a player's reads the document
   Hooks.call("refreshToken", { actor: group });
 });
 
+await ok("a token refresh reads the caption only when core rewrites the nameplate", () => {
+  const group = groupOf([stackOf(creature(), { current: 9 })], { noun: "muster", reveal: REVEAL.noun });
+  const refresh = (flags) => {
+    const token = { actor: group, nameplate: { text: "Muster" } };
+    Hooks.call("refreshToken", token, flags);
+    return token.nameplate.text;
+  };
+  assert.equal(refresh({ refreshNameplate: false, refreshPosition: true }), "Muster", "a movement frame leaves the nameplate alone");
+  assert.equal(refresh({}), "Muster", "flags with no nameplate refresh leave it alone");
+  assert.equal(refresh({ refreshNameplate: true }), "Knot, muster of 9", "a nameplate refresh sets the Judge's caption");
+  assert.equal(refresh(undefined), "Knot, muster of 9", "no flags object keeps the old behaviour");
+});
+
+await ok("a group's update marks its token for a nameplate refresh", () => {
+  const marked = [];
+  const tokenOf = (name) => ({ renderFlags: { set: (flags) => marked.push([name, flags]) } });
+  const group = groupOf([stackOf(creature(), { current: 9 })], { noun: "muster", reveal: REVEAL.noun });
+  group.getActiveTokens = () => [tokenOf("own")];
+  Hooks.call("updateActor", group, {});
+  assert.deepEqual(marked, [["own", { refreshNameplate: true }]]);
+  marked.length = 0;
+  group.system.reveal = REVEAL.full;
+  Hooks.call("updateActor", group, {});
+  assert.deepEqual(marked, [], "only a noun reveal carries a Judge's caption");
+  group.system.reveal = REVEAL.noun;
+  game.user = users[1];
+  Hooks.call("updateActor", group, {});
+  game.user = users[0];
+  assert.deepEqual(marked, [], "a player's seat marks nothing");
+});
+
+await ok("a group that leaves a tree, by a new parent or by deletion, marks every caption", () => {
+  const marked = [];
+  const tokenOf = (name) => ({ renderFlags: { set: () => marked.push(name) } });
+  const head = groupOf([stackOf(creature(), { current: 9 })], { noun: "muster", reveal: REVEAL.noun });
+  head.getActiveTokens = () => [tokenOf("head")];
+  const child = groupOf([stackOf(creature(), { current: 3 })], { noun: "band", reveal: REVEAL.full });
+  child.getActiveTokens = () => [tokenOf("child")];
+  game.actors = [head, child];
+  try {
+    Hooks.call("updateActor", child, { system: { unit: { parentGroupUuid: "" } } });
+    assert.ok(marked.includes("head"), "the tree it left re-reads, though the update no longer names it");
+    assert.ok(!marked.includes("child"), "a group with no noun reveal carries no caption");
+    marked.length = 0;
+    game.actors = [head];
+    Hooks.call("deleteActor", child);
+    assert.ok(marked.includes("head"), "a deleted group's old tree re-reads");
+    marked.length = 0;
+    game.user = users[1];
+    Hooks.call("deleteActor", child);
+    game.user = users[0];
+    assert.deepEqual(marked, [], "a player's seat marks nothing");
+  } finally {
+    delete game.actors;
+  }
+});
+
 /* -------------------------------------------- */
 /*  A row dropped on the map                    */
 /* -------------------------------------------- */

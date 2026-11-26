@@ -23,8 +23,11 @@
  *   test, no role read), writes through the carrier's `pressRoll` onto the same
  *   moment-keyed entry the cards write, and is checked again by the primary
  *   GM's window on the relayed seat.
- * - A card change, a token's move or a Region's change re-renders the open
- *   sheets the strip could be on (`installItemRunStrip`).
+ * - A card change re-renders the open sheets of the bodies it lists. A token's
+ *   move on a scene that holds a reach, or a reach Region's change, re-renders
+ *   once per burst the character and monster sheets whose body has a token on
+ *   that scene, which are the sheets that read the strip and the gear rows'
+ *   ring counts (`installItemRunStrip`).
  */
 import { FLAG_ITEM_RUN, FLAG_ROLL_MODS, LANG_PREFIX, MODULE_ID, AURA_BEHAVIOR_TYPE, FLAG_ITEM_RUN_CARD } from "./constants.mjs";
 import { figureNumber, isEngagedActivation, readAuraConfig, readReach, reachAdmits } from "./aura-reach-logic.mjs";
@@ -38,6 +41,8 @@ import { citeOf } from "./tables.mjs";
 import { isMarkerActor } from "./place.mjs";
 import { turnSeconds } from "./time-unit.mjs";
 import { makeLoc } from "./util.mjs";
+// reach-glyph.mjs imports this file back; the binding is read only inside hook callbacks, after both modules have loaded.
+import { sceneHasReach } from "./reach-glyph.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 
@@ -242,15 +247,48 @@ export async function pressStripSave(button) {
   return out?.ok === false ? refusal(out.reason) : out;
 }
 
-/** Re-render the open actor sheets whose body stands among `tokenUuids`, or every open actor sheet where none are named. */
-function refreshSheets(tokenUuids = null) {
+/** Re-render the open actor sheets whose body stands among `tokenUuids`. */
+function refreshSheets(tokenUuids) {
   for (const app of foundry.applications.instances?.values?.() ?? []) {
     const doc = app?.document;
     if (!app?.rendered || doc?.documentName !== "Actor") continue;
     const mine = doc.isToken ? [doc.token?.uuid] : (doc.getActiveTokens?.(false, true) ?? []).map((t) => t.uuid);
-    if (tokenUuids && !mine.some((uuid) => tokenUuids.has(uuid))) continue;
+    if (!mine.some((uuid) => tokenUuids.has(uuid))) continue;
     app.render();
   }
+}
+
+/** The window classes of the sheets that read a body's reach: the strip, and the gear rows' ring counts. */
+const READER_SHEET_CLASSES = Object.freeze(["acks-extras-character-sheet", "acks-extras-monster"]);
+
+/** The milliseconds a burst of token moves and Region writes is gathered for before the sheets are re-rendered. */
+const REACH_SETTLE_MS = 100;
+
+/** The scenes whose reach readers wait to be re-rendered, and the timer that runs them. */
+const pendingScenes = new Set();
+let settleTimer = null;
+
+/** Whether a Region holds an aura behavior, the mark of a reach. */
+const isReachRegion = (region) => [...(region?.behaviors ?? [])].some((behavior) => behavior.type === AURA_BEHAVIOR_TYPE);
+
+/** Re-render the open reader sheets whose body has a token on one of the pending scenes, then forget the scenes. */
+function renderReaders() {
+  settleTimer = null;
+  const sceneIds = new Set(pendingScenes);
+  pendingScenes.clear();
+  for (const app of foundry.applications.instances?.values?.() ?? []) {
+    const doc = app?.document;
+    if (!app?.rendered || doc?.documentName !== "Actor" || !READER_SHEET_CLASSES.some((name) => app.options?.classes?.includes?.(name))) continue;
+    const tokens = doc.isToken ? [doc.token] : (doc.getActiveTokens?.(false, true) ?? []);
+    if (tokens.some((token) => sceneIds.has(token?.parent?.id))) app.render();
+  }
+}
+
+/** Queue the reader sheets of a scene for one render at the end of the settle window. */
+function queueReaders(scene) {
+  if (!scene?.id) return;
+  pendingScenes.add(scene.id);
+  settleTimer ??= setTimeout(renderReaders, REACH_SETTLE_MS);
 }
 
 /** Re-render the open sheet of the actor that carries an item, by the item's uuid. */
@@ -279,8 +317,13 @@ export function installItemRunStrip() {
       if (card?.itemUuid) refreshItemSheets(card.itemUuid);
     });
   }
+  // A move reaches a sheet only where its scene holds a reach; a reach Region's own change reaches it even when that was the scene's last.
   Hooks.on("updateToken", (token, change) => {
-    if (["x", "y", "width", "height", "hidden"].some((key) => key in (change ?? {}))) refreshSheets();
+    if (["x", "y", "width", "height", "hidden"].some((key) => key in (change ?? {})) && sceneHasReach(token.parent)) queueReaders(token.parent);
   });
-  for (const name of ["createRegion", "deleteRegion", "updateRegion"]) Hooks.on(name, () => refreshSheets());
+  for (const name of ["createRegion", "deleteRegion", "updateRegion"]) {
+    Hooks.on(name, (region) => {
+      if (isReachRegion(region)) queueReaders(region.parent);
+    });
+  }
 }

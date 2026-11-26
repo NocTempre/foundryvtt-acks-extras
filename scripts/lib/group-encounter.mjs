@@ -11,7 +11,7 @@
  * stays pristine until `materializeMembers` rolls each body's own hit points.
  */
 import { GROUP_LANG_PREFIX, GROUP_TYPE, MODULE_ID } from "./constants.mjs";
-import { groupAncestors, groupTree, isGeneratedStack, isGroupActor } from "./group-logic.mjs";
+import { groupAncestors, groupTree, isGeneratedStack, isGroupActor, worldGroups } from "./group-logic.mjs";
 import { addStack } from "./group.mjs";
 import {
   BY_LAIR_CHANCE,
@@ -327,7 +327,31 @@ export function registerEncounterTokens() {
       })
       .catch((err) => console.error(`${MODULE_ID} | encounter token write failed`, err));
   });
-  Hooks.on("refreshToken", (token) => {
+  // The caption reads every group in the world, and core fires `refreshToken` on
+  // every frame a token moves, so it is rebuilt only when core rewrites the nameplate
+  // (`refreshNameplate`) or when a hook caller passes no flags at all.
+  const markCaptions = (groups) => {
+    for (const group of groups) {
+      if (!isGroupActor(group) || group.system?.reveal !== REVEAL.noun) continue;
+      for (const token of group.getActiveTokens?.() ?? []) token.renderFlags?.set({ refreshNameplate: true });
+    }
+  };
+  // A caption names a group's whole tree, so the tokens of the groups it stands inside re-read too.
+  const withAncestors = (group) => [group, ...groupAncestors(group).map((uuid) => fromUuidSync(uuid))];
+  Hooks.on("updateActor", (actor, change) => {
+    if (!game.user.isGM || !isGroupActor(actor)) return;
+    // A group that changed parent has left a tree whose head this update no longer names, so every caption re-reads.
+    markCaptions("parentGroupUuid" in (change?.system?.unit ?? {}) ? worldGroups() : withAncestors(actor));
+  });
+  Hooks.on("createActor", (actor) => {
+    if (game.user.isGM && isGroupActor(actor)) markCaptions(withAncestors(actor));
+  });
+  // A deleted group is in no tree any more, so its ancestors cannot be walked from it.
+  Hooks.on("deleteActor", (actor) => {
+    if (game.user.isGM && isGroupActor(actor)) markCaptions(worldGroups());
+  });
+  Hooks.on("refreshToken", (token, flags) => {
+    if (flags && !flags.refreshNameplate) return;
     if (!game.user.isGM || !token.nameplate) return;
     const actor = token.actor;
     if (isGroupActor(actor) && actor.system?.reveal === REVEAL.noun) token.nameplate.text = judgeCaption(actor);

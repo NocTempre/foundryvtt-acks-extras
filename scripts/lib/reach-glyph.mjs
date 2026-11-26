@@ -73,7 +73,7 @@ function seat() {
 }
 
 /** Whether a scene holds any Region carrying the aura behavior. */
-function sceneHasReach(scene) {
+export function sceneHasReach(scene) {
   for (const region of scene?.regions ?? []) {
     for (const behavior of region.behaviors ?? []) if (behavior.type === AURA_BEHAVIOR_TYPE) return true;
   }
@@ -142,13 +142,14 @@ function removeGlyph(glyph) {
  * Bring a token's glyph into line with the world: drawn, redrawn or removed.
  * Cheap where nothing changed, since a glyph is redrawn only when its key does.
  * @param {Token} token  The placeable.
+ * @param {boolean} [reach]  Whether the token's scene holds a reach, where the caller has already scanned it; read here when omitted.
  */
-export function refreshGlyph(token) {
+export function refreshGlyph(token, reach) {
   if (!token || token.destroyed || token.isPreview) return;
   const existing = glyphOf(token);
   const doc = token.document;
   const here = !!canvas?.ready && doc?.parent?.id === canvas.scene?.id;
-  if (!here || !sceneHasReach(doc.parent)) return removeGlyph(existing);
+  if (!here || !(reach ?? sceneHasReach(doc.parent))) return removeGlyph(existing);
   if (!textureReady()) return;
   const rows = rowsFor(doc);
   if (!rows.length) return removeGlyph(existing);
@@ -163,10 +164,11 @@ export function refreshGlyph(token) {
   if (token.hover) showReadout(glyph, token);
 }
 
-/** Re-work every token on the viewed scene. */
+/** Re-work every token on the viewed scene, scanning the scene's Regions once for the pass. */
 export function refreshAllGlyphs() {
   if (!canvas?.ready) return;
-  for (const token of canvas.tokens?.placeables ?? []) guarded(() => refreshGlyph(token));
+  const reach = sceneHasReach(canvas.scene);
+  for (const token of canvas.tokens?.placeables ?? []) guarded(() => refreshGlyph(token, reach));
 }
 
 /* -------------------------------------------- */

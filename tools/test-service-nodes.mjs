@@ -91,7 +91,7 @@ function makeActor({ id, type = "character", category = "", hires = [], monsters
   return actor;
 }
 
-const { serviceNodes, hirelingBuckets, hiredUnitsOf } = await import("../scripts/henchmen/engine/service-tree.mjs");
+const { serviceNodes, serviceReads, hirelingBuckets, hiredUnitsOf } = await import("../scripts/henchmen/engine/service-tree.mjs");
 const { buildFollowersTab, followersSwitch, followersViewOf, hasServiceFollowers, FOLLOWERS_VIEWS } = await import("../scripts/character-sheet/tabs/followers.mjs");
 const { orgChartView, rowRoots } = await import("../scripts/lib/org-tree-logic.mjs");
 
@@ -287,6 +287,49 @@ await test("the tab's data carries the view in use, the switch with the current 
   assert.equal(lone.switch, null);
   assert.deepEqual([lone.view, lone.showCards], ["cards", true]);
   assert.equal(followersSwitch("cards", []), null);
+});
+
+console.log("service nodes: one render reads each lord's hirelings once");
+await test("the sheet's context build reads each lord's hirelings once, and the nodes and cards are those a build without the memo gives", async () => {
+  const w = buildWorld();
+  const calls = new Map();
+  for (const actor of actors.values()) {
+    const read = actor.getHirelings;
+    calls.set(actor.id, 0);
+    actor.getHirelings = function counted() {
+      calls.set(actor.id, calls.get(actor.id) + 1);
+      return read.call(this);
+    };
+  }
+  const total = () => [...calls.values()].reduce((a, b) => a + b, 0);
+  const reset = () => calls.forEach((_, id) => calls.set(id, 0));
+
+  // The wage bill reads the lord's roster on its own, so what it costs is measured alone and taken off.
+  const { wageBill } = await import("../scripts/henchmen/engine/events.mjs");
+  wageBill(w.boss);
+  const wageReads = calls.get(w.boss.id);
+  reset();
+
+  // The sheet's own sequence: one memo, the nodes, then the tab.
+  const reads = serviceReads();
+  const nodes = serviceNodes(w.boss, reads);
+  const tab = await buildFollowersTab(w.boss, { view: "cards", nodes, reads });
+  for (const lord of [w.lead, w.under, w.plain, w.sworn, w.captain, w.beast, w.band]) {
+    assert.ok(calls.get(lord.id) <= 1, `${lord.id} read ${calls.get(lord.id)} times`);
+  }
+  assert.equal(calls.get(w.boss.id) - wageReads, 1, "the lord's own hirelings are read once for the nodes and the tab together");
+  assert.ok(total() > 0);
+
+  reset();
+  const plainNodes = serviceNodes(w.boss);
+  const plainTab = await buildFollowersTab(w.boss, { view: "cards" });
+  assert.deepEqual(nodes, plainNodes, "the same nodes");
+  assert.deepEqual(
+    tab.groups.map((g) => [g.key, g.cards.map((c) => c.id)]),
+    plainTab.groups.map((g) => [g.key, g.cards.map((c) => c.id)]),
+    "the same cards",
+  );
+  assert.equal(tab.count, plainTab.count, "the same count");
 });
 
 console.log(`\n${passed} passed`);

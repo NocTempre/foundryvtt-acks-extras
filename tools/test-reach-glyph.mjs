@@ -131,4 +131,15 @@ await t("a line carries the state and the turns left only where the seat is show
   assert.equal(strip.reachLineOf({ ...row, tag: "waiting", left: undefined }, { withTag: true }), "Item (ACKS-LIB.itemRun.strip.tag.waiting) · Source");
 });
 
+await t("one pass over the scene scans its Regions once, however many tokens it holds", async () => {
+  const glyph = await import("../scripts/lib/reach-glyph.mjs");
+  let scans = 0;
+  const scene = { id: "S1", get regions() { scans += 1; return []; } };
+  const token = () => ({ destroyed: false, isPreview: false, children: [], document: { parent: scene } });
+  globalThis.canvas = { ready: true, scene, tokens: { placeables: [token(), token(), token()] } };
+  glyph.refreshAllGlyphs();
+  assert.equal(scans, 1, "a scene with no reach costs one scan and draws nothing");
+  delete globalThis.canvas;
+});
+
 console.log(`\n${passed} passed`);
