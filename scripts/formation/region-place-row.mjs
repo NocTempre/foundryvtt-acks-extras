@@ -78,7 +78,7 @@ export function placePickerOf({ region, scenes, say, cls, afterMake, afterLink }
   group.querySelector(`.${cls}-select`).addEventListener("change", (ev) => {
     const uuid = ev.currentTarget.value;
     const actor = uuid ? game.actors.get(uuid.split(".")[1]) : null;
-    report(Promise.resolve(actor ? scenes.linkRegion(region, actor) : scenes.unlinkRegion(region)).then(() => afterLink?.()), "place link");
+    report(Promise.resolve(actor ? scenes.linkRegion(region, actor) : scenes.unlinkRegion(region)).then((done) => done !== false && afterLink?.()), "place link");
   });
   group.querySelector(`.${cls}-new`).addEventListener("click", () => {
     report(Promise.resolve(scenes.createLocationForRegion(region)).then((made) => made && afterMake?.()), "place create");
