@@ -257,6 +257,11 @@ export function installReachGlyph() {
   Hooks.on("refreshToken", onRefreshToken);
   Hooks.on("hoverToken", (token, hovered) => guarded(() => onHover(token, hovered)));
   Hooks.on("canvasReady", () => guarded(refreshAllGlyphs));
+  // A token placed inside a reach already standing fires none of the changes
+  // below: its first draw works its own glyph, and the settled pass follows
+  // for a membership the scene learns just after the creation.
+  Hooks.on("drawToken", (token) => guarded(() => refreshGlyph(token)));
+  Hooks.on("createToken", settle);
   Hooks.on("updateToken", (_doc, change) => {
     if (changesMembership(change)) settle();
   });

@@ -142,4 +142,29 @@ await t("one pass over the scene scans its Regions once, however many tokens it 
   delete globalThis.canvas;
 });
 
+await t("a token's first draw works its own glyph, and its creation asks for the settled pass", async () => {
+  const glyph = await import("../scripts/lib/reach-glyph.mjs");
+  const on = Hooks.on;
+  const debounce = foundry.utils.debounce;
+  const heard = new Map();
+  let settled = 0;
+  Hooks.on = (name, fn) => heard.set(name, fn);
+  foundry.utils.debounce = (fn) => () => { settled += 1; fn(); };
+  try {
+    glyph.installReachGlyph();
+  } finally {
+    Hooks.on = on;
+    foundry.utils.debounce = debounce;
+  }
+  assert.equal(typeof heard.get("drawToken"), "function", "a token created inside a standing reach is drawn with no change the other listeners hear");
+  let scans = 0;
+  const scene = { id: "S1", get regions() { scans += 1; return []; } };
+  globalThis.canvas = { ready: true, scene, tokens: { placeables: [] } };
+  heard.get("drawToken")({ destroyed: false, isPreview: false, children: [], document: { parent: scene } });
+  assert.equal(scans, 1, "the draw works that one token's glyph");
+  heard.get("createToken")();
+  assert.equal(settled, 1, "a creation asks for the scene's settled pass");
+  delete globalThis.canvas;
+});
+
 console.log(`\n${passed} passed`);
