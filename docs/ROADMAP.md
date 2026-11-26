@@ -219,14 +219,55 @@ reading of the lair's stock and its place on the map waits on that read.
 
 ## Groups
 
-The Roll sizes a group from a creature's encounter line (`docs/lib/GROUPS.md`). The
-rest of the encounter group, the recipe a side's units, leaders and young need
-through to the fight and its aftermath, is mapped in
-`docs/lib/wip/20261031-encounter-group.md`.
+The Roll sizes a group from a creature's encounter line (`docs/lib/GROUPS.md`), a
+creature's encounter recipe makes the units, leaders and young the line names
+(`docs/monsters/MODEL.md`, "The encounter recipe"), and a group token added to a
+combat deploys the group (`GROUPS.md`, "In a fight"). The rows below are what is not
+built between the encounter card and the aftermath.
 
-A scouting result does not set the reveal. Nothing in the module produces one for a
-group yet: the Judge's select is the control. The first result that can reach it is
-`detection()`'s `partySees`, when an encounter card stands a group up.
+**Stand Up.** Neither the encounter card nor a stocked hex point stands a group up.
+The card's flag already carries the creature and the distance, so a button on it
+would find the monster (`resolveCreature`, `formation/encounter-card.mjs`) and put
+the token that distance from the party. A stocked point's lair would be a place
+holding the group as an occupant (`point.creature`, `placeUuid`); `rollLair`
+(`lib/lair.mjs`) already makes a group for a place.
+
+**The monsters' side of detection and evasion.** `formation/encounter-card.mjs`
+passes `detection()` and `evasionModifiers()` the party's side alone, so a band is
+seen as one head: `monsterHeads`, `monsterTerrain`, `monstersFly`,
+`fasterMonsters` and `slowerMonsters` have no caller. A rolled group gives heads
+(`headEquivalents`) and its creatures' speeds (`extras.speeds`). It reorders the
+card, since the number is rolled before the distance is judged, as the book orders
+the two.
+
+**Scouting and the reveal.** A scouting result does not set the reveal. Nothing in
+the module produces one for a group yet: the Judge's select is the control. The
+first result that can reach it is `detection()`'s `partySees`, when an encounter
+card stands a group up.
+
+**XP for a beaten group.** The XP award dialog (`formation/xp-app.mjs`) opens on a
+total of zero. It would fill the total from each stack's fallen (`deadOf`) and the
+XP of the creature each was.
+
+**Treasure by unit.** Only the organisation Roll hands a lair's hoards to a treasure
+pot (`docs/monsters/MODEL.md`, "The treasure hand-off"). A group sized by a stack's
+own Roll deals none, and the monster sheet's draw is once per monster. The draw
+would be made once for each unit the treasure line names, for a group in its lair
+(JJ ch. 8 says so of dungeon rooms; the wilderness reading is unchecked).
+
+**Base actors.** `ensureBaseActor` (`lib/group.mjs`) mints a hidden world actor for
+a stack whose creature has none in the world, one for each such stack of each group.
+None is reused by source or filed in a folder, and deleting the group leaves them
+behind. Only the organisation chart's row delete removes the ones it minted.
+
+**A line with no count to roll.** A side that states no count the parser reads (one
+that says special, or varies by something other than its side) gives no Roll
+(`lib/encounter-line.mjs`). A wandering band moved by the clock on a journey map is
+not built either.
+
+**Levelled people.** A recipe part's source is a creature, a family role cell, a
+stat line or a word, never a class at a level. Building a person a line names that
+way would join the henchmen and classes generators, and no feature owns it.
 
 Supply cost and battle rating are documented in `group-data.mjs` and deliberately
 unread, waiting on the domain work that would give them somewhere to be spent.

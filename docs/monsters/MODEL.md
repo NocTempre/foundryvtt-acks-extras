@@ -55,8 +55,8 @@ reads it with its unit and offers no roll, and `sizeFromEcology` gives nothing.
 The Ecology tab edits all three fields, and its submit keeps core's field in step
 (`appearingChanges`).
 
-Walking a unit to the bodies it holds is the recipe engine's, not built:
-`docs/lib/wip/20261031-encounter-group.md`, §3d.
+A stack's own Roll does not walk a unit to the bodies it holds; the recipe engine
+does ("The organisation roll", below).
 
 ## The encounter recipe
 

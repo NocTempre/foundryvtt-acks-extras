@@ -13,8 +13,8 @@ order of the p. 55 table's rows, traits **T1-T10** in the order of the p. 57
 table's rows, the optional equipment **E1-E9** in the order the section prints
 it, the village rows **V1-V7** in the order of the p. 54 table's rows.
 
-It extends `docs/lib/wip/20261031-encounter-group.md` (the encounter group,
-unbuilt §3d-§3g) and does not run beside it.
+It extends the encounter group (`docs/monsters/MODEL.md`, "The encounter recipe";
+what is not built is `docs/ROADMAP.md`, "Groups") and does not run beside it.
 
 ## The owner's words
 
@@ -154,7 +154,7 @@ not generate one creature with a role or a trait).
   `scripts/monsters/organisation-logic.mjs` layers the optional rules: the
   split, a troop roll per sub-unit, one trait per warband or village, carry
   rolls with their cascades, mounts, T6. The breed prose is read by
-  `importer/ecology-recipe.mjs` (the encounter-group wip's §3e).
+  `importer/ecology-recipe.mjs`.
 - **Stacks.** One stack per identical prototype, counts summed across units,
   each with `stack.gen = {rollKey, nodes: {nodeKey: n}, pins, fixedHp}`.
 - **One mechanism for a per-body difference.** A carry roll that hits one body

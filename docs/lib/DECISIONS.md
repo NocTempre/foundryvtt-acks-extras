@@ -3424,3 +3424,25 @@ type, and its answer holds for the session. A system that folds `save.mod`
 into a prepared saving-throw target, rather than adding it at the roll, is not
 covered. `saveSpec` still leaves a monster's stored `save.mod` out of its
 throws, which may part from the system's roll once the system adds it.
+
+## 2026-11-26 — An encounter is a group and not a sub-type of one (the rejected sub-type, recorded)
+
+**Ruled.** The owner's 2026-10-31 ruling that an encounter is a group is in
+"2026-11-01 — A monster's Roll writes at once, and the token says what the
+Judge lets it". The alternative it answered was written down only in the
+encounter-group plan, which closed today.
+
+**Why a group.** The party is its own actor type because a formation record
+holds its state and the actor is a stub. For monsters the group is already the
+record, so a new type would add a document with no new state to put in it.
+
+**Rejected:** `acks-extras.encounter`, an `EncounterData` extending
+`GroupData`. It would buy a named entry in the Create Actor dialog and a default
+sheet of its own. The plan priced it at a world relaunch (`documentTypes` is
+read at launch), a wider `isGroupActor`, and the literal type tests in
+`place.mjs`, `hp-logic.mjs` and the henchmen engine. *The strongest case for
+it, MODERATE:* the name in the Create Actor dialog, which Make Encounter on the
+monster sheet answers without a type.
+
+**What would force it:** state that cannot sit beside a mercenary unit, or a
+sheet that shares nothing with a stack list. Neither was visible on 2026-10-31.
