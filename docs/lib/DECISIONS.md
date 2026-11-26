@@ -2559,3 +2559,75 @@ Also: the shared card renderer takes three more additive fields, a row's
 card's "Engaged by" carries a computed tooltip, "Not engaged" names its subject
 and bearers, and the read line is a paragraph of its own. None is passed by any
 earlier caller and `tools/test-roll-card.mjs` pins their HTML.
+
+## 2026-11-25 — A fuse item is lit, not thrown: the page's three outcomes, the bearer's spot, and a burst rolled once (gear S9a)
+
+**New evidence.** The carrier ruling's A7.9(b)
+(`docs/monsters/wip/20261124-s7-ruling-reader-carrier.md`, less than 7 days
+old) had a miss write the fuse at a scattered spot. E2's paragraph (MM p. 55;
+RR p. 157 and By This Axe agree) prints a fuse LIGHT and no throw: a
+proficiency throw that costs a movement action, a failure that leaves the fuse
+unlit, a fumble that detonates the bomb at once, and a success that detonates
+it at the end of the bearer's initiative after the fuse dice in rounds. It
+prints no spot, range, miss or scatter, and the real extraction holds no such
+figure. The owner: "No shipping house rules please."
+
+**Ruled, by the release hub.** A7.9(b) and the hub's own earlier ruling are
+withdrawn. A failed light writes nothing and says so on its card; a fumble
+bursts at once at the bearer's token centre; a success writes the fuse record
+(`fuseFlag` on a fight's clock, `fuseWorldFlag` outside one) at the bearer's
+token centre at the light. "Move the spot" is how an owner of the bearer (a
+Judge owns every document) sets it elsewhere, with no range check; there is no
+point pick at the light. The press reads "Light", the delay line "Goes off at
+the end of {bearer}'s initiative in {n} rounds", and the sheet tag "rounds
+left" (a turn is the ten-minute unit). The code's end edge was already the
+page's.
+
+The light is the bearer's proficiency throw with the imported proficiency word
+(`proficiency`, a tenth E2 figure), the imported target and fumble band, and
+the automatic-success rule of RR p. 10 for a bearer who holds the proficiency
+(`fuseLight`). lib reads who holds it through a reader the monsters feature
+registers (`setProficiencyReader`), never by importing a feature.
+
+The burst joins the bearer's variant to its bomb size (`sizes`) and that size
+to its row of `blast` (`blastOf`), rolls the dice once, and lists every token
+in the area. A passed save takes the imported share off (`reach.fraction`,
+`burstAmount`); a blank share on a passed save is the Judge's. The card keeps
+Apply and Apply all (A9.1), each pressed by an owner of the subject, and Undo
+gives the hit points back (`undoPlan`'s `hp`). The item is used up at the
+burst. A bearer whose token is deleted, or whose spot's scene is gone, bursts
+nothing and the Judge is told.
+
+**Structures, by the release hub.** The page has the bomb deal full damage to
+the structural hit points of ships and buildings in the area. A vessel token in
+the area gets "Hand on", drawn by Foundry ownership of the vessel, which lowers
+its structural hit points through one lib registration
+(`registerStructureDamage`) that the vehicles feature fills. A building has no
+document, so the GMs get a line with the rolled total and the page reference.
+
+Rejected: a scatter from RR p. 298 (burning oil), which needs a range band no
+printing gives a petard; a point pick at the light, which builds a throw the
+page does not print.
+
+Strongest counter, MEDIUM: petards are set against walls, and the spot at the
+bearer's centre makes "Move the spot" the usual first press. Medium: the page
+prints no placement, so the bearer's own square is the only spot the module can
+claim without inventing one, and the move is one press.
+
+*Cost:* the module clock inside a fight (ledger T-0848) still decides the
+world-clock leg of a fuse lit outside one; it is not fixed here.
+
+## 2026-11-25 — A swig by a drinker whose kind the module cannot tell is the drinker's owner's to settle (gear S9b-2)
+
+The page (MM p. 56) prints two cases: a beastman heals, a human or demi-human
+makes a save. Where the drinker's kind is neither as the module reads it, the
+swig posts a card with exactly those two presses, "Heal" and "Ask the save".
+**Ruled by the release hub** on the board's self-check: the presses are drawn
+for a seat that owns the drinker (a GM owns every document), not for a GM seat
+alone, and the writes go through the carrier's relay with the sender
+re-checked. The owner: "Tool permissions are hardcoded (e.g. summons) by server
+role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule" and "follow foundry permissions, don't invent new
+ones". Nothing on the card is a secret.
+
+Rejected: a third press for "neither", which the page does not print.

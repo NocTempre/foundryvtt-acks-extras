@@ -690,7 +690,7 @@ function whisperBody(w) {
 
 /** Say why a press was refused. */
 function refusal(reason) {
-  const key = ["waiting", "struck", "applied", "immune", "notOwner", "notBearer", "noCard", "gone", "figure", "noFigure", "noVerdict", "noStructure", "noSpot", "noScene", "notViewing", "failed", "relay"].includes(reason) ? reason : "press";
+  const key = ["waiting", "struck", "applied", "immune", "notOwner", "notBearer", "noCard", "gone", "figure", "noFigure", "noVerdict", "noStructure", "noSpot", "noScene", "notViewing", "failed", "relay", "notVehicle", "noHull"].includes(reason) ? reason : "press";
   ui.notifications?.warn?.(loc(`itemRun.refused.${key}`));
 }
 

@@ -776,6 +776,8 @@
   "ACKS-LIB.itemRun.refused.notViewing": "View the scene the fuse is on to move its spot.",
   "ACKS-LIB.itemRun.refused.failed": "The hit points could not be written.",
   "ACKS-LIB.itemRun.refused.relay": "The Judge's window could not be reached.",
+  "ACKS-LIB.itemRun.refused.notVehicle": "That is not a vessel.",
+  "ACKS-LIB.itemRun.refused.noHull": "This vessel has no structural hit points to lower.",
   "ACKS-LIB.conditionRoll.term.imposed": "{source} {value}",
   "ACKS-LIB.conditionRoll.term.imposedCited": "{source} ({cite}) {value}",
   "ACKS-LIB.conditionRoll.roll.attack": "attack throw",

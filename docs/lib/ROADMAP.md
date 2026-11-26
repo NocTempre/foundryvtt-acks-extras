@@ -501,3 +501,7 @@ Delete the patch, its install in `scripts/lib/module.mjs`, its README row and
 `tools/test-combat-start.mjs` once the system minimum names a release whose method
 undoes its own flag and its matrix's statuses on a cancel, and re-walk "A cancelled
 declaration" in `docs/lib/TESTING.md` without it.
+
+## A fuse item's sheet row
+
+A fuse item is lit from the item's use (`Item#use`, so the hotbar and a sheet's use control) and nothing on a sheet row says it is lit. The words and the reader exist and nothing draws them: the press `ACKS-LIB.itemRun.press.light`, the tag `ACKS-LIB.itemRun.strip.tag.lit` ("Lit · n rounds left") and `litStateOf(effects, itemUuid)` on lib's `itemRun` api, which answers `{roundsLeft, combat, dueAt}` or null. To wire: the monster sheet's inventory row and the character sheet's gear row (the S8b-2 lane, with the other sheet-row presses of the item carrier), a Light press that calls the item's use and the tag read from the actor's effects. A fuse lit on the world clock answers `roundsLeft` null and a `dueAt`, which the tag's words do not yet cover.

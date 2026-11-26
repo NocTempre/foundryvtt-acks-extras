@@ -302,6 +302,10 @@ legs, slowest first, stopping when the hold is full and never boarding someone
 who walks faster than the wagon rolls. `reboardAsBefore` restores the last
 arrangement, so unloading at a ford and reloading beyond it is two clicks.
 
+## A burst handed on
+
+A fuse item's burst (lib's item runner) that reaches a vessel's token offers its owners Hand on. This feature fills lib's one structure-damage registration (`registerStructureDamage`, [structure-damage.mjs](../../scripts/vehicles/structure-damage.mjs) `writeStructureDamage`): it lowers `system.shp.value` by the burst's full rolled total, never below nothing, through `actor.update`, so the sinking clock's `updateActor` reaction fires as it does for a hand edit. A document that is not found, one that is not a vessel and a hull with no current figure (unknown, not wrecked) are refused with a reason and nothing is written. Who may hand on is lib's check of Foundry's ownership of the vessel; nothing here reads a role. The model of the burst is `docs/lib/MODEL.md`, "The aura reach and the item carrier".
+
 ## Published
 
 `acksExtras.vehicles` carries the sub-type id and every derivation above. It is

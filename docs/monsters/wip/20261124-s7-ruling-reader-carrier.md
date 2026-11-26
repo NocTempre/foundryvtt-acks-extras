@@ -1099,7 +1099,9 @@ again.
   - Canvas 4: "Move the spot" rewrites `spot`; "Set it off now" deletes and
     bursts.
   - A miss writes the fuse at the scattered spot. A fumble's spot is the
-    bearer's token centre.
+    bearer's token centre. **Superseded 2026-11-25** (`docs/lib/DECISIONS.md`,
+    "A fuse item is lit, not thrown"): the page prints a light, so a failed
+    light writes nothing and a success writes the fuse at the bearer's centre.
 - (c) The morale provider is influence's (A7.5).
 - (d) `raiseReach` calls core's `createTokenEmanation(token, rangeFeet,
   regionData, {gridBased: true})`. `regionData` carries `hidden:
