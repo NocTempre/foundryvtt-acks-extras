@@ -1844,7 +1844,9 @@ async function stampConsumeItem(item, actor, { roll }) {
       const total = Math.floor(Number((await new Roll(dice).evaluate()).total));
       if (Number.isFinite(total)) {
         update[`${base}.left`] = total;
-        update[`${base}.leftFrom`] = { by: "roll", formula: dice, total };
+        const from = { by: "roll", formula: dice, total };
+        // Replaced whole, so no key of an earlier provenance survives the merge.
+        update[`${base}.leftFrom`] = globalThis.foundry?.data?.operators?.ForcedReplacement?.create?.(from) ?? from;
       }
     }
   }

@@ -168,7 +168,9 @@ export async function writeRunLeft(input) {
     return null;
   }
   const base = `flags.${MODULE_ID}.${FLAG_ITEM_RUN}.activation`;
-  return item.update({ [`${base}.left`]: parsed.left, [`${base}.leftFrom`]: parsed.left === null ? null : { by: "hand" } });
+  // The provenance is replaced whole: a merge would keep a roll's formula and total beside `by: "hand"`.
+  const from = parsed.left === null ? null : (globalThis.foundry?.data?.operators?.ForcedReplacement?.create?.({ by: "hand" }) ?? { by: "hand" });
+  return item.update({ [`${base}.left`]: parsed.left, [`${base}.leftFrom`]: from });
 }
 
 /**
