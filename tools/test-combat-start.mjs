@@ -294,7 +294,7 @@ await test("a second install adds no second layer", async () => {
   installCombatStartPatch();
   assert.deepEqual(registrations, [
     { id: "acks-extras", target: "CONFIG.Combat.documentClass.prototype.internalStartCombat", type: "WRAPPER" },
-    { id: "acks-extras", target: "CONFIG.Combat.documentClass.prototype.startCombat", type: "WRAPPER" },
+    { id: "acks-extras", target: "CONFIG.Combat.documentClass.prototype.startCombat", type: "MIXED" },
   ]);
   log.length = 0;
   const combat = new Cls();

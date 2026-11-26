@@ -42,6 +42,9 @@
  * A combat holding a combatant with no token is begun by Foundry's own
  * `Combat#startCombat`, never by the system's, which reads the token of every
  * combatant before its matrix opens and throws on that one (see `startOnFoundry`).
+ * That branch never calls `wrapped`, so `startCombat` is registered `MIXED`
+ * (libWrapper unregisters a `WRAPPER` that skips the chain, see
+ * `tokenless-combat.mjs`); `internalStartCombat` always chains and stays `WRAPPER`.
  *
  * See docs/lib/DECISIONS.md, "A cancelled declaration leaves the combat
  * unstarted and lifts its surprise", and, for the tokenless combat, "A combat
@@ -145,7 +148,7 @@ export function installCombatStartPatch() {
   installed.add(proto);
   if (globalThis.libWrapper?.register) {
     globalThis.libWrapper.register(MODULE_ID, TARGET_INTERNAL, onInternalStartCombat, "WRAPPER");
-    globalThis.libWrapper.register(MODULE_ID, TARGET_START, onStartCombat, "WRAPPER");
+    globalThis.libWrapper.register(MODULE_ID, TARGET_START, onStartCombat, "MIXED");
     return;
   }
   const internal = proto.internalStartCombat;

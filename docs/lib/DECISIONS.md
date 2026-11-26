@@ -3097,3 +3097,35 @@ not count it, and a number there reads as one it did.
 
 **Cost.** The stamp shape grows a second row kind that readers of
 `flags["acks-extras"].targetAc` must tell by `waived`.
+
+## 2026-11-26 — A wrapper that skips the system's method is registered MIXED (T-0828)
+
+**New evidence.** The 2026-11-25 entry "A combat holding a combatant with no token
+is rolled whole by Foundry's own method" registered its three wraps
+(`rollInitiative`, `startCombat`, `manageGroup`) as libWrapper `WRAPPER`, and its
+suites passed because their libWrapper stand-in ignored the type. A live walk then
+showed Begin Combat working once and every later press, Roll All, Roll NPCs and a
+row's own roll, reaching the system's method and throwing, with the turn-order lock
+left set. libWrapper's README and its source (`_cleanup_call_wrapper`) say a
+`WRAPPER` that settles without chaining to `wrapped` is unregistered and its
+package shown an error. The tokenless branch of each wrap skips `wrapped` by
+design, so the first Begin Combat unregistered all three; the "Error detected in
+module" toast of that walk is libWrapper's notice. The card and the abandoned-start
+cleanup, which sit in the same wraps, were gone from the session as well.
+
+**Ruled.** The three wraps are registered `MIXED`; `internalStartCombat`, which
+always chains, stays `WRAPPER`. A tokenless combat's roll also clears a turn-order
+lock already standing before it hands the press to Foundry's roll, since no system
+roll runs there to clear it. The 2026-11-14 entry on the blank attack throw is the
+precedent for `MIXED`. `tools/lib-wrapper-contract.mjs` is a libWrapper stand-in
+that unregisters a `WRAPPER` that settles without chaining; the combat suites use
+it, so a wrap that skips `wrapped` and is registered `WRAPPER` fails them.
+
+**Rejected.** Calling `wrapped` and discarding its result in the tokenless branch:
+the system's method throws, and the call is the failure. Wrapping with the
+fallback prototype patch only: it would drop libWrapper's conflict reporting for
+every other module on the method.
+
+*Cost:* libWrapper calls `MIXED` wrappers after the `WRAPPER` ones, so another
+module's `WRAPPER` on these three methods runs before this one decides, and a
+press this one hands to Foundry's roll is still one that module's wrapper saw.

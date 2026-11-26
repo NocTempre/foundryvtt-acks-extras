@@ -304,10 +304,17 @@ report the same symptom.
     each row's own roll: after each press every row the press covers carries a
     number, no second notice shows for the combat, and `flags.acks.lock-turns`
     reads false. (Roll NPCs numbers only the NPC rows, so build the actors with
-    that in mind.)
-    *Observable, grouping:* press the tracker's group control on the two rows: no
-    group is stored (`combat.getFlag("acks", "groups")` reads as it did) and no
-    second notice shows.
+    that in mind.) The wraps this step walks are registered `MIXED`: a `WRAPPER`
+    that skips the system's method is unregistered by libWrapper after the first
+    press that does, so the presses are walked in one session with no reload, and
+    the console records no "did not chain" error from libWrapper and no "Error
+    detected in module" notification at any press.
+    *Observable, grouping:* press the tracker's group control on the two rows, and
+    press it a second time: no group is stored (`combat.getFlag("acks", "groups")`
+    reads as it did) and no second notice shows.
+    *Observable, a second Begin:* end the combat, build a second one of the same
+    shape, and press Begin Combat on it with no reload: it starts as the first
+    did.
     *Teardown:* `api.sweepTracked()` deletes the combat, and core's
     `Combat#_onDelete` activates the combat the deleting client has viewed, so the
     tracker must view none before the sweep (`ui.combat.viewed = null`).

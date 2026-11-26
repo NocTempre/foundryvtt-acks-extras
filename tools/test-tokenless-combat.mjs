@@ -15,9 +15,20 @@
  * is the live recipe's to prove (docs/lib/TESTING.md, step 13 of the steps list).
  */
 import assert from "node:assert/strict";
+import { contractLibWrapper } from "./lib-wrapper-contract.mjs";
 
 let passed = 0;
-const test = async (name, fn) => { await fn(); passed++; console.log("ok   " + name); };
+let failed = 0;
+const test = async (name, fn) => {
+  try {
+    await fn();
+    passed++;
+    console.log("ok   " + name);
+  } catch (err) {
+    failed++;
+    console.log(`FAIL ${name}\n     ${String(err?.message ?? err).split("\n")[0]}`);
+  }
+};
 
 const notices = [];
 const settings = { initiativeCard: false };
@@ -33,17 +44,9 @@ globalThis.game = {
   i18n: { format: (key, data = {}) => `${key} ${JSON.stringify(data)}` },
 };
 globalThis.foundry = { utils: { escapeHTML: (s) => String(s) }, documents: {} };
-globalThis.libWrapper = {
-  register(_id, target, fn) {
-    const path = target.split(".");
-    const name = path.pop();
-    const owner = path.reduce((at, key) => at[key], globalThis);
-    const original = owner[name];
-    owner[name] = function (...args) {
-      return fn.call(this, (...a) => original.apply(this, a), ...args);
-    };
-  },
-};
+/* libWrapper as the library behaves: a WRAPPER that settles without chaining is unregistered. */
+const lib = contractLibWrapper();
+globalThis.libWrapper = lib;
 
 /** What each stand-in method was handed, in order. */
 const calls = { foundryStart: 0, systemStart: 0, systemRoll: 0, foundryRoll: [], systemGroup: 0, rollAll: 0 };
@@ -58,7 +61,13 @@ class FoundryCombat {
   async update(data) { Object.assign(this, data); return this; }
 
   async rollAll(options) {
-    return this.rollInitiative([...this.combatants.keys()], options);
+    const ids = [...this.combatants.values()].filter((c) => c.initiative === null).map((c) => c.id);
+    return this.rollInitiative(ids, options);
+  }
+
+  async rollNPC(options) {
+    const ids = [...this.combatants.values()].filter((c) => c.isNPC && c.initiative === null).map((c) => c.id);
+    return this.rollInitiative(ids, options);
   }
 
   async rollInitiative(ids, options) {
@@ -101,9 +110,16 @@ function makeSystemClass() {
       return super.rollAll(options);
     }
 
+    async rollNPC(options) {
+      if (!this.getFlag("acks", "initDone")) return undefined;
+      return super.rollNPC(options);
+    }
+
+    /** Sets the lock, reads `token.id` of each pressed id, then every combatant's token, and clears the lock last, as src/module/combat.mjs does. */
     async rollInitiative(ids, options) {
       calls.systemRoll++;
       await this.setFlag("acks", "lock-turns", true);
+      for (const id of ids) void this.combatants.get(id).token.id;
       reads(this);
       for (const id of ids) this.combatants.get(id).initiative = 9;
       await this.setFlag("acks", "lock-turns", false);
@@ -118,8 +134,8 @@ const { installCombatStartPatch } = await import("../scripts/lib/patches/combat-
 const { installInitiativeCardPatch } = await import("../scripts/lib/patches/initiative-card.mjs");
 const { installGroupInitiativePatch } = await import("../scripts/lib/patches/group-initiative.mjs");
 
-const TOKENED = { id: "c-tok", name: "Ash", token: { id: "t-1", name: "Ash", hidden: false } };
-const TOKENLESS = { id: "c-none", name: "Birch", token: null };
+const TOKENED = { id: "c-tok", name: "Ash", isNPC: true, token: { id: "t-1", name: "Ash", hidden: false } };
+const TOKENLESS = { id: "c-none", name: "Birch", isNPC: true, token: null };
 
 /** Install the three patches on a fresh class as the module does at `ready`, and make a combat of it. */
 function patched(rows) {
@@ -131,7 +147,23 @@ function patched(rows) {
   game.user.isGM = true;
   Object.assign(calls, { foundryStart: 0, systemStart: 0, systemRoll: 0, foundryRoll: [], systemGroup: 0, rollAll: 0 });
   notices.length = 0;
+  lib.errors.length = 0;
   return new Cls(rows);
+}
+
+/** Every row's initiative cleared, as a Judge's Clear or a reroll leaves it. */
+const blank = (combat) => { for (const c of combat.combatants.values()) c.initiative = null; };
+
+/** Whether every row carries a number. */
+const numbered = (combat) => [...combat.combatants.values()].every((c) => typeof c.initiative === "number");
+
+/** A combat in a tokenless mix that has been begun, its rows blanked, ready for a press. */
+async function begun() {
+  const combat = patched([TOKENED, TOKENLESS]);
+  await combat.startCombat();
+  blank(combat);
+  calls.foundryRoll.length = 0;
+  return combat;
 }
 
 await test("Begin Combat in a mixed combat starts by Foundry's method, marks the combat begun and numbers every row", async () => {
@@ -199,4 +231,106 @@ await test("a non-GM seat's Begin Combat goes to the system's method", async () 
   assert.equal(notices.length, 0);
 });
 
-console.log(`\n${passed} passed`);
+/* A wrapper that skips `wrapped` is only kept by libWrapper when it is registered MIXED; the first
+ * Begin Combat of a session ran the tokenless branch of all three and, registered as WRAPPER, had
+ * them unregistered, so every later press met the system's methods. */
+
+await test("Roll All after Begin Combat numbers every blanked row by Foundry's method, with the lock clear", async () => {
+  const combat = await begun();
+  await combat.rollAll();
+  assert.equal(numbered(combat), true);
+  assert.equal(calls.systemRoll, 0, "the system's roll is not reached");
+  assert.deepEqual(calls.foundryRoll, [["c-tok", "c-none"]]);
+  assert.notEqual(combat.getFlag("acks", "lock-turns"), true);
+  assert.deepEqual(lib.errors, []);
+});
+
+await test("Roll NPCs after Begin Combat numbers every blanked NPC row by Foundry's method, with the lock clear", async () => {
+  const combat = await begun();
+  await combat.rollNPC();
+  assert.equal(numbered(combat), true);
+  assert.equal(calls.systemRoll, 0);
+  assert.deepEqual(calls.foundryRoll, [["c-tok", "c-none"]]);
+  assert.notEqual(combat.getFlag("acks", "lock-turns"), true);
+  assert.deepEqual(lib.errors, []);
+});
+
+await test("each row's own roll after Begin Combat numbers that row by Foundry's method, with the lock clear", async () => {
+  const combat = await begun();
+  await combat.rollInitiative(["c-none"]);
+  assert.equal(combat.combatants.get("c-none").initiative, 4);
+  await combat.rollInitiative(["c-tok"]);
+  assert.equal(combat.combatants.get("c-tok").initiative, 4);
+  assert.equal(calls.systemRoll, 0);
+  assert.deepEqual(calls.foundryRoll, [["c-none"], ["c-tok"]]);
+  assert.notEqual(combat.getFlag("acks", "lock-turns"), true);
+  assert.deepEqual(lib.errors, []);
+});
+
+await test("presses repeated across one session all stay on Foundry's methods", async () => {
+  const combat = await begun();
+  for (let n = 0; n < 3; n++) {
+    blank(combat);
+    await combat.rollAll();
+    blank(combat);
+    await combat.rollNPC();
+    await combat.rollInitiative(["c-tok"]);
+    assert.equal(combat.combatants.get("c-tok").initiative, 4);
+  }
+  assert.equal(calls.systemRoll, 0);
+  assert.deepEqual(lib.errors, []);
+});
+
+await test("a second tokenless combat of the same class is begun by Foundry's method too", async () => {
+  const first = patched([TOKENED, TOKENLESS]);
+  await first.startCombat();
+  const second = new first.constructor([TOKENED, TOKENLESS]);
+  await second.startCombat();
+  assert.equal(calls.systemStart, 0);
+  assert.equal(calls.foundryStart, 2);
+  assert.equal(second.round, 1);
+  assert.equal(numbered(second), true);
+  assert.deepEqual(lib.errors, []);
+});
+
+await test("the group control pressed twice is refused both times and never reaches the system's method", async () => {
+  const combat = patched([TOKENED, TOKENLESS]);
+  assert.equal(combat.manageGroup([{ id: "t-1" }, { id: "t-2" }]), undefined);
+  assert.equal(combat.manageGroup([{ id: "t-1" }, { id: "t-2" }]), undefined);
+  assert.equal(calls.systemGroup, 0);
+  assert.equal(notices.length, 1);
+  assert.deepEqual(lib.errors, []);
+});
+
+await test("a combat of tokened combatants stays on the system's start and roll after a tokenless combat was begun", async () => {
+  const first = patched([TOKENED, TOKENLESS]);
+  await first.startCombat();
+  const other = new first.constructor([TOKENED, { id: "c-two", name: "Cedar", isNPC: true, token: { id: "t-2", name: "Cedar" } }]);
+  await other.startCombat();
+  assert.equal(calls.systemStart, 1);
+  await other.setFlag("acks", "initDone", true);
+  await other.rollAll();
+  assert.equal(calls.systemRoll, 1, "the system's roll runs for a combat with every token present");
+  assert.equal(numbered(other), true);
+  assert.deepEqual(lib.errors, []);
+});
+
+await test("a turn-order lock a failed roll left set is released by a roll in a tokenless combat", async () => {
+  const combat = await begun();
+  await combat.setFlag("acks", "lock-turns", true);
+  await combat.rollInitiative(["c-none"]);
+  assert.equal(combat.combatants.get("c-none").initiative, 4);
+  assert.equal(combat.getFlag("acks", "lock-turns"), false);
+});
+
+await test("the three wrappers that can skip the system's method are registered MIXED, and the one that always chains WRAPPER", async () => {
+  patched([TOKENED, TOKENLESS]);
+  const typeOf = (name) => lib.registrations.filter((r) => r.target.endsWith(`.${name}`)).map((r) => r.type);
+  assert.deepEqual(typeOf("startCombat").slice(-1), ["MIXED"]);
+  assert.deepEqual(typeOf("rollInitiative").slice(-1), ["MIXED"]);
+  assert.deepEqual(typeOf("manageGroup").slice(-1), ["MIXED"]);
+  assert.deepEqual(typeOf("internalStartCombat").slice(-1), ["WRAPPER"]);
+});
+
+console.log(`\n${passed} passed, ${failed} failed`);
+if (failed) process.exitCode = 1;

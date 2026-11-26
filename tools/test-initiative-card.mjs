@@ -15,6 +15,7 @@
  * (docs/lib/TESTING.md, steps 12 and 13 of the steps list).
  */
 import assert from "node:assert/strict";
+import { contractLibWrapper } from "./lib-wrapper-contract.mjs";
 
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok   " + name); };
@@ -42,17 +43,9 @@ globalThis.game = {
     format: (key, data = {}) => (key === "ACKS.roll.individualInit" ? `ROLLS ${data.name}` : `${key} ${JSON.stringify(data)}`),
   },
 };
-globalThis.libWrapper = {
-  register(_id, target, fn) {
-    const path = target.split(".");
-    const name = path.pop();
-    const owner = path.reduce((at, key) => at[key], globalThis);
-    const original = owner[name];
-    owner[name] = function (...args) {
-      return fn.call(this, (...a) => original.apply(this, a), ...args);
-    };
-  },
-};
+/* libWrapper as the library behaves: a WRAPPER that settles without chaining is unregistered. */
+const lib = contractLibWrapper();
+globalThis.libWrapper = lib;
 
 /** What each stand-in method was handed, in order. */
 const foundryCalls = [];
@@ -206,6 +199,27 @@ await test("each combat is warned about once, naming every tokenless row", async
   assert.equal(notices.length, 2);
   assert.match(notices[0], /Birch, Cedar/);
   assert.doesNotMatch(notices[1], /Cedar/);
+});
+
+await test("the wrap is registered MIXED and stays on the class across repeated presses in a tokenless combat", async () => {
+  lib.errors.length = 0;
+  const combat = patched({ rows: [TOKENED, TOKENLESS] });
+  assert.equal(lib.registrations.at(-1).type, "MIXED");
+  for (let n = 0; n < 3; n++) {
+    for (const c of combat.combatants.values()) c.initiative = null;
+    await combat.rollInitiative(["c-tok", "c-none"]);
+  }
+  assert.equal(foundryCalls.length, 3, "every press goes to Foundry's method");
+  assert.equal(systemCalls.length, 0);
+  assert.deepEqual(lib.errors, []);
+});
+
+await test("a lock a system roll left set is cleared before Foundry's roll in a tokenless combat", async () => {
+  const combat = patched({ rows: [TOKENED, TOKENLESS] });
+  combat.flags["acks.lock-turns"] = true;
+  await combat.rollInitiative(["c-none"]);
+  assert.equal(combat.getFlag("acks", "lock-turns"), false);
+  assert.equal(combat.combatants.get("c-none").initiative, 4);
 });
 
 await test("a lock that cannot be released warns and the original error still arrives", async () => {

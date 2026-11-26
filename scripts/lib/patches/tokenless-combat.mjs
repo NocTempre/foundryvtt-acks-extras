@@ -10,6 +10,11 @@
  * share is here: the test for such a combat, the walk to Foundry's own method,
  * the one notice a Judge is shown for the combat, and the release of the
  * turn-order lock a throw leaves set.
+ *
+ * Each of the three skips `wrapped` for such a combat, and libWrapper
+ * unregisters a `WRAPPER` that settles without chaining, so every one that can
+ * skip is registered `MIXED`: a `WRAPPER` here is dropped by the first press that
+ * takes the tokenless branch and every later press meets the system's method.
  * See docs/lib/DECISIONS.md, "A combat holding a combatant with no token is
  * rolled whole by Foundry's own method".
  */

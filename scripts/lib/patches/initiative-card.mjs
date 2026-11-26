@@ -9,7 +9,7 @@
  * announces it under only the first member.
  *
  * The roll and the grouping are still core's; the seam is presentation only,
- * in three moves: (1) a libWrapper WRAPPER around `rollInitiative`, never a
+ * in three moves: (1) a libWrapper MIXED wrapper around `rollInitiative`, never a
  * re-implementation; (2) while it runs, a scoped `preCreateChatMessage` hook
  * captures and blocks its per-combatant messages, keeping each one's formula
  * and recipients; (3) rows are read back off the COMBATANTS once core has
@@ -242,8 +242,10 @@ async function rollWithCard(wrapped, ids, options) {
 }
 
 /**
- * WRAPPER form: the system's roll runs, and this decides where its output is
- * printed and what it is never handed.
+ * MIXED form: the system's roll runs, and this decides where its output is
+ * printed and what it is never handed. A press that goes to Foundry's roll never
+ * calls `wrapped`, which libWrapper keeps only for MIXED (see
+ * `tokenless-combat.mjs`).
  *
  * Non-GM clients are passed straight through — core hands a player's click to
  * the GM over its own socket and returns, so there is nothing to gather there
@@ -256,7 +258,9 @@ async function rollWithCard(wrapped, ids, options) {
  * so no split of the ids lets it number a tokened row there. The wrapped method
  * and the card are not used for that press, and no group number is applied. The
  * Judge is told once per combat, per client, which rows have no token and that
- * the roll was not grouped.
+ * the roll was not grouped. A turn-order lock a system roll left set is cleared
+ * before Foundry's roll runs, since the system's `setupTurns` ignores a combat
+ * while it is set and no system roll runs here to clear it.
  *
  * A throw out of either path sets the turn-order lock back to false, where the
  * system's roll left it set, and the error goes on to the caller.
@@ -268,6 +272,7 @@ async function onRollInitiative(wrapped, ids, options) {
   const names = foundryRoll ? tokenlessNames(this) : [];
   try {
     if (!names.length) return await rollWithCard.call(this, wrapped, ids, options);
+    await releaseLock(this);
     const result = await foundryRoll.call(this, ids, options);
     noticeOnce(this);
     return result;
@@ -283,6 +288,8 @@ async function onRollInitiative(wrapped, ids, options) {
  * Installed UNCONDITIONALLY: the wrapper reads the card setting per roll and
  * posts core's own messages untouched when off, so the toggle needs no reload.
  * The tokenless combat's hand-off and the lock release run either way.
+ * Registered `MIXED`, not `WRAPPER`: the hand-off skips `wrapped`, and libWrapper
+ * unregisters a `WRAPPER` that does.
  */
 export function installInitiativeCardPatch() {
   const proto = CONFIG.Combat?.documentClass?.prototype;
@@ -295,7 +302,7 @@ export function installInitiativeCardPatch() {
       MODULE_ID,
       "CONFIG.Combat.documentClass.prototype.rollInitiative",
       onRollInitiative,
-      "WRAPPER",
+      "MIXED",
     );
     return;
   }

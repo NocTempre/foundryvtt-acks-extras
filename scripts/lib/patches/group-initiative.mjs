@@ -130,9 +130,10 @@ function corrected(combat, groups, passed) {
 }
 
 /**
- * WRAPPER form: the system's method runs unmodified, with `setFlag` shadowed for
+ * MIXED form: the system's method runs unmodified, with `setFlag` shadowed for
  * its synchronous call. Returns the system's own return when it wrote nothing,
- * else a promise for the real write.
+ * else a promise for the real write. Registered `MIXED` because the tokenless
+ * refusal below skips `wrapped` (see `tokenless-combat.mjs`).
  *
  * In a combat holding a combatant with no token the method is not called: it
  * reads the token of every combatant and throws on that one. The Judge is shown
@@ -182,7 +183,7 @@ export function installGroupInitiativePatch() {
   if (installed.has(proto)) return;
   installed.add(proto);
   if (globalThis.libWrapper?.register) {
-    globalThis.libWrapper.register(MODULE_ID, TARGET, onManageGroup, "WRAPPER");
+    globalThis.libWrapper.register(MODULE_ID, TARGET, onManageGroup, "MIXED");
     return;
   }
   const original = proto.manageGroup;

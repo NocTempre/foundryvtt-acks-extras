@@ -1939,7 +1939,14 @@ The same wrap guards the roll, on the GM seat whether the card is on or off:
 - **The turn-order lock.** The system sets `flags.acks.lock-turns` for the
   length of its roll. A throw out of either path sets it back to false when it
   is still set, then goes on to the caller. A roll that completes is not
-  touched, so a second press in flight keeps its own lock.
+  touched, so a second press in flight keeps its own lock. A roll handed to
+  Foundry's method clears a lock already standing before it runs, since no
+  system roll runs in such a combat to clear it and `setupTurns` ignores the
+  combat while it is set.
+- **The registrations.** `rollInitiative`, `startCombat` and `manageGroup` are
+  registered `MIXED`, since each skips `wrapped` for such a combat and libWrapper
+  unregisters a `WRAPPER` that settles without chaining. `internalStartCombat`
+  always chains and stays `WRAPPER`.
 - A class whose chain never reaches `foundry.documents.Combat` has no Foundry
   method to hand a press to, and every press goes to the wrapped method with no
   warning.

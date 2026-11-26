@@ -387,7 +387,7 @@ await test("a second install adds no second layer", async () => {
   installGroupInitiativePatch();
   installGroupInitiativePatch();
   assert.equal(registrations.length, 1);
-  assert.deepEqual(registrations[0], { id: "acks-extras", target: "CONFIG.Combat.documentClass.prototype.manageGroup", type: "WRAPPER" });
+  assert.deepEqual(registrations[0], { id: "acks-extras", target: "CONFIG.Combat.documentClass.prototype.manageGroup", type: "MIXED" });
   const list = await twoGroups(Cls);
   assert.deepEqual(list.map((g) => g.initiativeBonus), [1, 3]);
 });
