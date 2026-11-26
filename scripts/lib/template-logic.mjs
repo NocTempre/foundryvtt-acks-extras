@@ -223,7 +223,9 @@ export function axisOffersChoice(system, axis, choices = {}, bandOf = null) {
  * An unknown pinned key falls through to derive/roll; a pin of an unavailable
  * option is logged as `source: "unavailable"` and falls through the same way.
  * An axis's `default` stands in for a roll, so an axis that names one never
- * rolls, unless its pin is `ROLL_PIN`.
+ * rolls, unless its pin is `ROLL_PIN`. An axis key in `noRoll` never reaches
+ * the roll: where no pin, derive or default settles it, it stays unchosen and
+ * logs `source: "none"` (no `option` key). `ROLL_PIN` still rolls it.
  *
  * `bandOf` resolves per-variant bands for banded axes (header, `axisIsBanded`);
  * the axes an axis's `bandsFrom.by` names must come before it in axis order. A
@@ -233,7 +235,7 @@ export function axisOffersChoice(system, axis, choices = {}, bandOf = null) {
  * and takes only its availability from the bands. Without `bandOf` a banded axis
  * offers its default alone.
  */
-export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.random, bandOf = null } = {}) {
+export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.random, bandOf = null, noRoll = [] } = {}) {
   const choices = {};
   const log = [];
   for (const axis of system?.axes ?? []) {
@@ -275,6 +277,10 @@ export function chooseAxes(system, { pinned = {}, baseValues = {}, rng = Math.ra
     if (!option && axis.default && !mustRoll) {
       option = options.find((o) => o.key === axis.default) ?? null;
       if (option) source = "default";
+    }
+    if (!option && !mustRoll && noRoll.includes(axis.key)) {
+      log.push({ axis: axis.key, source: "none" });
+      continue;
     }
     if (!option && banded) {
       const r = rollBandedOption(axis, options, choices, bandOf, rng);

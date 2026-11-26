@@ -424,6 +424,8 @@ const ROLE_LABELS = {
 /**
  * The Role axis holding `found` roles, Standard first and the default: added
  * where the template has none, and widened in `ROLE_ORDER` where it lacks one.
+ * On every write the Standard option is listed, and an axis with no default
+ * takes it as one; a default already set (a Judge's) is never replaced.
  */
 export function roleAxis(axes, found, out) {
   let axis = axes.find((a) => a.key === "role");
@@ -441,11 +443,26 @@ export function roleAxis(axes, found, out) {
   const have = new Set(axis.options.map((o) => o.key));
   const keys = ROLE_ORDER.filter((k) => found.has(k) || have.has(k));
   axis.options = [
-    axis.options.find((o) => o.key === STANDARD_ROLE),
+    axis.options.find((o) => o.key === STANDARD_ROLE) ?? { key: STANDARD_ROLE, label: "Standard", nameLabel: "" },
     ...keys.map((k) => axis.options.find((o) => o.key === k) ?? { key: k, label: ROLE_LABELS[k], nameLabel: ROLE_LABELS[k] }),
-  ].filter(Boolean);
+  ];
+  if (!axis.default) axis.default = STANDARD_ROLE;
   out.nameFormat = "{variant} {role}";
   return axis;
+}
+
+/**
+ * Keep a Role default a Judge set across a repair: the built axis takes the
+ * held axis's default where the held one names an option the built axis still
+ * lists. A held axis with no default, or one the build no longer lists, leaves
+ * the build's own (`roleAxis`'s Standard). Mutates `axes`.
+ * @param {object[]} axes the built template's axes
+ * @param {object[]} heldAxes the held template's axes
+ */
+export function keepHeldRoleDefault(axes, heldAxes) {
+  const built = (axes ?? []).find((a) => a.key === "role");
+  const held = (heldAxes ?? []).find((a) => a.key === "role");
+  if (built && held?.default && (built.options ?? []).some((o) => o.key === held.default)) built.default = held.default;
 }
 
 /** The leader-source axis's key. */

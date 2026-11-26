@@ -42,16 +42,22 @@ const variantOptionOf = (template, variant) =>
 const cellOf = (template, variant, role) => (template.system?.cells ?? []).find((c) => c.key === `${variant}|${role}`) ?? null;
 
 /**
- * The Role a body takes where its spec names none: the rank-and-file key, pinned only when the
+ * The Role a body takes where its spec names none: the rank-and-file key, pinned where the
  * template's Role axis has no default of its own to stand for it (an axis with neither default nor
- * pin rolls among every option, leaders included) and lists that key. Null where the axis has a
- * default, lists no rank-and-file option, or is absent.
+ * pin rolls among every option, leaders included). A pin lands only where the axis lists the key
+ * and a cell or patch makes it available; `ROLE_NO_ROLL` is what keeps a body off the roll where
+ * it does not. Null where the axis has a default, or is absent.
  */
 function bodyRoleOf(family) {
-  const axis = (family?.system?.toObject?.().axes ?? family?.system?.axes ?? []).find((a) => a.key === "role");
-  if (!axis || axis.default) return null;
-  return (axis.options ?? []).some((o) => o.key === STANDARD_ROLE) ? STANDARD_ROLE : null;
+  const axis = (family?.system?.toObject?.().axes ?? family?.system?.axes ?? []).find((a) => a.key === ROLE_AXIS);
+  return !axis || axis.default ? null : STANDARD_ROLE;
 }
+
+/** The Role axis's key, the importer's structural name for it (`roleAxis`). */
+const ROLE_AXIS = "role";
+
+/** The axes a minted body never rolls: a body takes the rank and file or no role at all, never a leader's. */
+export const ROLE_NO_ROLL =Object.freeze([ROLE_AXIS]);
 
 /**
  * The axes a spec pins on the family template; every axis the roll decided is pinned, so a mint never rolls beside it.
@@ -113,7 +119,7 @@ const mintedFor = (key) => [...game.actors].find((a) => a.flags?.[MODULE_ID]?.[O
 export async function mintPrototype(family, spec, protoKey) {
   const held = mintedFor(protoKey);
   if (held) return { actor: held, made: false };
-  const actor = await generateFromTemplate(family, { pins: pinsOf(spec, {}, family) });
+  const actor = await generateFromTemplate(family, { pins: pinsOf(spec, {}, family), noRoll: ROLE_NO_ROLL });
   if (!actor) return null;
   await actor.update({ [`flags.${MODULE_ID}.${ORG_PROTOTYPE_FLAG}`]: protoKey });
   return { actor, made: true };

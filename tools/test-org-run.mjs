@@ -633,7 +633,7 @@ t("a linked actor left out of a Delete's choice is not copied, and an Undo resto
 });
 
 t("a body is minted as the rank and file, never as a leader the Role axis rolls, where the axis names no default", async () => {
-  const { pinsOf } = await import("../scripts/monsters/organisation-run.mjs");
+  const { pinsOf, ROLE_NO_ROLL } = await import("../scripts/monsters/organisation-run.mjs");
   const { chooseAxes } = await import("../scripts/lib/template-logic.mjs");
   const family = (role) => ({
     system: {
@@ -642,10 +642,11 @@ t("a body is minted as the rank and file, never as a leader the Role axis rolls,
     },
   });
   const body = { kind: "cell", variant: "alba", role: "", troop: "", trait: "" };
-  const roleAt = (fam, pins, roll) => chooseAxes(fam.system, { pinned: pins, rng: () => roll }).choices.role;
+  // What a body's mint reads: the pins of `pinsOf` and the axes `mintPrototype` hands generation as never rolled.
+  const roleAt = (fam, pins, roll, noRoll = ROLE_NO_ROLL) => chooseAxes(fam.system, { pinned: pins, rng: () => roll, noRoll }).choices.role;
   const rolls = [0, 0.4, 0.7, 0.99];
   const noDefault = family({});
-  assert.deepEqual(rolls.map((r) => roleAt(noDefault, pinsOf(body), r)), ["standard", "lead", "chief", "chief"], "unpinned, an axis with no default rolls among every option: the leaders too");
+  assert.deepEqual(rolls.map((r) => roleAt(noDefault, pinsOf(body), r, [])), ["standard", "lead", "chief", "chief"], "unpinned and left to roll, an axis with no default takes the leaders too");
   assert.deepEqual(rolls.map((r) => roleAt(noDefault, pinsOf(body, {}, noDefault), r)), ["standard", "standard", "standard", "standard"], "pinned to the rank and file, a body is never a leader");
   assert.equal(pinsOf({ ...body, role: "lead" }, {}, noDefault).role, "lead", "a spec that names a role keeps it");
   const named = family({ default: "lead" });
@@ -653,9 +654,11 @@ t("a body is minted as the rank and file, never as a leader the Role axis rolls,
   assert.equal(pinsOf(body, {}, { system: { axes: [] } }).role, undefined, "no Role axis, no pin");
   assert.equal(pinsOf(body, {}, null).role, undefined);
   const leadersOnly = { system: { ...family({}).system, cells: ["lead", "chief"].map((r) => ({ by: ["variant", "role"], key: `alba|${r}` })) } };
-  assert.deepEqual(rolls.map((r) => roleAt(leadersOnly, pinsOf(body, {}, leadersOnly), r)), ["lead", "lead", "chief", "chief"], "a rank and file no cell names is unavailable and the pin cannot carry it: the default is what makes it so");
+  assert.deepEqual(rolls.map((r) => roleAt(leadersOnly, pinsOf(body, {}, leadersOnly), r)), [undefined, undefined, undefined, undefined], "a rank and file no cell names is unavailable and the pin cannot carry it: the body takes no role, never a leader's");
   const bare = { system: { axes: [{ key: "role", options: [{ key: "lead" }] }] } };
-  assert.equal(pinsOf(body, {}, bare).role, undefined, "an axis that lists no rank and file is left alone");
+  assert.equal(pinsOf(body, {}, bare).role, "standard", "an axis with no default is pinned to the rank and file whether or not it lists it");
+  assert.deepEqual(rolls.map((r) => roleAt(bare, pinsOf(body, {}, bare), r)), [undefined, undefined, undefined, undefined], "an axis with neither a default nor a rank-and-file option gives a body no role, never a leader's");
+  assert.equal(roleAt(bare, { role: "$roll" }, 0), "lead", "a Roll pin still rolls it");
 });
 
 t("the Roll and a hand's Make make a leader by one maker, from the same pins, and mark it as no prototype", async () => {

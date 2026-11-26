@@ -500,7 +500,7 @@ rendered, since an input with nothing behind it is a bug."
   `count` in `inherit`; a count is set by hand on a filled row, Edit); 1b's Build (a Roll writes at once, there is nothing to
   build).
 
-## 2026-11-25 — The chart reads a pack template through `getIndex()` and loads the whole template for its Variant list
+## 2026-11-25 — The chart reads a pack template through `getIndex()` and loads the whole template for its Variant list — SUPERSEDED IN PART 2026-11-26
 
 Supersedes in part "The family plate is an assist on the overview row" (its bullet that the plate on
 `CONFIG.Actor.compendiumIndexFields` is what `fromUuidSync` answers after a reload). New evidence: the
@@ -686,3 +686,47 @@ attack shows its die alone.
 Strongest counter-argument (medium): the take-back is a figure on each weapon
 that a Judge who edits the actor's modifier must change too. The weapon's own
 Damage bonus field (Item sheet) shows it.
+
+## 2026-11-26 — A Role axis always has a default, and a body never rolls its Role (T-0826)
+
+Supersedes in part "The chart reads a pack template through `getIndex()` and loads
+the whole template for its Variant list", in its bullet "A body is minted as the
+rank and file" (2026-11-25, under 7 days old). New evidence: a Role axis with
+neither a default nor an available rank-and-file option still minted a leader,
+since `chooseAxes` treats a pin of a key the axis does not make available as
+absent and falls through to a roll; the bullet's remedy ("the default, written
+where the importer's `roleAxis` adds the axis") reached only an axis the build
+created, and `roleAxis` leaves an axis it finds as it is.
+
+**Ruled** (the release scope's call; the owner: "Design choices (T-0798, T-0818,
+T-0826 and similar): make the call yourself and build, as long as it follows the
+repo's design rules"):
+
+- **`roleAxis` writes the default on every write:** Standard is listed first
+  where the axis lacks it, and an axis with no default takes it. A default
+  already set is left, since the Judge's is the override.
+- **A repair keeps a Judge's default.** A repair writes the build over the held
+  template whole, and the build's Role axis starts on Standard, which would
+  replace a default a Judge picked. `keepHeldRoleDefault` carries the held default
+  onto the built axis where the built axis still lists that option.
+- **A body never rolls its Role.** `pinsOf` pins Standard wherever the Role axis
+  has no default, listed or not, and `mintPrototype` passes `noRoll` for the axis,
+  a new option of `chooseAxes` and `generateFromTemplate`: an axis it names that no
+  pin, derive or default settles stays unchosen. A body then takes the Standard
+  cell where one exists and no role where none does. A template imported before
+  this change needs no migration: the roll-time half covers it, and a repair writes
+  the default.
+- **Not built:** the template sheet's axis default select (the Judge's control for
+  this default) goes to the BM-SURFACES lane.
+
+Rejected: a sentinel pin value for "no option" (`pinsOf` cannot tell an available
+Standard from a listed one, so it would drop a Standard cell that exists), and a
+held-edit offer for the default (the held-edit machinery keys on read stamps and
+register-row origin, which an axis default has neither of, and a Judge's pick is
+the override, not a conflict to ask about). Cost: a repair never moves a Role
+default a Judge chose, and a body from a template with no available Standard cell
+has no Role choice, so a kit cell keyed by Standard does not apply to it.
+
+Strongest counter-argument (medium): `noRoll` is a lib option for one axis's sake.
+It is generic and defaults to none, and a `$none`-style pin cannot express "the
+pin if available, else nothing", which is the case that matters.

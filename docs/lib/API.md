@@ -2356,6 +2356,11 @@ without `bandsFrom` then rolls by its printed option bands, else uniform. The
 group sheet's variant dialog lists a banded axis's every option, since the
 variant is not yet chosen there; `chooseAxes` drops one with no band.
 
+`chooseAxes` and `generateFromTemplate` take `noRoll`, a list of axis keys. A
+listed axis that no pin, derive or default settles stays unchosen (log
+`{axis, source: "none"}`) instead of rolling; `ROLL_PIN` still rolls it. The
+default is an empty list, so no caller changes.
+
 ## `itemUse`, `itemRun` and `auraReach` — the item carrier and the live reach
 
 Rows on the lib api from `apiVersion` 76.

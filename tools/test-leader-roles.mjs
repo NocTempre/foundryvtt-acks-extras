@@ -36,6 +36,8 @@ import {
   ladderThrowAt,
   importedThrowLadder,
   ratingText,
+  roleAxis,
+  keepHeldRoleDefault,
 } from "../scripts/importer/leader-roles.mjs";
 import { savesForLevel } from "../scripts/importer/stats.mjs";
 import { chooseAxes, optionAvailable, resolveActor, rollDice, seededRng } from "../scripts/lib/template-logic.mjs";
@@ -655,6 +657,42 @@ ok("a person's built items carry the minted stamp, so a repair replaces them", (
   const p = bindNpc({ fields: { statline: { atk: { text: "spear", throw: 9 }, dmg: "1d6" } } });
   assert.equal(p.items.length, 1);
   assert.ok(p.items.every((i) => i.flags["acks-extras"].minted === true));
+});
+
+ok("roleAxis gives a Role axis its Standard option and default on every write, and never replaces a default already set", () => {
+  const legacy = () => [{ key: "role", options: [{ key: "chieftain", label: "Chieftain", nameLabel: "Chieftain" }] }];
+  const axes = legacy();
+  roleAxis(axes, new Set(["champion"]), {});
+  assert.equal(axes[0].default, STANDARD_ROLE, "an axis with no default takes the rank and file");
+  assert.deepEqual(axes[0].options.map((o) => o.key), [STANDARD_ROLE, "champion", "chieftain"], "Standard is listed first where the axis lacked it");
+  const kept = [{ key: "role", default: "champion", options: [{ key: STANDARD_ROLE }, { key: "champion" }] }];
+  roleAxis(kept, new Set(["champion"]), {});
+  assert.equal(kept[0].default, "champion", "a default already set is the Judge's");
+  const fresh = [];
+  roleAxis(fresh, new Set(["champion"]), {});
+  assert.equal(fresh[0].default, STANDARD_ROLE, "a new axis starts on the rank and file, as before");
+  const system = { axes: axes, cells: [] };
+  const rolled = [0, 0.4, 0.99].map((r) => chooseAxes(system, { rng: () => r }).choices.role);
+  assert.deepEqual(rolled, [STANDARD_ROLE, STANDARD_ROLE, STANDARD_ROLE], "the written default stands for the roll: no leader is minted");
+});
+
+ok("a repair keeps a Role default a Judge set, where the built axis still lists it", () => {
+  const built = () => [{ key: "role", default: STANDARD_ROLE, options: [{ key: STANDARD_ROLE }, { key: "champion" }] }];
+  const held = (d) => [{ key: "role", default: d, options: [{ key: STANDARD_ROLE }, { key: "champion" }, { key: "chieftain" }] }];
+  const a = built();
+  keepHeldRoleDefault(a, held("champion"));
+  assert.equal(a[0].default, "champion", "the held default is carried over the build's");
+  const b = built();
+  keepHeldRoleDefault(b, held("chieftain"));
+  assert.equal(b[0].default, STANDARD_ROLE, "a default the built axis no longer lists is not carried");
+  const c = built();
+  keepHeldRoleDefault(c, held(""));
+  assert.equal(c[0].default, STANDARD_ROLE, "a held axis with no default leaves the build's, which is what a repair writes");
+  const d = built();
+  keepHeldRoleDefault(d, []);
+  keepHeldRoleDefault(d, undefined);
+  keepHeldRoleDefault([], held("champion"));
+  assert.equal(d[0].default, STANDARD_ROLE, "no held Role axis, nothing to carry");
 });
 
 console.log(`\n${passed} passed`);

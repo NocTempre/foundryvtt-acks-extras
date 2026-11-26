@@ -584,6 +584,15 @@ the chosen variant is unavailable — listed disabled on the builder, never
 rolled, and a stale pin of it falls back to Standard (`optionAvailable`,
 [../lib/API.md](../lib/API.md)).
 
+`roleAxis` writes that default on every write: it lists Standard first and
+gives the axis Standard as its default when it has none, and a default already
+set stays. A repair of a family template keeps a default a Judge set
+(`keepHeldRoleDefault`) where the rebuilt axis still lists it. A body's mint
+(`mintPrototype`) pins Standard where the axis has no default, and passes
+`noRoll` for the Role axis (`chooseAxes`, [../lib/API.md](../lib/API.md)), so a
+template with neither a default nor an available Standard option gives a body no
+role, never a leader's.
+
 **Members.** An overview member (named as the family is) whose every stat
 field reads another member's page and box is the family's description, not a
 variant: its prose becomes the template's own description

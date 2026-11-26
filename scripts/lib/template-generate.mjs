@@ -28,9 +28,10 @@ export const outputActorType = (system) => system?.output?.actorType || "monster
  * @param {object} [opts]
  * @param {object} [opts.pins] the Judge's choice per axis key; an axis left out is rolled
  * @param {Actor|null} [opts.base] an actor that seeds generation, the template's patches on top
+ * @param {string[]} [opts.noRoll] axis keys that stay unchosen rather than roll where no pin, derive or default settles them
  * @returns {Promise<Actor|null>} null when core refused the create
  */
-export async function generateFromTemplate(template, { pins = {}, base = null } = {}) {
+export async function generateFromTemplate(template, { pins = {}, base = null, noRoll = [] } = {}) {
   const sys = template.system;
 
   // Values an axis may derive from a dropped base.
@@ -40,7 +41,7 @@ export async function generateFromTemplate(template, { pins = {}, base = null } 
     if (hd != null) baseValues.hd = hd;
   }
 
-  const { choices, log } = chooseAxes(sys, { pinned: pins, baseValues, bandOf: registryBands() });
+  const { choices, log } = chooseAxes(sys, { pinned: pins, baseValues, bandOf: registryBands(), noRoll });
   const resolved = resolveActor(sys, choices, { baseName: base?.name ?? "", templateName: template.name });
 
   // A dropped base actor seeds generation (full system/items/flags), the

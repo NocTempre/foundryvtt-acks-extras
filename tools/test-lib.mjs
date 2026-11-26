@@ -1255,6 +1255,20 @@ t("ROLL_PIN makes an axis that names a default roll; a plain axis rolls by its o
   });
 });
 
+t("noRoll: a named axis stays unchosen where no pin, derive or default settles it; a pin, a default and ROLL_PIN still act", () => {
+  const sys = { axes: [{ ...TEMPLATE_SYS.axes[1] }] };
+  const rolled = chooseAxes(sys, { rng: () => 0.99 });
+  assert.equal(rolled.choices.element, "water", "left to roll, the axis rolls");
+  const none = chooseAxes(sys, { rng: () => 0.99, noRoll: ["element"] });
+  assert.deepEqual(none.choices, {}, "named in noRoll, it takes no option");
+  assert.deepEqual(none.log, [{ axis: "element", source: "none" }]);
+  assert.equal(chooseAxes(sys, { pinned: { element: "fire" }, rng: () => 0.99, noRoll: ["element"] }).choices.element, "fire", "a pin lands");
+  assert.deepEqual(chooseAxes(sys, { pinned: { element: "nothing" }, rng: () => 0.99, noRoll: ["element"] }).choices, {}, "a pin the axis does not list falls through to none, not to a roll");
+  assert.equal(chooseAxes({ axes: [{ ...sys.axes[0], default: "fire" }] }, { rng: () => 0.99, noRoll: ["element"] }).choices.element, "fire", "a default stands");
+  assert.equal(chooseAxes(sys, { pinned: { element: ROLL_PIN }, rng: () => 0.99, noRoll: ["element"] }).choices.element, "water", "ROLL_PIN still rolls");
+  assert.equal(chooseAxes(sys, { rng: () => 0.99, noRoll: ["other"] }).choices.element, "water", "another axis's key changes nothing");
+});
+
 t("banded multi axis: bands gate availability only, and nothing is rolled", () => {
   withGizmos((bandOf) => {
     const sys = bandedSystem({ multi: true });

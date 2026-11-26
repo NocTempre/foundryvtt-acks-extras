@@ -13,7 +13,7 @@ import { savesForLevel, parseHitDice } from "../stats.mjs";
 import { namesakeAbility } from "../stats-map.mjs";
 import {
   damageTotal, derivedLeaderRoles, entryLeaderTemplate, importedThrowLadder, leaderTemplateId, monsterThrowForHd,
-  overviewIsLore, procedureBuildsFor, proseLeaderRoles, ratingText, readRoleSentences, SOURCE_AXIS, splitWeaponModifier,
+  keepHeldRoleDefault, overviewIsLore, procedureBuildsFor, proseLeaderRoles, ratingText, readRoleSentences, SOURCE_AXIS, splitWeaponModifier,
 } from "../leader-roles.mjs";
 import { deriveLeader, importedLeaderProcedure } from "../../monsters/leader-derive.mjs";
 import { kitPresets, unionKitAxis } from "../kit-presets.mjs";
@@ -1208,6 +1208,7 @@ export async function importFamily(bookId, famId, folderId) {
   // under `withRewrite`); variants another book merged into it are carried over.
   if (existing && isRewriting(famId)) {
     carryMergedVariants(existing, axes, cells, loreIds);
+    keepHeldRoleDefault(axes, sysObject(existing).axes);
     if (axes.some((a) => a.key === "role")) out.nameFormat = "{variant} {role}";
   }
 
