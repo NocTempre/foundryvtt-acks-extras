@@ -186,7 +186,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 96,
+  apiVersion: 97,
   vocab,
   fields,
   /**
@@ -573,8 +573,8 @@ const localImpl = Object.freeze({
    * item's use over; the carrier's claimant declines every spell, every ability
    * with no activation and every unflagged item. `registerRunner(kind, fn)` adds
    * an activation kind's runner, `setPresenter` posts a use's result, `setFuseBurst`
-   * runs a fuse's burst (`burstFuse` is lib's own), `pressRoll` and `undoEntry` are a card row's press and
-   * Undo, `rowsOf` is an item's one row list, and `logic` is the pure half.
+   * runs a fuse's burst (`burstFuse` is lib's own), `pressRoll` and `undoEntry` are a card row's press (with
+   * `declared`, the Judge's verdict on a card that names no save) and Undo, `rowsOf` is an item's one row list, and `logic` is the pure half.
    * `registerPressOutcome(cardKind, fn)` names what writes a card kind's outcome,
    * and `registerStructureDamage(fn)` what writes a structure's damage when a
    * burst is handed on (`handOn`); `applyEntry` and `applyAllEntries` apply a

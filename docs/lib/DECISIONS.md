@@ -2948,3 +2948,62 @@ defect's reporter saw, since only the second send-out was reported; held, becaus
 dead ids can never name a body again and the second group is what shifted the marks.
 The report to the system carries the same fix: drop the ids no combatant holds before
 the groups under two are filtered.
+
+## 2026-11-25 — A consume item's count is typed on its sheet row (the hub's call, gear S9c)
+
+The hub's ruling 5 (above) left the typed count on the sheet row as the
+manual way in, and no control wrote it. The owner: "every value has a
+control, everything has a manual override or entry point, and nothing is
+buried in a hidden table." **Ruled by the release hub**, approved from the
+lane's self-check against frame 4d and the sheet-row frames, with no board
+round trip: a "Swigs left" number box bound to `itemRun.activation.left`, for
+an owner of the item, in one place. The place is the item's row on the
+sheet (the monster sheet's Inventory tab and the character sheet's gear
+row), not the row editor's reach group: a grog carries no effect row, so
+the editor that would hold the box never opens for it. Blank means not yet
+rolled. The box records where its count came from (`leftFrom`: the roll at
+hand-on with its formula and total, or a hand), and its tooltip says which.
+
+Rejected: the reach group (unreachable for an item with no row); a Roll
+press (the hub withdrew it in ruling 5).
+
+## 2026-11-25 — The Judge declares the verdict on a card that names no save (gear S9c)
+
+A swig, on-hit or burst card whose save name was not imported drew no Save,
+and the verdict check refused a press without a target from every seat, the
+Judge's included, so such a card could not be settled. The hub: "the Judge
+must have a way through. Give the Judge's seat a press that works with a
+blank save name (a warned press, the throw left to the Judge)." The Judge's
+own seat (`judgeDeclares`, the rule the early Save already follows) is drawn
+Passed and Failed on each open row, with a tooltip saying the call stands for
+the throw. Nothing is rolled, the writer is asked with the declared verdict,
+and the entry is marked as the Judge's call. A card that names a save never
+takes a declared press, so a player's roll is never replaced by a call.
+
+Rejected: a Save rolled against a figure nobody imported (the module would
+supply the number); a declared press for any owner of the subject (a verdict
+with no throw is a ruling, which is the Judge's).
+
+## 2026-11-25 — A fuse's press reads Light, and a burning fuse offers it only from a spare (gear S9c)
+
+A fuse item's row, its stack-row press and its Token HUD control say Light
+(the press the fuse card already names), and its row reads Lit with the
+rounds left while a fuse burns. Each light writes its own fuse record against
+the item, and the burst uses up one of the stack, so a second Light on a
+single burning bomb would leave a record with nothing to burst. Light is
+therefore offered while a fuse burns only where the stack holds more than it
+has lit; the tag carries the state otherwise.
+
+Rejected: refusing at the runner (a change to `runFuse` beyond what the rows
+need; the hotbar still reaches the door).
+
+## 2026-11-25 — A Region's bearer is read by id (gear S9c)
+
+Core 14's client prepares a Region's `attachment.token` as the TokenDocument,
+while its source holds the id. `reachContext` and the strip looked the
+prepared value up as an id, which answers nothing, so every reach moment
+(enter, move in, exit, turn start, the engaged prompts) was dropped and the
+"In reach of" strip drew no rows, with no error. Every offline mock gave the
+id shape. `regions.mjs` `attachedToken` reads the id from either shape and
+the token through the scene, and the mocks now give the prepared shape. Found
+by the `lib-aura-cards` walk.

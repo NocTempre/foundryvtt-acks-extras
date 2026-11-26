@@ -1,4 +1,4 @@
-# lib API (apiVersion 96)
+# lib API (apiVersion 97)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 96,
+  apiVersion: 97,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -79,6 +79,7 @@ acksExtras.lib = {
   // 94: groups.{deployAnchor, registerStackRowControl, stackRowControls, pressStackRowControl}; groups.deploy takes `carrying` (docs/lib/GROUPS.md, "A body sent out carrying its item"); actorRead.kindKeys (below, "`itemUse`, `itemRun` and `auraReach`")
   // 95: itemRun.{postOutcomeCard, swigHeal, swigAskSave}; a `consume` activation is run (Swig); itemRun.logic.readItemRun answers a consume activation's `left` and `bearerUuid`; itemRun.logic.itemRunUsedUp counts a consume item with no swigs left (below, "apiVersion 95, the consume item")
   // 96: templateLogic.chooseAxes and generateFromTemplate take `noRoll`, axis keys left unchosen rather than rolled (below, "`acks-extras.template` — the generator actor")
+  // 97: itemRun.pressRoll takes `declared` (the Judge's verdict on a card that names no save); itemRun.logic.checkPressRequest takes `req.declared`; itemRun.logic.readItemRun answers a consume activation's `leftFrom`; itemRun.logic.litCountOf (below, "apiVersion 97, the rows and the Judge's call")
 }
 ```
 
@@ -2383,3 +2384,4 @@ Rows on the lib api from `apiVersion` 76.
 - apiVersion 92, a split asks for the right to create (T-0792 B4): `places.splitPlace(place, take)` answers null and writes nothing where the seat lacks `Actor.canUserCreate(game.user)` as well as where it does not own the place, and lowers the stack's count only once the new member exists, so a refused or failed create loses no instance.
 - apiVersion 93, the fuse item (gear S9a): `itemRun` gains `registerPressOutcome(cardKind, fn)` (a card kind's writer, consulted by the Save and Apply presses: `fn({phase, card, entry, key, saved, subjectToken, actor, userId})` answers `{records, names, life, hp?, state?, judge?, why?, amount?}`), `registerStructureDamage(fn)` (one writer, `fn({vehicleUuid, total, userId})`, filled by vehicles), `setProficiencyReader(fn)` (filled by monsters), `burstFuse({actor, record})`, and the card presses `moveFuseSpot({activationId, spot})`, `setFuseOffNow({activationId})`, `applyEntry({messageId, entryKey})`, `applyAllEntries({messageId})` and `handOn({messageId, vehicleUuid})`, callable from any seat and re-checked by Foundry ownership on the GM's window; `litStateOf(effects, itemUuid)` answers a lit item's `{roundsLeft, combat, dueAt}`. A `fuse` activation is registered (`runFuse`). `itemRun.logic` gains `fuseLight`, `blastOf`, `burstAmount` (a passed save takes `reduction` off), `fuseWorldFlag`, `fuseSpot`, `fuseRecordData`, `proficiencyBonus`, `checkApplyRequest` and `litStateOf`; `readItemRun` answers `proficiency`, `sizes`, `blast` and `variant`; `readReach` and `reachFigures` answer `fraction`; `undoPlan` answers `hp`. `lib/point-pick.mjs` `pickPoint({text})` is internal.
 - apiVersion 95, the consume item (gear S9b-2): `itemRun` gains `postOutcomeCard({kind, itemUuid, title, subtitle, subjects, saveName, saveMod, facts, speakerActorUuid})` (a prompt card of a kind with a registered press writer, or `swigUnknown`, posted from any seat: a Player's seat relays and the GM's window posts only where the sender owns `speakerActorUuid`; a post's facts never set the keys a card holds for itself, and `burst` is refused), `swigHeal({messageId})` and `swigAskSave({messageId})` (an unknown drinker's card, by ownership of the drinker). A `consume` activation is registered (`runConsume`), and the `swig` press writer with it; a writer's `judge` answer at the Save writes nothing. A card's `saveMod` reaches the throw and the verdict as a situational modifier (`cardSaveOptions`, internal). `itemRun.logic.readItemRun` answers a consume activation's `left` and `bearerUuid`, and `itemRunUsedUp` is true for a consume item whose `left` is a number at or below none. `FLAG_DRINK` (`constants.mjs`) and `lib/swig-logic.mjs` (`swigOutcome`, `drinkerKindOf`, `swigStampPlan`) are internal.
+- apiVersion 97, the rows and the Judge's call (gear S9c): `itemRun.pressRoll` takes `declared` (a boolean): on an outcome card or a burst table that names no save, the Judge's own seat (`judgeDeclares`) settles a row with that verdict, nothing thrown; any other seat is refused `judgeOnly` and a card that names a save `figure`, and the entry holds `declared: true` and no total or target. `itemRun.logic.checkPressRequest` takes `req.declared` with the same rule. `itemRun.logic.readItemRun` answers a consume activation's `leftFrom` (`{by: "roll", formula, total}`, `{by: "hand"}` or null), which the hand-on roll writes beside `left`. `itemRun.logic.litCountOf(effects, itemUuid)` counts the fuses an item has lit on an actor. `regions.mjs` `attachedToken` (a Region's attached token from either shape of `attachment.token`) and the sheet row's `writeRunLeft` / `bindItemRunRows` are internal.
