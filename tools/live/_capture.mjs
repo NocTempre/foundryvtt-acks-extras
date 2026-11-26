@@ -608,13 +608,18 @@ export function pageKeeper({ targetId, browser, page, evaluate }) {
  * One DevTools connection over an open WebSocket. `send` resolves to a
  * command's result, rejects with the browser's error object as JSON, and
  * rejects `timeout: <method>` when no reply comes within `timeout` ms; a reply
- * that arrives after that is dropped. Events are not dispatched.
+ * that arrives after that is dropped. Events (a message with a `method` and no
+ * `id`) go to the listeners `onEvent` registered.
  */
 export class Cdp {
   constructor(ws) {
-    this.ws = ws; this.id = 0; this.pending = new Map();
+    this.ws = ws; this.id = 0; this.pending = new Map(); this.listeners = [];
     ws.addEventListener("message", (ev) => {
       const msg = JSON.parse(ev.data);
+      if (!msg.id && msg.method) {
+        for (const fn of this.listeners) { try { fn(msg); } catch { /* a listener never breaks the socket */ } }
+        return;
+      }
       if (msg.id && this.pending.has(msg.id)) {
         const { resolve, reject, timer } = this.pending.get(msg.id);
         this.pending.delete(msg.id);
@@ -622,6 +627,10 @@ export class Cdp {
         msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result);
       }
     });
+  }
+  /** Calls `fn` with every event (a message with a `method` and no `id`) the browser sends on this socket. */
+  onEvent(fn) {
+    this.listeners.push(fn);
   }
   send(method, params = {}, sessionId, timeout = CDP_TIMEOUT_MS) {
     const id = ++this.id;
@@ -640,88 +649,47 @@ const openWs = (url) => new Promise((resolve, reject) => {
 });
 
 /**
- * Launch a throwaway browser, join the world, and return a capture handle.
- * Resolves only once `game.ready` is true, so callers never race the load.
- * `own` is the tag the handle's fixture helpers build and look up under
- * (`fixtureLedger`); without it they use the recipe's markers.
+ * The seats a runner keeps open for its children, from the environment:
+ * `{ [port]: { ws, targetId, user } }`, the browser's DevTools socket and the
+ * page target a walk attaches to. Empty (every walk launches its own browser)
+ * where `ACKS_ATTACH` is unset or unreadable.
  */
-export async function connect({ browser, origin, user, port = 9333, width = 1600, height = 1000, readySeconds = 90, own = null }) {
-  for (const [k, v] of Object.entries({ browser, origin, user })) {
-    if (!v) throw new Error(`foundry-capture: missing required option "${k}"`);
-  }
-  if (!fs.existsSync(browser)) throw new Error(`foundry-capture: browser not found at ${browser}`);
-
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), "acks-capture-"));
-  // `--disable-sync`: a fresh profile can sign in with the OS account, and what
-  // that account syncs — an extension, with its first-run tab — opens over the page.
-  const proc = spawn(browser, [
-    "--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
-    `--window-size=${width},${height}`, "--no-first-run", "--no-default-browser-check",
-    "--disable-features=Translate,AcceptCHFrame", "--disable-sync", "about:blank",
-  ], { stdio: ["ignore", "pipe", "pipe"] });
-  proc.stderr.on("data", () => {});
-  /**
-   * Tear the session down completely. Two things beyond `proc.kill()`, and both
-   * are load-bearing:
-   *
-   *  - **Kill by PROFILE, not by pid.** A browser is a launcher plus renderer,
-   *    GPU, network and crashpad children, and `proc.kill()` signals only the
-   *    launcher — which on Windows has usually already exited and left its
-   *    children re-parented, so killing the pid (or even its tree) reaps
-   *    nothing. The throwaway `--user-data-dir` is unique to this session and
-   *    every child carries it on its command line, so it is the one handle that
-   *    finds all of them. Without this a session that shoots a dozen frames
-   *    leaves dozens of orphans, and once enough pile up the next `connect()`
-   *    starves and the capture "just stops working".
-   *  - **Close the CDP socket.** An open WebSocket holds node's event loop, so
-   *    a script that finished its work never exits and looks hung.
-   *
-   * Callers do not have to know any of this: `close()` leaves nothing running.
-   */
-  let cdpSocket = null;
-  const cleanup = () => {
-    try { cdpSocket?.close(); } catch {}
-    try { proc.kill(); } catch {}
-    if (process.platform === "win32") {
-      // -Filter cannot match on CommandLine, so the profile test is a Where-Object.
-      const script =
-        `Get-CimInstance Win32_Process -Filter "Name='${path.basename(browser).replace(/'/g, "''")}'" | ` +
-        `Where-Object { $_.CommandLine -like '*${profile.replace(/\\/g, "\\").replace(/'/g, "''")}*' } | ` +
-        `ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
-      try { execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { stdio: "ignore" }); } catch {}
-    }
-    try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
-  };
-
+export function attachMap(env = process.env) {
   try {
-    let wsUrl = null;
-    for (let i = 0; i < 40 && !wsUrl; i++) {
-      try {
-        const r = await fetch(`http://127.0.0.1:${port}/json/version`);
-        if (r.ok) wsUrl = (await r.json()).webSocketDebuggerUrl;
-      } catch { /* not up yet */ }
-      if (!wsUrl) await sleep(250);
+    const map = JSON.parse(env.ACKS_ATTACH ?? "{}");
+    return map && typeof map === "object" ? map : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Page-side evaluation over one session: awaits promises, throws on page
+ * errors, and gives up after `timeout` ms where one is passed.
+ */
+function makeEvaluate(cdp, sessionId) {
+  return async (expression, timeout) => {
+    const r = await cdp.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, sessionId, timeout);
+    if (r.exceptionDetails) {
+      throw new Error(`${r.exceptionDetails.text} ${r.exceptionDetails.exception?.description ?? ""}`.trim());
     }
-    if (!wsUrl) throw new Error("devtools endpoint never came up");
+    return r.result.value;
+  };
+}
 
-    const ws = await openWs(wsUrl);
-    cdpSocket = ws;
-    const cdp = new Cdp(ws);
-    const { targetId } = await cdp.send("Target.createTarget", { url: `${origin}/join` });
-    const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
-    await cdp.send("Page.enable", {}, sessionId);
-    await cdp.send("Runtime.enable", {}, sessionId);
-    await sleep(2500);
+/**
+ * What an attached walk leaves a kept page as: every application closed, the
+ * toasts cleared, no combat viewed and no token controlled. The page and its
+ * browser stay; only the walk's own socket closes.
+ */
+const PAGE_RESET = `(() => { try { if (globalThis.ui?.combat) ui.combat.viewed = null; globalThis.canvas?.tokens?.releaseAll?.(); } catch {} return true; })()`;
 
-    // Page-side evaluation: awaits promises, throws on page errors, and gives
-    // up after `timeout` ms where one is passed.
-    const evaluate = async (expression, timeout) => {
-      const r = await cdp.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, sessionId, timeout);
-      if (r.exceptionDetails) {
-        throw new Error(`${r.exceptionDetails.text} ${r.exceptionDetails.exception?.description ?? ""}`.trim());
-      }
-      return r.result.value;
-    };
+/**
+ * Builds the capture handle over a page the caller has already joined: the
+ * session's `evaluate`, the page keeper, the fixture ledger under `own`, and
+ * the shot/compose/ledger surface. `cleanup` is what `close()` ends in.
+ */
+function buildHandle({ cdp, sessionId, targetId, evaluate, cleanup, own }) {
     const keeper = pageKeeper({
       targetId,
       browser: (method, params) => cdp.send(method, params),
@@ -789,43 +757,211 @@ export async function connect({ browser, origin, user, port = 9333, width = 1600
         cleanup();
       },
     };
+  return api;
+}
 
-    // The seat's id comes from the join page's own `game.users`, not from the
-    // form. Foundry served a `<select name="userid">` of every user until v14
-    // build 367, which replaced it with a free-text username box — scraping the
-    // form now finds nothing, and that reads as "no world running". The page's
-    // user data is there either way, so it is the stable place to look.
-    //
-    // Polled rather than read once: the join page is rendered by its own
-    // scripts, and a fixed wait before the scrape races that render.
-    const uid = await api.eval(`new Promise(res => { let n = 0; const t = setInterval(() => {
-      const list = globalThis.game?.users ? [...game.users] : [];
-      const u = list.find(u => u.name === ${JSON.stringify(user)});
-      if (u?.id) { clearInterval(t); res(u.id); }
-      else if (++n > 30) { clearInterval(t); res(null); }
-    }, 500); })`);
-    if (!uid)
-      throw new Error(
-        `foundry-capture: user "${user}" not on the join page after 15s — is a world running, and is that the user's exact name?`,
-      );
+/**
+ * Launch a throwaway browser and join the world as `user`. Resolves only once
+ * `game.ready` is true, so callers never race the load. Returns the seat's
+ * pieces, not a handle: `connect()` builds the handle on them, and a runner
+ * that keeps the seat open across walks holds them itself.
+ *
+ *   cdp, sessionId, targetId, evaluate   the page's own session
+ *   wsUrl                                the browser's DevTools socket, which a
+ *                                        walk attaches to (`attachMap`)
+ *   join()                               the join flow again: a reload that
+ *                                        also rejoins a page sent back to /join
+ *   alive()                              whether the page is the world's /game
+ *                                        page, ready, as this user
+ *   errors()                             the page's console errors and uncaught
+ *                                        exceptions since the last call, read
+ *                                        from the browser's own events, so the
+ *                                        load itself is recorded from before
+ *                                        the page is ready
+ *   cleanup()                            ends the browser and removes its profile
+ */
+export async function launchSeat({ browser, origin, user, port = 9333, width = 1600, height = 1000, readySeconds = 90 }) {
+  for (const [k, v] of Object.entries({ browser, origin, user })) {
+    if (!v) throw new Error(`foundry-capture: missing required option "${k}"`);
+  }
+  if (!fs.existsSync(browser)) throw new Error(`foundry-capture: browser not found at ${browser}`);
 
-    // `userId`, camelCase: the server reads `req.body.userId`. It was `userid`
-    // before v14 build 367, and the old key authenticates as nobody — a 401
-    // whose body is "JOIN.ErrorUserDoesNotExist", which reads as a wrong NAME
-    // rather than a wrong key.
-    await api.eval(`fetch("/join", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "join", userId: ${JSON.stringify(uid)}, password: "" }) }).then(r => r.text())`);
-    await cdp.send("Page.navigate", { url: `${origin}/game` }, sessionId);
-    await sleep(3000);
+  const profile = fs.mkdtempSync(path.join(os.tmpdir(), "acks-capture-"));
+  // `--disable-sync`: a fresh profile can sign in with the OS account, and what
+  // that account syncs — an extension, with its first-run tab — opens over the page.
+  const proc = spawn(browser, [
+    "--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+    `--window-size=${width},${height}`, "--no-first-run", "--no-default-browser-check",
+    "--disable-features=Translate,AcceptCHFrame", "--disable-sync", "about:blank",
+  ], { stdio: ["ignore", "pipe", "pipe"] });
+  proc.stderr.on("data", () => {});
+  /**
+   * Tear the session down completely. Two things beyond `proc.kill()`, and both
+   * are load-bearing:
+   *
+   *  - **Kill by PROFILE, not by pid.** A browser is a launcher plus renderer,
+   *    GPU, network and crashpad children, and `proc.kill()` signals only the
+   *    launcher — which on Windows has usually already exited and left its
+   *    children re-parented, so killing the pid (or even its tree) reaps
+   *    nothing. The throwaway `--user-data-dir` is unique to this session and
+   *    every child carries it on its command line, so it is the one handle that
+   *    finds all of them. Without this a session that shoots a dozen frames
+   *    leaves dozens of orphans, and once enough pile up the next `connect()`
+   *    starves and the capture "just stops working".
+   *  - **Close the CDP socket.** An open WebSocket holds node's event loop, so
+   *    a script that finished its work never exits and looks hung.
+   *
+   * Callers do not have to know any of this: `close()` leaves nothing running.
+   */
+  let cdpSocket = null;
+  const cleanup = () => {
+    try { cdpSocket?.close(); } catch {}
+    try { proc.kill(); } catch {}
+    if (process.platform === "win32") {
+      // -Filter cannot match on CommandLine, so the profile test is a Where-Object.
+      const script =
+        `Get-CimInstance Win32_Process -Filter "Name='${path.basename(browser).replace(/'/g, "''")}'" | ` +
+        `Where-Object { $_.CommandLine -like '*${profile.replace(/\\/g, "\\").replace(/'/g, "''")}*' } | ` +
+        `ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+      try { execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", script], { stdio: "ignore" }); } catch {}
+    }
+    try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
+  };
 
-    const ready = await api.eval(`new Promise(res => { let n = 0; const t = setInterval(() => { n++;
-      if (typeof game !== "undefined" && game.ready) { clearInterval(t); res("ready"); }
-      else if (n > ${readySeconds}) { clearInterval(t); res("NOT READY at " + location.href); } }, 1000); })`);
-    if (ready !== "ready") throw new Error(`foundry-capture: ${ready}`);
+  try {
+    let wsUrl = null;
+    for (let i = 0; i < 40 && !wsUrl; i++) {
+      try {
+        const r = await fetch(`http://127.0.0.1:${port}/json/version`);
+        if (r.ok) wsUrl = (await r.json()).webSocketDebuggerUrl;
+      } catch { /* not up yet */ }
+      if (!wsUrl) await sleep(250);
+    }
+    if (!wsUrl) throw new Error("devtools endpoint never came up");
 
-    return api;
+    const ws = await openWs(wsUrl);
+    cdpSocket = ws;
+    const cdp = new Cdp(ws);
+    const { targetId } = await cdp.send("Target.createTarget", { url: `${origin}/join` });
+    const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
+    await cdp.send("Page.enable", {}, sessionId);
+    await cdp.send("Runtime.enable", {}, sessionId);
+    await sleep(2500);
+
+    const evaluate = makeEvaluate(cdp, sessionId);
+    const problems = [];
+    cdp.onEvent((msg) => {
+      if (msg.sessionId !== sessionId) return;
+      if (msg.method === "Runtime.exceptionThrown") problems.push(String(msg.params?.exceptionDetails?.exception?.description ?? msg.params?.exceptionDetails?.text ?? "exception").split("\n")[0].slice(0, 300));
+      else if (msg.method === "Runtime.consoleAPICalled" && msg.params?.type === "error") problems.push((msg.params.args ?? []).map((a) => String(a.value ?? a.description ?? a.type)).join(" ").slice(0, 300));
+    });
+
+    const join = async () => {
+      // The seat's id comes from the join page's own `game.users`, not from the
+      // form. Foundry served a `<select name="userid">` of every user until v14
+      // build 367, which replaced it with a free-text username box — scraping the
+      // form now finds nothing, and that reads as "no world running". The page's
+      // user data is there either way, so it is the stable place to look.
+      //
+      // Polled rather than read once: the join page is rendered by its own
+      // scripts, and a fixed wait before the scrape races that render.
+      const uid = await evaluate(`new Promise(res => { let n = 0; const t = setInterval(() => {
+        const list = globalThis.game?.users ? [...game.users] : [];
+        const u = list.find(u => u.name === ${JSON.stringify(user)});
+        if (u?.id) { clearInterval(t); res(u.id); }
+        else if (++n > 30) { clearInterval(t); res(null); }
+      }, 500); })`);
+      if (!uid)
+        throw new Error(
+          `foundry-capture: user "${user}" not on the join page after 15s — is a world running, and is that the user's exact name?`,
+        );
+
+      // `userId`, camelCase: the server reads `req.body.userId`. It was `userid`
+      // before v14 build 367, and the old key authenticates as nobody — a 401
+      // whose body is "JOIN.ErrorUserDoesNotExist", which reads as a wrong NAME
+      // rather than a wrong key.
+      await evaluate(`fetch("/join", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "join", userId: ${JSON.stringify(uid)}, password: "" }) }).then(r => r.text())`);
+      await cdp.send("Page.navigate", { url: `${origin}/game` }, sessionId);
+      await sleep(3000);
+
+      const ready = await evaluate(`new Promise(res => { let n = 0; const t = setInterval(() => { n++;
+        if (typeof game !== "undefined" && game.ready) { clearInterval(t); res("ready"); }
+        else if (n > ${readySeconds}) { clearInterval(t); res("NOT READY at " + location.href); } }, 1000); })`);
+      if (ready !== "ready") throw new Error(`foundry-capture: ${ready}`);
+    };
+    await join();
+    const alive = async () => {
+      try { return (await evaluate(`typeof game !== "undefined" && game.ready === true && game.user?.name === ${JSON.stringify(user)} && location.pathname.endsWith("/game")`, PROBE_TIMEOUT_MS)) === true; } catch { return false; }
+    };
+    const errors = () => problems.splice(0);
+    return { cdp, sessionId, targetId, evaluate, wsUrl, cleanup, join, alive, errors };
   } catch (err) {
     cleanup();
+    throw err;
+  }
+}
+
+/**
+ * Attach to the page a runner keeps open for `user` and return a capture
+ * handle on it. The page is checked to be ready as that user; `close()`
+ * leaves the browser and the page running and only drops this walk's socket,
+ * after the page is put back as a walk should find it. `open` is the socket
+ * opener, replaceable by a test.
+ */
+export async function attachSeat({ spec, user, own = null, open = openWs }) {
+  const ws = await open(spec.ws);
+  const cdp = new Cdp(ws);
+  let evaluate;
+  let sessionId;
+  try {
+    ({ sessionId } = await cdp.send("Target.attachToTarget", { targetId: spec.targetId, flatten: true }));
+    await cdp.send("Page.enable", {}, sessionId);
+    await cdp.send("Runtime.enable", {}, sessionId);
+    evaluate = makeEvaluate(cdp, sessionId);
+    const found = await evaluate(`({ ready: typeof game !== "undefined" && game.ready === true, user: globalThis.game?.user?.name ?? null })`, PROBE_TIMEOUT_MS);
+    if (!found?.ready || found.user !== user) {
+      throw new Error(`foundry-capture: the runner's kept page is ${found?.ready ? `joined as another user` : "not ready"}; it was kept for "${user}"`);
+    }
+  } catch (err) {
+    try { ws.close(); } catch { /* closed */ }
+    throw err;
+  }
+  let closing = false;
+  const cleanup = () => {
+    if (closing) return;
+    closing = true;
+    evaluate(pageCompose(""), 8_000)
+      .catch(() => {})
+      .then(() => evaluate(PAGE_RESET, PROBE_TIMEOUT_MS))
+      .catch(() => {})
+      .finally(() => { try { ws.close(); } catch { /* closed */ } });
+  };
+  return buildHandle({ cdp, sessionId, targetId: spec.targetId, evaluate, cleanup, own });
+}
+
+/**
+ * Join the world as `user` and return a capture handle. With a seat kept for
+ * `port` by a runner (`attachMap`) it attaches to that page instead of
+ * launching a browser; a kept seat for the same user on another port is an
+ * error, since two pages joined as one user is the runner's fault to prevent
+ * and the walk's to declare (`fresh-page`). `own` is the tag the handle's
+ * fixture helpers build and look up under (`fixtureLedger`); without it they
+ * use the recipe's markers.
+ */
+export async function connect({ browser, origin, user, port = 9333, width = 1600, height = 1000, readySeconds = 90, own = null }) {
+  for (const [k, v] of Object.entries({ browser, origin, user })) {
+    if (!v) throw new Error(`foundry-capture: missing required option "${k}"`);
+  }
+  const kept = attachMap();
+  if (kept[port]) return attachSeat({ spec: kept[port], user, own });
+  const held = Object.entries(kept).find(([, s]) => s.user === user);
+  if (held) throw new Error(`foundry-capture: the runner keeps "${user}" open on port ${held[0]}, and this walk asks for that user on port ${port}; declare the walk fresh-page`);
+  const seat = await launchSeat({ browser, origin, user, port, width, height, readySeconds });
+  try {
+    return buildHandle({ ...seat, own });
+  } catch (err) {
+    seat.cleanup();
     throw err;
   }
 }

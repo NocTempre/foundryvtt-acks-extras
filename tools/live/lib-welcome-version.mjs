@@ -11,6 +11,8 @@
  * the Player ran init, setup and ready, recorded no "lacks permission" line,
  * shows the welcome dialog, and reads the older version, and the GM still reads
  * it. A `finally` restores the stored version and notes what it reads after.
+ *
+ * fresh-page: the subject is the Player seat's own load after a world setting changed
  */
 import { connect } from "./_driver.mjs";
 import { walkDone, blocked } from "./_walk.mjs";

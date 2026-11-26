@@ -4,6 +4,9 @@
  *
  *   node tools/live/run.mjs             every walk, in name order
  *   node tools/live/run.mjs markets     the named walks, in the order given
+ *   node tools/live/run.mjs --attach    walks that keep the seats' pages open (batch mode)
+ *   node tools/live/run.mjs --fresh     walks that launch a fresh browser each (today's mode)
+ *   node tools/live/run.mjs --refresh-every <n>   with --attach, load each page again every n walks
  *   node tools/live/run.mjs --list      each walk's recorded state, its age, and
  *                                       whether the record is current
  *   node tools/live/run.mjs --classify <walk> <T-id> <defect|world-state|stale-walk|environment>
@@ -49,6 +52,21 @@
  * both seats, and a driver started while another holds a port attaches to the
  * first walk's browser instead of its own, so the runner refuses to start a walk
  * while either port answers. `--list` exits 0.
+ *
+ * Batch mode (`--attach`; `_batch.mjs` is the reference). The runner launches the
+ * seats' browsers itself and keeps their pages open for the batch, and a walk's
+ * `connect()` attaches to the page for its seat (`ACKS_ATTACH`, set for each walk)
+ * instead of launching a browser, so the page load and the library warm are paid
+ * once. A walk's `close()` leaves the page with no window open and no combat
+ * viewed. A page is loaded again every `--refresh-every` walks (10), after a walk
+ * that did not pass or wrote a console error or an uncaught exception to the
+ * page, when the runtime tree id changed under it, and when it is not ready as
+ * its user. A walk that names the Player seat's port gets a Player page; one
+ * that does not has none joined. A walk whose first lines say
+ * `// fresh-page: <reason>` runs with every seat closed and launches its own, as
+ * does one that names neither seat's port. `connect()` in a walk that asks for a
+ * kept user on another port is an error that names the declaration it needs. A
+ * run of one named walk launches fresh unless `--attach` is given.
  *
  * The landing lease. Each walk runs holding the repository's landing lease
  * (`.claude/skills/acks-commit/lease.mjs`, the one `acks-commit` and
@@ -103,6 +121,9 @@ const portBusy = (port) => new Promise((resolve) => {
 });
 
 const here = path.dirname(fileURLToPath(import.meta.url));
+
+/** Whether a run of more than one walk keeps the seats' pages open when no flag says. Off until the batch mode has been proved on a run. */
+const ATTACH_DEFAULT = false;
 const all = fs.readdirSync(here)
   // perf-leads is a timing script (PERF_LEADS=1), not a gating walk: it is never listed or run here.
   .filter((f) => f.endsWith(".mjs") && !f.startsWith("_") && f !== "run.mjs" && f !== "perf-leads.mjs")
@@ -257,12 +278,14 @@ function commonGitDir() {
 const holderName = (held) => `${held?.session ? `session ${String(held.session).slice(0, 8)}` : "another run"}${held?.since ? `, since ${new Date(held.since).toTimeString().slice(0, 8)}` : ""}${held?.change ? `, for ${held.change}` : ""}`;
 
 /** The lease and the walk's child that a signal or an exit must give up. */
-const live = { lease: null, child: null };
+const live = { lease: null, child: null, keeper: null };
 
 /** Give up what this process holds: the walk's child, then the lease. Safe to call twice. */
 function letGo() {
   live.child?.kill();
   live.child = null;
+  live.keeper?.closeAll();
+  live.keeper = null;
   live.lease?.stop();
   live.lease = null;
 }
@@ -313,8 +336,25 @@ function runWalk(name, log) {
   });
 }
 
-async function main(walks) {
+async function main(walks, { attach = false, refreshEvery = 10 } = {}) {
   const dir = logDir();
+  let keeper = null;
+  if (attach) {
+    const { SeatKeeper, LIBRARY_READY } = await import("./_batch.mjs");
+    const { launchSeat } = await import("./_capture.mjs");
+    const { seats } = await import("./_env.mjs");
+    let machine;
+    try { machine = seats(); } catch (e) { console.error(e.message); process.exit(2); }
+    keeper = new SeatKeeper({
+      seats: [{ name: "gm", port: PORTS.gm, user: machine.gm }, { name: "player", port: PORTS.player, user: machine.player }],
+      launch: (def) => launchSeat({ browser: machine.browser, origin: machine.origin, user: def.user, port: def.port }),
+      settle: (handle) => handle.evaluate(LIBRARY_READY, 150_000).catch(() => {}),
+      refreshEvery,
+      log: (line) => console.log(line),
+    });
+    live.keeper = keeper;
+  }
+  const batchStarted = Date.now();
   const results = [];
   let unrecorded = false;
   const gitDir = commonGitDir();
@@ -342,7 +382,7 @@ async function main(walks) {
     if (lease.waitedMs >= 1000) console.log(`took the landing lease after ${Math.round(lease.waitedMs / 1000)}s`);
     live.lease = lease;
     try {
-      await walkOne(name, dir, results, () => { unrecorded = true; }, () => holds(gitDir, lease.token));
+      await walkOne(name, dir, results, () => { unrecorded = true; }, () => holds(gitDir, lease.token), keeper);
     } finally {
       lease.stop();
       live.lease = null;
@@ -351,13 +391,15 @@ async function main(walks) {
   const shown = results.map((r) => `${r.name} ${r.state}${r.partial ? " (partial)" : ""}`).join(", ");
   const bad = results.filter((r) => r.state !== "passed");
   console.log(`live walks: ${shown || "none run"}${bad.length ? ` -- ${bad.length} not passed` : ""}`);
+  console.log(`batch: ${results.length} walk(s) in ${Math.round((Date.now() - batchStarted) / 1000)}s, ${keeper ? "seats kept open" : "a fresh browser for each"}`);
   process.exit(bad.length ? 1 : unrecorded ? 4 : 0);
 }
 
 /** One walk, under the lease its caller holds: the seats check, the tree ids around it, its run and its record. */
-async function walkOne(name, dir, results, markUnrecorded, stillHeld) {
+async function walkOne(name, dir, results, markUnrecorded, stillHeld, keeper = null) {
   const busy = [];
-  for (const [seat, port] of Object.entries(PORTS)) if (await portBusy(port)) busy.push(`${seat} (port ${port})`);
+  const kept = keeper?.ports() ?? new Set();
+  for (const [seat, port] of Object.entries(PORTS)) if (!kept.has(port) && await portBusy(port)) busy.push(`${seat} (port ${port})`);
   if (busy.length) {
     console.error(`seats busy: a browser already answers for ${busy.join(" and ")}; another walk, or a peer session's, holds the seats`);
     process.exit(3);
@@ -374,9 +416,16 @@ async function walkOne(name, dir, results, markUnrecorded, stillHeld) {
   const partial = partialReason();
   const log = path.join(dir, `${name}-${stamp}.log`);
   console.log(`== ${name} (log: ${log}) ==`);
+  if (keeper) {
+    const { seatPlan } = await import("./_batch.mjs");
+    const attachTo = await keeper.prepare(seatPlan(fs.readFileSync(path.join(here, `${name}.mjs`), "utf8")), treeStart);
+    if (attachTo) process.env.ACKS_ATTACH = JSON.stringify(attachTo);
+    else delete process.env.ACKS_ATTACH;
+  }
   const startedAt = new Date().toISOString();
   const ran = await runWalk(name, log);
   const endedAt = new Date().toISOString();
+  delete process.env.ACKS_ATTACH;
   const { state, tally } = reduce(ran.lines, { exit: ran.exit, signal: ran.signal });
   if (!stillHeld()) console.error(`warning: the landing lease was taken from this run during ${name}; the tree ids around the walk still judge it`);
   try {
@@ -386,9 +435,10 @@ async function walkOne(name, dir, results, markUnrecorded, stillHeld) {
     markUnrecorded();
     console.error(`result for ${name} not recorded: ${e.message}`);
   }
+  if (keeper) for (const m of keeper.after({ passed: state === "passed" })) console.log(`seat ${m.seat}: loads again before the next walk that names it (${m.why})`);
   results.push({ name, state, partial });
   const counts = `${tally.pass} pass, ${tally.fail} fail${tally.gap ? `, ${tally.gap} gap` : ""}${ran.skip ? `, ${ran.skip} skip` : ""}`;
-  console.log(`== ${name}: ${state} (${counts}, exit ${ran.exit}${ran.signal ? `, signal ${ran.signal}` : ""}${partial ? `, partial: ${partial}` : ""}) ==`);
+  console.log(`== ${name}: ${state} (${counts}, exit ${ran.exit}${ran.signal ? `, signal ${ran.signal}` : ""}, ${Math.round((Date.parse(endedAt) - Date.parse(startedAt)) / 1000)}s${partial ? `, partial: ${partial}` : ""}) ==`);
 }
 
 const argv = process.argv.slice(2);
@@ -397,12 +447,16 @@ if (argv[0] === "--list") {
   list();
 } else if (argv[0] === "--classify") classify(argv.slice(1));
 else {
-  const flags = argv.filter((a) => a.startsWith("--"));
-  if (flags.length) { console.error(`unknown flag: ${flags.join(", ")} (flags: --list, --classify)`); process.exit(2); }
-  const unknown = argv.filter((n) => !all.includes(n));
+  const { batchOptions } = await import("./_batch.mjs");
+  const opts = batchOptions(argv, { attachDefault: ATTACH_DEFAULT });
+  if (opts.error) { console.error(opts.error); process.exit(2); }
+  const flags = opts.rest.filter((a) => a.startsWith("--"));
+  if (flags.length) { console.error(`unknown flag: ${flags.join(", ")} (flags: --list, --classify, --attach, --fresh, --refresh-every)`); process.exit(2); }
+  const unknown = opts.rest.filter((n) => !all.includes(n));
   if (unknown.length) {
     console.error(`no such walk: ${unknown.join(", ")} (walks: ${all.join(", ")})`);
     process.exit(2);
   }
-  await main(argv.length ? argv : all);
+  const named = opts.rest.length ? opts.rest : all;
+  await main(named, { attach: opts.attach, refreshEvery: opts.refreshEvery });
 }

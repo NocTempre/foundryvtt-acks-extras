@@ -80,6 +80,7 @@ function replica(name, runFile = RUN) {
   git(dir, ["init", "-q"]);
   copy(runFile, "tools/live/run.mjs");
   copy(path.join(ROOT, "tools", "live", "_env.mjs"), "tools/live/_env.mjs");
+  copy(path.join(ROOT, "tools", "live", "_batch.mjs"), "tools/live/_batch.mjs");
   copy(path.join(ROOT, "tools", "walk-results.mjs"), "tools/walk-results.mjs");
   copy(LEASE_FILE, ".claude/skills/acks-commit/lease.mjs");
   put("module.json", `${JSON.stringify({ id: "widget", title: "Widget", version: "1.0.0" })}\n`);

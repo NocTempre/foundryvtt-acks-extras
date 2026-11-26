@@ -703,6 +703,7 @@ const P = {
     const item = fromUuidSync(uuid);
     const store = S.gearEffectStore(item);
     const editable = store.editable();
+    const errors0 = H.errors.length;
     E.openEffectEditor(store, index);
     const ed = await H.until(() => H.editor(uuid, index), 8000);
     await H.sleep(700);
@@ -710,7 +711,7 @@ const P = {
     const side = ed?.element?.querySelector('[name="reach.side"]');
     if (side) { side.value = side.value === "foe" ? "all" : "foe"; side.dispatchEvent(new Event("change", { bubbles: true })); }
     await H.sleep(900);
-    return { editable, opened: !!ed, fieldsetDisabled: ed?.element?.querySelector("fieldset.acks-extras-effect-reach")?.disabled === true, wrote: JSON.stringify(H.run(item)?.rows?.[index] ?? null) !== before };
+    return { editable, opened: !!ed, fieldsetDisabled: ed?.element?.querySelector("fieldset.acks-extras-effect-reach")?.disabled === true, wrote: JSON.stringify(H.run(item)?.rows?.[index] ?? null) !== before, errors: H.errors.slice(errors0) };
   },
   closeEditors: async ({ uuid }) => {
     for (const app of [...foundry.applications.instances.values()]) if (typeof app.store?.key === "string" && app.store.key.startsWith(uuid)) await app.close({ animate: false });
@@ -1225,6 +1226,23 @@ try {
   });
 
   /* ---------------------------------------------------------------- */
+  await step("W5b", async () => {
+    section("W5b a token dropped inside an already raised reach draws its glyph at once (T-0879)");
+    await reset({ place: { M: SPOT.bearer, C: SPOT.outside }, owners: { monster: 0, char: 3 } });
+    const up = await gmRun(P.use, { itemUuid: I.MT.uuid });
+    check("W5b the reach is raised before the token is dropped", up.active === true, up);
+    await until(async () => { const r = await gmRun(P.regionsOn, { tokenUuid: T.M.uuid }); return r.length ? r : null; }, 8000, 500);
+    const made = await gm.create("Token", { name: "Aura Press Dropped", actorId: A.C.id, actorLink: true, x: SPOT.inside[0], y: SPOT.inside[1], disposition: 1 }, { parent: SC.main });
+    disposables.push(made.uuid);
+    const t0 = Date.now();
+    const drawn = await until(async () => { const g = await gmRun(P.glyph, { tokenUuid: made.uuid }); return g.canvas && g.has === true ? g : null; }, 6000, 250);
+    check("W5b the dropped token inside the reach carries one glyph within six seconds, with no move and no other change", !!drawn && drawn.onToken === true, { ms: Date.now() - t0 });
+    await gmRun(P.use, { itemUuid: I.MT.uuid });
+    const gone = await until(async () => { const g = await gmRun(P.glyph, { tokenUuid: made.uuid }); return g.canvas && g.has === false ? g : null; }, 6000, 500);
+    check("W5b lowering the reach removes the dropped token's glyph", !!gone);
+  });
+
+  /* ---------------------------------------------------------------- */
   await step("W6", async () => {
     section("W6 the item sheet's effect rows and the editor's reach group");
     await reset({ owners: { monster: 0, char: 3 } });
@@ -1277,6 +1295,7 @@ try {
     check("W6 a seat that may not write sees the rows listed with no Add, Edit or Delete", ro.groups === 1 && ro.rows >= 1 && ro.add === 0 && ro.edit === 0 && ro.del === 0, ro);
     const roe = await plRun(P.readOnlyEditor, { uuid: I.CT.uuid, index: 0 });
     check("W6 the editor opened another way writes nothing for it, its group disabled", roe.editable === false && roe.wrote === false && roe.fieldsetDisabled === true, roe);
+    check("W6 the change on that editor threw no error and raised no toast (the editor's store is wrapped where editable() is false)", Array.isArray(roe.errors) && roe.errors.length === 0, roe.errors);
     await plRun(P.closeEditors, { uuid: I.CT.uuid });
     await gmRun(P.own, { writes: [{ uuid: A.C.uuid, level: 3 }], playerId: S.playerId });
   });

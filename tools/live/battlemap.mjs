@@ -506,6 +506,40 @@ const P = {
     };
   },
 
+  /** The Battlemap group's Country brush button as drawn on the viewed scene (T-0590): its state, its list item's tooltip, and what a pointer at its centre reaches. */
+  brushButton: async () => {
+    const H = globalThis.__rb;
+    await ui.controls.render({ force: true });
+    await H.sleep(400);
+    ui.controls.activate({ control: "acksBattlemap" });
+    await H.sleep(500);
+    await ui.controls.render({ force: true });
+    await H.sleep(400);
+    const root = H.root(ui.controls) ?? document.querySelector("#scene-controls");
+    const btn = root?.querySelector('[data-tool="terrain"]') ?? null;
+    if (!btn) return { found: false };
+    const li = btn.closest("li");
+    const r = btn.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return {
+      found: true, disabled: btn.disabled === true, ariaDisabled: btn.getAttribute("aria-disabled"), off: btn.classList.contains("acks-extras-brush-off"),
+      tipText: li?.dataset?.tooltipText ?? "", btnTipText: btn.dataset?.tooltipText ?? "",
+      hitIsItem: !!hit && (hit === li || li?.contains(hit) === true), hitTag: hit?.tagName ?? null,
+      gridType: canvas.scene?.grid?.type ?? null, scene: canvas.scene?.id ?? null,
+    };
+  },
+
+  /** Write a scene's grid type and wait for the redraw of the scene when it is the viewed one. */
+  setGridType: async ({ sceneId, type }) => {
+    const H = globalThis.__rb;
+    const scene = game.scenes.get(sceneId);
+    await scene.update({ "grid.type": type });
+    const t0 = performance.now();
+    while (!(canvas.ready && canvas.scene?.id === sceneId && canvas.scene.grid.type === type) && performance.now() - t0 < 20000) await new Promise((r) => setTimeout(r, 200));
+    await H.sleep(800);
+    return { type: scene.grid.type, ready: canvas.ready };
+  },
+
   palette: async () => {
     const H = globalThis.__rb;
     const pal = document.querySelector("#acks-extras-terrain-palette");
@@ -1574,6 +1608,21 @@ const P = {
   },
 
   /** Boxes into the session's samples, in image px, shaped as the capture overlay writes them. */
+  /** Replace the window's samples with these boxes and corners (image px), and read the loose-fit line the window shows and the lines it should show (T-0591). */
+  squareSamples: async ({ boxes = [], corners = [] }) => {
+    const H = globalThis.__rb;
+    const S = H.m.session.session;
+    S.samples.squares.length = 0;
+    S.samples.corners.length = 0;
+    for (const [x, y, w, h] of boxes) S.samples.squares.push({ x, y, w, h, across: 1, down: 1 });
+    for (const [x, y] of corners) S.samples.corners.push({ x, y });
+    S.onSamplesChanged();
+    await H.sleep(1200);
+    const f = (await globalThis.__P.hexRead({ settle: 300 }));
+    const L = (k, n) => game.i18n.format(`ACKS-BATTLEMAP.warn.${k}`, { n });
+    return { boxes: S.samples.squares.length, corners: S.samples.corners.length, warns: f.warns, worst: f.fit?.worst ?? null, lines: { box4: L("highResidualBox", 4), corner1: L("highResidualCorner", 1), loose: game.i18n.localize("ACKS-BATTLEMAP.warn.highResidual") } };
+  },
+
   hexPushBoxes: async ({ boxes }) => {
     const S = globalThis.__rb.m.session.session;
     for (const [x, y, w, h] of boxes) S.samples.squares.push({ x, y, w, h, across: 1, down: 1 });
@@ -2115,6 +2164,20 @@ async function walkLayers(W) {
 
   section("layers 8. the square scene");
   note("square viewed", await page(gm, P.viewScene, square.id));
+  // The Country brush's button on a scene with no hex grid (T-0590), and its return when the grid type becomes hex.
+  const bbSquare = await page(gm, P.brushButton);
+  check("L8 (T-0590): on the square scene the Country brush button is disabled, aria-disabled, carries acks-extras-brush-off, and its list item carries a tooltip text", bbSquare.found && bbSquare.disabled && bbSquare.ariaDisabled === "true" && bbSquare.off && bbSquare.tipText.length > 0, bbSquare);
+  check("L8 (T-0590): a pointer at the button's centre reaches its list item, so the tooltip manager shows the line", bbSquare.hitIsItem === true, { hit: bbSquare.hitTag });
+  const squareType = bbSquare.gridType;
+  try {
+    await page(gm, P.setGridType, { sceneId: square.id, type: 2 });
+    const bbHex = await page(gm, P.brushButton);
+    check("L8 (T-0590): with the scene's grid type changed to a hex type the button is enabled, drops the class and carries no tooltip text, with no reload", bbHex.found && bbHex.gridType === 2 && !bbHex.disabled && bbHex.ariaDisabled !== "true" && !bbHex.off && bbHex.tipText === "", bbHex);
+  } finally {
+    await page(gm, P.setGridType, { sceneId: square.id, type: squareType });
+  }
+  const bbBack = await page(gm, P.brushButton);
+  check("L8 (T-0590): with the grid type put back the button is drawn off again", bbBack.found && bbBack.gridType === squareType && bbBack.disabled && bbBack.off && bbBack.tipText.length > 0, bbBack);
   const sq = await page(gm, P.assistant, { sceneId: square.id, country: { ground: "grassland" } });
   note("square assistant", sq);
   note("assistant closed", await page(gm, P.closeAssistant));
@@ -2129,6 +2192,23 @@ async function walkLayers(W) {
   note("square countryAt", sqAt);
   check("L8: the ground reads the default with source scene; territory and climate null with a null source", sq.flagCountry?.ground === "grassland" && sqAt.ground === "grassland" && sqAt.source.ground === "scene" && sqAt.territory === null && sqAt.source.territory === null && sqAt.climate === null && sqAt.source.climate === null, sqAt);
   note("palette closed", await page(gm, P.closePalette));
+
+  // A loose square fit names its worst sample (T-0591, docs/battlemap/TESTING.md step 23): the samples are
+  // set on the session as a drag would leave them, a 100 px cell with one box or one corner a third off its lines.
+  section("layers 9. a loose square fit names its worst sample (T-0591)");
+  await page(gm, P.assistant, { sceneId: square.id });
+  const fitOf = async (boxes, corners) => page(gm, P.squareSamples, { boxes, corners });
+  const four = await fitOf([[100, 100, 100, 100], [300, 100, 100, 100], [100, 300, 100, 100], [333, 300, 100, 100]], []);
+  note("four boxes, the fourth a third off", { warns: four.warns, worst: four.worst });
+  check("L9 (T-0591): four boxes, the fourth a third of a cell off its lines: the loose line names box 4, by the lang line the window carries", four.warns.some((w) => w === four.lines.box4), { warns: four.warns, worst: four.worst });
+  const corner = await fitOf([[100, 100, 100, 100], [300, 100, 100, 100], [100, 300, 100, 100]], [[433, 300]]);
+  note("three boxes and a corner a third off", { warns: corner.warns, worst: corner.worst });
+  check("L9 (T-0591): with the box erased and a corner a third off picked, the line names corner 1, counted among the corners alone", corner.warns.some((w) => w === corner.lines.corner1), { warns: corner.warns, worst: corner.worst });
+  const two = await fitOf([[100, 100, 100, 100], [333, 100, 100, 100]], []);
+  note("two boxes, loose", { warns: two.warns, worst: two.worst });
+  check("L9 (T-0591): at two samples with the fit still loose the line names none", two.worst === null && !two.warns.some((w) => /box \d|corner \d/.test(w)), { warns: two.warns, worst: two.worst });
+  await fitOf([], []);
+  note("assistant closed", await page(gm, P.closeAssistant));
 }
 
 /* ------------------------------------------------------------------ */

@@ -25,7 +25,7 @@ import vm from "node:vm";
 
 const TEMPLATE_ROOT = path.dirname(path.dirname(path.dirname(url.fileURLToPath(import.meta.url))));
 const DRIVER = path.resolve(process.argv[2] ?? path.join(TEMPLATE_ROOT, "tools", "live", "_capture.mjs"));
-const { Cdp, fixtureLedger, pageKeeper, strayPages } = await import(url.pathToFileURL(DRIVER).href);
+const { Cdp, attachMap, attachSeat, connect, fixtureLedger, pageKeeper, strayPages } = await import(url.pathToFileURL(DRIVER).href);
 
 const OWN = "target-own";
 const TRAY = "#notifications";
@@ -276,6 +276,36 @@ const matches = (problems, what, lines, expected) => {
   for (const re of expected) if (!lines.some((line) => re.test(line))) problems.push(`${what}: no line matches ${re}`);
   for (const line of lines) if (!expected.some((re) => re.test(line))) problems.push(`${what}: unexpected line: ${line}`);
 };
+
+/**
+ * A scripted DevTools socket: records every command, answers the ones an attach
+ * makes, and answers a page read of the seat's state from `state`.
+ */
+function fakeSocket(state = {}) {
+  const ws = {
+    sent: [],
+    closed: false,
+    listeners: [],
+    addEventListener(type, fn) { if (type === "message") this.listeners.push(fn); },
+    emit(obj) { for (const fn of this.listeners) fn({ data: JSON.stringify(obj) }); },
+    close() { this.closed = true; },
+    send(raw) {
+      const msg = JSON.parse(raw);
+      this.sent.push(msg);
+      let result = {};
+      if (msg.method === "Target.attachToTarget") result = { sessionId: "S" };
+      if (msg.method === "Runtime.evaluate") {
+        const e = msg.params.expression;
+        let value = true;
+        if (e.includes("ready: typeof game")) value = { ready: state.ready ?? true, user: state.user ?? null };
+        else if (e.includes("app.close({ animate: false })")) value = "[]";
+        result = { result: { value } };
+      }
+      setImmediate(() => this.emit({ id: msg.id, result }));
+    },
+  };
+  return ws;
+}
 
 const CASES = [
   {
@@ -642,6 +672,73 @@ const CASES = [
       ]);
       const pack = await collectLog(() => ledger.mark("Compendium.acks.pack.Actor.x", "importer/pack"));
       same(problems, "a compendium document", pack.error?.message ?? null, 'foundry-capture: "Compendium.acks.pack.Actor.x" is in a compendium — a fixture is a world document');
+    },
+  },
+  {
+    name: "a Cdp hands events to its listeners, never breaks on a listener that throws, and still answers commands",
+    async run(problems) {
+      const ws = fakeSocket();
+      const cdp = new Cdp(ws);
+      const seen = [];
+      cdp.onEvent(() => { throw new Error("a listener fails"); });
+      cdp.onEvent((msg) => seen.push(msg.method));
+      ws.emit({ method: "Runtime.consoleAPICalled", params: {}, sessionId: "S" });
+      const pending = cdp.send("Page.enable", {}, "S");
+      ws.emit({ id: 1, result: { ok: true } });
+      same(problems, "events", seen, ["Runtime.consoleAPICalled"]);
+      same(problems, "reply", await pending, { ok: true });
+    },
+  },
+  {
+    name: "attachMap reads the seats a runner keeps from ACKS_ATTACH and is empty when it is unset or unreadable",
+    async run(problems) {
+      same(problems, "unset", attachMap({}), {});
+      same(problems, "unreadable", attachMap({ ACKS_ATTACH: "{not json" }), {});
+      same(problems, "not an object", attachMap({ ACKS_ATTACH: "null" }), {});
+      const spec = { 9483: { ws: "ws://x/1", targetId: "T1", user: "Gamemaster" } };
+      same(problems, "read", attachMap({ ACKS_ATTACH: JSON.stringify(spec) }), spec);
+    },
+  },
+  {
+    name: "attachSeat attaches to the kept page as its user, and close() resets the page and drops only its own socket",
+    async run(problems) {
+      const ws = fakeSocket({ user: "Gamemaster" });
+      const handle = await attachSeat({ spec: { ws: "ws://x/1", targetId: "T1", user: "Gamemaster" }, user: "Gamemaster", open: async () => ws });
+      const first = ws.sent.find((m) => m.method === "Target.attachToTarget");
+      same(problems, "attached to the kept target, flattened", first?.params, { targetId: "T1", flatten: true });
+      same(problems, "no page was created and no browser command sent", ws.sent.filter((m) => /^(Target.(createTarget|closeTarget)|Browser.)/.test(m.method)).length, 0);
+      handle.close();
+      for (let n = 0; n < 50 && !ws.closed; n++) await new Promise((r) => setTimeout(r, 10));
+      same(problems, "socket closed", ws.closed, true);
+      const evals = ws.sent.filter((m) => m.method === "Runtime.evaluate").map((m) => m.params.expression);
+      const compose = evals.findIndex((e) => e.includes("app.close({ animate: false })"));
+      const reset = evals.findIndex((e) => e.includes("ui.combat.viewed = null"));
+      same(problems, "windows closed before the combat and tokens are released", compose >= 0 && reset > compose, true);
+      same(problems, "the browser was not told to close", ws.sent.some((m) => /^Browser.close|^Target.closeTarget/.test(m.method)), false);
+    },
+  },
+  {
+    name: "attachSeat refuses a kept page that is another user's or not ready, and closes its socket",
+    async run(problems) {
+      for (const [label, state] of [["another user", { user: "Player" }], ["not ready", { user: "Gamemaster", ready: false }]]) {
+        const ws = fakeSocket(state);
+        const error = await attachSeat({ spec: { ws: "ws://x/1", targetId: "T1", user: "Gamemaster" }, user: "Gamemaster", open: async () => ws }).then(() => null, (e) => e.message);
+        matches(problems, label, [error ?? ""], [/kept page is/]);
+        same(problems, `${label}: socket closed`, ws.closed, true);
+      }
+    },
+  },
+  {
+    name: "connect() on another port for a user the runner keeps is an error that names the fresh-page declaration, before any browser",
+    async run(problems) {
+      const before = process.env.ACKS_ATTACH;
+      process.env.ACKS_ATTACH = JSON.stringify({ 9483: { ws: "ws://x/1", targetId: "T1", user: "Gamemaster" } });
+      try {
+        const error = await connect({ browser: "no-such-browser.exe", origin: "http://world.invalid", user: "Gamemaster", port: 9999 }).then(() => null, (e) => e.message);
+        matches(problems, "refused", [error ?? ""], [/keeps "Gamemaster" open on port 9483/, /fresh-page/]);
+      } finally {
+        if (before === undefined) delete process.env.ACKS_ATTACH; else process.env.ACKS_ATTACH = before;
+      }
     },
   },
 ];
