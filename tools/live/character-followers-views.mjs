@@ -146,7 +146,7 @@ const P = {
     H.sheets[id] = app;
     app.tabGroups.primary = "followers";
     await app.render({ force: true, ...(width ? { position: { width, height } } : {}) });
-    const tab = () => app.element?.querySelector('[data-tab="followers"]');
+    const tab = () => app.element?.querySelector('section[data-tab="followers"]');
     for (let n = 0; n < 60 && !tab()?.classList.contains("active"); n++) {
       if (n === 10) app.changeTab("followers", "primary");
       await new Promise((r) => setTimeout(r, 200));
@@ -165,7 +165,7 @@ const P = {
 
   /** The tab as drawn: the switch and which button is pressed, the cards and the wage line, and which view's markup stands. */
   tab: async ({ id }) => {
-    const tab = globalThis.__fw.sheets[id]?.element?.querySelector('[data-tab="followers"]');
+    const tab = globalThis.__fw.sheets[id]?.element?.querySelector('section[data-tab="followers"]');
     if (!tab) return null;
     const tools = !!tab.querySelector(".acks-extras-org__tools");
     return {
@@ -184,7 +184,7 @@ const P = {
 
   /** The chart as drawn, from the keys it is given: the tree's shape, the root card, the unit's head, and every control a service card must not draw. */
   tree: async ({ id, keys }) => {
-    const tab = globalThis.__fw.sheets[id]?.element?.querySelector('[data-tab="followers"]');
+    const tab = globalThis.__fw.sheets[id]?.element?.querySelector('section[data-tab="followers"]');
     const tree = tab?.querySelector(".acks-extras-org__tree");
     if (!tree) return null;
     const li = (k) => tree.querySelector(`li[data-key="${k}"]`);
@@ -212,7 +212,7 @@ const P = {
 
   /** Press a control by its action: inside the card of a chart key, on a Locations chip's row, or anywhere on the tab. */
   click: async ({ id, where, key, action, wait }) => {
-    const tab = globalThis.__fw.sheets[id]?.element?.querySelector('[data-tab="followers"]');
+    const tab = globalThis.__fw.sheets[id]?.element?.querySelector('section[data-tab="followers"]');
     const scope = where === "card" ? tab?.querySelector(`.acks-extras-org__tree li[data-key="${key}"] > .acks-extras-org-card`) : where === "chip" ? tab?.querySelector(`.acks-extras-org-chip__row[data-key="${key}"]`) : tab;
     const btn = scope?.querySelector(`[data-action="${action}"]`);
     if (!btn) return { pressed: false };
@@ -243,7 +243,7 @@ const P = {
 
   /** The Locations view as drawn: each named place's chips and total tips, and the unplaced block with its label and the keys it lists. */
   places: async ({ id, places, lord }) => {
-    const tab = globalThis.__fw.sheets[id]?.element?.querySelector('[data-tab="followers"]');
+    const tab = globalThis.__fw.sheets[id]?.element?.querySelector('section[data-tab="followers"]');
     const blocks = [...(tab?.querySelectorAll(".acks-extras-org-place") ?? [])];
     const head = (b) => b.querySelector(".acks-extras-org-place__head a");
     const unplaced = blocks.find((b) => !head(b));
@@ -284,7 +284,7 @@ const P = {
   narrow: async ({ id }) => {
     const app = globalThis.__fw.sheets[id];
     const el = app?.element;
-    const box = el?.querySelector('[data-tab="followers"] .acks-extras-org__scroll');
+    const box = el?.querySelector('section[data-tab="followers"] .acks-extras-org__scroll');
     const body = el?.querySelector('[data-application-part="body"]');
     if (!box || !body) return { box: !!box, body: !!body };
     box.scrollLeft = 40;
@@ -305,7 +305,7 @@ const P = {
 
 /** Page side: press the switch button of a view on the sheet of `id` and wait for it to read pressed. Installed once beside `arm`. */
 const FW_PRESS = `globalThis.__fwPress = async (id, view) => {
-  const tab = () => globalThis.__fw.sheets[id]?.element?.querySelector('[data-tab="followers"]');
+  const tab = () => globalThis.__fw.sheets[id]?.element?.querySelector('section[data-tab="followers"]');
   const btn = tab()?.querySelector('[data-action="followersView"][data-view="' + view + '"]');
   if (!btn) return { pressed: false };
   btn.click();

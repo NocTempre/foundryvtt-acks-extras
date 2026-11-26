@@ -705,7 +705,7 @@ try {
   flight = await run(gm, P.flight);
   note("closed", { result: flight.result && { mode: flight.result.mode, replaced: flight.result.replaced, taken: flight.result.taken, held: flight.result.held, refused: flight.result.refused } });
   const afterKeep = await run(gm, P.shape, { uuid: subject });
-  const keptText = flight.result ? await run(gm, P.expected, { key: "ACKS-IMPORTER.ui.repairMergedDone", data: { replaced: flight.result.replaced, taken: flight.result.taken, held: flight.result.held, recreated: flight.result.recreated, refused: flight.result.refused } }) : null;
+  const keptText = flight.result ? await run(gm, P.expected, { key: "ACKS-IMPORTER.ui.repairMergedDone", data: { replaced: flight.result.replaced, taken: flight.result.taken, held: flight.result.held, copies: flight.result.kept?.length ?? 0, brought: flight.result.brought ?? 0, recreated: flight.result.recreated, refused: flight.result.refused } }) : null;
   check("closing the choice takes nothing: the note stands and is still held, the price is the page's again", flight.result?.mode === "repair" && flight.result.taken === 0 && flight.result.held === 1 && afterKeep.judged && afterKeep.cost === fresh.cost, { taken: flight.result?.taken, held: flight.result?.held, judged: afterKeep.judged, cost: afterKeep.cost === fresh.cost });
   check("the notice reads Repaired in place with the counts", flight.notes.includes(keptText), flight.notes.length);
 

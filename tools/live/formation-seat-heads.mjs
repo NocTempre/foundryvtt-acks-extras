@@ -213,6 +213,9 @@ const P = {
     return { shown };
   },
 
+  /** The pace the record carries as THIS seat's client reads it: the figure a pace press on this seat negates. */
+  paceSeen: async ({ fid }) => ({ hurried: globalThis.__sh.model.getFormation(fid)?.stance?.pace === "hurried" }),
+
   /** What the record holds, as the Judge's client reads it. */
   record: async ({ fid }) => {
     const H = globalThis.__sh;
@@ -703,17 +706,33 @@ try {
   const paceHurried = await L("ACKS-FORMATION.request.paceHurried");
   const paceCareful = await L("ACKS-FORMATION.request.paceCareful");
   const pill = '.acks-extras-party-sheet__head-actions [data-action="togglePace"]';
+  // A pace press negates the pace the pressing seat's own client reads, and the Judge's write reaches that client a moment after the Judge's own record changes: each press waits for its seat to read the pace it negates, and each answer is polled for.
+  const seatReads = (hurried) => until(player, P.paceSeen, { fid: formations.delve.fid }, (x) => x.hurried === hurried);
+  const heardLines = async (since, said) => {
+    let heard = [];
+    for (let n = 0; n < 20 && !heard.length; n++) {
+      heard = spoken(await cardsSince(since), frameName, said);
+      if (!heard.length) await sleep(250);
+    }
+    return heard;
+  };
+  await seatReads(false);
   let t = await run(gm, P.nowMs);
   await run(player, P.click, { partyId: delve.party.id, selector: pill });
-  let rec = await run(gm, P.record, { fid: formations.delve.fid });
-  let lines = spoken(await cardsSince(t), frameName, paceHurried);
+  let rec = await until(gm, P.record, { fid: formations.delve.fid }, (x) => x.hurried);
+  let lines = await heardLines(t, paceHurried);
   check("H1 Hurried: the record reads hurried and one public line, spoken as the party, says it", rec.hurried && lines.length === 1, { hurried: rec.hurried, lines: lines.length });
+  await seatReads(true);
   t = await run(gm, P.nowMs);
   await run(player, P.click, { partyId: delve.party.id, selector: pill });
-  rec = await run(gm, P.record, { fid: formations.delve.fid });
-  lines = spoken(await cardsSince(t), frameName, paceCareful);
+  rec = await until(gm, P.record, { fid: formations.delve.fid }, (x) => !x.hurried);
+  lines = await heardLines(t, paceCareful);
   check("H1 Hurried again: careful and one line", !rec.hurried && lines.length === 1, { hurried: rec.hurried, lines: lines.length });
+  await seatReads(false);
   await run(player, P.click, { partyId: delve.party.id, selector: pill });
+  await until(gm, P.record, { fid: formations.delve.fid }, (x) => x.hurried);
+  await heardLines(t, paceHurried);
+  await seatReads(true);
   t = await run(gm, P.nowMs);
   const repeat = await run(player, P.ask, { fid: formations.delve.fid, press: "pace", args: { hurried: true } });
   rec = await run(gm, P.record, { fid: formations.delve.fid });

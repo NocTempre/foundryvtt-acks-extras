@@ -1201,7 +1201,7 @@ try {
     await run(gm, P.settle, { actorId: ch.id });
     const sOn = await run(gm, P.stats, { actorId: ch.id });
     const tOn = await run(gm, P.typed, { actorId: ch.id });
-    check("enabled, the save figure carries it (+2 over the scan's +1)", sBefore.save?.note === "+1" && sOn.save?.note === "+3" && tooltipHas(sOn.save?.tip, "effects +3"), { before: sBefore.save, on: sOn.save });
+    check("enabled, the save figure carries it (+2 over the scan's +1)", sBefore.save?.note === "+1" && sOn.save?.note === "+3" && tooltipHas(sOn.save?.tip, "Stored +0") && tooltipHas(sOn.save?.tip, "Rolls adds +3"), { before: sBefore.save, on: sOn.save });
     check("enabled, the situational row is listed as standing aside", tOn.listed.some((l) => l.name === "QA Typed Situational" && l.reason === "standAside"), tOn.listed.filter((l) => l.name === "QA Typed Situational"));
     const asideReason = await gm.eval(`game.i18n.localize("ACKS-CHARACTER.stats.reason." + "standAside")`);
     check("the save tooltip names the started row as stood aside by its own effect, not as situational", tooltipHas(sOn.save?.tip, `QA Typed Situational (${asideReason})`) && !tooltipHas(sOn.save?.tip, "QA Typed Situational (situational)"), sOn.save?.tip);

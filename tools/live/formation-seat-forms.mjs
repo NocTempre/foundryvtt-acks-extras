@@ -679,9 +679,16 @@ try {
   else {
     let t = await run(gm, P.nowMs);
     await press(player, journey.party.id, '[data-action="travelWeatherRoll"]', 3000);
-    const r = await until(gm, P.record, { fid: fids.journey }, (x) => x.temperature !== null);
-    const lines = await cardsSince(t, (c) => c.alias === journeyName && !c.whispered);
-    check("S7c Roll weather from the Player's seat writes the sky and announces the press once", r.temperature !== null && lines.length === 1, { temperature: r.temperature, lines: lines.length });
+    // A fresh record reads "" until the roll lands (never null), and the roll reads the sky tables before it writes, so the walk waits for a written band and for the announcement that follows the write, then a moment more for a second line.
+    const r = await until(gm, P.record, { fid: fids.journey }, (x) => x.temperature !== null && x.temperature !== "", { tries: 60 });
+    let lines = [];
+    for (let n = 0; n < 40 && !lines.length; n++) {
+      lines = await cardsSince(t, (c) => c.alias === journeyName && !c.whispered);
+      if (!lines.length) await sleep(250);
+    }
+    await sleep(1500);
+    lines = await cardsSince(t, (c) => c.alias === journeyName && !c.whispered);
+    check("S7c Roll weather from the Player's seat writes the sky and announces the press once", !!r.temperature && lines.length === 1, { temperature: r.temperature, lines: lines.length });
     await run(gm, P.open, { partyId: journey.party.id, tab: "mode" });
     t = await run(gm, P.nowMs);
     await press(gm, journey.party.id, '[data-action="travelWeatherRoll"]', 3000);

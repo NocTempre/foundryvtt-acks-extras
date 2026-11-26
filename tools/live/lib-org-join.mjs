@@ -456,7 +456,7 @@ try {
   check("the press found its button", (await run(gm, P.press, { id: group.id, action: "joinFaction" })).clicked === true);
   const picker2 = await until(gm, P.picker, null, (d) => !!d);
   note("picker", picker2);
-  check("a picker opens, lists the kept faction and offers one footer button", !!picker2 && picker2.options.some((o) => o.value === faction.uuid) && picker2.footer.length === 1, picker2);
+  check("a picker opens, lists the kept faction and offers Join then Cancel in its footer", !!picker2 && picker2.options.some((o) => o.value === faction.uuid) && same(picker2.footer.map((b) => b.action), ["join", "cancel"]), picker2);
   check("the picker has a header close control", picker2?.closeControl === true);
   const closed2 = await run(gm, P.pickerClose);
   if (closed2.viaControl === false) note("NOTE", "driven by API, not click: the picker had no header close control");

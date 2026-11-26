@@ -150,11 +150,14 @@ const P = {
     if (dlg) H.root(dlg).querySelector("button[data-action='yes']").click();
     return { opened: true, ticked: true, asked: !!dlg };
   },
-  /** The reimport `repair` started: answers whether it has returned, closing the held-edits list unanswered if it asks. */
+  /** The reimport `repair` started: answers whether it has returned, answering the held-edits list with Apply if it asks (the library template is the one the repair is to rewrite). */
   repairDone: async () => {
     const H = globalThis.__br;
     const choice = H.dialogs().find((a) => H.root(a)?.querySelector(".acks-extras-held-list"));
-    if (choice) await choice.close();
+    if (choice) {
+      const apply = H.root(choice).querySelector("button[data-action='apply']");
+      if (apply) apply.click(); else await choice.close();
+    }
     return { done: H.flightDone === true, error: H.flightError ?? null };
   },
 

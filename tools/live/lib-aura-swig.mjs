@@ -540,7 +540,16 @@ const P = {
   /** Open an actor's sheet on a tab and wait for its element; a tab the sheet lacks is not an error. */
   openSheet: async ({ uuid, tab }) => {
     const H = globalThis.__las;
-    const sheet = fromUuidSync(uuid).sheet;
+    const doc = fromUuidSync(uuid);
+    const kept = (globalThis.__lasSheets ??= {});
+    try { await kept[uuid]?.close({ animate: false }); } catch { /* closed */ }
+    delete kept[uuid];
+    let sheet = doc.sheet;
+    // A monster's default sheet is lib's Follower Card, which draws no item rows; the rows are the Full Monster sheet's Inventory tab, so that class is opened as itself on a fresh instance, kept per actor for the reads below.
+    if (doc.type === "monster") {
+      const Full = Object.values(CONFIG.Actor.sheetClasses.monster ?? {}).map((e) => e.cls).find((c) => c.name === "FullMonsterSheet");
+      if (Full) { sheet = new Full({ document: doc }); kept[uuid] = sheet; }
+    }
     await sheet.render({ force: true });
     await H.until(() => sheet.rendered && sheet.element, 8000);
     let changed = null;
@@ -548,14 +557,22 @@ const P = {
     await H.sleep(700);
     return { rendered: !!sheet.rendered, sheet: sheet.constructor.name, changed };
   },
-  closeSheet: async ({ uuid }) => { try { await fromUuidSync(uuid).sheet.close({ animate: false }); } catch { /* closed */ } return true; },
+  closeSheet: async ({ uuid }) => {
+    const kept = (globalThis.__lasSheets ??= {});
+    try { await kept[uuid]?.close({ animate: false }); } catch { /* closed */ }
+    delete kept[uuid];
+    try { await fromUuidSync(uuid).sheet.close({ animate: false }); } catch { /* closed */ }
+    return true;
+  },
   /** The "Swigs left" boxes an open actor sheet draws (each with its item, text, tooltip and whether it is wired) and the item uuids of the Use presses it draws. */
   leftBoxes: ({ uuid }) => {
-    const sheet = fromUuidSync(uuid).sheet;
+    const sheet = globalThis.__lasSheets?.[uuid] ?? fromUuidSync(uuid).sheet;
     const el = sheet.element;
     const txt = (n) => (n?.textContent ?? "").replace(/\s+/g, " ").trim();
     return {
       rendered: !!sheet.rendered,
+      // The row's own presses: a character's gear row hides these and draws the press among its state controls, which `presses` also counts.
+      rowPresses: el?.querySelectorAll?.('.acks-extras-run button[data-action="itemRunPress"]').length ?? 0,
       boxes: [...(el?.querySelectorAll?.("input[data-acks-extras-run-left]") ?? [])].map((i) => ({ itemUuid: i.dataset.itemUuid ?? "", value: i.value, tip: i.dataset.tooltipText ?? "", wired: i.dataset.wired === "1", label: txt(i.closest("label")) })),
       presses: [...(el?.querySelectorAll?.('button[data-action="itemRunPress"]') ?? [])].map((b) => b.dataset.itemUuid ?? ""),
     };
@@ -563,7 +580,8 @@ const P = {
   /** Type into an item's box as a user does: the text is set and a real `change` event is dispatched on the input; false where no such box is drawn. */
   typeLeft: async ({ uuid, itemUuid, text }) => {
     const H = globalThis.__las;
-    const input = [...(fromUuidSync(uuid).sheet.element?.querySelectorAll?.("input[data-acks-extras-run-left]") ?? [])].find((i) => i.dataset.itemUuid === itemUuid);
+    const sheet = globalThis.__lasSheets?.[uuid] ?? fromUuidSync(uuid).sheet;
+    const input = [...(sheet.element?.querySelectorAll?.("input[data-acks-extras-run-left]") ?? [])].find((i) => i.dataset.itemUuid === itemUuid);
     if (!input) return false;
     input.value = text;
     input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -1103,7 +1121,7 @@ try {
     const openedH = await plRun(P.openSheet, { uuid: A.H.uuid, tab: "equipment" });
     const hb = await plRun(P.leftBoxes, { uuid: A.H.uuid });
     const hBox = hb.boxes.find((b) => b.itemUuid === hItem) ?? null;
-    check("the Player's character sheet (Equipment tab) draws the box on the grog's gear row, wired, and no press for it", openedH.rendered === true && !!hBox && hBox.wired === true && !hb.presses.includes(hItem), { opened: openedH, box: hBox, presses: hb.presses.length });
+    check("the Player's character sheet (Equipment tab) draws the box on the grog's gear row, wired, and no press inside the row's own run line (the row's Use sits among its state controls)", openedH.rendered === true && !!hBox && hBox.wired === true && hb.rowPresses === 0, { opened: openedH, box: hBox, rowPresses: hb.rowPresses, presses: hb.presses.length });
     if (hBox) {
       await plRun(P.typeLeft, { uuid: A.H.uuid, itemUuid: hItem, text: "2" });
       const a = (await until(async () => { const x = await activation(I.human); return x.left === 2 ? x : null; }, 6000, 400)) ?? (await activation(I.human));

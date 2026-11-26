@@ -628,7 +628,9 @@ try {
   note("loyalty figure read at the start", t0.score !== null);
 
   const svc = await run(player, P.serviceToggle, { actorId: ids.hireling, press: true });
-  const t1 = await run(player, P.read, { actorId: ids.hireling });
+  // The entry's flag, the score sync and the event line are three writes in turn; the seat sees the flag first, so wait for the line too.
+  let t1 = await run(player, P.read, { actorId: ids.hireling });
+  for (let n = 0; n < 40 && svc.changed && (t1.ownCompensated !== true || t1.events.length <= t0.events.length); n++) { await sleep(250); t1 = await run(player, P.read, { actorId: ids.hireling }); }
   check("toggle: the Player's Service tab draws the toggle as a named button", svc.rendered && svc.drawn && svc.named, svc);
   check("toggle: pressing it compensates the entry, logs an adjustment and leaves the entry in the ledger", svc.changed && t1.ownCompensated === true && t1.entries.length === 1 && t1.events.length === t0.events.length + 1 && t1.events.at(-1) === "adjustment", { changed: svc.changed, ownCompensated: t1.ownCompensated, events: t1.events.length - t0.events.length });
   if (t0.score === null) note("toggle: the loyalty figure is blank on this world; its movement is not compared", true);

@@ -106,11 +106,14 @@ const P = {
     return { plate: flag, img: doc?.img ?? null, variants: (doc?.system?.axes ?? []).find((a) => a.key === "variant")?.options?.length ?? 0 };
   },
 
-  /** The family's repair through the entry picker, as the Judge ticks it: Yes to the confirm, the held-edits list closed unanswered. */
+  /** The family's repair through the entry picker, as the Judge ticks it: Yes to the confirm; the held-edits list is answered by `repairDone`. */
   repair: async ({ family }) => {
     const H = globalThis.__bp;
     const before = H.dialogs().map((a) => a.id);
-    H.flight = acksExtras.importer.cookbookReimportEntries();
+    // The reimport runs far past one evaluate's limit, so the flight is started here and read by `repairDone`; each wait below stays under it.
+    H.flightDone = false;
+    H.flightError = null;
+    H.flight = acksExtras.importer.cookbookReimportEntries().catch((e) => { H.flightError = String(e?.message ?? e); }).finally(() => { H.flightDone = true; });
     const app = await H.poll(() => H.dialogs().find((a) => !before.includes(a.id) && H.root(a)?.querySelector(".acks-extras-importer-mon-list")), { tries: 240 });
     if (!app) return { opened: false };
     const box = H.root(app).querySelector(`input[name='sel'][value='Monsters|${family}']`);
@@ -119,12 +122,19 @@ const P = {
     box.dispatchEvent(new Event("change", { bubbles: true }));
     const dialogsBefore = H.dialogs().map((a) => a.id);
     H.root(app).querySelector("button[data-action='ok']").click();
-    const dlg = await H.poll(() => H.dialogs().find((a) => !dialogsBefore.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")), { tries: 240 });
+    const dlg = await H.poll(() => H.dialogs().find((a) => !dialogsBefore.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")), { tries: 160 });
     if (dlg) H.root(dlg).querySelector("button[data-action='yes']").click();
-    const choice = await H.poll(() => H.dialogs().find((a) => H.root(a)?.querySelector(".acks-extras-held-list")), { tries: 8 });
-    if (choice) await choice.close();
-    await H.flight;
     return { opened: true, ticked: true, asked: !!dlg };
+  },
+  /** The reimport `repair` started: answers whether it has returned, answering the held-edits list with Apply if it asks (the library template is the one the repair is to rewrite). */
+  repairDone: async () => {
+    const H = globalThis.__bp;
+    const choice = H.dialogs().find((a) => H.root(a)?.querySelector(".acks-extras-held-list"));
+    if (choice) {
+      const apply = H.root(choice).querySelector("button[data-action='apply']");
+      if (apply) apply.click(); else await choice.close();
+    }
+    return { done: H.flightDone === true, error: H.flightError ?? null };
   },
 
   /** The uploaded file fetched in the page: its pixel size, and its bytes as base64 for the walker's copy. */
@@ -175,6 +185,16 @@ const P = {
 };
 
 const run = (api, fn, arg) => api.eval(`(${fn.toString()})(${JSON.stringify(arg ?? null)})`);
+/** Reads until `pred` holds and returns the last read, which is the failing one on a timeout. */
+const until = async (api, fn, arg, pred, { tries = 40, every = 250 } = {}) => {
+  let v = null;
+  for (let n = 0; n < tries; n++) {
+    v = await run(api, fn, arg);
+    if (pred(v)) return v;
+    await sleep(every);
+  }
+  return v;
+};
 
 async function ready(api, seconds = 240) {
   const t0 = Date.now();
@@ -216,6 +236,8 @@ try {
   section("Repair in place on the family row");
   const repaired = await run(gm, P.repair, { family: FAMILY });
   check("the entry picker ticked the family row and its confirm was answered", repaired.opened && repaired.ticked && repaired.asked, repaired);
+  const flown = await until(gm, P.repairDone, null, (r) => r.done, { tries: 480, every: 1000 });
+  check("the repair in place returned without an error", flown.done && !flown.error, flown);
   const after = await run(gm, P.read, { uuid: found.uuid });
   note("after", { plate: tail(after.plate), img: tail(after.img) });
   check("the template's plate flag ends in the plate's own file", /-plate\.png$/.test(String(after.plate ?? "")), tail(after.plate));
