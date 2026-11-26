@@ -266,6 +266,26 @@ export const labelOf = (roll) =>
   roll?.label || game.i18n.localize(measures(roll) ? "ACKS-ABILITIES.roll.unnamedMeasure" : "ACKS-ABILITIES.roll.unnamed");
 
 /**
+ * The label each of one item's throws takes on a row, in order: its own label
+ * or the fallback (`labelOf`), and where two or more of the item's throws would
+ * read alike, each of those adds its target, so the rows can be told apart. A
+ * throw whose target text is blank keeps its plain label. The throw's label on
+ * the item sheet is the override that ends the collision.
+ *
+ * @param {object[]} rolls the item's throws
+ * @param {(roll: object, index: number) => string} targetText how a throw's target reads on a control
+ * @returns {string[]} one label per throw
+ */
+export function rollLabels(rolls, targetText) {
+  const labels = rolls.map((r) => labelOf(r));
+  return labels.map((label, i) => {
+    if (labels.indexOf(label) === labels.lastIndexOf(label)) return label;
+    const target = targetText(rolls[i], i);
+    return target ? game.i18n.format("ACKS-ABILITIES.roll.labelTarget", { label, target }) : label;
+  });
+}
+
+/**
  * What an ability score contributes to this throw — its modifier times
  * `times` — or null when the throw declares no score or there is no character.
  *

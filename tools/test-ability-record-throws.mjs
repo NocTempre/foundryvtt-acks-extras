@@ -350,4 +350,17 @@ await ok("rollGrantedThrow rolls the listed throw as one line on the party card 
   assert.deepEqual([out.target, out.success], [null, null], "rolls with no target and claims neither");
 });
 
+await ok("two unlabelled rolls of one ability read apart by their targets; a labelled pair and a lone roll keep their labels", () => {
+  const text = (r) => r.text;
+  const unnamed = LANG[`${ROOT}.roll.unnamed`];
+  const bare = rolls.rollLabels([{ text: "7+" }, { text: "18+" }], text);
+  assert.equal(new Set(bare).size, 2, "the two fallback labels are told apart");
+  assert.deepEqual(bare, [`${unnamed} 7+`, `${unnamed} 18+`], "each keeps the fallback label and adds its target");
+  assert.deepEqual(rolls.rollLabels([{ label: "Cure", text: "7+" }, { label: "Mend", text: "18+" }], text), ["Cure", "Mend"], "labelled rolls stay as labelled");
+  assert.deepEqual(rolls.rollLabels([{ label: "Cure", text: "7+" }, { text: "18+" }], text), ["Cure", unnamed], "one labelled, one fallback: no collision");
+  assert.deepEqual(rolls.rollLabels([{ text: "7+" }], text), [unnamed], "a lone roll keeps its label");
+  assert.deepEqual(rolls.rollLabels([{ text: "" }, { text: "18+" }], text), [unnamed, `${unnamed} 18+`], "a blank target keeps the plain label");
+  assert.deepEqual(rolls.rollLabels([{ label: "Cure", text: "7+" }, { label: "Cure", text: "9+" }], text), ["Cure 7+", "Cure 9+"], "two rolls the Judge labelled alike are told apart the same way");
+});
+
 console.log(`\n${passed} passed`);

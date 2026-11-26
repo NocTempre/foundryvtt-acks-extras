@@ -33,7 +33,7 @@ import { rollUnarmed } from "../equipment/actions.mjs";
 import { unarmedDieOf, unarmedDieSource, unarmedDieCite } from "../equipment/attack-mods.mjs";
 import { bestAttackBonus, getLoadout } from "../equipment/loadout.mjs";
 import { containedIn } from "../equipment/containers.mjs";
-import { rollsOf, keyOf, rollAbility, throwText, throwProvenance, noteProvenance, autoText, grantedThrows, availableThrows, rollGrantedThrow, scoreTerm, scoreText, labelOf } from "../abilities/ability-rolls.mjs";
+import { rollsOf, keyOf, rollAbility, throwText, throwProvenance, noteProvenance, autoText, grantedThrows, availableThrows, rollGrantedThrow, scoreTerm, scoreText, rollLabels } from "../abilities/ability-rolls.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { autoCardRow } from "../formation/party-rolls.mjs";
 import { adventuringThrow } from "../abilities/adventuring-throw.mjs";
@@ -206,11 +206,12 @@ export function rollInventory(actor) {
   const profRows = [];
   for (const item of actor.items.filter((i) => i.type === ITEM_TYPE.ability && !isAdventuring(i))) {
     const rolls = rollsOf(item);
+    const names = rolls.length > 1 ? rollLabels(rolls, (r) => throwText(r, actor, item)) : [];
     rolls.forEach((r, i) => {
       const key = keyOf(r, i);
       if (backed.has(`${item.id}:${key}`)) return;
       const term = scoreTerm(r, actor);
-      const label = rolls.length > 1 && (r.label || labelOf(r)) ? `${item.name} · ${r.label || labelOf(r)}` : item.name;
+      const label = names[i] ? `${item.name} · ${names[i]}` : item.name;
       profRows.push(
         row(`abl:${item.id}:${key}`, label, throwText(r, actor, item), {
           line: term ? scoreText(term, r) : "",

@@ -444,8 +444,11 @@ export function buildThrows(actor) {
   } catch {
     perSave = {}; // a record with no effects to read has no per-save figure
   }
-  const further = SAVE_KEYS.filter((k) => Number.isFinite(perSave[k]) && perSave[k] !== saveModInForce).map((k) =>
-    loc("stats.saveFor", { save: saveLabel(k), value: signed(perSave[k]) }),
+  // `saveModifiers` answers the effects' shift alone; the stored modifier sits under every save, so a save's own
+  // total is the stored figure plus that shift, and it is named only where it departs from the figure in force.
+  const saveTotal = (k) => saveModStored + perSave[k];
+  const further = SAVE_KEYS.filter((k) => Number.isFinite(perSave[k]) && saveTotal(k) !== saveModInForce).map((k) =>
+    loc("stats.saveFor", { save: saveLabel(k), value: signed(saveTotal(k)) }),
   );
   const savePaths = ["system.save.mod", ...SAVE_KEYS.map((k) => `system.saves.${saveSystemKey(k)}.value`)];
   const surpriseOthersNow = inForceFigure(surpriseOthers, num(sys.surprise?.surpriseothers));

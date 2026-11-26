@@ -1056,6 +1056,25 @@ test("the save row carries the shared modifier in force and a tooltip naming the
     delete globalThis.game;
   }
 });
+test("a stored save modifier alone prints no 'in all' line; a per-save shift prints that save's total, stored included", () => {
+  globalThis.game = { i18n: { has: () => false, localize: (k) => k, format: (k, d = {}) => `${k}|${JSON.stringify(d)}` } };
+  try {
+    const actorOf = (...effects) => ({
+      type: "character",
+      items: [],
+      _source: { system: { save: { mod: 2 }, saves: { paralysis: { value: 13 }, death: { value: 14 }, blast: { value: 15 }, implements: { value: 16 }, spell: { value: 17 } } } },
+      system: { save: { mod: 2 } },
+      appliedEffects: effects.map((e) => ({ disabled: false, ...e })),
+    });
+    const lines = (t) => t.saveModNow.tip.split(" · ").filter((l) => l.startsWith("ACKS-CHARACTER.stats.saveFor|") || l.includes("stats.saveFor|"));
+    assert.deepEqual(lines(buildThrows(actorOf())), [], "stored 2 and no effect: every save equals the figure in force");
+    const shifted = lines(buildThrows(actorOf({ changes: [change("system.saves.blast.value", "add", -1)] })));
+    assert.equal(shifted.length, 1, "only the shifted save is named");
+    assert.ok(shifted[0].includes('"value":"+3"') && shifted[0].includes("blast"), `that save's total is stored plus the shift, got ${shifted[0]}`);
+  } finally {
+    delete globalThis.game;
+  }
+});
 
 const { RULEDATA_DOC } = await import("../scripts/equipment/overlays/scavenged.mjs");
 test("a rule's part whose figure is an imported table cites the page, or says the Judge set it", () => {

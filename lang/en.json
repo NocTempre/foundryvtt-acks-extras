@@ -1884,6 +1884,7 @@
   "ACKS-ABILITIES.roll.go": "Roll",
   "ACKS-ABILITIES.roll.unnamed": "Proficiency throw",
   "ACKS-ABILITIES.roll.unnamedMeasure": "Result",
+  "ACKS-ABILITIES.roll.labelTarget": "{label} {target}",
   "ACKS-ABILITIES.roll.badFormula": "{name} rolls \"{formula}\", which is not dice. Rolling {fallback} for now; correct the throw's Dice field.",
   "ACKS-ABILITIES.roll.target": "Target",
   "ACKS-ABILITIES.roll.noTarget": "No target on a shared item — open the copy on a character",
