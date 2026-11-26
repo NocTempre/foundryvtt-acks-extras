@@ -39,9 +39,11 @@ Two controls open a session, and both are `acksExtras.sceneSearch.searchHere`
 - **Search here** on the party sheet, Dungeon tab, in the Turn plan section
   (`formation-actions.mjs` `searchHere`). A Judge's press is the call with the
   sheet's party. A player who owns a member sees the button too, and a player's
-  press is a declaration, not this call: the party's request relay takes a
-  `declareSearch` request (closed: no payload is read, any-member ownership),
-  announces it, and moves nothing. The Judge then presses.
+  press is the same call made on the Judge's client: the party press `searchHere`
+  (`formation/party-press.mjs`, delve) calls `searchHere({partyId})`, and an
+  answer of `{ok: false}` is told to the seat as "The search did not open." The
+  scene opens with its lots unfound and not shown. The press is announced to the
+  table with the player's name.
 
 A press does one of five things (`planPress`). A party with a session already
 open gets its screen and nothing else. A press while the first is still opening

@@ -125,7 +125,7 @@ twice and the plan entry's `by` is still there for the locker check; the
 scene's fallback (unlock, then resolve) and the `lockedBy` it carried are
 removed. The import stays lazy, as the seam entry ruled.
 
-## 2026-11-19 — The ways in: Search the scene replaces Stage a pot, Search here opens a session — SUPERSEDED IN PART 2026-11-19
+## 2026-11-19 — The ways in: Search the scene replaces Stage a pot, Search here opens a session — SUPERSEDED IN PART 2026-11-19 and 2026-11-25 (a member-owner's Search here opens the session: the bullet "A player's Search here declares and moves nothing")
 
 The owner, answering Q9: "B, there is no "stage a pot" as a thing", and "rolled
 by judge before interaction, visible as found"; and on the party sheet: "It
@@ -386,3 +386,7 @@ The phase plan (`wip/20261118-scene-search-plan.md`) is deleted now that every s
 - Standing rules: "Standing rule for repo no generated art." and "No house rules ship".
 
 **Cost.** The plan's per-slice Results go with it. Each slice's walk is recorded in `TESTING.md` and in its commit, and its rulings in the entries above. What was registered and not built is in `ROADMAP.md`, including the harvest answers that "Harvest waits on the monster-import audit" left "in the plan": the owner's "Round up" and "Any of its rows", now on the ROADMAP's harvest row.
+
+## 2026-11-25 — A member-owner's Search here opens the session (T-0792)
+
+Supersedes in part "The ways in: Search the scene replaces Stage a pot, Search here opens a session" (2026-11-19, 6 days old): its bullet "A player's Search here declares and moves nothing". **New evidence:** the owner's 2026-11-25 rule that tool permissions follow object ownership with only a Judge's secrets excepted, and the card-2 #11 selection, neither of which that entry knew. The ruling lives once, in formation DECISIONS, "2026-11-25 — The crossing, a member's landing and the Trapbreaking modifier follow ownership (T-0792)". Here: a seat that owns a party member presses Search here, the party press `searchHere` runs `sceneSearch.searchHere({partyId})` on the Judge's client, and no scene-search file changed: its Judge check is the executor, as "Writes come from the pressing Judge's client" has it. The scene opens unshown with its lots unfound. What the player sees after the Judge shows it, and every control on the screen, is the next minor's (the second card's #5).

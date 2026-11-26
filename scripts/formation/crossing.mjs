@@ -91,7 +91,7 @@ export const SWIM_KIND = "swim";
 /** The kind a crossing takes through a chokepoint or a squeeze. */
 export const SQUEEZE_KIND = "squeeze";
 
-/** The kinds a Judge may begin, in the order the pick lists them. */
+/** The kinds a crossing may begin as, in the order the pick lists them. */
 export const CROSSING_KINDS = Object.freeze([...Object.keys(OBSTACLES), JUMP_KIND, SWIM_KIND, SQUEEZE_KIND]);
 
 const loc = makeLoc("ACKS-FORMATION");

@@ -406,7 +406,7 @@ squeezing, Phase 2); a jump is a verdict row with no throw.
 | | Judge | Player who owns the member | Any other seat |
 |---|---|---|---|
 | Section | always, in Dungeon mode | while a crossing is open | while open, read-only |
-| Begin, End, setup fields | yes | not rendered | not rendered |
+| Begin, End, setup fields | yes | yes, as the party actor's owner (docs/formation/DECISIONS.md, 2026-11-25) | not rendered |
 | Throw | any member | owned members only | none |
 | A permission refusal (the grid refuses the member, a proficiency not held, an impossible jump) | warned, and the throw proceeds on the actor's own figure; the card says it was thrown over a refusal | blocked, the reason as text on the row | |
 | An absence refusal (a figure not imported) | refused; nothing is rolled | refused | |

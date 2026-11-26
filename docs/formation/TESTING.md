@@ -4084,6 +4084,133 @@ survival flag is removed, the parties are returned to the names they were found 
 frontage and token shape too) and the journey and city parties to the delve, and
 nothing else is deleted. The fixtures stay.
 
+## The crossing, Search here and the Trapbreaking modifier on a Player seat (added with T-0792 B3)
+
+A seat that owns the party actor (a seat that owns a member does, by the
+ownership sync) begins, sets up, throws for and ends the crossing; a seat that
+owns a member presses that member's Haul, landing save and footing and the Dungeon
+tab's Search here; any seat that opens the Trapbreaking window types its modifier.
+The setup is written direct from the Player's own client. Begin, End and Throw
+all go through the `crossingRun` relay, Haul, the landing save and the footing
+through the `crossing` relay's `haul`, `land` and `footing` steps, and Search here
+through `partyPress` (`searchHere`). The walk is
+`tools/live/formation-seat-crossing.mjs` (`node tools/live/run.mjs
+formation-seat-crossing`). It reports each step below under its id, and a step the
+world cannot give as `NOT WALKED` with the reason, neither passed nor failed.
+**The walk is written from the code and has not been run.** A mock cannot prove
+that a relayed save opens no dialog on either screen, that a press by a Player
+reaches the Judge's client under the attested sender, or that the setup a Player
+writes lands on an actor flag from that client. Seats: the primary GM and the
+world's Player user (`TEST_ENVIRONMENT.md`); the Judge's client runs every relay,
+and the Judge's page rigs the die.
+
+Fixtures, each found again by its marker or built carrying one; every step
+asserts the shape it needs at its start:
+- `formation/crossing-seat-scene` (a grid scene), `formation/crossing-seat-region`
+  (a rectangle on it), `formation/crossing-seat-place` (a location actor linked
+  to the Region by the Judge's page), `formation/crossing-seat-party` with its
+  token `formation/crossing-seat-token` standing inside the Region, in the
+  delve, with `formation/crossing-seat-a` (the seat owns it, and so the party
+  actor) and `formation/crossing-seat-b` (the Judge's), and
+  `formation/crossing-seat-wall` on the scene. Names are neutral ("QA Crossing Seat A").
+- `formation/heads-observed-party` with `-member` (slice 1's): a party whose only
+  member is the Judge's, the seat at OBSERVER on the party actor.
+- For C18 only, the `formation/trapbreak-*` fixtures `formation-trapbreak` builds and shapes
+  (party, fighter the Player owns, trap, wall). They are found by marker and never
+  built here: where one is absent the step is `NOT WALKED`.
+The start shape of `crossing-seat-party` is the delve, members A then B, the seat
+owning A alone, no crossing flag and no scene search session; each part of the
+walk brings it back with the Judge's page.
+
+**The crossing as a whole** (Actors sidebar tab → a party actor → its sheet →
+Dungeon tab → The crossing). Press and type on the Player's page; read the
+flag on the Judge's.
+
+| Step | Do | Observable |
+|---|---|---|
+| C1a | Open the party's sheet, Dungeon tab, with no crossing open | The sheet's seat reads `ownsParty` true and `isGM` false; the section is drawn with the kind pick and Begin |
+| C1b | Pick Swim and press **Begin** | The Judge reads `flags.acks-extras.crossing.kind` as `swim`; one public line, spoken as the party, announces it |
+| C1c | Read the setup; type **Judge modifier** 2 | The setup fields (`crossing.judgeMod`, `crossing.penaltyPick`) are in the Player's DOM; the flag reads `judgeMod` 2 and `judgeModBy` the Player's user id; the field's tooltip reads "Set by <the Player's name>" (compared in the page, never printed) |
+| C1d | Judge: type 1 on the Judge's own sheet | `judgeMod` 1 and `judgeModBy` the Judge's id; the tooltip reads "Set by the Judge" |
+| C1e | Judge: type 0 | `judgeMod` 0 and `judgeModBy` unset |
+| C11a | Swim open, the die rigged to a 20: press **Throw all** | A's record gains a throw and B's record is unchanged. `NOT WALKED` where the swim figures are not imported (no row can be thrown) |
+| C11b | A and B both drowning (the Judge writes each record): press **End** on the Player's seat; then send `requestPartyAction(<fid>, "crossingRun", { step: "end", crossingId })` from the Player's page | The crossing stays open both times; the seat is told, naming the held members; the crafted call answers `refused: "held"` |
+| C11c | A and B afloat: press **End** | The flag is gone |
+| C11d | A drowning again: the Judge's own **End** | The Judge is warned and the crossing closes |
+| C11e | Begin a squeeze from the Player's seat; press the **Squeeze** Shape radio | The flag reads `kind` `squeeze` and `shape` `squeeze` |
+
+**The water penalty** (the same section, a swim crossing).
+
+| Step | Do | Observable |
+|---|---|---|
+| C12a | Pick an imported penalty step; then **Larger…** and type 7 | The flag reads the picked step, then `penaltyPick` `larger` and `penaltyLarger` 7. The first half is `NOT WALKED` where the pick offers no imported size |
+| C12b | Read the section | No "Penalty in force" line while the pick is drawn |
+| C12c | On `formation/heads-observed-party`, the Judge begins a swim; open it on the Player's seat | Only where the sheet's seat reads `ownsParty` false: the section shows the penalty in force and holds no setup field, no Begin, no End and no Throw all. Otherwise `NOT WALKED` |
+
+**Haul, the landing save and the footing** (the same section).
+
+| Step | Do | Observable |
+|---|---|---|
+| C13a | A and B drowning: read the rows; press **Haul** on A | Haul is on A's row and not B's; A's record reads afloat on the Judge's seat and B's still reads drowning. A crafted `crossing` request with step `haul` for B is refused and B stays drowning |
+| C13b | A jump (gap 5, precarious): press the landing **Roll** on A | Roll is on A's row and not B's; the save rolls on the Judge's client and no dialog opens on either screen (every dialog standing on either is counted, then closed); a card to the Judges records it; the flag is unchanged. `NOT WALKED` where A has no Roll press (the jumping figures are not imported) |
+| C13c | Seed A with an attempt (the Judge writes a `landing` record with a `jump`); pick a footing and press **Failed** | `jump.footing` reads the pick on A's record. A crafted footing for B, and one outside `FOOTINGS`, are refused |
+| C13d | The gap set past every range so the Judge's reading of the row warns | The Player's row has no Roll press; the footing press is still drawn, and a crafted footing is refused with the row's reason and writes nothing |
+
+**Search here** (Dungeon tab → Turn plan; the Region and place fixtures put the
+party in a place).
+
+| Step | Do | Observable |
+|---|---|---|
+| C14a | Press **Search here** with the token inside the Region | The button's tooltip is `plan.searchHereTip` (the Judge's wording); the Judge reads a scene search session on the party actor for the place, `shown` false, every lot unfound; one public line announces it; no scene search screen is open on the Player's seat. The pot dealt for fallen bodies is `NOT WALKED`: Search here carries no fight's record, so no bodies are named ([treasure recipe](../treasure/TESTING.md), "Search the fallen", has them) |
+| C14b | The Judge moves the token outside every place; press **Search here** | No session; the Player's seat is shown "The search did not open."; the token is put back |
+| C14c | From the Player's page send `partyPress` `searchHere` for `formation/heads-observed-party` | `refused: "notOwner"` and no session. `NOT WALKED` where `playersMoveParty` is on |
+
+**The Trapbreaking modifier** (Actors sidebar tab → a party actor → its sheet →
+Dungeon tab → Trapbreaking; the fixtures are `formation-trapbreak`'s).
+
+| Step | Do | Observable |
+|---|---|---|
+| C18a | Open the window for the fighter the Player owns, on both seats | The modifier field is drawn on both; on the Player's seat its tooltip is `doors.judgeModTyped`, on the Judge's none; Mark found and Reset are absent on the Player's seat |
+| C18b | Die rigged to one face: type 0 and press **Work on it**; type 3 and press it again | The two posted throws share the natural face and the second carries 3 more (read from the cards' rolls). `NOT WALKED` where Work on it is not enabled, or a first made throw disarms the trap so the second is refused |
+| C18c | A refusal that warns the Judge still blocks the Player | `NOT WALKED` here: formation-trapbreak's Player steps hold it |
+
+**The wall sheet's trap row** (Scene controls → Walls → double-click a wall → its
+configuration sheet).
+
+| Step | Do | Observable |
+|---|---|---|
+| W1 | Open the wall's sheet on each seat | The Judge's draws the ACKS trap row; a Player Foundry does not let write the wall draws none. A Player who gains the row is `NOT WALKED`: the world's default permissions give wall updates to Assistant and up, who are Judges here |
+
+What cannot be walked, and why:
+- The in-force line for a seat that views the party without owning it:
+  `syncPartyActorOwnership` rewrites the party actor's ownership from its members, so
+  C12c walks only where the OBSERVER grant survives, and otherwise the line is
+  covered offline (`tools/test-crossing-surface.mjs`).
+- A Player who owns the wall: no seat of the test world holds it (W1).
+- The pot dealt for fallen bodies by a Player's Search here (C14a), and C18c.
+- The not-owner legs while `playersMoveParty` is on: the walk reads the setting and
+  never writes it.
+- A world whose system skip-dialog setting names no key opens the save dialog on the
+  Judge's screen for a relayed save; C13b counts it, closes it and fails.
+
+Drive mechanics: the walk clicks the controls the seat is drawn and types into form
+fields (`input` then `change`). The kind pick is `[data-pick="crossing-kind"]`, set
+before `[data-action="crossingBegin"]` is pressed; Haul, the landing Roll and the
+footing's Failed press carry the member's id (`crossingHaul`, `crossingLand`,
+`crossingLandingFailed`); the footing pick is `[data-pick="crossing-footing"]`.
+The Judge's page seeds a member's record (drowning, an attempted jump) by writing
+the flag by its dotted path; the die is rigged with `CONFIG.Dice.randomUniform` on the
+Judge's page, which reads from the top on core 14. A relayed press needs a primary
+GM client; with none lib warns and nothing writes. No card's words and no user's
+name is printed: tooltips and notifications are compared in the page.
+Teardown is by the run's own ledger: the cards its presses posted are tracked by
+id and swept with `api.sweepTracked({only})`; the crossing flag is ended, the scene
+search session ended by party id, the token returned to the place, the die
+restored and the windows closed. Nothing else is deleted; the fixtures stay.
+
+Stale until the lines below are revised: `tools/live/treasure-search.mjs` steps 6 and 7
+expect a Player's Search here to post a "declares" card and open nothing.
+
 ## A teleport between scenes (added with the teleport fix)
 
 The party follows its token through a `teleportToken` Region to another scene,
@@ -5668,7 +5795,7 @@ with `own: <tag>` and every marker below becomes `<marker>@<tag>`.
 | 0 | Re-import the Rulebook's tables in the test world | `advances` on an outcome cell, `vulnerable` on the grid, the Acrobatics cap and bands, each read back through `formationValue` |
 | 1 | Assert the start: no `crossing` flag, the four tables present | End the crossing if one stands |
 | 2 | The GM begins a sheer climb with a length | Rows on both seats; the easy-climb and rappel kind labels bare, the two ledge labels keeping the word that tells them apart; each figure's tooltip in its shape (a target's source with its base figure, then its parts with their pages and the Judge modifier, ending on the Spelunking page where no part names one; a stretch count's page, the outcome's provenance); the beast's target blank, its tooltip the page reference |
-| 3 | The player's seat | No `crossing.*` field in the DOM; the adventurer's Throw drawn where the grid allows it and, where it refuses, absent with the reason as text on the row; the Climbing holder's Permitted cell reads "May try" (never blank) with a tooltip naming the kind, the proficiency and the page |
+| 3 | The player's seat | The setup fields are in the DOM, since the seat owns the party actor (a seat that owns neither the party nor a member has none; "The crossing, Search here and the Trapbreaking modifier on a Player seat"); the adventurer's Throw drawn where the grid allows it and, where it refuses, absent with the reason as text on the row; the Climbing holder's Permitted cell reads "May try" (never blank) with a tooltip naming the kind, the proficiency and the page |
 | 4 | Rope fixed | The sheer face's rows flip to the easy climb's on both seats |
 | 5 | The player presses Throw on the adventurer, the GM seat connected, the die rigged | The Player's own pane writes nothing and rolls nothing: the flag changes only after the GM client acts. A public declaration from the party's name reads "<Player's name> declares: <adventurer> throws to cross."; one card, a whisper to the Judges alone, follows it; the member's record is one stretch on; the Player is told "Declared — sent to the Judge." and sees no card. The row's button is gone once the member is across, and keyboard focus lands on that row (`[data-press-home]`), not on `<body>`, with the tab's scroll unmoved |
 | 5a | A seat that owns nobody: from its pane, import `formation/player-requests.mjs` in page context and call `requestPartyAction(<formationId>, "crossing", { crossingId, actorId: <adventurer's id> })` | The row shows no button on that seat, so the call stands for a stale or hand-made press. A whisper to that seat reads that the member is not one of their characters; no declaration, no card, no die (the rig's counter is unmoved), the flag unchanged. The same call with no `actorId` is refused the same way |
@@ -5682,10 +5809,10 @@ with `own: <tag>` and every marker below becomes `<marker>@<tag>`.
 | 8 | A fall | The card and the row report the distance and the dice; the member's hit points are unchanged |
 | 9 | The GM throws for a refused member (the adventurer on a face the table refuses) | A warning, then the throw; the card says it was thrown over a refusal |
 | 10 | A jump: gap and run-up, for several gaps (one inside every member's range, one inside some, one past all) with the run-up on, then off | Each row's range and verdict equal `acksExtras.formation.jumping.canClear` read in page context for that member's own Dexterity score, level, carried stone and Acrobatics, with `runningStart` the setup's run-up; turning the run-up off moves the range and the verdict for the same gap; the verdict tooltip lists the distance's parts and the faces that clear |
-| 11 | Precarious off, then on; then charging with precarious off | Off and off: no landing line on any row. Either on: every row carries a Landing save label with its tooltip (the save's name, then the page); the Judge's pane also has the roll button and the footing pick with its failed button, and the Player's pane has neither |
+| 11 | Precarious off, then on; then charging with precarious off | Off and off: no landing line on any row. Either on: every row carries a Landing save label with its tooltip (the save's name, then the page); the roll button and the footing pick with its failed button are drawn on the pane of the member's owner, a Judge or a Player (a Player's roll button only where a Judge would not be warned), and absent on a seat that owns neither |
 | 11a | The Judge presses the landing save on a member | The system's own save dialog opens for that member (or none with its skip key held); the rolled card is the system's own, and one more card follows, whispered to the Judges, with the total. The flag is unchanged |
 | 11b | Cancel the system's dialog | Nothing is posted; the Judge is told the save was not rolled |
-| 11c | The gap set past a member's range, precarious on | That member's row says it cannot reach, the roll button reads Roll anyway and the press warns the Judge and goes ahead; on the Player's pane the same row blocks with the reason as text and no press. With the jumping table blanked, the verdict is blank and no seat can roll, with no words |
+| 11c | The gap set past a member's range, precarious on | That member's row says it cannot reach, the roll button reads Roll anyway and the press warns the Judge and goes ahead; on the Player's pane the same row blocks with the reason as text and no roll press (the footing pick is still drawn and its press is refused with the row's reason). With the jumping table blanked, the verdict is blank and no seat can roll, with no words |
 | 11d | After a save, pick each footing and press Failed, with the setup's depth set and then blank | One card to the Judges each: solid and edge name the outcome (prone, hanging) and what the imported die gives; empty names a fall with the depth's dice, or reads the distance as unknown with no depth. No hit point, status or flag value changes on the member or the party |
 | 11e | A plain landing (precarious and charging off), a gap inside every range, the die rigged to its top face; the Judge presses Attempt on the adventurer | The verdict and the range stay on the row; beside them "Rolled N ft, clears" with N the range's top, the state Across, the Attempt button gone. One card, a whisper to the Judges alone, a row for the distance against the gap. The record holds `jump.face`, `jump.distance` (N), `jump.gap`, `jump.footing` null, and the hit points are unchanged. The distance's tooltip, on the row and on the card's total, lists the die's face, the distance's parts and the imported page; the card's gap cell says the Judge set it and names the page, and carries none of the distance's working |
 | 11f | A new crossing, a gap inside the range, the die rigged to its first face, whose distance falls short of it | "Rolled N ft, short", "Short of the far side by M ft", the footing Empty space, Falls, the state Fell; with the depth set a fall of that distance with the imported dice, and with it blank "Fell, depth not set". No save is asked even with precarious on. A fall's tooltip names its parts and the imported page |
@@ -5701,7 +5828,7 @@ with `own: <tag>` and every marker below becomes `<marker>@<tag>`.
 | 15 | A hover pass | Each figure's parts against the page it names; a blank figure's tooltip is the reference alone |
 | 16 | Teardown | End; the cards tracked by the ids the run saw appear, then `api.sweepTracked()`, its result quoted; fixtures kept |
 
-Steps 11 to 11d use a member holding no Acrobatics unless the walk has imported the Acrobatics ceiling and bands, since a holder's jump reads unknown without them (`formation/crossing-acrobat` covers the holder). The landing save's bonus is read as nothing until the granted-modifier read lands, so a holder's tooltip names no bonus. A Player's pane has no landing save press of its own: its landing save is rolled inside its relayed attempt (step 11j), with the system's skip-dialog key so no dialog opens on the Judge's seat. The cards of 11a and 11d are found by the set of `game.messages` ids before and after and tracked by uuid, and the system's own card of 11a is the run's too.
+Steps 11 to 11d use a member holding no Acrobatics unless the walk has imported the Acrobatics ceiling and bands, since a holder's jump reads unknown without them (`formation/crossing-acrobat` covers the holder). The landing save's bonus is read as nothing until the granted-modifier read lands, so a holder's tooltip names no bonus. A Player's landing save is rolled inside its relayed attempt (step 11j) and by the Roll press of a row it owns (the `land` step, "The crossing, Search here and the Trapbreaking modifier on a Player seat"), each with the system's skip-dialog key so no dialog opens on the Judge's seat. The cards of 11a and 11d are found by the set of `game.messages` ids before and after and tracked by uuid, and the system's own card of 11a is the run's too.
 
 Steps 5 to 5e are the player seat: a Player's press is relayed and the GM
 client throws, so a GM pane must be seated or the press has nothing to answer
@@ -5714,7 +5841,7 @@ the same.
 
 ### Swim rows (added with S13 of the dungeon close-out)
 
-Built for the Dungeon tab's crossing when the kind is **Swim · deep water**: the Judge's setup (water conditions, Penalty, Larger penalty, Movement, Judge modifier), a player's "Penalty in force" line, the rows (No throw or the target, Afloat or Drowning, the pace, the breath and the sink rate, the Vulnerable chip, the last throw, the Rescuer select, Haul to the surface), and the driver that posts the prompt card at a member's turn. A mock cannot prove that the driver fires on a real `combatTurnChange`, that the prompt card reaches the owner's seat and not a bystander's, or that the Rescuer select's change reaches the code on a control with no `data-action`. Path: Actors sidebar → party sheet → Dungeon tab → The crossing.
+Built for the Dungeon tab's crossing when the kind is **Swim · deep water**: the setup (water conditions, Penalty, Larger penalty, Movement, Judge modifier: the party actor's owner's), the "Penalty in force" line for a seat that cannot set up, the rows (No throw or the target, Afloat or Drowning, the pace, the breath and the sink rate, the Vulnerable chip, the last throw, the Rescuer select, Haul to the surface), and the driver that posts the prompt card at a member's turn. A mock cannot prove that the driver fires on a real `combatTurnChange`, that the prompt card reaches the owner's seat and not a bystander's, or that the Rescuer select's change reaches the code on a control with no `data-action`. Path: Actors sidebar → party sheet → Dungeon tab → The crossing.
 
 Before the first step the Rules tables must be imported in the test world: the walk reads `swimmingBonus`, `swimWaterPenaltySteps`, `swimSpeedShare`, `breathRounds`, `sinkFeetPerStone`, `carriedBodyStone` and `carriedGearShare` through `formationValue`. Without them the penalty offers None and Larger alone and the pace, breath and sink cells are blank, which is step S2's second half and not the walk.
 
@@ -5737,8 +5864,8 @@ Before the first step the Rules tables must be imported in the test world: the w
 | # | Step | Observable |
 |---|---|---|
 | S0 | Re-import the Rulebook's tables; assert no `crossing` flag | The seven figures read back through `formationValue`; End a crossing if one stands |
-| S1 | The GM begins a swim crossing | Rows for every member on the GM and Player seats; the Judge's pane has the three condition boxes, Penalty, Larger penalty (disabled), Movement and Judge modifier; the Player's pane has none of them and reads "Penalty in force: …" |
-| S2 | Penalty set to each imported step, then Larger… with a figure, then with no steps imported (clear `swimWaterPenaltySteps` in the Ruledata Browser) | Each pick's value is the imported size; the target of the owner's row moves by that size; the in-force line on the Player's pane reads the size and the conditions ticked; hovering the Penalty names the step, what was ticked and the page; with no steps the pick offers None and Larger… alone and the tooltip is the page alone |
+| S1 | The GM begins a swim crossing | Rows for every member on the GM and Player seats; the Judge's pane has the three condition boxes, Penalty, Larger penalty (disabled), Movement and Judge modifier, and so has the Player's pane, which owns the party actor; the "Penalty in force" line is drawn only on a seat that cannot set up ("The crossing, Search here and the Trapbreaking modifier on a Player seat", C12c) |
+| S2 | Penalty set to each imported step, then Larger… with a figure, then with no steps imported (clear `swimWaterPenaltySteps` in the Ruledata Browser) | Each pick's value is the imported size; the target of the owner's row moves by that size; the in-force line, drawn where the pick is not, reads the size and the conditions ticked; hovering the Penalty names the step, what was ticked and the page; with no steps the pick offers None and Larger… alone and the tooltip is the page alone |
 | S3 | The hover pass over a row | The target's parts (carrying, Swimming, water, Judge modifier) against the page; the pace's parts (speed, share); a blank figure's tooltip is the page reference alone, hovered on its (empty) cell; No throw on the Swimming holder, with the working |
 | S3b | On `formation/swim-beast`: read the row, then add 2 stone to its Pack, then give the beast the Carrier role with a casualty in the party | The target is the load it carries, to the stone; the tooltip's first part reads "Load it carries … MM ch. 1" with that figure, and never "Carrying"; the 2 stone move the target by 2; as a carrier the casualty's share is added; a character's row beside it still reads "Carrying"; the beast's press throws for the Judge |
 | S4 | Movement set to Running, then a hand-set Prone on the owner's character | The pace for Running; "Cannot run" with the condition named in its tooltip on the Prone member; Combat still reads a pace |
@@ -5748,7 +5875,7 @@ Before the first step the Rules tables must be imported in the test world: the w
 | S8 | The Judge picks the rescuer on the drowning member's Rescuer select | The select lists the members who are not drowning, each "(load +n stone)"; the pick writes the rescuer's `hauling` and the member's `rescuer`; the rescuer's target rises by the body's stone |
 | S9 | The Player's pane picks its own second character as the rescuer, then the stranger's by a hand-made request, then clears | A public declaration for the first; the select on that pane lists only the members that seat owns, so the stranger's is not offered; the hand-made request for it is refused with a whisper to that seat; clearing writes nothing but the links |
 | S10 | The rescuer's throw rigged to miss | The rescuer drowns too and the body is let go: both links gone, the card's line saying the body is released |
-| S11 | The Judge presses Haul to the surface on the drowning member | Afloat again, no rounds counted, links gone, the held drowning effect removed; the button is absent on the Player's pane |
+| S11 | The Judge presses Haul to the surface on the drowning member | Afloat again, no rounds counted, links gone, the held drowning effect removed; the button is drawn on a row a Player owns and absent on one it does not |
 | S12 | End, once with a member drowning and once with none | Every held effect off every member; the prompt cards stay; with a member drowning a warning names them "still drowning", with none no warning |
 | S13 | A second party sheet, a detached window, the type size on a fresh window | Rows reflow and nothing clips; focus returns to the pressed row or its button; the rescuer select keeps what was stored across a render |
 | S14 | Teardown | End; the tracked cards swept by the run's own ids, the result quoted; fixtures kept; the fight ended |
@@ -5757,7 +5884,7 @@ Steps S5 to S7 need a GM pane seated as the primary GM: the driver acts on that 
 
 ### Squeeze rows (added with S15 of the dungeon close-out)
 
-Built for the Dungeon tab's crossing when the kind is **Squeeze · chokepoint** (Actors sidebar → the party sheet → Dungeon tab → The crossing): the Judge's setup (Shape, Length, Judge modifier), the rows (the stone as the target, covered of the length, a Contortionism badge, Stuck with its implied Vulnerable, the two escapes each with its own target, the last throw), the squeezing prompt and the stuck member's two-button prompt at a turn in a fight, and a player's relayed press. A mock cannot prove that core's own save dialog and card read the shifted figure, that the stored save is restored after it, or that a prompt posts from a real turn change.
+Built for the Dungeon tab's crossing when the kind is **Squeeze · chokepoint** (Actors sidebar → the party sheet → Dungeon tab → The crossing): the setup (Shape, Length, Judge modifier: the party actor's owner's), the rows (the stone as the target, covered of the length, a Contortionism badge, Stuck with its implied Vulnerable, the two escapes each with its own target, the last throw), the squeezing prompt and the stuck member's two-button prompt at a turn in a fight, and a player's relayed press. A mock cannot prove that core's own save dialog and card read the shifted figure, that the stored save is restored after it, or that a prompt posts from a real turn change.
 
 Before the first step the Rules tables must be imported (re-run it after an upgrade that adds a figure): the walk reads `contortionismBonus`, `chokepointFeet`, `escapeFeet`, `escapePenaltyStep` and `squeezeBotchBand` through `formationValue`, and the Ruledata Browser lists a row for each. With the band blank no throw makes a member stuck: to walk Q6 to Q11 without a botch, drive a stuck member by writing the member's record (`state: "stuck"`) on the party actor's crossing flag.
 

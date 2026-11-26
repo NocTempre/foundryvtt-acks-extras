@@ -54,7 +54,7 @@ All paths are under `scripts/formation/` unless noted.
 | `district-influence.mjs` | Carries a district's reaction figure into the influence roller over the `acksExtras.influenceModifiers` hook. |
 | `trap-rules.mjs` | Traps as arithmetic, Foundry-free: probe order, who is caught, the disarm plan, botch bands, the repeat lock, pit damage. |
 | `trap-zone.mjs` | `acks-extras.trapZone` RegionBehavior subtype, the placement abstraction over regions and walls, the crossing sequence, firing, and the Trapbreaking throws. |
-| `trap-walls.mjs` | The trap layer on a wall, the Walls-layer tools, chaining selected walls into a region outline, path-crossing geometry, and drag-to-assign. |
+| `trap-walls.mjs` | The trap layer on a wall, the Walls-layer tools, chaining selected walls into a region outline, path-crossing geometry, and drag-to-assign; the drop row on a wall's configuration sheet mounts for a seat `canTrapWall` allows. |
 | `trap-markers.mjs` | Canvas markers showing each trap's state, staged: a Judge sees every trap, a player only what the party has found. |
 | `trapbreak-app.mjs` | The Trapbreaking dialog — one window per party and character; who, which trap, which mode — open to Judges and to players whose character can make the throw. |
 | `data/trap-data.mjs`, `trap-sheet.mjs` | The `acks-extras.trap` Item subtype holding a trap's definition, and its sheet. |
@@ -91,7 +91,7 @@ All paths are under `scripts/formation/` unless noted.
 
 - **State** lives in one world setting (`formations`, keyed by id — see the shape documented at the top of `formation-model.mjs`). Only GM clients write it; the `updateSetting` hook re-renders the window on every client.
 - **Every write goes through one private `commit(mutate)`**, which reads the ledger inside the save lock — the lock and the read are a single act, so no writer can hold a copy from before its turn in the queue. Three writers sit on it: `createFormation` **inserts** (the only insert, and it mints the id); `updateFormation` writes **only what its copy changed** since the model handed it out (`readAs`, `applyChanges`): a changed sub-record key by key, a list of `id`-keyed records element by element, any other changed list whole, and a removal or a key the ledger also gained since the read stands; so a patch that lands while the caller awaits keeps its value unless the copy changed the same field, and a copy its writer cloned has no read and is written whole (DECISIONS 2026-10-17, "A whole write carries only what its copy changed"). It **refuses a record the ledger no longer holds**, since a caller arriving with a record that was dissolved while it worked has a moot write, not an urgent one, and **keeps the ledger's party token**: the ledger's `sceneId` and `tokenId` stand over the copy's, and its `clock.lastPosition` too when they name another token than the copy did, so only a patch moves the party token (DECISIONS 2026-10-17); `patchFormation` re-reads one record and applies a targeted mutation, which is what a hook or any background writer uses so a concurrent field change is not overwritten and its own guards are decided against current reality.
-- **The delve's printed figures** live in the `formation` ruledata document and are read through `formationValue` (`constants.mjs`): the turns an unrested party explores before it is winded (`restInterval`), a carried body's weight and the share of its kit hauled with it (`carriedBodyStone`, `carriedGearShare`), and the swimming throw's five (`swimWaterPenaltySteps`, the penalty sizes the page prints as an ordered list of positive sizes, which carries no price per water condition; `swimmingBonus`; `swimSpeedShare`; `sinkFeetPerStone`; `breathRounds`). The importer writes all eight from the Judge's own RR p. 271: [formation-binding.mjs](../../scripts/importer/formation-binding.mjs) reads each out of a short window of the page's prose, reads the water penalty sizes in printed order without consulting the conditions the sentence names, and leaves a key whose window did not read absent. A reader without its figure says less rather than inventing one: the clock counts turns and asks for no rest, a rescue load and a drowning read as unknown, and a swimming throw that needs a missing figure returns no target and names it in `unknown`. The water penalty is the Judge's: `swimmingThrow` and `partySwim` take `penalty` (an imported step from `waterPenaltySteps()`, or a larger figure typed by hand, since the page leaves the end open) and `conditions` (keys of `WATER`: `cold`, `rough`, `fast`, ticked as the reason; calm is none ticked). The penalty is a size added to the target and needs no import, and the throw does not refuse a figure that is no step.
+- **The delve's printed figures** live in the `formation` ruledata document and are read through `formationValue` (`constants.mjs`): the turns an unrested party explores before it is winded (`restInterval`), a carried body's weight and the share of its kit hauled with it (`carriedBodyStone`, `carriedGearShare`), and the swimming throw's five (`swimWaterPenaltySteps`, the penalty sizes the page prints as an ordered list of positive sizes, which carries no price per water condition; `swimmingBonus`; `swimSpeedShare`; `sinkFeetPerStone`; `breathRounds`). The importer writes all eight from the Judge's own RR p. 271: [formation-binding.mjs](../../scripts/importer/formation-binding.mjs) reads each out of a short window of the page's prose, reads the water penalty sizes in printed order without consulting the conditions the sentence names, and leaves a key whose window did not read absent. A reader without its figure says less rather than inventing one: the clock counts turns and asks for no rest, a rescue load and a drowning read as unknown, and a swimming throw that needs a missing figure returns no target and names it in `unknown`. The water penalty is a setup pick, made by a seat that owns the party actor (§The crossing): `swimmingThrow` and `partySwim` take `penalty` (an imported step from `waterPenaltySteps()`, or a larger figure typed by hand, since the page leaves the end open) and `conditions` (keys of `WATER`: `cold`, `rough`, `fast`, ticked as the reason; calm is none ticked). The penalty is a size added to the target and needs no import, and the throw does not refuse a figure that is no step.
 - **Jumping, the fall and the Spelunking table** arrive in the same document as three more tables, read from RR pp. 268, 270 and 271. `jumping` holds the leap's constant and floor, the jump's die, the feet a stone of encumbrance takes off, the run-up, the share a standing start keeps, a creature's baseline running speed and assumed Dexterity, the die a failed landing falls short by, the ceiling Acrobatics holds a raised score to (`acrobaticsDexCap`) and the bonus bands the leap takes at each score (`extendedDexBands`, rows `{min, max, mod}`; the leap reads the modifier of the raised score, from its band, from the system's table under the lowest band, and as unknown between or past them or with none imported). `fall` holds the die and the feet it is dealt per. `spelunking` holds the feet one throw covers and, per obstacle, the target an ordinary adventurer throws or `false` where none may try, whether the climber is helpless (`vulnerable`, a boolean, from the grid's helplessness row) and the botch band (`botchBand`, `{min, max}` of natural results, from the bracketed note on each grid's botched-throw row label, shared by that grid's three columns) and `progress`, per obstacle `{success, fail}`, the rate a climber moves at (RR p. 268): each is `{share, speed}`, `share` the ratio of a named speed (a cell that prints no fraction is the whole speed) and `speed` `combat` or `run`, the module's names for the member's combat and running speeds in feet per round. The success is read from the grid's success row (`spelunkingGrid`, a row claimed between the adventuring and botched-throw rows of each grid); the fail is read from the failed-throw row of `spelunkingOutcomeGrid`, where those cells wrap, and is present for the one obstacle whose failed-throw cell still moves the climber. A cell that names no speed, names two, or prints a figure other than one fraction decides nothing and is left out. `obstacles.mjs` `progressRate(kind, which)` reads it, `{share, speed}` or null until imported, and a Judge's override counts only as a share above zero of a named speed; the crossing reads it as a rope's rate and a miss's rate ("The rounds an obstacle spends"). `spelunkingOutcomes`, read from the same grids' failed-throw and botched-throw rows (RR p. 268, its own raw table `spelunkingOutcomeGrid`, the cells read over their wrapped lines), holds per obstacle `fail` and `botch`, each `{text, falls, advances?, rounds?}`: the cell's words, whether they name a fall, whether the outcome still covers ground and `rounds`, the duration the cell counts in rounds, present only where the cell prints a positive whole count right before a round noun (a count printed twice in agreeing forms reads, two that disagree decide nothing, a turn is not a round; `obstacleOutcome` passes it only as a positive integer, and the crossing does not spend it yet). The binding reads each figure from its own window (the Spelunking grids by row label and column), so a window that drifted costs that figure only; the jump's die is kept only where it is a single die, since the range a jump reports is that die's faces. `jumping.mjs` and `obstacles.mjs` keep the procedure: the order the conditions apply in, a jump reported as a range, the clamp at zero, who may try an obstacle, that a failure and a result inside the botch band each read their own outcome, that a fall ends the climber's attempt, and that a fixed rope makes a sheer face easy. Each reader answers null until its figure is imported: `obstacleVulnerable` null, and `botchBand` null, which reads no natural result as a botch so that the target alone decides the miss. A jump, leap or landing that rests on one carries it by name in `unknown`; an obstacle attempt for an ordinary adventurer reports `notImported` and rolls nothing, since the stretch and the target are both the table's, and the card lists the name with no reason. A missed throw whose outcome is not imported ends that climber's attempt, and the chat card prints "missed" in its place; an imported outcome prints its words, escaped, with a tooltip naming the page `citeOf` gives or the Judge's override, and no tooltip while nothing is imported.
 - **Squeezing** arrives as five more keys of the same document, read from the Squeezing passage (RR ch. 6) by the `squeezingProse` recipe, one window per figure: `chokepointFeet` (the length a narrowing must be under to be a chokepoint), `contortionismBonus` (the magnitude Contortionism adds to the squeeze throw and to the push-forward throw; the wiggle-back save gets its bonus from the ability's own effect), `escapeFeet` (the distance a successful escape carries, read from the retreat and the push; one figure stands for both, so two windows that print different distances answer none) and `escapePenaltyStep` (the magnitude each failed escape adds to the next) and `squeezeBotchBand` (the top of the band of unmodified results, from the die's lowest, that leaves a squeezer stuck, read by `parseBandTop` as a trap's band is). `assembleSqueezing` parses each window apart, so a window that drifted costs that figure only, and a bonus or step of nothing is not read. A reader takes each through `formationValue`, which answers null until the figure is imported or a Judge's override sets it; with no band nothing botches. `squeezing.mjs` reads them ("The squeezer", below).
 - **A proficient climber's faster paces** arrive as three more keys, one pair for each way of crossing: `climbPacePenalties` (a climb), `crawlPacePenalties` (a crawling traverse) and `balancePacePenalties` (a balancing traverse, narrow or precarious), read from RR pp. 269-270 by the `climbPaceProse`, `crawlPaceProse` and `balancePaceProse` recipes, one paragraph and so one page apiece, which keeps each pair's citation exact. Each value is `[faster, fastest]`: two positive magnitudes in the order the page prints them, the pace nearer the base one first. `parsePacePenalties` reads the sentence's two signed figures in printed order and answers null for a sentence with other than two, or a size of nothing; `assemblePacePenalties` parses each paragraph apart, so one that drifted costs its own pair only. A reader takes a pair through `formationValue`, which answers null until it is imported; a Judge's override replaces a whole pair. The same three paragraphs give the speed each pace moves at, as three more keys, `climbPaceRates`, `crawlPaceRates` and `balancePaceRates`, each `{normal, faster, fastest}` of `{share, speed}` (`speed` is `exploration`, `combat` or `run`, the module's names for a member's speeds, `PACE_SPEED_WORDS`; the list is apart from the progress cell's two). `faster` and `fastest` are read by `parsePaceRates` from each recipe's `pace` window: exactly two phrases, each a share and the one speed it is a share of, in printed order, the pace nearer the base one first; a phrase with no share, another count, a speed said outside a phrase, two penalties that collide, or two shares of one speed that fall, answers null. `normal` is the exploration-speed branch, read by `parsePaceBase` from the recipe's `base` window (its anchor holds no value; the window begins at the branch's own words), whole where no share is printed. `assemblePaceRates` parses each paragraph apart and leaves a member out that did not read. `climb-pace.mjs` `paceRates(kind)` answers the three, each `{share, speed}` or null, through the same grouping as the penalties (a rappel has none), and a Judge's override counts only as a share above zero of a speed in `PACE_SPEEDS`. The crossing reads them to time a press ("The rounds an obstacle spends").
@@ -234,7 +234,7 @@ the art row, on every tab.
 
 | Tab | Head | Body |
 |---|---|---|
-| Dungeon | for the Judge and a seat owning a member: Turn, Round, Rest a turn and Hurried; Undo the Judge's; and Trapbreaking (the one opener: every Judge's, a player's when a member they own may make the throw) | the strip (each of its four figures carries a provenance tooltip, `delveTips`); the Turn plan (§The turn plan); a member-owner's requests |
+| Dungeon | for the Judge and a seat owning a member: Turn, Round, Rest a turn and Hurried; Undo the Judge's; and Trapbreaking (the one opener: every Judge's, a player's when a member they own may make the throw) | the strip (each of its four figures carries a provenance tooltip, `delveTips`); the Turn plan (§The turn plan) with its Search here for a seat owning a member (the party press `searchHere`, run on the Judge's client as the Judge's own press); the crossing (§The crossing); a member-owner's requests |
 | Wilderness | for the Judge and a seat owning a member: the hex field, Next hex, Work the country, End day | the strip; Country (the cards and the encounters line for every seat; their sources, chips and brush the Judge's; §The country); Points of interest (the search's two selects at its foot the Judge's); Movement (the tiles, Back to automatic and Undo for a seat owning a member, a reading for any other) with flight's three fields; Sky (a seat owning a member: the climate card, the controls and Roll weather; any other seat while it has a reading); Day (a seat owning a member); Camp (the forecast and the suffering for every seat; exposure and declarations for a seat owning a member; throw lines the Judge's); a member-owner's requests |
 | City | for the Judge and a seat owning a member: Hop (while a point of interest is in reach, and, off the Judge's seat, shown), Turn, Round, Rest a turn; Hunted here and Undo the Judge's | the strip with the city block (the blocks, the turns and the turned-around warning on every seat); The city (the pickers, the road, tracker and navigation lines for a seat owning a member; the hunter's name the Judge's); a member-owner's requests |
 | Order, Train or Company | for a seat owning a member: Fastest and Undo (where the party has an arrangement), Auto-arrange, Frontage, the token shape, the column colour, Load order, Add a blank, Skill audit; Save order for a seat that may change world settings; Disband the Judge's | the ranks and the train; a blank's move and Remove for a seat owning a member |
@@ -295,7 +295,9 @@ Nothing in the payload names who asked. Players act on what is THEIRS:
 | Turn plan | Lock or clear their own character's choice for the stationary turn (§The turn plan) | `plan` |
 | Scouting | Step their own character out of the party token, or back in | `detach` |
 | Casualties | Leave their own character behind where they fell, or go back for them | `leftBehind` |
-| Traps | Work on a trap the party has found, or re-arm one they disarmed, with their own character | `trapbreak` / `trapRearm` |
+| Traps | Work on a trap the party has found, with the modifier they type, or re-arm one they disarmed, with their own character | `trapbreak` / `trapRearm` |
+| Search here | With a member of theirs in the party: open the scene search at the place the party stands in (Dungeon tab, Turn plan) | `partyPress` (`searchHere`) |
+| The crossing | The party actor's owner: begin one, set it up, Throw all, End. The member's owner: Haul, the landing save, the footing (§The crossing) | `crossingRun` / `crossing` (`land`, `footing`, `haul`) |
 | Train | Deploy a vehicle they own as a place beside the party token, or strike it | none: the vehicle is theirs to write (`docs/vehicles/MODEL.md`, "Deployed as a place"); only its marker token goes through the `vehicleMarker` relay |
 | Conveyance | Pin their own member on foot or on a carrier they count, or hand the choice back (§Conveyance) | `conveyance` |
 | Who is in the party | Bring an actor of their own in, or take one out (below) | `bringIn` / `takeOut` |
@@ -320,7 +322,7 @@ the mode's own clock and day from the tab's head and, for the pace, the
 figures rail. Turn and Round are asked of the Judge (`askPress`) and Rest is
 the `rest` declaration; the others are one closed table,
 `PARTY_PRESSES` ([party-press.mjs](../../scripts/formation/party-press.mjs)):
-`pace` (`{hurried}`, delve and city), `hop` (`{tokenId}`, city), `enterHex`
+`pace` (`{hurried}`, delve and city), `hop` (`{tokenId}`, city), `searchHere` (no arguments, delve: the scene search's own `searchHere` on the Judge's client, answering `searchClosed` where it answers `{ok: false}`), `enterHex`
 (`{label}`, journey), `forageDay` and `endDay` (journey), and the Kit tab's
 `lightRemove` (`{lightId}`), `spellAdjust` (`{spellId, delta}`) and
 `spellRemove` (`{spellId}`), open in every mode. The party's arrangement and
@@ -1341,8 +1343,10 @@ type size.
   lowered to the automatic-success face for a skilled thrower; with nothing
   imported the target alone decides. It is blank, its tooltip the page alone,
   where the throw is unread. Each part keeps the page it cites. The Judge's
-  modifier is shown and used on the Judge's seat only, and a player's request
-  carries none.
+  modifier is typed on any seat that opens the window and rides that seat's
+  throw: a player's request carries it as `extra` (a finite number, else 0, read
+  on the Judge's client; `judge` is still never carried), and the field's tooltip
+  on a seat that is not the Judge's reads "Typed on this seat".
 - **The reach and the list.** The reach shows its imported figure with the page
   it was read from, else blank with the page alone; with none imported a trap
   lists as touching. A trap thing lists as "Trap · <its place>", a wall as "Wall
@@ -3393,18 +3397,23 @@ Dungeon tab, `formation-crossing.hbs`, drawn from `buildCrossingView`
 the turn plan. The rules are `crossing-logic.mjs`'s (no Foundry, no dice); the
 state, the roll, the card and the view are `crossing.mjs`'s.
 
-**Who sees what.** A Judge always has the begin row: a kind pick (the six
-obstacles, a jump and deep water) and Begin. While a crossing is open every seat has the
-member rows, and the Judge also the setup fields (length, depth, rope fixed and
-the Judge modifier; for a jump, gap, run-up, precarious, charging, the depth
-a fall over empty space is figured on and the rope a climb up from the edge
-reads) and
-*Throw all* and *End*. A player has no section while none is open, and no
-setup field in the DOM while one is. A stack standing for several bodies has no
-row.
+**Who sees what.** A seat that owns the party actor (`canSetup` in the view,
+the actor's `isOwner`, true for a Judge) always has the begin row: a kind pick
+(the six obstacles, a jump, deep water and a squeeze) and Begin. While a
+crossing is open every seat has the member rows, and a seat that owns the party
+actor also the setup fields (length, depth, rope fixed and the Judge modifier;
+for a jump, gap, run-up, precarious, charging, the depth a fall over empty space
+is figured on and the rope a climb up from the edge reads; for deep water the
+water conditions, the penalty pick and its larger figure and the movement; for a
+squeeze the Shape and the length) and *Throw all* and *End*. A seat that does
+not own the party actor has no section while none is open and no setup field in
+the DOM while one is, and where the crossing is deep water it reads the penalty
+in force in place of the pick. The member rows' own presses follow the member's
+ownership (§The party owner's and the member's presses). A stack standing for
+several bodies has no row.
 
 **State.** The party actor's `flags["acks-extras"].crossing` holds the setup
-(`id`, `kind`, `length`, `depth`, `ropeFixed`, `judgeMod`, `gap`, `runUp`,
+(`id`, `kind`, `length`, `depth`, `ropeFixed`, `judgeMod`, `judgeModBy` (the id of the user who typed the modifier, cleared with it), `gap`, `runUp`,
 `precarious`, `charging`, and for deep water `penaltyPick`, `penaltyLarger`,
 `waterCold`, `waterRough`, `waterFast`, `movement`) and `members`, one record per actor id: `covered`,
 `throws`, `state` (`climbing`, `across`, `fell`, `stalled`) and `last`, the
@@ -3419,8 +3428,10 @@ drops the other's write. A throw rolls, reads the flag again and writes only if
 the crossing it rolled for still has its id; an in-flight set keyed by crossing
 and member refuses a second throw for the same member until the first has
 landed. A write unsets the records of members the party no longer holds. The
-crossing does not close when the party moves; the Judge ends it. Only a GM
-client writes.
+crossing does not close when the party moves; End closes it. A setup edit is
+written direct, from the client of a seat that owns the party actor
+(`applyCrossingForm` tests the actor's `isOwner`); every other write, a member's
+record, Begin and End, is a GM client's.
 
 **Held conditions.** While a member is on an obstacle (`climbing` or `stalled`)
 the crossing holds on the member's body the statuses the Spelunking grid names
@@ -3475,7 +3486,7 @@ refusal. The card prints the imported outcome words escaped, with
 `outcomeProvenance` as their tooltip, says how many stretches are covered, and
 reports a fall's distance and dice (`fallFromClimb`) without writing a hit
 point. A crossing posts no damage, and a throw on an obstacle spends rounds on the clock ("The rounds an obstacle spends"); what it holds
-on a member is *Held conditions*, below. `throwAll` throws for each member whose row allows it with no warning.
+on a member is *Held conditions*, below. `throwAll` throws for each member whose row allows it with no warning; for a press declared by a user who is no Judge (`asUser`) it throws only for the members that user owns, each row read with `judge: false`, and counts no other member as left.
 A jump row is `canClear`'s verdict and range for the member, blank until a
 gap is set, fed with the member's own Dexterity, level, carried stone and
 Acrobatics and the setup's run-up. Its verdict is shown first; the press that
@@ -3492,14 +3503,13 @@ it; the module rolls no die of its own, and the system's save takes no bonus
 argument, so a situational bonus is the dialog's field. What Acrobatics is
 worth to the save is passed in as `NO_ACROBATICS`'s zero. The system's own
 card follows the roll mode its dialog took; the crossing adds a card to the
-Judges with the total. After a failed save the Judge picks a footing on the
+Judges with the total. After a failed save the member's owner picks a footing on the
 row (`FOOTINGS`) and `reportLanding` posts `landingOutcome` (`landingFailure`
 with the setup's depth as the fall's distance, which a fall over empty space
-without a depth names as unknown) on a card to the Judges. Both are the Judge's
-alone, and neither writes a hit point or a condition (the footing pick writes the jump record, below); a player's row
-reads that a save is asked for and has no press of its own. The landing save
+without a depth names as unknown) on a card to the Judges. Both are the member's owner's presses (§The party owner's and the member's
+presses), and neither writes a hit point or a condition (the footing pick writes the jump record, below); a seat that owns neither the member nor the party reads that a save is asked for and has no press. The landing save
 press stands until an attempt has been made on the row; the footing pick
-remains after it, as the Judge's override of the footing the attempt reached:
+remains after it, as the override of the footing the attempt reached:
 where the member has made an attempt the pick is written to the record
 (`jump.footing` and the state `FOOTING_STATE` gives it) and the row, its
 Climb up button and its state read it (`withFooting`); a pick on a member
@@ -3605,12 +3615,12 @@ conditions (`waterCold`, `waterRough`, `waterFast`), `movement` (`combat` or
 same dotted paths as any setup field. The view's `swim` object carries the pick's
 options (each built with its own `selected`: Foundry has no helper for it, and the
 value of an option is the imported size, never its place in the list), the line a
-player reads instead of the fields ("Penalty in force … set by the Judge"), and
+seat that cannot set up reads instead of the fields ("Penalty in force …"), and
 the round of the running fight (`crossingTurn`: the combat in which a combatant
 stands as the member, `standsAs`). A row shows the target or "No throw", the state
 (Afloat or Drowning), the pace for the movement picked (running reads "Cannot run"
 for a member a condition forbids running to), the breath and the sink rate of a
-drowning member, the Vulnerable chip, the last throw and, to the Judge, the haul.
+drowning member, the Vulnerable chip, the last throw and, to a drowning member's owner, the haul.
 Each figure's tooltip names its parts with the member's own numbers and ends on
 the page its import cites; a figure nobody imported is blank and its tooltip is
 the page alone. "Cannot throw while drowning" is worded to a player's seat only.
@@ -3628,7 +3638,7 @@ member and `setRescuer` refuses the relayed request, while a Judge's select list
 them and `setRescuer` warns in the refusal's words (`crossing.relay.rescue*`),
 writes the link and lets go the body a busy rescuer held. The rescuer's own throw is then priced with the body's stone
 added (`hauled`), a rescuer whose throw fails lets the body go, and
-`haulToSurface` (the Judge's alone, the Haul button) brings the member afloat with
+`haulToSurface` (a GM client's work; the Haul button is the drowning member's owner's, relayed as the `haul` step) brings the member afloat with
 no rounds counted, every link gone and the held drowning released. The select is a
 staging pick (`data-pick="crossing-rescuer-<id>"`), so its change is no form
 submit; `bindCrossingRescuer` listens on it and the Judge's seat writes, a
@@ -3676,6 +3686,36 @@ where the seat owns a member whose row allows a throw in an open obstacle
 crossing, or an attempt or a climb up in an open jump, read from the same rows
 the section draws.
 
+**The party owner's and the member's presses.** Two relayed shapes, each
+checked again on the GM client against the sender Foundry attests. *The crossing
+as a whole* is `crossingRun` (`crossingRunRelay`, `player-requests.mjs`): `step`
+is `begin` (with a `kind` of `CROSSING_KINDS`), `end` or `throwAll` (the last two
+naming the open crossing's id); the sender must hold OWNER on the party actor
+(`testUserPermission`); a stale id, or a crossing that is not open, refuses. The
+steps call the Judge's own `beginCrossing`, `endCrossing` and `throwAll` with the
+sender passed in, never read `judge` and never pass an override. `endCrossing`
+refuses a sender who is no Judge while a member is stuck or drowning
+(`heldMembers` names them, and the seat is told; the Judge's End still warns
+and goes ahead), and `throwAll` throws only for the members the sender owns.
+Each press that acts is announced once, with the sender's name. *A member's own
+landing and haul* are three more steps of the existing `crossing` request,
+`land`, `footing` and `haul` (`landingStep`), under the member-owner test a
+throw has: `land` is `landFor` on the GM client with the system's skip-dialog
+key on its event (no dialog opens there, so no situational bonus is offered) and
+the row read with `judge: false`; `footing` (one of `FOOTINGS`, else refused) is
+`reportLanding` with `judge: false`, which refuses wherever the Judge's own
+reading of the row would warn; `haul` is `haulToSurface`, and a member who is not
+drowning is refused (`notDrowning`). The seat reads the row first
+(`requestCrossingLanding`) and says a refusal it can see without sending. The
+Roll press is drawn on `canRoll` (the member's owner, and the row, read for that
+seat, allows it), the footing pick on `canReport` (the member's owner, whatever
+the row reads) and Haul on `canHaul` (the member's owner, and the member is
+drowning). The Judge's modifier is offered on every setup; the id of whoever
+typed it is stored beside it (`judgeModBy`, written and cleared with it), and
+the field's tooltip and the modifier part of every target's tooltip say "Set by
+<name>" for a player and "Set by the Judge" for a Judge, an id no user holds, or
+none (`judgeModSetBy`).
+
 **Tooltips.** A target names the figure's source, each part with the page its
 import cites, and the Judge modifier; a permitted-or-not and a stretch count
 name the imported page; a fall names its parts and the imported dice; a landing
@@ -3693,7 +3733,7 @@ pressed row's button, which carries its member's id on itself.
 ### The squeezer
 
 A squeeze is a crossing kind beside the obstacles, the jump and the swim
-(`SQUEEZE_KIND`, the Squeeze · chokepoint pick). Its setup is the Judge's:
+(`SQUEEZE_KIND`, the Squeeze · chokepoint pick). Its setup is the party actor's owner's, a Judge's included:
 Shape (Chokepoint or Squeeze; a new crossing starts on Chokepoint), Length (ft)
 and the Judge modifier, each written by its own path like any setup field. A
 member is `squeezing`, `stuck` or through (state `across`, drawn "Through");
@@ -3709,7 +3749,7 @@ pushes), `last`, and the stamps `thrownAt` and `promptedAt` the driver reads.
   nor has one whose member has no combat speed (the row lists `speed` among its
   unknowns); a chokepoint needs neither. A chokepoint whose set length reaches the
   imported chokepoint figure is a permission refusal: a player is stopped and a
-  Judge is warned (the figure only compares; with it not imported the Judge's
+  Judge is warned (the figure only compares; with it not imported the
   pick stands).
 - **What a made throw does.** On a chokepoint the member is through. On a
   squeeze the distance a success carries is `squeezeAdvance`: the member's combat
@@ -3725,7 +3765,8 @@ pushes), `last`, and the stamps `thrownAt` and `promptedAt` the driver reads.
   botches) leaves the member stuck with no escape tried,
   whatever the total reached.
 - **End** releases every held condition, and the Judge is warned, naming them,
-  of each member still stuck or drowning (`endCrossing`).
+  of each member still stuck or drowning (`endCrossing`); a press by a seat that is
+  no Judge is refused while a member is held, with the same names, and writes nothing.
 - **Stuck** is a held condition of the crossing (`CROSSING_STATUSES` gains
   `stuck` last, since the slot is in the effect's id); the catalogue's own
   closure adds Vulnerable, which the row draws as an implied chip. It comes off

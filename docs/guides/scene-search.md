@@ -8,13 +8,15 @@ opened. Searching is described in RR ch. 6, Searching.
 
 ## Open a scene
 
-Two buttons open a scene. Both are the Judge's:
+Two buttons open a scene:
 
 - **Search the scene**, on the card a fight posts in the Chat sidebar when it
   ends with fallen foes who carried something.
 - **Search here**, on the party sheet's Dungeon tab, in the Turn plan section.
-  A player whose character is in the party sees it too. A player's press tells
-  the table the party wants to search and moves nothing; the Judge then presses.
+  A player whose character is in the party presses it too. The press runs on the
+  Judge's client as the Judge's own would, is announced to the table with the
+  player's name, and opens the scene with nothing found and nothing shown to the
+  players until the Judge shows it.
 
 The scene opens at the place the party's token stands in, the nearest one when
 areas overlap. A party with no token on the map, or standing in no place, is

@@ -1006,10 +1006,10 @@ the foot of the window, on a Trapbreaking throw.
 As Judge you are warned where a player is blocked: a character with no thieves'
 tools, or with a failed hasty try recorded at this level, shows a warning and
 **Work on it** stays enabled, and the **Judge's modifier** you type rides your
-throw. A trap nobody found, one already disarmed or spent, and a character with
+throw; a player may type one too (its tooltip there reads "Typed on this seat"), and it rides their throw. A trap nobody found, one already disarmed or spent, and a character with
 no Trapbreaking throw at all leave nothing to roll, so **Work on it** is
-disabled for you too. A player sees the reason beside a disabled **Work on it**,
-and has no modifier to type. A trap on a place lists as "Trap · " and the
+disabled for you too. A player sees the reason beside a disabled **Work on it**
+and is blocked by every refusal you are warned of. A trap on a place lists as "Trap · " and the
 place's name, a trapped wall as "Wall trap" and a trap region as "Trap area".
 
 **Crudely built** on the trap item marks it crude, and the module applies the

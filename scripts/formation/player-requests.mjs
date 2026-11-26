@@ -28,7 +28,7 @@ import { PARTY_FORM_SAYS, applyPartyForm, pickPartyForm } from "./party-form.mjs
  * only GMs can write, so member-owning players declare actions from the party
  * sheet and the primary GM's client validates and executes them. The request
  * types are the `case`s of `executeRequest`: lights, spells, a rest turn, party
- * checks, the turn plan, a Round or a turn asked of the Judge, a search declared,
+ * checks, the turn plan, a Round or a turn asked of the Judge,
  * the marching order, forming the party up into a saved order, roles,
  * detaching, leaving a member behind, conveyance, bringing an actor in or out,
  * light discipline, anchoring a map, trapbreaking, a crossing's throw, its Begin,

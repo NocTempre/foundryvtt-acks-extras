@@ -817,7 +817,7 @@ try {
     { listed: pl.ctx.targets.length, thingListed: pl.ctx.targets.some((t) => t.uuid === thingUuid) });
   check("the Player's window reads as a player's, with the refusal for the missing tools and Work on it disabled", !pl.ctx.isGM && pl.ctx.refusal === E.noTools && pl.ctx.warnings.length === 0 && pl.ctx.canAttempt === false && pl.dom.attemptDisabled === true && !!pl.dom.refusal?.includes(E.noTools),
     { gm: pl.ctx.isGM, refusal: pl.ctx.refusal === E.noTools, canAttempt: pl.ctx.canAttempt, disabled: pl.dom.attemptDisabled });
-  check("no Judge modifier field, no Mark spotted and no Rebuild are drawn for the Player, and only the Player's own character is offered", !pl.dom.judgeField && !pl.dom.markFound && !pl.dom.resetButton && pl.dom.warnings.length === 0 && pl.dom.actorOptions.length === 1 && pl.dom.actorOptions[0] === fighter.id,
+  check("the modifier field is drawn for the Player, with no Mark spotted and no Rebuild, and only the Player's own character is offered", !!pl.dom.judgeField && !pl.dom.markFound && !pl.dom.resetButton && pl.dom.warnings.length === 0 && pl.dom.actorOptions.length === 1 && pl.dom.actorOptions[0] === fighter.id,
     { field: pl.dom.judgeField, buttons: pl.dom.markFound || pl.dom.resetButton, options: pl.dom.actorOptions.length });
   // The fighter gets tools while the Player's window is open: it draws again and Work on it enables with no press.
   await gm.fixture("formation/trapbreak-fighter-tools", "Item", { name: TOOLS, type: "item" }, { parent: fighter.uuid });

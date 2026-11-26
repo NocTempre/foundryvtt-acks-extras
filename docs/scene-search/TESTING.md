@@ -369,9 +369,9 @@ is `tools/test-scene-ways.mjs` (which party a record names, what a press does,
 the call over a fake world), the S5 blocks of `tools/test-scene-haul.mjs` (the
 origin's carried map), `tools/test-scene-session.mjs` (a body's table drawn at the
 deal, the source's owners) and `tools/test-formation-flows.mjs` (the
-`declareSearch` relay), and `tools/test-treasure-search.mjs`. None draws a card or
+Search here party press), and `tools/test-treasure-search.mjs`. None draws a card or
 a button, deletes an item or opens a window, so every observable below needs a
-live Judge seat and, for the declaration, a live Player seat.
+live Judge seat and, for the Player's press, a live Player seat.
 
 What driving it taught:
 
@@ -524,14 +524,19 @@ Judge seat:
 
 Player seat:
 
-6. **A declaration.** With no session open, open the party's sheet on the Player
-   seat (the character from `ways-owner`). Observables: **Search here** is
-   shown; pressing it posts one "<user> declares: declares that the party
-   searches here." card to the table, and no session, pot, plan or clock change
-   exists afterwards, and no screen opens on the Player seat. A seat that owns
-   no member sees no button (not walked: the walk has one Player seat).
-7. **The Judge accepts.** The Judge presses Search here: the session opens and
-   the Player seat's screen follows once the Judge shows the scene.
+6. **The Player's press.** With no session open, open the party's sheet on the
+   Player seat (the character from `ways-owner`). Observables: **Search here** is
+   shown with the Judge's tooltip; pressing it opens the same session the Judge's
+   press opens, read on the Judge's seat (the plan and the clock as for the
+   Judge's press, the scene unshown, every lot unfound), one public line, spoken
+   as the party and naming the player, announces it, and no screen opens on the
+   Player seat until the Judge shows the scene. With the token outside every
+   place the press opens nothing and the seat reads "The search did not open.".
+   A seat that owns no member sees no button, and a crafted press from it is
+   refused (the formation walk `formation-seat-crossing`, C14, walks both).
+7. **The Judge's own press** still opens the session and shows the screen
+   as step 5 has it; the Player seat's screen follows once the Judge shows the
+   scene.
 
 Teardown: `acksExtras.sceneSearch.end(partyId)`, then `api.sweepTracked()` over
 the run's own ids (the combat, the card, the pots, the sessions' pots); the kept
