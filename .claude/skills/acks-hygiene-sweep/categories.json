@@ -48,7 +48,8 @@
         ["pointless-wrapper", "a function whose whole body forwards to exactly one other function, adding no validation, transformation, or behavior"],
         ["duplicate-function", "near-identical logic copy-pasted across files or subsystems instead of shared through lib/"],
         ["inheritance-over-composition", "a class hierarchy stretched to share unrelated behavior, or a deep chain where the family doctrine (enhance via wrapper/mixin; subclass only where it genuinely is-a) fits better"],
-        ["naming-inconsistency", "inconsistent casing or naming for structurally similar constructs, within a file or across the subsystem"]
+        ["naming-inconsistency", "inconsistent casing or naming for structurally similar constructs, within a file or across the subsystem"],
+        ["source-sliced-test", "a test suite that reads a `.mjs` file as text and cuts code out of it by indentation, a closing-brace pattern or a comment anchor, then asserts on or evaluates the slice (`tools/test-strip.mjs` reads `static PARTS` up to `\"\\n  };\"` with `/^ {4}(\\w+): \\{/`; `tools/test-location-seat.mjs` cuts `#prepareVisibleTabs` out of `location-sheet.mjs`). A reformat, a rename or a moved comment fails it with no change in behaviour. The fix imports or exports the symbol under test, or renders the template the code renders. Reading a template, a lang file or a cookbook JSON in order to render or parse it is not this category"]
       ]
     },
     {

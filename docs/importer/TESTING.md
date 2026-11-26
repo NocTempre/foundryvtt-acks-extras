@@ -4458,6 +4458,13 @@ batch (the pilot was PDF 60-62, ordinals 1-17); N below is the count of
 `census-rows check` prove the compile offline; this walk proves the import
 writes the items, a repair holds a Judge's edit and a roll names the document.
 
+Coverage outside the census band is batch evidence, never a defect on its
+own. Count before acting: a word count over each entry's own column region
+against the compiled text. The whole-book `census-rows check tt --pages 55-287`
+put ordinals 207-212 (PDF 93) at 0.45-0.66 and 2.8-3.7. All six matched within
+the heading's words, because the census measure splits that page's regions
+differently from the compiler.
+
 ### Fixtures
 
 The Tome connected on the seat. Each imported item is found by its cookbook id

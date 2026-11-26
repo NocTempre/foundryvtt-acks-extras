@@ -43,7 +43,8 @@ only in `C:\Proj\foundryvtt-acks-extras`.
    `register/_proposals/p{START}-p{END}.json` as
    `{ "registry": "...", "token": "...", "suggest": { "key": "...", "ref": "def...." }, "definingPage": N? }`.
    Never edit `register/_refs/**` directly — the orchestrator merges.
-4. Gate your batch: `npm run compile -- {BOOK}` then
+4. Gate your batch: `npm run compile` (every book: a book-scoped compile
+   cannot write `cookbook/`) then
    `npm run verify:cookbook -- {BOOK} {START} {END}` then
    `npm run lint:register`. Iterate until: 0 failures, and every RESIDUE line
    for your pages is triaged (fix an entry, add a proposal, or list it as

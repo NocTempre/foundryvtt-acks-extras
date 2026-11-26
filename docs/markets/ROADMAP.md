@@ -4,7 +4,7 @@ Re-issued 2026-11-14.
 
 ## Not built
 
-The trade layer's design is `wip/trade-layer.md`. Built: merchandise Items,
+The trade layer runs from trade routes through venturer powers. Built: merchandise Items,
 the demand layers and Generator, market reports, the character Trade tab, AX3
 market profiles, the gate (RR tariff, and the city's own toll), and a party's
 vehicles setting its market impact. What is not built:
@@ -14,7 +14,29 @@ vehicles setting its market impact. What is not built:
   timed class events, and the steady route's impact and price step (a
   mercantile network itself is built: MODEL, Known markets and Ventures; so
   is the Range of Trade table's import and reader: MODEL, Range of Trade).
-  `goods.demandDerived` is reserved for it and unread until then.
+  `goods.demandDerived` is reserved for it and unread until then. The shape
+  drawn for it:
+  - An `acks-extras.tradeRoute` Item sub-type: `role: network|steady`, the two
+    market uuids, mode, miles, status and `blockedUntil`, `source: manual|map`
+    with the scene, priority, and a steady route's two goods. The trade house
+    owns a network route and the venturer a steady one. Whether a route
+    qualifies is derived from Range of Trade and both markets' true class,
+    never stored.
+  - A Trade Network window: routes, suggest-from-map (battlemap roads and hex
+    routes between location tokens), the derived matrix with a trace, and
+    class events, read by a `campaign.commerceEvents` table recipe (JJ 111).
+  - The recompute writes `goods.demandDerived` on the primary GM only,
+    debounced and per component. It runs on a route's create, update or
+    delete, and on a location update to class, families, events, base,
+    overrides or profile (never to the derived layer itself). It also runs at
+    the sweep boundary and by hand. Printed bases equalise like generated
+    ones, and the Judge pins what must not move.
+  - Rulings to record when it is built: a pin is final and still pulls its
+    neighbours. Equalisation runs largest class first, neighbours by class
+    then miles, each edge once against already-shifted values. Equal-size
+    pairs shift simultaneously from pre-shift values, and ties break by
+    stable uuid then priority. The network uses true class (with events),
+    never a viewer's `effectiveMarketClass`.
 - **A disreputable venturer loses the network** (RR ch. 2, Venturer, Access
   to Capital): nothing records a missed interest payment, so the network
   counts wherever the market is known.
@@ -22,9 +44,11 @@ vehicles setting its market impact. What is not built:
   cargo transport below.
 - **Venture logistics**: cargo handling times (at an anchorage or a pasture
   outside too), warehousing, exhaustion-of-arbitrage and price-reset
-  options, passenger and cargo transport, passive investment. Also not built
+  options, passenger and cargo transport, passive investment, and a venture's
+  profit ledger. Also not built
   from the same plan: loot as merchandise, mercantile XP and venturer powers,
-  and JJ Ch7 venues. (Built: the tariff at the gate, smuggled goods, sneaking
+  JJ Ch7 venues, and the setting books' market-local business rules,
+  contracts tables and venues. (Built: the tariff at the gate, smuggled goods, sneaking
   in, and moorage and stabling; MODEL, Ventures.)
 - **The smuggling throw**: the gate records what is smuggled in and tells
   the Judge; the Smuggling hijink itself (RR §VIII.5) and confiscation are
@@ -53,7 +77,7 @@ vehicles setting its market impact. What is not built:
   register), By This Axe's dwarven families-to-class bracket and its Charter
   of Monopoly duty, AX3's printed trade routes, business page and venues, and
   the Treasure Tome's gem, jewelry and special-treasure tables. Each rides the
-  trade-layer phase that first consumes it (`wip/trade-layer.md`).
+  row above that first consumes it.
 - **Despoilment's demand shift** (AXIOMS) and dwarven ore tables: not trade
   data under the RR; left unless a Judge asks.
 - **Detection results mark `detected`.** The spell work's detection results

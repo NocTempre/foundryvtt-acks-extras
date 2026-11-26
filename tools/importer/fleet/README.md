@@ -13,7 +13,8 @@ the LOCAL-ONLY reference PDFs at `C:\Proj\acks-reference` (never CI).
 npm run harvest:index -- mm --write   # seed: book outline -> register/_manifest/mm.json
 npm run harvest -- mm 170 178         # structural report for a page window (authoring sense)
 npm run ledger -- mm 25 350 10        # (re)build register/_ledger.json batches
-npm run compile -- mm                 # register -> cookbook/ (needs PDFs; ALL judgment here)
+npm run compile                       # register -> cookbook/, every book (needs PDFs; ALL judgment here)
+npm run compile -- mm --out <scratch> # one book, to a scratch dir only: a book-scoped run cannot write cookbook/
 npm run verify:cookbook -- mm 170 178 # execute via the SHIPPING executor vs PDFs (gate)
 npm run lint:register                 # IP + schema gate (no PDFs; runs in CI via validate)
 ```
@@ -44,7 +45,7 @@ npm run lint:register                 # IP + schema gate (no PDFs; runs in CI vi
    its final report (entries, skips, NEEDS-REVIEW items).
 3. **Merge:** orchestrator + resolver agent fold proposals into
    `register/_refs/**` (idempotent upsert; conflicts -> resolver ruling).
-4. **Gate:** `npm run compile -- mm` then `npm run verify:cookbook -- mm <a> <b>`
+4. **Gate:** `npm run compile` then `npm run verify:cookbook -- mm <a> <b>`
    then `npm run lint:register`. Green -> ledger `verified`. Failures or
    unexplained residue -> re-queue the batch with the report attached.
 5. Repeat until the ledger is all `verified`; residue per page trends to zero

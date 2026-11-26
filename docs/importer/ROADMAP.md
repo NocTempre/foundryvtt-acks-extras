@@ -455,8 +455,7 @@ and ruin lookups, and the throw now rolls them (DECISIONS, 2026-09-30). In order
    to 98. Every list places on the author's copy and none waits. The Tome's
    and the Journal's magic-item entries are imported (MODEL, `kind.magicItem`).
    Not yet: a gem or jewelry RollTable that throws each kind on its own die
-   (one still rolls one die, its description carrying the legend)
-   (`docs/importer/wip/20261116-tt-importer-plan.md`).
+   (one still rolls one die, its description carrying the legend).
 8. **The custom-class, custom-spell and magic-type remainders**, gated on the
    magic work.
 
@@ -478,6 +477,12 @@ plain-string `locate` would put in source.
   comment cut raised and no reviewer has read for printed values.
 - **`docs/importer/TESTING.md` states encumbrance figures** in its equipment
   recipe: a page value in a tracked doc.
+- **`kind.rolltable` ships band edges as section keys.** The template's
+  2026-08-15 owner correction ("band edges and modifier values are content
+  and need importing") may forbid it. Whether it does is undetermined, and
+  nothing has been registered. The treasure wave added no such table
+  (DECISIONS 2026-09-23 rejects `kind.rolltable` for a feature's charts on
+  this ground).
 
 ## The extraordinary variant of a damage-type icon
 
@@ -996,6 +1001,9 @@ declarations that carry a book's print facts without one are listed here:
   topic's work, before it lands.
 - **`compile-cookbook.mjs`'s `entry.book === "bta"` cell gap** is a per-book
   figure; it moves to a field on the book's typography.
+- **`resistanceProse` and `squeezingProse`** (6cac2c8a, 78434f38) are
+  Revised Rulebook recipes in shared files. They moved the `rr` silo
+  baseline from 161 to 163 and belong under `scripts/importer/books/rr/`.
 
 ## The Tome's magic items (after the compile half)
 
@@ -1011,7 +1019,19 @@ declarations that carry a book's print facts without one are listed here:
   that the row prints none), per list.
 - The walk of the import on `main` (the "Magic item entries" recipe).
 - A magic item's rarity waits on the markets ruling; the cursed mark and the card
-  link wait on their designs.
+  link wait on their designs. The owner's question is open: with the Tome
+  open, do markets price and stock magic items from its rarity- and
+  type-keyed market tables? The recommendation was yes, as a later markets
+  slice. The counter, rated moderate: a world's prices shift the moment a
+  book is connected.
+- **A "+N" reaching a roll through core's fields.** The import would write
+  `system.bonus.attack`, the damage formula and `system.ac.value` from a
+  per-entry located value over the base row a register `base` key names. A
+  `magicBonusParts` source in `equipment/printed-layers.mjs`, registered
+  beside `masterworkBonusParts` through lib's `registerItemBonusSource`,
+  would carry the typed part. Worn grants and "vs X" bonuses wait on the
+  grants proposal (`wip/20261029-item-grants-as-effects-design.md`, not in
+  effect).
 
 ## A book's pictures as world art: what is not built
 
@@ -1044,6 +1064,11 @@ Not built:
   dark fade, so `treasureArt` answers null for `vignette`. An openly licensed
   file referenced by path, its licence on the row (`licence`), is the
   fallback the ruling names.
+- **Not walked.** The art walk's step 6 (an override, whose path is
+  untraced) and step 7 (a world without the Tome). The library journal page,
+  which no world journal held, so MODEL's projection inference stays
+  unconfirmed. The Player half, which is the treasure card's walk once the
+  card reads `treasureArt`.
 - **`check-book-art.mjs` on `placementAt`.** The gate keeps its own
   `placementsAt` with `BOX_SLACK`, the same 2 pt edge test as `extract.mjs`
   `placementAt`, but returning every match so it can tell none from two.

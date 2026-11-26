@@ -564,3 +564,64 @@ Not built: one lib-owned advance per round for every fight. It has to take over 
 - **The busy mark.** A magic deal still pays a server scan per shelf for a missing base and a loading state for it is not drawn (lib DECISIONS 2026-09-02 rejected one for a wait nothing had measured as visible; 16.5 s and 7.4 s measure it). It starts with `/design`.
 
 Order: lists and stamp lookups first, since they load nothing; then the one-type sets, variations first; then the whole-shelf passes; then the warm and the four-type `whenReady` go, and `libraryDocs` answers the sidebar alone. Risks: an index row is stored source the system has not migrated, so only core fields and module flags are read off one, never `system` (DECISIONS 2026-11-24); a loop calling `getDocument` per id pays a server scan each and batches one `_id__in` per shelf instead; an instance held across an eviction goes stale, so readers keep ids. Classifications drawn from the call line alone are inferred and are checked file by file.
+
+## A feedback window and its intake
+
+Nothing is built. The owner, 2026-11-15, quoted whole:
+
+1. "I'd like a better intake for corrections and bug reports that can auto
+   include anonymous console logs if necessary, as well as examples if they
+   manually fixed something when they reject a repair overwrite. Unsure how
+   to best implement but I want to crowdsource testing and corrections and
+   it needs to be as easy as sending me a PM on discord (but better
+   organized with log data/correction etc)."
+2. "Not to mention automating snapshot images of UI issues. A
+   feedback/suggestions intake would be good too."
+
+An architect-tested plan was written and never started. Its full design
+(the `acks-feedback/1` bundle, the scrub, the recorder, the window probe,
+corrections, entry points, the walk) is recoverable with
+`git show 0f1ff7d6:docs/lib/wip/20261115-feedback-intake-plan.md`. What it
+proceeds on:
+
+- **One window builds one structured report** of a problem, a suggestion
+  or a correction. The report already holds the session's console failures
+  with identifying text replaced, and costs one paste or one dropped file to
+  send. Home `scripts/lib/`, lang root `ACKS-LIB`, slug `feedback`. The
+  corrections half lives in `scripts/importer/` and contributes through a
+  lib registry. No setting is added.
+- **Constraints.**
+  - No write credential ships, so the window makes no network call.
+  - The rendered preview is the consent step.
+  - A correction carries locators, never a held edit's values or their hash
+    (`.claude/rules/ip-doctrine.md`), and is opt-in per edit.
+  - The recorder installs at entry-module evaluation.
+  - `console.*` is not wrapped, and handled failures are not routed through
+    `Hooks.onError`.
+- **Slices.**
+  - 1a: the window, recorder, scrub, probe, `.txt` container, reader tool,
+    issue forms and site page.
+  - 1b: corrections from the held-edits dialog.
+  - 1d: the remaining `console.error` sites moved to a `logFailure` helper.
+  - 2p, then 2: the picture of a broken window, the library chosen by hand
+    trials.
+  - 3: a receiver on the owner's side.
+  - 4: value-carrying private bundles.
+  - 5: a player's report gains the GM's sections.
+  - 6: a load-failure recorder.
+  - 7: a scene picture.
+- **Open owner questions, each with the default the plan proceeds on.**
+  - Q1: a Discord destination to name. Default: none; the window offers
+    Copy, Save and GitHub.
+  - Q2: a receiver (bot or relay) on the owner's side. Default: no. It
+    blocks slice 3.
+  - Q3: may a private bundle carry a held edit's two values? Default: no. It
+    blocks slice 4.
+  - Q5: who may report? Default: any seat sends a problem or a suggestion,
+    and a correction is GM only.
+  - The plan's Q4 asked to edit the triage skill in `acks-module-template`.
+    That skill is now this repo's `.claude/skills/acks-bug-triage/`, so it
+    no longer applies.
+- **The strongest objection, rated strong:** without Q1 and Q2 answered, it
+  is still not "as easy as a PM", and slice 1 organizes each bundle but no
+  queue of them.
