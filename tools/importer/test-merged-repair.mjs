@@ -7,9 +7,10 @@
  * is invented. No Foundry.
  */
 import assert from "node:assert";
-import { decides, coversFigure, heldEdit } from "../../scripts/importer/held-edits.mjs";
+import { decides, coversFigure, heldEdit, playStamp, actorChange } from "../../scripts/importer/held-edits.mjs";
 import { mergedRepair, mergedStep, secondPass, uniqueEdits } from "../../scripts/importer/merged-repair.mjs";
-import { mergedTally, repairWrite } from "../../scripts/importer/refresh.mjs";
+import { mergedTally, repairWrite, countRepair } from "../../scripts/importer/refresh.mjs";
+import { bookText } from "../../scripts/importer/prose.mjs";
 import { marketProfileUpdate } from "../../scripts/importer/market-profile-binding.mjs";
 
 let pass = 0;
@@ -203,6 +204,123 @@ function scope({ answer = true, editedBy = { "doc.a": "Judge text" } } = {}) {
   ok("a type refusal under a tally that can recreate is handed to it", asked.join() === "Item.typ0000000001,weapon" && out.recreated?.type === "weapon", JSON.stringify(out));
   const bare = await repairWrite(doc, built, {}, mergedTally("keep"));
   ok("and stays a refusal where the tally cannot", bare.refused === "type");
+}
+
+/* --- a library document is reset whole: its name and picture are listed on pass one, written on pass two --- */
+{
+  const stored = { name: "Hall", img: "icons/old.webp", type: "monster", system: { ac: { value: 5 } } };
+  const built = { name: "Great Hall", img: "modules/fixture/art/hall.png", type: "monster", system: { ac: { value: 6 } } };
+  const doc = () => {
+    const d = { uuid: "Compendium.fixture.shelf.Actor.lib1", name: stored.name, toObject: () => structuredClone(stored), updates: [], async update(u) { d.updates.push(u); } };
+    return d;
+  };
+  const first = doc();
+  const one = mergedTally("keep");
+  await repairWrite(first, built, {}, one);
+  ok("pass one lists the name and the picture and writes neither", one.edits.map((e) => e.path).join() === "name,img" && !("name" in first.updates[0]) && !("img" in first.updates[0]), JSON.stringify(first.updates));
+  const second = doc();
+  const two = mergedTally({ take: new Set(), pregens: new Map(), all: "take" });
+  await repairWrite(second, built, {}, two);
+  ok("a decision that takes all writes both, and holds nothing", second.updates[0].name === "Great Hall" && second.updates[0].img === "modules/fixture/art/hall.png" && two.edits.length === 0, JSON.stringify(second.updates));
+  let listed = null;
+  const log = [];
+  const pass = async (tally) => {
+    const d = doc();
+    await repairWrite(d, built, {}, tally);
+    log.push(secondPass(tally) ? 2 : 1);
+    return { scope: "invented" };
+  };
+  const out = await mergedRepair({ pass, choose: async (edits) => ((listed = edits), { take: new Set(edits.map((e) => e.key)), pregens: new Map(), all: "take" }) });
+  ok("the chooser is handed the reset's lines, and applying them runs pass two", listed?.length === 2 && log.join() === "1,2", log.join());
+  ok("and they are counted taken", out.taken === 2 && out.held === 0, JSON.stringify([out.taken, out.held]));
+}
+
+/* --- an actor changed since its import is held back on pass one and answered on pass two --- */
+{
+  const page = bookText(["The book's passage."], "XX p.9", { id: "def.monster.test", book: "xx", page: 11 });
+  const built = { type: "monster", name: "Brute", system: { details: { biography: page }, hp: { max: 9 } } };
+  const policy = { prose: ["details.biography"] };
+  const JUDGE = "<p>The Judge's own note.</p>";
+  /** A library actor: `stored` is what it holds, `stampOf` the data its recorded stamp was taken from (none: unstamped). */
+  const actor = (n, stored, stampOf = null) => {
+    const data = { name: "Brute", type: "monster", system: { details: { biography: page }, hp: { max: 9 } }, ...stored };
+    const d = {
+      documentName: "Actor", type: "monster", uuid: `Compendium.fixture.shelf.Actor.mon${n}`, name: data.name,
+      flags: { "acks-extras": { cookbook: { id: `zz.monster.${n}` }, ...(stampOf ? { playStamp: playStamp(stampOf) } : {}) } },
+      toObject: () => structuredClone(data), updates: [], async update(u) { d.updates.push(u); },
+    };
+    return d;
+  };
+  const asking = (decision = "keep") => Object.assign(mergedTally(decision), { asking: true });
+  const hp = (max, biography = page) => ({ system: { details: { biography }, hp: { max } } });
+  const pristine = actor(1, {});
+  const played = actor(2, hp(30), { name: "Brute", ...hp(9) });
+  const judged = actor(3, hp(9, JUDGE));
+  const renamed = actor(4, { name: "Big Brute" }, { name: "Big Brute", ...hp(9) });
+  const stampedDrift = actor(5, {}, { name: "Brute", system: { hp: { max: 1 } } });
+  ok("a stamp that moved is a change; an unstamped actor with no edit is not", actorChange({ stamp: "x", data: pristine.toObject(), edits: [] }).moved && !actorChange({ data: pristine.toObject(), edits: [] }).changed);
+  ok("a name or picture alone is no edit that counts", !actorChange({ data: pristine.toObject(), edits: [{ path: "name" }, { path: "img" }] }).changed && actorChange({ data: pristine.toObject(), edits: [{ path: "system.x" }] }).edits === 1);
+
+  const one = asking();
+  for (const a of [pristine, played, judged, renamed, stampedDrift]) countRepair(one, await repairWrite(a, built, policy, one));
+  ok("pass one writes an unchanged actor, and one whose only difference is its name", pristine.updates.length === 1 && renamed.updates.length === 1, JSON.stringify([pristine.updates.length, renamed.updates.length]));
+  ok("it holds back an actor whose stamp moved, and one holding an edit of its own", played.updates.length === 0 && judged.updates.length === 0 && stampedDrift.updates.length === 0);
+  ok("each is listed once, with its edit count and whether it has no record",
+    one.pregens.map((r) => r.uuid.split(".").pop()).join() === "mon2,mon3,mon5" && one.pregens[1].edits === 1 && one.pregens[1].unstamped === true && !one.pregens[0].unstamped && one.pregens[0].moved === true, JSON.stringify(one.pregens));
+  ok("and a held-back actor counts neither written nor refused", one.replaced === 2 && one.refused === 0, JSON.stringify([one.replaced, one.refused]));
+  ok("a pass that is not asking writes a changed actor as it always did", await (async () => {
+    const t = mergedTally("keep");
+    const a = actor(6, hp(30), { system: { hp: { max: 1 } } });
+    await repairWrite(a, built, policy, t);
+    return a.updates.length === 1 && !t.pregens;
+  })());
+
+  /** A pass-two tally answering by `answers`, with a copy keeper that records what it kept. */
+  const second = (answers) => {
+    const t = Object.assign(mergedTally({ take: new Set(), pregens: new Map(answers), all: "take" }), { answered: true, steps: new Set(["actors"]) });
+    t.keptDocs = [];
+    t.keepCopy = async (doc) => (t.keptDocs.push(doc.uuid), { uuid: `${doc.uuid}.copy` });
+    return t;
+  };
+  const a2 = actor(2, hp(30), { system: { hp: { max: 1 } } });
+  const a3 = actor(3, hp(9, JUDGE));
+  const a7 = actor(7, hp(9, "<p>Another note.</p>"));
+  const a8 = actor(8, {});
+  const two = second([[a2.uuid, "restore"], [a3.uuid, "leave"], [a7.uuid, "rewrite"]]);
+  for (const a of [a2, a3, a7, a8]) countRepair(two, await repairWrite(a, built, policy, two));
+  ok("keep a copy: the copy is made first, then the actor is written whole, in place", two.keptDocs.join() === a2.uuid && a2.updates.length === 1 && two.kept.join() === `${a2.uuid}.copy` && two.restored === 1);
+  ok("leave: nothing is written and nothing counted", a3.updates.length === 0);
+  ok("reset: the actor is written whole, the edit it held replaced by the book's", a7.updates.length === 1 && a7.updates[0].system.details.biography.includes("The book's passage.") && two.rewritten === 1 && two.edits.length === 0);
+  ok("an actor pass one did not list is written as before, and the answers count what was written", a8.updates.length === 1 && two.replaced === 3, String(two.replaced));
+  const refusing = second([[a2.uuid, "restore"]]);
+  refusing.keepCopy = async () => null;
+  const a9 = actor(2, hp(30), { system: { hp: { max: 1 } } });
+  await repairWrite(a9, built, policy, refusing);
+  ok("a copy that is refused leaves the actor whole, counted refused", a9.updates.length === 0 && refusing.pregenRefused === 1);
+
+  let offered = null;
+  const log = [];
+  const docs = [actor(2, hp(30), { system: { hp: { max: 1 } } }), actor(1, {})];
+  const pass = async (tally) => {
+    await mergedStep(tally, "actors", async () => {
+      log.push(secondPass(tally) ? 2 : 1);
+      for (const d of docs) countRepair(tally, await repairWrite(d, built, policy, tally));
+    });
+    return { scope: "invented" };
+  };
+  const out = await mergedRepair({
+    pass,
+    makeTally: (d) => Object.assign(mergedTally(d), { keepCopy: async (doc) => ({ uuid: `${doc.uuid}.copy` }) }),
+    choose: async (edits, more) => ((offered = more.pregens), { take: new Set(), pregens: new Map([[more.pregens[0].uuid, "restore"]]), all: "take" }),
+  });
+  ok("a step that listed only a changed actor runs again on pass two", offered?.length === 1 && log.join() === "1,2", log.join());
+  ok("the result counts the copy and the actor written over", out.restored === 1 && out.kept.length === 1 && out.pregens === 1, JSON.stringify([out.restored, out.kept, out.pregens]));
+  ok("and an actor a repair wrote lists nothing the next time", await (async () => {
+    const t = asking();
+    const again = actor(10, {}, { name: "Brute", ...hp(9) });
+    await repairWrite(again, built, policy, t);
+    return !t.pregens && again.updates.length === 1;
+  })());
 }
 
 /* --- coversFigure: a figure no stamp covers --- */

@@ -501,7 +501,9 @@
   padding: 0 var(--acks-sp-1);
 }
 
-.acks-extras-held-pregen {
+.acks-extras-held-pregen,
+.acks-extras-held-bulk,
+.acks-extras-held-copy {
   display: flex;
   gap: var(--acks-sp-2);
   align-items: center;
@@ -509,7 +511,9 @@
   padding: var(--acks-sp-1) 0;
 }
 
-.acks-extras-held-pregen > span {
+.acks-extras-held-pregen > span,
+.acks-extras-held-bulk > span,
+.acks-extras-held-copy > span {
   min-width: 0;
 }
 

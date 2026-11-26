@@ -7,6 +7,7 @@ import { blockDigest, bookTextBlock, editedInBlocks } from "../prose.mjs";
 import { answersFor, claimIds, rowBlockPatch } from "../place-pair.mjs";
 import {
   actorPolicy, decidedPolicy, handWrittenProse, refreshImported, policyFor, countRepair, unrepaired, withBlockSums,
+  gateChangedActor,
 } from "../refresh.mjs";
 import { coversFigure, decides, heldEdit } from "../held-edits.mjs";
 import { libraryPackLabel, findLibraryPack, isWorldCopy } from "../../lib/library.mjs";
@@ -233,6 +234,22 @@ function rewriteTarget(cls, data) {
 }
 
 /**
+ * Thrown by a write over an actor a merged repair holds back (`gateChangedActor`),
+ * so the importer that asked for the create stops before its later writes reach
+ * the held document. A caller that runs importers under a rewrite lets it end
+ * the entry quietly (`isDeferral`).
+ */
+export class DeferredActor extends Error {
+  constructor() {
+    super("actor held back by the repair");
+    this.name = "DeferredActor";
+  }
+}
+
+/** Whether `err` is a write held back for the Judge's answer (`DeferredActor`). */
+export const isDeferral = (err) => err instanceof DeferredActor;
+
+/**
  * Write `data`, the build an importer was about to create, over the document
  * that already holds its id, and count it. A document met twice is written
  * once; one whose write is refused stays as it was. A build of another
@@ -252,10 +269,11 @@ async function rewriteHeld(held, data) {
     const cite = stamp?.cite || (stamp?.id ? cookbookEntry(stamp.id)?.entry?.cite : "") || "";
     // A place's notes are its prose: text a Judge wrote beside the stamped block is an edit.
     const guarded = data?.system?.notes !== undefined ? { ...policy, prose: [...policy.prose, "notes"] } : policy;
+    if ((await gateChangedActor(held, data, guarded, tally, cite)) === "skip") throw new DeferredActor();
     const { build, retract } = heldRoster(held, data, guarded.retract, cite);
-    const decided = decidedPolicy(held.toObject(), build, { ...guarded, retract }, { decision: rewriteScope.decision, uuid: held.uuid, cite });
+    const decided = decidedPolicy(held.toObject(), build, { ...guarded, retract }, { decision: rewriteScope.decision, uuid: held.uuid, cite, library: true });
     if (decided.edits.length) (tally.edits ??= []).push(...decided.edits);
-    plan = await refreshImported(held, build, decided.policy);
+    plan = await refreshImported(held, build, { ...decided.policy, beforeWrite: tally.snapshot });
   }
   if (plan?.refused === "type" && typeof tally.recreate === "function") plan = await tally.recreate(held, data);
   countRepair(tally, plan);

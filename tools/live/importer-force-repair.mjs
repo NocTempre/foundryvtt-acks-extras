@@ -7,8 +7,8 @@
  *     the Player seat seeing it alone), with "The Books tab"'s panel;
  *   - "Repair in place", the merged repair over a Judge's description on the
  *     run's own items of the book `cat` (its confirm answered No, then Yes with
- *     the choice answered Keep all, then Yes with the one edit ticked and
- *     applied, then Yes with nothing held), and every kind's confirm answered No;
+ *     the choice closed, then Yes with the choice applied, then Yes with
+ *     nothing held), and every kind's confirm answered No;
  *   - "Rebuild or repair an adventure book", its Repair answered No, and the
  *     manager holding no mode select;
  *   - "The import manager", step 3 (the Import tab's bar, and Repair everything
@@ -210,7 +210,7 @@ const P = {
     const root = H.root(app);
     const rows = [...root.querySelectorAll(".acks-extras-held-row")].map((row) => ({
       path: row.querySelector(".acks-extras-held-path code")?.textContent ?? null,
-      key: row.querySelector("input[name='take']")?.value ?? null,
+      box: !!row.querySelector("input[type='checkbox']"),
       unstamped: !!row.querySelector(".acks-extras-held-unstamped"),
       tips: [...row.querySelectorAll(".acks-extras-held-value")].map((v) => (v.dataset.tooltipText ?? "").length > 0),
     }));
@@ -228,16 +228,13 @@ const P = {
       resizable: !!root.querySelector(".window-resize-handle"),
     };
   },
-  /** The open choice answered by its own button, `tick` the take boxes ticked first. */
-  choose: async ({ id, action, tick = [] }) => {
+  /** The open choice answered by its own button, or closed (`action: "close"`, the way a Judge dismisses it). */
+  choose: async ({ id, action }) => {
     const H = globalThis.__fr;
     const app = foundry.applications.instances.get(id);
     const root = H.root(app);
-    for (const box of root.querySelectorAll("input[name='take']")) {
-      box.checked = tick.includes(box.value);
-      box.dispatchEvent(new Event("change", { bubbles: true }));
-    }
-    root.querySelector(`button[data-action='${action}']`).click();
+    if (action === "close") await app.close();
+    else root.querySelector(`button[data-action='${action}']`).click();
     await H.poll(() => !app.rendered);
     return !app.rendered;
   },
@@ -695,35 +692,34 @@ try {
   const afterNo = await run(gm, P.shape, { uuid: subject });
   check("answered No, nothing is written and no choice is put: the note stands, modifiedTime has not moved, the observer holds nothing", afterNo.judged && afterNo.modified === edited.modified && writes.length === 0 && flight.result === null, { modified: afterNo.modified === edited.modified, writes: writes.length });
 
-  // Yes, then Keep all: the note stays, the price comes back.
-  const editKey = `${subject}#system.description`;
+  // Yes, then close the choice: the note stays, the price comes back.
   pick = await run(gm, P.pickEntries, { ids: mineIds });
   said = await run(gm, P.answer, { before: pick.before, yes: true });
   // Measured from before the confirm: a quick first pass can put the choice up before the confirm's close is read.
   let choice = await run(gm, P.chooser, { before: pick.before });
   note("choice", choice);
-  check("Yes puts the choice: one frame for the run's edited item, its description row with a take box keyed by the edit, both values carrying a tooltip", choice.found && choice.title && choice.docs === 1 && choice.rows.length === 1 && choice.rows[0].path === "system.description" && choice.rows[0].key === editKey && choice.rows[0].tips.every(Boolean) && choice.rows[0].tips.length === 2, choice.rows);
-  check("the choice offers Apply, Take all and Keep all, scrolls in its body and resizes", same(choice.buttons, ["apply", "takeAll", "keepAll"]) && ["auto", "scroll"].includes(choice.scroller) && choice.resizable, { buttons: choice.buttons, scroller: choice.scroller, resizable: choice.resizable });
+  check("Yes puts the choice: one frame for the run's edited item, its description row read-only (no take box), both values carrying a tooltip", choice.found && choice.title && choice.docs === 1 && choice.rows.length === 1 && choice.rows[0].path === "system.description" && !choice.rows[0].box && choice.rows[0].tips.every(Boolean) && choice.rows[0].tips.length === 2, choice.rows);
+  check("the choice offers Apply alone, scrolls in its body and resizes", same(choice.buttons, ["apply"]) && ["auto", "scroll"].includes(choice.scroller) && choice.resizable, { buttons: choice.buttons, scroller: choice.scroller, resizable: choice.resizable });
   if (process.env.SHOTS === "1" && choice.found) note("plate", await gm.shot(plate("importer-repair-choice.png"), `#${choice.id}`));
-  await run(gm, P.choose, { id: choice.id, action: "keepAll", tick: [editKey] });
+  await run(gm, P.choose, { id: choice.id, action: "close" });
   flight = await run(gm, P.flight);
-  note("Keep all", { result: flight.result && { mode: flight.result.mode, replaced: flight.result.replaced, taken: flight.result.taken, held: flight.result.held, refused: flight.result.refused } });
+  note("closed", { result: flight.result && { mode: flight.result.mode, replaced: flight.result.replaced, taken: flight.result.taken, held: flight.result.held, refused: flight.result.refused } });
   const afterKeep = await run(gm, P.shape, { uuid: subject });
   const keptText = flight.result ? await run(gm, P.expected, { key: "ACKS-IMPORTER.ui.repairMergedDone", data: { replaced: flight.result.replaced, taken: flight.result.taken, held: flight.result.held, recreated: flight.result.recreated, refused: flight.result.refused } }) : null;
-  check("Keep all, though the box was ticked, takes nothing: the note stands and is still held, the price is the page's again", flight.result?.mode === "repair" && flight.result.taken === 0 && flight.result.held === 1 && afterKeep.judged && afterKeep.cost === fresh.cost, { taken: flight.result?.taken, held: flight.result?.held, judged: afterKeep.judged, cost: afterKeep.cost === fresh.cost });
+  check("closing the choice takes nothing: the note stands and is still held, the price is the page's again", flight.result?.mode === "repair" && flight.result.taken === 0 && flight.result.held === 1 && afterKeep.judged && afterKeep.cost === fresh.cost, { taken: flight.result?.taken, held: flight.result?.held, judged: afterKeep.judged, cost: afterKeep.cost === fresh.cost });
   check("the notice reads Repaired in place with the counts", flight.notes.includes(keptText), flight.notes.length);
 
-  // Yes, then the one edit ticked and Apply: the note goes; id, folder, owners and quantity stay.
+  // Yes, then Apply: the note goes, the library item reset whole; id, folder, owners and quantity stay.
   pick = await run(gm, P.pickEntries, { ids: mineIds });
   said = await run(gm, P.answer, { before: pick.before, yes: true });
   choice = await run(gm, P.chooser, { before: pick.before });
   note("choice again", { found: choice.found, open: choice.open ?? null });
   if (!choice.found) throw new Error(`the second choice never opened: ${JSON.stringify(choice.open)}`);
-  await run(gm, P.choose, { id: choice.id, action: "apply", tick: [editKey] });
+  await run(gm, P.choose, { id: choice.id, action: "apply" });
   flight = await run(gm, P.flight);
   note("take one", { result: flight.result && { replaced: flight.result.replaced, taken: flight.result.taken, held: flight.result.held, refused: flight.result.refused } });
   const afterTake = await run(gm, P.shape, { uuid: subject });
-  check("the edit ticked and applied is taken and no longer held", flight.result?.taken === 1 && flight.result.held === 0, { taken: flight.result?.taken, held: flight.result?.held });
+  check("the edit listed and applied is taken and no longer held", flight.result?.taken === 1 && flight.result.held === 0, { taken: flight.result?.taken, held: flight.result?.held });
   check("the Judge's description is replaced: the build's text again, the note gone", !afterTake.judged && afterTake.textLength === fresh.textLength, { judged: afterTake.judged, textLength: afterTake.textLength === fresh.textLength });
   check("the document keeps its id, folder and owners (read back)", afterTake.id === edited.id && afterTake.folder === edited.folder && same(afterTake.ownership, edited.ownership), { id: afterTake.id === edited.id, folder: afterTake.folder === edited.folder, owners: same(afterTake.ownership, edited.ownership) });
   check("what play set is kept: the quantity is still 3", afterTake.quantity === 3, afterTake.quantity);

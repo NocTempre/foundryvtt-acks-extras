@@ -535,4 +535,29 @@ check("a stamped block alone is no edit", decidedPolicy({ ...judgedSource, syste
   check("data with no cookbook stamp, or no block, is returned as it came", withBlockSums(bare) === bare && withBlockSums({ ...data, system: { description: "<p>Plain.</p>" } }).flags[M].cookbook.sums === undefined);
 }
 
+/* --- a library document's name and picture are edits of a reset, and are written only where taken --- */
+{
+  const source = { name: "Hall", img: "icons/old.webp", type: "monster", system: { ac: { value: 5 } } };
+  const built = { name: "Great Hall", img: "modules/fixture/art/hall.png", type: "monster", system: { ac: { value: 6 } } };
+  const held = decidedPolicy(source, built, {}, { uuid: "Actor.lib1", library: true });
+  check("a library document's differing name and picture are held as edits, in that order", held.edits.map((e) => e.path).join() === "name,img");
+  check("each names what the document holds and what the build gives", held.edits[0].current === "Hall" && held.edits[0].page === "Great Hall" && held.edits[1].page === "modules/fixture/art/hall.png");
+  const heldPlan = refreshPlan(source, built, held.policy);
+  check("kept, neither is written, while the system fields are", !("name" in heldPlan.update) && !("img" in heldPlan.update) && heldPlan.update.system.ac.value === 6);
+  const taken = decidedPolicy(source, built, {}, { uuid: "Actor.lib1", library: true, decision: { all: "take" } });
+  const takenPlan = refreshPlan(source, built, taken.policy);
+  check("taken, both are written and neither is left standing", taken.edits.length === 0 && takenPlan.update.name === "Great Hall" && takenPlan.update.img === "modules/fixture/art/hall.png");
+  const oneKey = decidedPolicy(source, built, {}, { uuid: "Actor.lib1", library: true, decision: { take: new Set(["Actor.lib1#name"]) } });
+  const onePlan = refreshPlan(source, built, oneKey.policy);
+  check("a name alone taken writes the name and holds the picture", onePlan.update.name === "Great Hall" && !("img" in onePlan.update) && oneKey.edits.map((e) => e.path).join() === "img");
+  const noArt = decidedPolicy(source, { ...built, img: undefined }, {}, { uuid: "Actor.lib1", library: true, decision: { all: "take" } });
+  check("a build with no picture writes none and never a blank", !("img" in refreshPlan(source, { ...built, img: undefined }, noArt.policy).update) && noArt.edits.length === 0);
+  const same = decidedPolicy({ ...source, name: "Great Hall" }, built, {}, { uuid: "Actor.lib1", library: true });
+  check("a name the build matches is no edit", same.edits.map((e) => e.path).join() === "img");
+  const plain = decidedPolicy(source, built, {}, { uuid: "Actor.lib1" });
+  check("without `library` the name and picture stay out of it, as before", plain.edits.length === 0 && !("name" in refreshPlan(source, built, plain.policy).update));
+  const cls = decidedPolicy(source, built, REPAIR.class, { uuid: "Item.c1", library: true });
+  check("a library class's name is held like any other, though its policy writes the name", !("name" in refreshPlan(source, built, cls.policy).update) && cls.edits[0].path === "name");
+}
+
 console.log(`test-refresh: ${pass} passed`);

@@ -670,8 +670,8 @@ tab's **Repair** button.
    *Observable:* the confirm, titled Repair in place, counts the documents by
    kind and says the edited Adventure is written anew; answer Yes. If the
    repair held an edit or lists a pregenerated character, the choice opens:
-   answer every character *Leave it as it stands* and press *Keep every edit
-   of mine*.
+   answer every actor *Leave it as it stands* and close the choice (a closed
+   choice takes nothing).
    After it, the Adventure's `flags.acks-extras.cookbook.writtenAt` is fresh
    and the description edit is gone; no place, journal, table or item was
    deleted (same ids, same `_stats.createdTime`); the scene still carries the
@@ -793,8 +793,8 @@ flag before step 1.
    *Observable:* the choice opens (titled *Your edits and the book*) with a
    fixture edited as in step 2 listed, its two values each carrying a
    tooltip, and the character with its note. Set the character to *Leave it
-   as it stands* and press *Keep every edit of mine*: the edit stands and is
-   still held, and the notice counts the places written.
+   as it stands* and close the choice: the edit stands and is still held, and
+   the notice counts the places written.
 
 ### Teardown
 
@@ -942,8 +942,33 @@ a confirm titled *Repair in place* that counts what it will write over; where
 the run held an edit a Judge made to what the import wrote, or met a
 pregenerated character, *Your edits and the book* opens next; then a notice
 counts what was written over, what was taken, what is still held and what was
-left. Steps 2–7 answer that choice **Keep every edit of mine**, which leaves
-the documents as the old *Repair* did.
+left. Steps 2–7 close that choice, which answers keep: every listed edit
+stands and every actor is left.
+
+**What a Judge sees in the choice.** A library document is reset whole, so
+each edit is a read-only line (field, *Yours*, *The book's*) and the one
+button is *Apply these choices*; it takes every line. The name and the picture
+are lines of their own (paths `name` and `img`), listed where the build gives
+one the document does not hold; an actor's picture is the cached art file, and
+where none is on disk the actor's own stands. A frame *Changed in the library
+since its import* lists each creature, NPC, template or family that has
+changed since it was imported (its play stamp moved, or it holds an edit other
+than name or picture; one with no stamp is judged by its edits alone) and
+every pregenerated character, with a select (*Keep a copy, then reset it*,
+the default, *Leave it as it stands*, *Reset it*); *For every actor with no
+record:* sets the rows marked no-record. Such an actor is not written on pass
+one. A frame *Copies outside the library* lists each world Actor or Item
+whose `_stats.compendiumSource` is a library document the repair wrote and
+that still holds, as the library had them, fields the repair changed; each has
+an unticked *Bring up to the library* box, the field paths in the note's
+tooltip. Drive it as `tools/live/importer-force-repair.mjs` does: the choice's own
+button, `select[name='pregen']` rows (a row with no record carries
+`data-unstamped`), `select[name='bulk']` (its change sets those rows) and
+`input[name='copy']`. Closing the choice with `app.close()` is the Judge's
+dismissal. A fixture for the copies frame: `game.items.fromCompendium` or a
+drag of a library document into the sidebar (it carries `compendiumSource`),
+edit one field on it, repair, and tick the box; only the fields still as the
+library had them move.
 
 ### Fixtures
 
@@ -1030,7 +1055,7 @@ never a delete list.
    Tick the stack, the proficiency, the class and the monster, press
    *Reimport*.
    *Observable:* the confirm counts the four documents and carries the
-   monster, ability and class lines. Confirm, and Keep every edit of mine. The
+   monster, ability and class lines. Confirm, and close the choice. The
    notice counts five written over — the character's copy is the fifth — all
    five keeping the note.
    - the stack keeps its id, quantity 7 and note; its cost is the library's;
@@ -1044,8 +1069,7 @@ never a delete list.
      `minted` items remain and as many new ones stand, with the library's
      names; its image and token art are unchanged.
 4. **Rows, a variation, a vehicle table, a copy.** Tick the first trap, the
-   variation and the vehicle table's entry, *Reimport*, Keep every edit of
-   mine.
+   variation and the vehicle table's entry, *Reimport*, and close the choice.
    *Observable:* the trap's first row has the library's `damageFormula` back
    and still an `attackThrow` of 7 — a row field the binder does not write is
    the Judge's — and its other rows match the library's; the variation keeps
@@ -1084,15 +1108,14 @@ never a delete list.
    choice opens, and the note stands.
    Again, **Yes**.
    *Observable:* *Your edits and the book* opens with one frame for the
-   edited item and one row, its description, carrying a *Take the book's*
-   box; *Yours* and *The book's* each carry a tooltip (the page the build read
-   from, or that none was recorded); the buttons are *Apply these choices*,
-   *Take the book's for every edit* and *Keep every edit of mine*; the frame
-   scrolls and resizes. Tick the box and press Keep every edit of mine.
+   edited item and one row, its description, read-only (no box);
+   *Yours* and *The book's* each carry a tooltip (the page the build read
+   from, or that none was recorded); the one button is *Apply these choices*;
+   the frame scrolls and resizes. Close the choice.
    *Observable:* nothing is taken (`taken` 0, `held` 1): the note stands, the
    price is the page's again, and the notice reads *Repaired in place* with
    the counts.
-   Again, Yes, tick the box and press Apply these choices.
+   Again, Yes, and press Apply these choices.
    *Observable:* `taken` 1, `held` 0; the description is the build's again,
    the note gone; the item keeps its id, folder and owners, and its quantity
    of 3.
@@ -1109,7 +1132,7 @@ never a delete list.
     templates and families, and NPCs one at a time, answer
     **No**, then **Yes**. Before the Yes, edit one weapon's damage die and mark
     it equipped, change one language's taxonomy flag, and rename nothing; if
-    the choice opens, press Take the book's for every edit (a field the kind
+    the choice opens, press Apply these choices (a field the kind
     does not hold as the Judge's is written over without asking).
     *Observable:* no shelf is marked as having no in-place write; each Yes reports a replaced
     count; the weapon's die is the table's again and it is still equipped; the
@@ -3482,8 +3505,8 @@ price, all on documents the marker names.
 2. Again, answer **Yes**.
    *Observable:* *Your edits and the book* opens, listing each edit above by
    document and field, and the pregenerated character with its three
-   answers. Press **Take the book's for every edit** with the character
-   answered *Write the book over it*.
+   answers. Press **Apply these choices** with the character
+   answered *Reset it*.
    The result is `mode: "repair"` with replaced counts and `taken` equal to
    the edits listed; the edited price and the table's description are the
    build's again, as is a note in a stat-block monster's description; the
@@ -3496,7 +3519,7 @@ price, all on documents the marker names.
    out and a player's character are untouched. A place two books print has
    its row's block written in place (the recipe "An adventure book's repair
    writes places in place, and holds a Judge's edits").
-   The same run answered **Keep every edit of mine** keeps the notes, the
+   The same run with the choice closed keeps the notes, the
    place and the character as they were, and lists them again on the next
    repair.
 3. Player seat: open Manage Imports.
@@ -3854,7 +3877,7 @@ kills the run part-way.
 3. The library's template of the family written with no Kit axis, no kit cell
    and the Role axis without its default, and the sidebar copy the same. Manage imports → Rebuild → the bestiary's pick → Go. *The confirm
    is titled Repair in place and carries the own-rows line once.* Answer Yes,
-   and Keep every edit of mine where the choice opens. A bestiary repair
+   and close the choice where it opens. A bestiary repair
    refills every held creature of the book: minutes, so poll the manager for
    its busy line to clear in short page calls. *One library template stands
    under the same id (no twin), with the current Role axis and a Kit axis and

@@ -5,6 +5,7 @@
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import { entryText, sumsUpdate } from "../prose.mjs";
 import { playStamp } from "../held-edits.mjs";
+import { stampPlay } from "../refresh.mjs";
 import { printedNameOf } from "../printed-name.mjs";
 import { recipeReadStamp } from "../ecology-recipe.mjs";
 import { BOOKS } from "../books.mjs";
@@ -18,7 +19,7 @@ import { lineOfData, data, ctx, cookbookEntry, bookOf, characterEntry } from "./
 import { readForImport } from "./read.mjs";
 import {
   packOptsFor, isRewriting, keepsJudgeProse, createDoc, importedIndex, claimImport, importedActor, importedIdSet,
-  primaryTypeOf, actorFolderFor, prepareFolders, IMPORT_CONCURRENCY, ensureItemFolder,
+  primaryTypeOf, actorFolderFor, prepareFolders, IMPORT_CONCURRENCY, ensureItemFolder, isDeferral,
 } from "./target.mjs";
 import { bindAbility, allAbilities, idForName, abilityNameIndex, loadedAbilityIndex, reportGuess } from "./abilities.mjs";
 import {
@@ -50,7 +51,7 @@ export async function importMany(ids, label) {
         const bookId = bookOf(found);
         const folder = await actorFolderFor(id, found);
         const actor = await importOne(bookId, id, folder?.id ?? null).catch(
-          (err) => (console.error(`${MODULE_ID} | import ${id}`, err), null),
+          (err) => (isDeferral(err) || console.error(`${MODULE_ID} | import ${id}`, err), null),
         );
         if (actor) done++;
         bar.step(found?.entry?.name ?? id);
@@ -140,6 +141,7 @@ export async function importOne(bookId, id, folderId) {
     });
   }
   await mintLeaderTemplate({ id, found, node, bound: { system, items, flags, prototypeToken }, extras, recipe, folder, bindDoc: session.doc, img: actor.img ?? "" });
+  await stampPlay(actor);
   return actor;
 }
 
@@ -222,6 +224,7 @@ async function importAdventureActor(bookId, id, folderId) {
   const unread = actor && kind === "kind.npc" ? unreadRecord(unreadOfStatline(sl), (path) => foundry.utils.getProperty(actor, path), found.entry.cite, earlier) : [];
   if (unread.length || earlier.length) await actor.update({ [`flags.${MODULE_ID}.extras.derived.unread`]: unread });
   await adventureActorArt(actor, session, id, found, node);
+  await stampPlay(actor);
   return actor;
 }
 

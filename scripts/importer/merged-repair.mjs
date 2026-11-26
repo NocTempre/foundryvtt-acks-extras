@@ -65,15 +65,20 @@ export function uniquePregens(pregens) {
  * @param {Parameters<typeof decides>[0]} [o.decision] the caller's word; given, nothing is asked
  * @param {(decision: unknown) => object} [o.makeTally] a pass's tally (`mergedTally`)
  * @param {(tally: object) => Promise<unknown>} [o.finish] runs once, after the last pass, with its tally
+ * @param {{offer: (tally: object) => Promise<object[]>|object[], bring: (uuids: Set<string>) => Promise<number>}} [o.copies]
+ *   the copies outside the library: `offer` lists those pass one left holding library fields, put to `choose`
+ *   as `more.copies`; `bring` writes the ones the answer ticks (`decision.copies`), after the last pass, and
+ *   resolves how many it brought
  * @returns {Promise<object|null|undefined>} pass one's result with the merged counts (`replaced`,
  *   `keptProse`, `refused` and `recreated` from the writes, with a character pass two could not act
  *   on counted refused (`pregenRefused`), `taken` the edits pass two wrote, `held`
  *   those still standing, `restored` and `rewritten` the characters pass two acted on, `pregens`
- *   those pass one listed), `kept` the uuids of the copies a restore kept, `edits` the edits still standing, `second` pass two's result, `after`
+ *   those pass one listed), `brought` the copies outside the library brought up to it, `kept` the uuids of the copies a restore kept, `edits` the edits still standing, `second` pass two's result, `after`
  *   what `finish` resolved to; pass one's null or undefined as it came
  */
-export async function mergedRepair({ pass, choose = async () => "keep", decision = null, makeTally = mergedTally, finish = null }) {
-  const first = makeTally(decision ?? "keep");
+export async function mergedRepair({ pass, choose = async () => "keep", decision = null, makeTally = mergedTally, finish = null, copies = null }) {
+  // A pass that asks holds back each actor that has changed (`gateChangedActor`); a caller's decision answers for them, so none is held.
+  const first = Object.assign(makeTally(decision ?? "keep"), { asking: decision === null });
   const one = await pass(first, { first: true });
   if (one === null || one === undefined) return one;
   const held = uniqueEdits(first.edits);
@@ -81,8 +86,9 @@ export async function mergedRepair({ pass, choose = async () => "keep", decision
   let second = null;
   let two = null;
   let chosen = decision ?? "keep";
-  if (decision === null && (held.length || pregens.length)) {
-    chosen = (await choose(held, { pregens })) ?? "keep";
+  const offered = decision === null && copies ? await copies.offer(first) : [];
+  if (decision === null && (held.length || pregens.length || offered.length)) {
+    chosen = (await choose(held, { pregens, copies: offered })) ?? "keep";
     const acts = held.some((e) => decides(chosen, e.key) === "take") || pregens.some((p) => pregenAnswer(chosen, p.uuid) !== "leave");
     if (acts) {
       // Built by `makeTally` and marked after, so a closure it holds counts into this tally.
@@ -90,6 +96,7 @@ export async function mergedRepair({ pass, choose = async () => "keep", decision
       two = await pass(second, { first: false });
     }
   }
+  const brought = chosen?.copies?.size && copies ? await copies.bring(chosen.copies) : 0;
   const standing = second ? uniqueEdits(second.edits) : held;
   const still = new Set(standing.map((e) => e.key));
   const taken = second ? held.filter((e) => !still.has(e.key) && decides(chosen, e.key) === "take").length : 0;
@@ -105,6 +112,7 @@ export async function mergedRepair({ pass, choose = async () => "keep", decision
     held: standing.length,
     edits: standing,
     pregens: pregens.length,
+    brought,
     restored: second?.restored ?? 0,
     rewritten: second?.rewritten ?? 0,
     pregenRefused: second?.pregenRefused ?? 0,

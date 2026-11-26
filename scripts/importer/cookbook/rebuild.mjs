@@ -11,6 +11,7 @@ import { repairCounts, mergedTally, countRepair, unrepaired } from "../refresh.m
 import { playStamp, pregenAnswer } from "../held-edits.mjs";
 import { mergedRepair, mergedStep, secondPass } from "../merged-repair.mjs";
 import { chooseHeldEditsDialog } from "../apps/held-edits-dialog.mjs";
+import { sharedFields, copyUpdate } from "../copy-offers.mjs";
 import {
   isPoiEntry, poiGroupOf, districtPlaceId, isRegionSite, isRegionOverview, regionPlaceId, keySpacesOf, isKeyedPlace,
   adventurePlaceId,
@@ -38,7 +39,7 @@ import {
 } from "./state.mjs";
 import {
   folderCache, packCache, packLabel, withRewrite, decisionOf, forgetImportedIndex, importedDocs, holdingLibrary,
-  deleteImported, importedActor, importedIdSet, actorEntriesAcrossBooks, familyMemberIds, ITEM_SHELF, shelfKeyOf,
+  deleteImported, importedActor, importedIdSet, actorEntriesAcrossBooks, familyMemberIds, ITEM_SHELF, shelfKeyOf, isDeferral,
 } from "./target.mjs";
 import { holdingReads } from "./read.mjs";
 import { refillMonster } from "./monster.mjs";
@@ -185,12 +186,83 @@ function repairKeepsLines(runs, { monsters = false } = {}) {
 /**
  * The tally a merged repair's pass writes under (`mergedTally`), with
  * `recreate` set: a build of another document type is made again under the
- * held document's id (`recreateUnderId`).
+ * held document's id (`recreateUnderId`), and `keepCopy`, which keeps a document
+ * under a new id before it is written over (`keepUnderNewId`).
  */
-function repairPassTally(decision) {
+function repairPassTally(decision, copies = null) {
   const tally = mergedTally(decision);
   tally.recreate = (doc, built) => recreateUnderId(tally, doc, built);
+  tally.keepCopy = (doc) => keepUnderNewId(doc);
+  if (copies) tally.snapshot = (doc) => copies.snapshot(doc);
   return tally;
+}
+
+/**
+ * The copies outside the library a merged repair can bring up to what it wrote:
+ * every top-level world Actor and Item whose `compendiumSource` or
+ * `duplicateSource` is the uuid of a library document. `snapshot` records a
+ * library document's data just before the repair first writes it, and only
+ * where a copy names it; `offer` lists each copy still holding, as the library
+ * had them, fields the write changed (`sharedFields`); `bring` writes those
+ * fields onto the copies ticked, from the library document as it stands then.
+ * A document written some way the repair does not route through
+ * `refreshImported`, and an actor held back until pass two, has no snapshot and
+ * is not offered.
+ */
+export function sidebarCopies() {
+  const before = new Map();
+  let index = null;
+  const copiesOf = (uuid) => {
+    index ??= new Map();
+    if (!index.size) {
+      for (const doc of [...(game.actors?.contents ?? []), ...(game.items?.contents ?? [])]) {
+        for (const source of new Set([doc._stats?.compendiumSource, doc._stats?.duplicateSource].filter(Boolean))) {
+          if (!index.has(source)) index.set(source, []);
+          index.get(source).push(doc);
+        }
+      }
+    }
+    return index.get(uuid) ?? [];
+  };
+  const rows = new Map();
+  return {
+    snapshot(doc) {
+      if (doc?.uuid && !before.has(doc.uuid) && copiesOf(doc.uuid).length) before.set(doc.uuid, doc.toObject());
+    },
+    async offer() {
+      rows.clear();
+      for (const [uuid, was] of before) {
+        const library = await fromUuid(uuid).catch(() => null);
+        if (!library) continue;
+        const now = library.toObject();
+        for (const copy of copiesOf(uuid)) {
+          const paths = sharedFields(copy.toObject(), was, now);
+          if (!paths.length) continue;
+          rows.set(copy.uuid, { uuid: copy.uuid, name: copy.name, library: { uuid, name: library.name }, paths });
+        }
+      }
+      return [...rows.values()];
+    },
+    async bring(uuids) {
+      let brought = 0;
+      for (const uuid of uuids) {
+        const row = rows.get(uuid);
+        const copy = row ? await fromUuid(uuid).catch(() => null) : null;
+        const library = row ? await fromUuid(row.library.uuid).catch(() => null) : null;
+        if (!copy || !library) continue;
+        // Read again, so a field the Judge changed since the list was drawn is not written over.
+        const paths = sharedFields(copy.toObject(), before.get(row.library.uuid), library.toObject());
+        if (!paths.length) continue;
+        try {
+          await copy.update(copyUpdate(paths, library.toObject()));
+          brought++;
+        } catch (err) {
+          console.error(`${MODULE_ID} | repair: ${copy.name} was not brought up to the library`, err);
+        }
+      }
+      return brought;
+    },
+  };
 }
 
 /**
@@ -308,7 +380,7 @@ export async function repairPregens(ids, actors, tally) {
 
 /** Say on the console that an API caller's `mode` picks nothing now: every repair is the merged one. */
 function ignoredMode(mode, fn) {
-  if (mode !== undefined) console.warn(`${MODULE_ID} | ${fn}: "mode" is ignored; it writes in place and holds every edit you made for you to keep or take.`);
+  if (mode !== undefined) console.warn(`${MODULE_ID} | ${fn}: "mode" is ignored; it writes in place, resets what you changed to the book's and puts a changed actor to you first.`);
 }
 
 /**
@@ -318,7 +390,8 @@ function ignoredMode(mode, fn) {
  */
 function reportMerged(result) {
   ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.repairMergedDone`, {
-    replaced: result.replaced, taken: result.taken, held: result.held, recreated: result.recreated, refused: result.refused,
+    replaced: result.replaced, taken: result.taken, held: result.held, copies: result.kept?.length ?? 0, brought: result.brought ?? 0,
+    recreated: result.recreated, refused: result.refused,
   }));
   if (result.refused) ui.notifications.info(game.i18n.localize(`${LANG_PREFIX}.ui.repairRefusedHint`));
   if (result.notOffered) ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.repairMergedNotOffered`, { n: result.notOffered }));
@@ -519,7 +592,7 @@ async function repairActors({ monsters = [], rewrites = [] }, actors, tally) {
   for (const held of passes) {
     await withRewrite({ held, tally, ...decisionOf(tally) }, async () => {
       for (const id of rewrites.filter((id) => held.has(id))) {
-        await importOne(bookOf(cookbookEntry(id)), id, null).catch((err) => console.error(`${MODULE_ID} | repair ${id}`, err));
+        await importOne(bookOf(cookbookEntry(id)), id, null).catch((err) => isDeferral(err) || console.error(`${MODULE_ID} | repair ${id}`, err));
       }
     });
   }
@@ -672,8 +745,10 @@ export const reimportableShelves = () =>
  */
 async function runMerged(pass, { decision = null, tally = null, finish = null, choose = null } = {}) {
   if (tally) return pass(tally, { first: !secondPass(tally) });
+  // One record of what the library held and who copies it, shared by both passes.
+  const copies = sidebarCopies();
   const result = await holdingReads(() =>
-    mergedRepair({ pass, decision, choose: choose ?? chooseHeldEditsDialog, makeTally: repairPassTally, finish }),
+    mergedRepair({ pass, decision, choose: choose ?? chooseHeldEditsDialog, makeTally: (d) => repairPassTally(d, copies), finish, copies }),
   );
   if (result) reportMerged(result);
   return result;

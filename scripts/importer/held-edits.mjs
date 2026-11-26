@@ -157,6 +157,24 @@ export function playStamp(data) {
 }
 
 /**
+ * Whether a library actor has changed since its import, as a merged repair's
+ * first pass judges it before writing: its play stamp (`playStamp`) moved, or
+ * it holds an edit of the Judge's other than its name or picture. An actor with
+ * no stamp (imported before the import recorded one) is judged by its edits
+ * alone, and is marked `unstamped`.
+ * @param {{stamp?: string, data: object, edits: {path: string}[]}} actor `stamp` the recorded
+ *   play stamp, `data` the actor's stored data (`toObject()`), `edits` the edits its reset
+ *   would hold (`decidedPolicy` under "keep", name and picture included)
+ * @returns {{changed: boolean, moved: boolean, unstamped: boolean, edits: number}} `edits` counts
+ *   the edits other than name and picture
+ */
+export function actorChange({ stamp, data, edits }) {
+  const held = (edits ?? []).filter((e) => e.path !== "name" && e.path !== "img").length;
+  const moved = !!stamp && stamp !== playStamp(data);
+  return { changed: moved || held > 0, moved, unstamped: !stamp, edits: held };
+}
+
+/**
  * What a repair offers by default for a pregenerated character (`PREGEN_ANSWERS`),
  * and why: `restore` when its play stamp (`playStamp`) moved since the import
  * recorded it, or when the import recorded none; `leave` when it still matches.

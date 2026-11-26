@@ -4,7 +4,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, DEFAULT_IMG } from "../constants.mjs";
 import { bookText, entryText, escapeText, nodeParagraphs } from "../prose.mjs";
-import { REPAIR, REFILL_STAT_PATHS, actorPolicy, repairWrite, asMinted } from "../refresh.mjs";
+import { REPAIR, REFILL_STAT_PATHS, actorPolicy, repairWrite, asMinted, stampPlay } from "../refresh.mjs";
 import { printedNameOf } from "../printed-name.mjs";
 import { BOOKS } from "../books.mjs";
 import { executeEntry, attackModel, convertName, frequencyOf, frequencyTextOf, stemNw } from "../executor.mjs";
@@ -879,9 +879,10 @@ export async function mintLeaderTemplate({ id, found, node, bound, extras, recip
       const build = { type: TEMPLATE_TYPE, name: label, system, flags: { [MODULE_ID]: { cookbook: { id: templateId, cite: found.entry.cite, leadersOf: id } } } };
       const plan = await repairWrite(held, build, { ...actorPolicy(build), name: true }, repair);
       if (plan?.refused) throw new Error(`the held template refused the write (${plan.refused})`);
+      if (!plan?.deferred) await stampPlay(held);
       return held;
     }
-    return await createDoc(Actor, {
+    const made = await createDoc(Actor, {
       name: label,
       type: TEMPLATE_TYPE,
       folder,
@@ -889,6 +890,8 @@ export async function mintLeaderTemplate({ id, found, node, bound, extras, recip
       system,
       flags: { [MODULE_ID]: { cookbook: { id: templateId, cite: found.entry.cite, leadersOf: id } } },
     });
+    await stampPlay(made);
+    return made;
   } catch (err) {
     console.warn(`${MODULE_ID} | ${id}: leader template not built.`, err);
     return null;
@@ -1239,6 +1242,7 @@ export async function importFamily(bookId, famId, folderId) {
     const portraits = new Set(options.map((o) => file(o.art)).filter(Boolean));
     if (actor.img !== want && (actor.pack || portraits.has(file(actor.img)))) await actor.update({ img: want });
   }
+  await stampPlay(actor);
   return actor;
 }
 
@@ -1410,6 +1414,7 @@ export async function importTemplate(bookId, id, folderId) {
       box: artInstr.box ?? null,
     });
   }
+  await stampPlay(actor);
   return actor;
 }
 
@@ -1448,10 +1453,14 @@ export async function refillMonster(actor, { whole = false, force = false, repai
     const typed = primaryTypeOf(node);
     // One tally for the creature and its leader template.
     const tally = repair && "decision" in repair ? repair : { force };
+    // The picture is the cached art file where one is on disk; with none found the actor's own stands.
+    const art = await ctx.cachedArt?.(id).catch(() => null);
     const plan = await repairWrite(
       actor,
       {
         type: actor.type,
+        name: printedNameOf(node, found.entry.name),
+        ...(art ? { img: art } : {}),
         system,
         ...(prototypeToken ? { prototypeToken } : {}),
         items,
@@ -1469,11 +1478,14 @@ export async function refillMonster(actor, { whole = false, force = false, repai
       tally,
     );
     if (plan.refused) return { ok: false, reason: plan.refused, book: bookId, name: found.entry.name };
+    // A creature the repair holds back for the Judge's answer is written nowhere, its leaders included.
+    if (plan.deferred) return { ok: true, deferred: true, book: bookId, name: found.entry.name, keptProse: [] };
     // Leaders are rebuilt from the same read, and minted where the world holds the creature without them.
     await mintLeaderTemplate({
       id, found, node, bound: { system, items, flags, prototypeToken }, extras, recipe,
       folder: actor.folder?.id ?? null, bindDoc: session.doc, img: actor.img ?? "", repair: tally,
     });
+    await stampPlay(plan.recreated ?? actor);
     return { ok: true, book: bookId, name: found.entry.name, keptProse: plan.keptProse };
   }
   for (const path of REFILL_STAT_PATHS) {
@@ -1482,6 +1494,8 @@ export async function refillMonster(actor, { whole = false, force = false, repai
     if (field) foundry.utils.setProperty(system, path, field.getInitialValue());
   }
   await actor.update({ system, ...(prototypeToken ? { prototypeToken } : {}) });
+  // The stats written here are the import's: a stamp already recorded moves with them.
+  if (actor.getFlag(MODULE_ID, "playStamp")) await stampPlay(actor);
   return { ok: true, book: bookId, name: found.entry.name };
 }
 

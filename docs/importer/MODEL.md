@@ -177,6 +177,17 @@ holds of its scope in place (`refreshImported`), under the id each document
 holds, imports what the world lacks, and deletes nothing first. A `mode` an
 API caller passes is ignored and named on the console (`ignoredMode`).
 
+**A library document is reset whole.** Everything a repair reaches is a library
+document (a copy dragged out of it is never reached, `isWorldCopy`), so its
+name and picture are written with the rest of the build (`decidedPolicy`'s
+`library`: held as the edits `name` and `img` on pass one, written where
+taken), a Judge's description or register row is an edit the dialog lists
+read-only, and Apply takes every one (`decisionFrom`'s `all: "take"`). The
+`keep` lists of `REPAIR` stay: they are play state. A Judge's own rows (keyed
+`_`) and embedded documents it made stay. An actor's picture is the cached art
+file where one is on disk and is otherwise not written. A decision an API
+caller passes is read as before: only what it takes is written.
+
 **Two passes** (`mergedRepair`, `merged-repair.mjs`, Foundry-free; `runMerged`
 in `cookbook/rebuild.mjs` drives it and reports it once). The scope asks its confirm
 (`confirmRepair`, titled `ui.repairMergedTitle`, `DialogV2.confirm` with
@@ -185,9 +196,14 @@ the decision "keep" (`mergedTally`): every writer writes what the page gives
 and holds each Judge's edit it meets in `tally.edits` (`heldEdit`: document,
 field, stored and page values, page reference, `unstamped` where the value
 predates its read stamp), and `repairPregens` lists each pregenerated
-character in `tally.pregens`. Where either list holds anything, the Judge
+character in `tally.pregens`; a pass that asks (`tally.asking`, a repair with
+no `decision`) also holds back each creature, NPC, template or family that has
+changed (`gateChangedActor`, `actorChange`: its play stamp moved, or it holds
+an edit other than name or picture; an actor with no stamp is judged by its
+edits alone) and lists it in `tally.pregens` with its edit count. Where
+either list, or a copy outside the library (`sidebarCopies`), holds anything, the Judge
 answers in the choice dialog (`chooseHeldEditsDialog`). A decision that takes
-no edit and leaves every character ends the repair there. Otherwise pass two
+no edit and leaves every actor ends the repair there. Otherwise pass two
 runs under it on a fresh tally, and only the steps pass one named
 (`mergedStep`, `tally.edited`), so a delete-and-reimport or a rules-table
 re-read is never run twice. The notice (`reportMerged`) counts what was
@@ -200,16 +216,40 @@ An API caller may answer in the Judge's place. `decision` (a word, `"keep"` or
 before anything is held, so one pass runs, which acts on no character.
 `choose(edits, {pregens})` answers as the dialog does, characters included.
 
+**An actor held back** answers on pass two from `decision.pregens`
+(`gateChangedActor`): `restore` keeps a copy first (`tally.keepCopy`,
+`keepUnderNewId`; the actor keeps its id and is written in place, its copy's
+uuid in `tally.kept`), `rewrite` writes it in place, `leave` writes nothing;
+a creature held back writes its leader template nowhere either. An actor pass
+one did not list is written. The import and every repair write record the play
+stamp after their last write (`stampPlay`), so a later repair tells a moved
+stamp from one as written. A pregenerated character keeps the path below.
+
+**Copies outside the library** (`sidebarCopies`, `copy-offers.mjs`). A
+top-level world Actor or Item whose `_stats.compendiumSource` or
+`duplicateSource` is a library document's uuid is a copy. `refreshImported`
+records that document's data just before its first write (`policy.beforeWrite`,
+`tally.snapshot`), only where a copy names it. After pass one each copy
+holding, as the snapshot had them, name, picture or `system` leaves the repair
+changed is offered (`sharedFields`; a copy with none is not listed), unticked.
+A tick writes those fields (`copyUpdate`) from the library document as it
+stands after the last pass, read again so a field the Judge changed since the
+list was drawn is skipped. Never an item or effect embedded in an actor. A
+library document written some way that does not go through
+`refreshImported`, and an actor held back until pass two, has no snapshot
+and is not offered.
+
 **The choice dialog** (`apps/held-edits-dialog.mjs`). One frame per document,
-a row per edit: the value the document holds beside the page's (a list or a
-strength table by its row count, prose without its markup, cut to a cell with
-the longer form in the tooltip), the unstamped mark, and a take box keyed by
-the edit. Each value's tooltip says where it came from: the document, or the
-page reference it was read from. A frame of pregenerated characters follows,
-each with its note and a select of `PREGEN_ANSWERS`. Apply takes the ticked
-edits; Take all and Keep all take every edit or none, and are offered only
-where edits are listed; every button reads the character selects. Closing
-answers `"keep"` and leaves every character.
+a read-only row per edit: the value the document holds beside the page's (a
+list or a strength table by its row count, prose without its markup, cut to a
+cell with the longer form in the tooltip) and the unstamped mark. Each value's
+tooltip says where it came from: the document, or the page reference it was
+read from. A frame of the actors held back follows, each with its note and a
+select of `PREGEN_ANSWERS`, and one select above them that sets every row with
+no record of its import (`applyBulk`); then the copies outside the library,
+each with an unticked box. Apply takes every edit and reads the selects and
+boxes. Closing answers `"keep"`: every edit stands, every actor is left, no
+copy is brought.
 
 **Pregenerated characters** (`repairPregens`). Pass one never writes a
 character the library holds; it lists it. A copy dragged out of the library, a

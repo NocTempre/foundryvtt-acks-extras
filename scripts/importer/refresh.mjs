@@ -18,7 +18,7 @@ import { TEMPLATE_TYPE } from "../lib/constants.mjs";
 import { REGISTER_ORIGIN } from "../lib/magic-vocab.mjs";
 import { blockSums, editedInBlocks, stripBookText } from "./prose.mjs";
 import { keepUnrenderedFields } from "../lib/sheet-rows.mjs";
-import { coversFigure, decides, heldEdit, readPath, sameValue } from "./held-edits.mjs";
+import { actorChange, coversFigure, decides, heldEdit, playStamp, readPath, sameValue } from "./held-edits.mjs";
 import { describeSpellEffect } from "../magic/describe.mjs";
 import { describeRecipePart } from "../monsters/recipe-describe.mjs";
 import { setPath } from "../lib/dotted-path.mjs";
@@ -144,8 +144,10 @@ export function withBlockSums(data) {
  * - `flags` — keys under the module's flags the binder owns.
  * - `top` — document-level keys the binder owns besides `system`.
  * - `minted` — embedded collections whose minted documents are replaced.
- * - `name` — write the build's name and image; every other kind keeps the
- *   document's own.
+ * - `name` — write the build's name and image whenever it differs; every other
+ *   kind keeps the document's own, except under a merged repair, where a library
+ *   document's name and picture are edits like any other (`decidedPolicy`'s
+ *   `library`).
  * - `rows: "replace"` — write array rows as built, without filling their
  *   unbuilt fields from the stored rows.
  * - `mergeByOrigin` — `{rows, retired, describe, root}` paths under the module's
@@ -356,10 +358,8 @@ export function refreshPlan(source, built, policy = {}) {
 
   const update = {};
   if (Object.keys(system).length) update.system = system;
-  if (policy.name) {
-    if (built?.name) update.name = built.name;
-    if (built?.img) update.img = built.img;
-  }
+  if ((policy.name || policy.takeName) && built?.name) update.name = built.name;
+  if ((policy.name || policy.takeImg) && built?.img) update.img = built.img;
   for (const key of top) if (built?.[key] !== undefined) update[key] = structuredClone(built[key]);
 
   // The provenance stamp is refreshed around its identity: which entry the
@@ -595,7 +595,8 @@ const EMBEDDED = { items: "Item", effects: "ActiveEffect" };
  *
  * @param {foundry.abstract.Document} doc an imported document, in a pack or in the world
  * @param {object} built a fresh build of its entry
- * @param {object} [policy] one of `REPAIR`
+ * @param {object} [policy] one of `REPAIR`; its `beforeWrite`, where it has one, is called with the
+ *   document just before the first write (a merged repair records what a library document held)
  * @returns {Promise<object>} the plan it wrote (`refreshPlan`'s shape); nothing
  *   is written when it is `refused`. A write Foundry rejects (a locked pack, an
  *   invalid value) is logged and answers `refused: "error"`, so one document
@@ -609,6 +610,7 @@ export async function refreshImported(doc, built, policy = {}) {
     if (field) foundry.utils.setProperty(plan.update, `system.${path}`, field.getInitialValue());
   }
   try {
+    await policy.beforeWrite?.(doc);
     if (Object.keys(plan.update).length) await doc.update(plan.update);
     for (const [collection, { remove, add }] of Object.entries(plan.replace)) {
       const type = EMBEDDED[collection];
@@ -684,14 +686,26 @@ const ROW_DESCRIBERS = Object.freeze({
  * @param {object} source the document's stored data (`toObject()`)
  * @param {object} built a fresh build of its entry
  * @param {object} policy the kind's policy (`REPAIR`, `actorPolicy`)
- * @param {{decision?: Parameters<typeof decides>[0], uuid?: string, cite?: string}} [opts]
+ * @param {{decision?: Parameters<typeof decides>[0], uuid?: string, cite?: string, library?: boolean}} [opts]
+ *   `library` makes the document's name and picture edits too: each the build gives that the
+ *   document does not hold is listed (paths `name` and `img`) and written only where the decision takes it
  * @returns {{policy: object, edits: ReturnType<typeof heldEdit>[]}} `policy` unforced, its guard
  *   narrowed to the kept edits; `edits` the edits left standing
  */
-export function decidedPolicy(source, built, policy, { decision = null, uuid = "", cite = "" } = {}) {
+export function decidedPolicy(source, built, policy, { decision = null, uuid = "", cite = "", library = false } = {}) {
   const unforced = { ...policy, force: false };
   const taken = new Set();
   const edits = [];
+  const identity = {};
+  if (library) {
+    for (const field of ["name", "img"]) {
+      const page = built?.[field];
+      if (!page || source?.[field] === page) continue;
+      const edit = heldEdit({ uuid, name: source?.name ?? "", path: field, current: source?.[field], page, cite });
+      if (decides(decision, edit.key) === "take") identity[field] = true;
+      else edits.push(edit);
+    }
+  }
   const plan = refreshPlan(source, built, unforced);
   for (const path of plan.keptProse) {
     const flag = path.startsWith("flags.");
@@ -743,9 +757,77 @@ export function decidedPolicy(source, built, policy, { decision = null, uuid = "
       proseFlags: (policy.proseFlags ?? []).filter((p) => !taken.has(`flags.${p}`)),
       takeRows,
       takeLeaves,
+      ...(library ? { name: false, takeName: !!identity.name, takeImg: !!identity.img } : {}),
     },
     edits,
   };
+}
+
+/** The actor types a merged repair puts to the Judge when one has changed: a creature, an NPC, and a template or family. */
+const GATED_ACTORS = new Set(["monster", TEMPLATE_TYPE]);
+
+/**
+ * Whether a merged repair writes a library actor now. Pass one of a repair that
+ * asks (`tally.asking`) holds back an actor that has changed since its import
+ * (`actorChange`) and lists it in `tally.pregens`, with its edit count and
+ * whether it has no stamp; an unchanged one is written. Pass two acts on each
+ * actor pass one listed as the decision answers it (`decision.pregens`):
+ * `leave` writes nothing; `rewrite` writes it in place; `restore` keeps a copy
+ * first (`tally.keepCopy`, its uuid listed in `tally.kept`), then writes in
+ * place, and where the copy is refused leaves the actor whole and counts it
+ * `pregenRefused`. An actor pass one did not list is written. Any other
+ * tally, document or actor type is written.
+ * @param {foundry.abstract.Document} doc the held document
+ * @param {object} built a fresh build of its entry
+ * @param {object} policy the kind's policy
+ * @param {object|null} tally
+ * @param {string} [cite] the page the build reads
+ * @returns {Promise<"write"|"skip">}
+ */
+export async function gateChangedActor(doc, built, policy, tally, cite = "") {
+  if (!tally || !("decision" in tally) || doc?.documentName !== "Actor") return "write";
+  if (!GATED_ACTORS.has(doc.type) || doc.flags?.[MODULE_ID]?.templatePart) return "write";
+  const uuid = doc.uuid ?? "";
+  if (tally.steps) {
+    if (!tally.decision?.pregens?.has?.(uuid)) return "write";
+    const answer = tally.decision.pregens.get(uuid);
+    if (answer === "rewrite") {
+      tally.rewritten = (tally.rewritten ?? 0) + 1;
+      return "write";
+    }
+    if (answer !== "restore") return "skip";
+    const copy = await tally.keepCopy?.(doc);
+    if (!copy) {
+      tally.pregenRefused = (tally.pregenRefused ?? 0) + 1;
+      return "skip";
+    }
+    (tally.kept ??= []).push(copy.uuid);
+    tally.restored = (tally.restored ?? 0) + 1;
+    return "write";
+  }
+  if (!tally.asking) return "write";
+  const source = doc.toObject();
+  const { edits } = decidedPolicy(source, built, policy, { decision: "keep", uuid, cite, library: true });
+  const change = actorChange({ stamp: doc.flags?.[MODULE_ID]?.playStamp, data: source, edits });
+  if (!change.changed) return "write";
+  (tally.pregens ??= []).push({
+    uuid, name: doc.name, id: doc.flags?.[MODULE_ID]?.cookbook?.id ?? "", changed: true, moved: change.moved, edits: change.edits,
+    ...(change.unstamped ? { unstamped: true } : {}),
+  });
+  return "skip";
+}
+
+/** The plan a write a merged repair holds back reports: nothing written, and `countRepair` counts nothing. */
+const DEFERRED = Object.freeze({ deferred: true, update: {}, retract: [], replace: {}, keptProse: [], keptRows: [], keptLeaves: [] });
+
+/**
+ * Record a document's play stamp (`playStamp`) after the last write to it, so a
+ * later repair tells an actor changed since from one as written.
+ * @param {foundry.abstract.Document|null} doc
+ */
+export async function stampPlay(doc) {
+  if (!doc?.update || !doc.toObject) return;
+  await doc.update({ [`flags.${MODULE_ID}.playStamp`]: playStamp(doc.toObject()) });
 }
 
 /**
@@ -766,13 +848,11 @@ export async function repairWrite(doc, built, policy, tally) {
   let plan;
   if (!tally || !("decision" in tally)) plan = await refreshImported(doc, built, policyFor(policy, tally));
   else {
-    const decided = decidedPolicy(doc.toObject(), built, policy, {
-      decision: tally.decision,
-      uuid: doc.uuid ?? "",
-      cite: built?.flags?.[MODULE_ID]?.cookbook?.cite ?? doc.flags?.[MODULE_ID]?.cookbook?.cite ?? "",
-    });
+    const cite = built?.flags?.[MODULE_ID]?.cookbook?.cite ?? doc.flags?.[MODULE_ID]?.cookbook?.cite ?? "";
+    if ((await gateChangedActor(doc, built, policy, tally, cite)) === "skip") return DEFERRED;
+    const decided = decidedPolicy(doc.toObject(), built, policy, { decision: tally.decision, uuid: doc.uuid ?? "", cite, library: true });
     if (decided.edits.length) (tally.edits ??= []).push(...decided.edits);
-    plan = await refreshImported(doc, built, decided.policy);
+    plan = await refreshImported(doc, built, { ...decided.policy, beforeWrite: tally.snapshot });
   }
   if (plan?.refused === "type" && typeof tally?.recreate === "function") return tally.recreate(doc, built);
   return plan;
@@ -791,7 +871,7 @@ export function unrepaired(tally, doc) {
 
 /** Count one `refreshImported` result, or a refusal given as a string, into a tally. */
 export function countRepair(tally, result) {
-  if (!tally) return;
+  if (!tally || result?.deferred) return;
   if (!result || typeof result === "string" || result.refused) tally.refused++;
   else {
     tally.replaced++;

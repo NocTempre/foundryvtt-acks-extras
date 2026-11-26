@@ -7,7 +7,7 @@
  * value is invented.
  */
 import assert from "node:assert";
-import { editGroups, valueView, decisionFrom, chooseHeldEditsDialog } from "../../scripts/importer/apps/held-edits-dialog.mjs";
+import { editGroups, valueView, decisionFrom, chooseHeldEditsDialog, applyBulk, actorNote } from "../../scripts/importer/apps/held-edits-dialog.mjs";
 import { decides, heldEdit, playStamp, pregenAnswer, pregenDefault } from "../../scripts/importer/held-edits.mjs";
 
 let pass = 0;
@@ -20,6 +20,10 @@ const edits = [
   heldEdit({ uuid: "Actor.a", name: "Room", path: "system.roster", current: [{ q: 5 }], page: [{ q: 2 }], cite: "ZZ 3", unstamped: true }),
   heldEdit({ uuid: "Item.b", name: "Lamp", path: "system.description", current: "<p>A note of the Judge's.</p>", page: "<p>Page text.</p>", cite: "ZZ 4" }),
   heldEdit({ uuid: "Actor.a", name: "Room", path: "name", current: "Hall", page: "Room", cite: "ZZ 3" }),
+];
+const copiesOffered = [
+  { uuid: "Actor.c1", name: "Sidebar Hero", library: { uuid: "Compendium.fixture.shelf.Actor.l1", name: "Hero" }, paths: ["name", "system.hp.max"] },
+  { uuid: "Item.c2", name: "My Lamp", library: { uuid: "Compendium.fixture.shelf.Item.l2", name: "Lamp" }, paths: ["system.cost"] },
 ];
 const pregens = [
   { uuid: "Actor.p1", name: "Hero", id: "zz.npc1", changed: true },
@@ -37,7 +41,8 @@ const pregens = [
   const long = valueView("x".repeat(400));
   ok("long text is cut for the cell and kept longer for the tooltip", long.text.length === 161 && long.text.endsWith("…") && long.tip.length === 400);
   const d = decisionFrom({ take: ["k1"], pregens: [["Actor.p1", "rewrite"], ["Actor.p2", "burn"]] });
-  ok("a decision takes the ticked keys and keeps the rest", decides(d, "k1") === "take" && decides(d, "k2") === "keep");
+  ok("a decision takes the keys it names and keeps the rest", decides(d, "k1") === "take" && decides(d, "k2") === "keep");
+  ok("one that takes all takes every key, those no pass listed included", decides(decisionFrom({ all: "take" }), "never-listed") === "take");
   ok("each character takes its answer, an unknown one read as leave", pregenAnswer(d, "Actor.p1") === "rewrite" && pregenAnswer(d, "Actor.p2") === "leave" && pregenAnswer(d, "Actor.p3") === "leave");
   ok("the decision itself holds an unknown answer as leave", d.pregens.get("Actor.p2") === "leave");
   ok("a word decision leaves every character", pregenAnswer("take", "Actor.p1") === "leave");
@@ -53,14 +58,15 @@ const pregens = [
 /* --- the dialog, its buttons and its close --- */
 let shown = null;
 let press = null;
-const form = (ticked, selects) => ({
+const form = (selects, copies = []) => ({
   querySelectorAll: (sel) => {
-    if (sel.includes('name="take"')) return edits.map((e) => ({ value: e.key, checked: ticked.includes(e.key) }));
     if (sel.includes('name="pregen"')) return Object.entries(selects).map(([uuid, value]) => ({ dataset: { uuid }, value }));
+    if (sel.includes('name="copy"')) return copiesOffered.map((c) => ({ value: c.uuid, checked: copies.includes(c.uuid) }));
     return [];
   },
 });
 globalThis.game = { i18n: { localize: (k) => k, format: (k, d) => `${k}${JSON.stringify(d)}` } };
+const shownWithRender = async (dialog) => shown.render?.(null, { element: dialog });
 globalThis.foundry = {
   utils: { escapeHTML: (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") },
   applications: {
@@ -77,35 +83,52 @@ globalThis.foundry = {
   },
 };
 {
-  press = { action: "apply", form: form([edits[1].key], { "Actor.p1": "restore", "Actor.p2": "leave" }) };
+  press = { action: "apply", form: form({ "Actor.p1": "restore", "Actor.p2": "leave" }) };
   const applied = await chooseHeldEditsDialog(edits, { pregens });
-  ok("apply takes the ticked edits alone", [...applied.take].join() === edits[1].key);
+  ok("apply takes every edit listed, and every one no pass listed", applied.take.size === 3 && decides(applied, edits[1].key) === "take" && decides(applied, "Actor.unlisted#system.x") === "take");
   ok("and each character's select", applied.pregens.get("Actor.p1") === "restore" && applied.pregens.get("Actor.p2") === "leave");
   ok("the dialog wears the importer dialog's classes", shown.classes.includes("acks-extras-importer-dialog") && shown.classes.includes("acks-ui"));
-  ok("each document is a frame, its edits rows with a take box keyed by the edit", (shown.content.match(/<fieldset/g) ?? []).length === 3 && shown.content.includes(`value="${edits[0].key}"`));
+  ok("each document is a frame, its edits read-only rows", (shown.content.match(/<fieldset/g) ?? []).length === 3 && shown.content.includes("system.roster"));
+  ok("no edit has a box, and the dialog offers apply alone", !shown.content.includes('type="checkbox"') && shown.buttons.map((b) => b.action).join() === "apply");
   ok("the unstamped mark shows on the edit it marks alone", (shown.content.match(/acks-extras-held-unstamped/g) ?? []).length === 1);
   ok("each page value carries a tooltip naming the page it came from", shown.content.includes("ACKS-IMPORTER.ui.repairMergedChoosePageTip{&quot;cite&quot;:&quot;ZZ 4&quot;}"));
   ok("and each held value one saying it is the document's", (shown.content.match(/data-tooltip-text="ACKS-IMPORTER\.ui\.repairMergedChooseCurrentTip/g) ?? []).length === 3);
+  const rowsOf = shown.content.split('name="pregen"').slice(1).map((r) => r.split("</select>")[0]);
   ok("a played or unstamped character's answer starts at restore, an untouched one's at leave",
-    (shown.content.match(/<option value="restore" selected>/g) ?? []).length === 2 && (shown.content.match(/<option value="leave" selected>/g) ?? []).length === 1);
+    rowsOf.filter((r) => r.includes('<option value="restore" selected>')).length === 2 && rowsOf.filter((r) => r.includes('<option value="leave" selected>')).length === 1);
+  ok("one select above the rows answers every actor with no record, and only those rows carry the mark",
+    shown.content.includes('name="bulk"') && (shown.content.match(/data-unstamped="true"/g) ?? []).length === 1 && shown.content.includes("repairMergedChooseNoRecord"));
   const noteOf = (name) => shown.content.split(`<span>${name}</span>`)[1]?.match(/<span class="notes">([^<]*)<\/span>/)?.[1];
   ok("each character's note says why", noteOf("Hero") === "ACKS-IMPORTER.ui.repairMergedPregenPlayed" && noteOf("Sage") === "ACKS-IMPORTER.ui.repairMergedPregenMatches" && noteOf("Scout") === "ACKS-IMPORTER.ui.repairMergedPregenUnstamped");
+  ok("a frame of actors with figures notes each by what it holds, and a pregenerated one as before",
+    actorNote({ edits: 2 }).key === "repairMergedChangedEdits" && actorNote({ edits: 2, moved: true }).key === "repairMergedChangedMoved" &&
+    actorNote({ edits: 1, unstamped: true }).key === "repairMergedChangedNoRecord" && actorNote({ edits: 1, unstamped: true }).data.n === 1 && actorNote({ changed: false }).key === "repairMergedPregenMatches");
   ok("a value shows as text, never as markup", !shown.content.includes("<p>A note") && shown.content.includes("A note of the Judge's."));
 
-  press = { action: "takeAll", form: form([], { "Actor.p1": "rewrite" }) };
+  press = { action: "apply", form: form({ "Actor.p1": "rewrite" }) };
   const all = await chooseHeldEditsDialog(edits, { pregens: pregens.slice(0, 1) });
-  ok("take all takes every edit, and still reads the characters", all.take.size === 3 && all.pregens.get("Actor.p1") === "rewrite");
+  ok("apply takes every edit and still reads the characters", all.take.size === 3 && all.pregens.get("Actor.p1") === "rewrite");
 
-  press = { action: "keepAll", form: form([edits[0].key], { "Actor.p1": "leave" }) };
-  const none = await chooseHeldEditsDialog(edits, { pregens: pregens.slice(0, 1) });
-  ok("keep all takes none, though one was ticked", none.take.size === 0);
+  const rows = [{ value: "restore", dataset: { unstamped: "true" } }, { value: "leave", dataset: {} }, { value: "leave", dataset: { unstamped: "true" } }];
+  ok("the bulk answer sets the rows with no record and no others, and an unknown answer sets none", applyBulk(rows, "rewrite") === 2 && rows.map((r) => r.value).join() === "rewrite,leave,rewrite" && applyBulk(rows, "burn") === 0);
+  const bulkListeners = [];
+  const wired = { querySelector: (sel) => (sel.includes("bulk") ? { value: "leave", addEventListener: (type, fn) => bulkListeners.push([type, fn]) } : null), querySelectorAll: () => rows };
+  await shownWithRender(wired);
+  ok("the bulk select is wired to change, and answers the rows when it does", bulkListeners.length === 1 && bulkListeners[0][0] === "change" && (bulkListeners[0][1](), rows.every((r) => r.dataset.unstamped !== "true" || r.value === "leave")));
+
+  press = { action: "apply", form: form({}, ["Item.c2"]) };
+  const withCopies = await chooseHeldEditsDialog([], { pregens: [], copies: copiesOffered });
+  ok("a copy outside the library is a row with an unticked box, its fields in a tooltip and its library's name in its note",
+    (shown.content.match(/name="copy"/g) ?? []).length === 2 && !/name="copy"[^>]*checked/.test(shown.content) && shown.content.includes("data-tooltip-text=\"name, system.hp.max\"") && shown.content.includes("&quot;library&quot;:&quot;Hero&quot;"));
+  ok("apply answers the ticked copies alone", [...withCopies.copies].join() === "Item.c2");
+  ok("with copies alone, the dialog still opens and offers apply alone", shown.buttons.map((b) => b.action).join() === "apply");
 
   press = null;
   ok("a closed dialog keeps every edit and leaves every character", (await chooseHeldEditsDialog(edits, { pregens })) === "keep");
 
-  press = { action: "apply", form: form([], { "Actor.p1": "restore" }) };
+  press = { action: "apply", form: form({ "Actor.p1": "restore" }) };
   await chooseHeldEditsDialog([], { pregens: pregens.slice(0, 1) });
-  ok("with characters alone, only apply is offered", shown.buttons.map((b) => b.action).join() === "apply");
+  ok("with characters alone, only apply is offered", shown.buttons.map((b) => b.action).join() === "apply" && !shown.content.includes("repairMergedChooseIntro"));
 }
 
 delete globalThis.foundry;

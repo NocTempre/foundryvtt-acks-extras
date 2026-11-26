@@ -164,7 +164,7 @@ const P = {
     const dlg = await H.poll(() => H.dialogs().find((a) => !dialogsBefore.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")), { tries: 240 });
     if (dlg) H.root(dlg).querySelector("button[data-action='yes']").click();
     const choice = await H.poll(() => H.dialogs().find((a) => H.root(a)?.querySelector(".acks-extras-held-list")), { tries: 8 });
-    if (choice) H.root(choice).querySelector("button[data-action='keepAll']").click();
+    if (choice) await choice.close();
     await H.flight;
     return { opened: true, ticked: true, asked: !!dlg };
   },
@@ -273,10 +273,11 @@ const P = {
       buttons: choice ? [...H.root(choice).querySelectorAll("button[data-action]")].map((b) => b.dataset.action) : [],
     };
   },
+  /** The open choice dismissed as a Judge does, by closing it: nothing is taken and every actor is left. */
   keepAll: async ({ id }) => {
     const H = globalThis.__ba;
     const app = foundry.applications.instances.get(id);
-    H.root(app).querySelector("button[data-action='keepAll']").click();
+    await app.close();
     await H.poll(() => !app.rendered);
     return !app.rendered;
   },

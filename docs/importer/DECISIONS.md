@@ -136,7 +136,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-22 — [The vehicle table's pairs are speed tiers, and a howdah's cargo is a passenger count (2026-09-22)](DECISIONS-through-v11.14.5.md#the-vehicle-tables-pairs-are-speed-tiers-and-a-howdahs-cargo-is-a-passenger-count-2026-09-22)
 - 2026-09-22 — [A class's training paragraph is read by three grammars, one per domain (2026-09-22)](DECISIONS-through-v11.14.5.md#a-classs-training-paragraph-is-read-by-three-grammars-one-per-domain-2026-09-22)
 - 2026-09-22 — [History the source comments carried, recorded (2026-09-22)](DECISIONS-through-v11.14.5.md#history-the-source-comments-carried-recorded-2026-09-22) — superseded in part 2026-11-13 (`repairAnimalItems` and `repairEquipmentAbilities`: `docs/DECISIONS.md` §29)
-- 2026-09-23 — [A copy of an import is the Judge's, and a rebuild leaves it standing (2026-09-23)](DECISIONS-through-v11.14.5.md#a-copy-of-an-import-is-the-judges-and-a-rebuild-leaves-it-standing-2026-09-23)
+- 2026-09-23 — [A copy of an import is the Judge's, and a rebuild leaves it standing (2026-09-23)](DECISIONS-through-v11.14.5.md#a-copy-of-an-import-is-the-judges-and-a-rebuild-leaves-it-standing-2026-09-23) — superseded in part by "2026-11-26 — A repair resets the library's copies whole" (a repair offers a copy the library's fields it has not changed)
 - 2026-09-23 — [OSE creatures are rebuilt from the entry picker, one row per generator (2026-09-23)](DECISIONS-through-v11.14.5.md#ose-creatures-are-rebuilt-from-the-entry-picker-one-row-per-generator-2026-09-23)
 - 2026-09-23 — [An import merges into its own layer (2026-09-23)](DECISIONS-through-v11.14.5.md#an-import-merges-into-its-own-layer-2026-09-23)
 - 2026-09-23 — [The console carries what a Judge can act on (2026-09-23)](DECISIONS-through-v11.14.5.md#the-console-carries-what-a-judge-can-act-on-2026-09-23)
@@ -253,7 +253,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-10 — [The books statted for OSE are switched off, and their code kept](DECISIONS-through-v11.14.5.md#2026-11-10--the-books-statted-for-ose-are-switched-off-and-their-code-kept) — superseded in part by "2026-11-13 — The books statted for OSE leave `main` for a parked branch"
 - 2026-11-10 — [Book-specific code lives in a silo, and a gate keeps it there](DECISIONS-through-v11.14.5.md#2026-11-10--book-specific-code-lives-in-a-silo-and-a-gate-keeps-it-there) — superseded in part by "2026-11-13 — The books statted for OSE leave `main` for a parked branch"; "2026-11-17 — An ACKS book's importer code lives in its own folder, and the silo gate counts what is left"
 - 2026-11-11 — [A borrowed throw is a recipe, and a typed row names its mode](DECISIONS-through-v11.14.5.md#2026-11-11--a-borrowed-throw-is-a-recipe-and-a-typed-row-names-its-mode)
-- 2026-11-11 — [One repair, in place, and the Judge chooses what it writes over](DECISIONS-through-v11.14.5.md#2026-11-11--one-repair-in-place-and-the-judge-chooses-what-it-writes-over) — superseded in part by "2026-11-11 — The manager draws only the one repair, and Repair everything replaces the Mode select"
+- 2026-11-11 — [One repair, in place, and the Judge chooses what it writes over](DECISIONS-through-v11.14.5.md#2026-11-11--one-repair-in-place-and-the-judge-chooses-what-it-writes-over) — superseded in part by "2026-11-11 — The manager draws only the one repair, and Repair everything replaces the Mode select", and by "2026-11-26 — A repair resets the library's copies whole" (a library document's edits are no longer kept by default)
 - 2026-11-11 — [The manager draws only the one repair, and Repair everything replaces the Mode select](DECISIONS-through-v11.14.5.md#2026-11-11--the-manager-draws-only-the-one-repair-and-repair-everything-replaces-the-mode-select)
 - 2026-11-11 — [Treasure is read from the Judges Journal, and the Treasure Tome is a layer over it](DECISIONS-through-v11.14.5.md#2026-11-11--treasure-is-read-from-the-judges-journal-and-the-treasure-tome-is-a-layer-over-it) — superseded in part by "2026-11-16 — The treasure wave runs ahead of the wave order, and its charts are registry tables"
 - 2026-11-11 — [A Judge's edit inside an imported journal block is found by a digest in the page's stamp](DECISIONS-through-v11.14.5.md#2026-11-11--a-judges-edit-inside-an-imported-journal-block-is-found-by-a-digest-in-the-pages-stamp)
@@ -1936,7 +1936,7 @@ executor stamps the origin on the node).
 *Cost:* `cookbook/mm.json` grows by the two entries' recipes and the second
 entry's continuation; a world refreshes them only by a fresh import.
 
-## 2026-11-16 — A repair holds a spell's edited and deleted rows, and its edited `values`
+## 2026-11-16 — A repair holds a spell's edited and deleted rows, and its edited `values` — SUPERSEDED IN PART 2026-11-26
 
 Supersedes the cost line of 2026-11-15, "A repair tells a spell's rows apart by
 `origin`", and the spell-rows part of the spell-effects plan's ruling 3. The
@@ -3279,3 +3279,62 @@ merges under the same rule, through a `system`-rooted `mergeByOrigin` entry that
 `actorPolicy` adds for a template build and a `mintLeaderTemplate` write that
 goes through `repairWrite`, so no second merge sits beside `carryMergedVariants`.
 No tag holds a template option with a recipe, so the hub guard stands as ruled.
+
+## 2026-11-26 — A repair resets the library's copies whole
+
+The owner, 2026-11-24, on what a repair does with the library: "Unclear,
+repairs always reset the compendium copies, may offer to fix existing entries
+if a simple fix, must offer keeping a copy/as is for modified actors." And
+2026-11-25: "Bugs: just fix them. That covers T-0712 (Repair-in-place reset) ...
+No architect pass needed first." The release hub's ruling on the approved
+board, 2026-11-26: "1. T-0712, library copies: B. No per-field boxes on a
+library copy; a repair resets it whole, name and picture included. ... A list
+of a library copy's edits to keep is what the row names as the defect. 2. Still
+visible: the dialog lists what a library copy's reset changes, as read-only
+lines, so the Judge reads it before pressing. 3. The rest of T-0712 as you drew
+it: the keep choices per changed actor ("keep a copy", "keep as is"), the bulk
+answer for actors with no record, and the unticked "Bring up to the library"
+per sidebar copy."
+
+**New evidence** (superseding in part the 2026-11-16 entry's "default keep" and
+the held-edit default of 2026-11-11, both less than a month old): the owner's
+answer of 2026-11-24 that repairs always reset the compendium copies. The
+earlier entries ruled that a Judge's edit stays unless taken one by one.
+
+**Ruled.**
+
+- *A library document is reset whole.* Its name and picture are written with
+  the build (an actor's picture is the cached art file, written only where one
+  is on disk), and the dialog lists every change as a read-only line.
+  The `keep` lists of `REPAIR` (a trap's level, a stack's quantity, a spell's
+  cast count) are play state and stay; rows a Judge added stay.
+- *A changed actor is put to the Judge.* A creature, NPC, template or family
+  counts as changed when its play stamp moved since the import recorded it, or
+  it holds an edit other than name or picture. It is not written on pass one;
+  it is listed with "Keep a copy, then reset it" (default), "Leave it as it
+  stands" and "Reset it", and one select answers every actor with no record.
+  The import and every repair write record the stamp after their last write.
+- *A copy outside the library is offered the library's fields.* A top-level
+  world Actor or Item whose source is a library document the repair wrote is
+  listed with an unticked box, and a tick writes the fields it still holds as
+  the library had them.
+
+**Rejected.**
+
+- *Alternative A, per-field boxes on a library copy*, with the Judge's name and
+  picture kept by default: it is the defect the ledger row names.
+- *Writing a sidebar copy unasked*: the 2026-09-23 ruling stands that a copy is
+  the Judge's; only an explicit tick reaches one.
+
+**Cost.** An actor imported before this build carries no stamp and is judged by
+its held edits alone, so a Judge's change to a field the repair does not hold
+reads as unchanged until the next import records a stamp. Closing the dialog
+leaves every listed edit standing. A copy is reached only by a tick, and only
+through a library document written by `refreshImported`; an actor held back
+until pass two has no snapshot and is not offered. The sidebar-copy count is
+read after pass one, so a library edit pass two takes is not in it.
+
+**Supersedes** "2026-11-16 — A repair holds a spell's edited and deleted rows,
+and its edited `values`" in part (its default "keep" for a library copy) and
+"2026-09-23 — A copy of an import is the Judge's, and a rebuild leaves it
+standing" in part (a copy is never reached).

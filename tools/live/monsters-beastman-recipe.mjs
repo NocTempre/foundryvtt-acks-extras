@@ -130,7 +130,7 @@ const P = {
     return out;
   },
 
-  /** The family's repair through the entry picker, as the Judge ticks it: Yes to the confirm, Keep all to a held-edits list. */
+  /** The family's repair through the entry picker, as the Judge ticks it: Yes to the confirm, the held-edits list closed unanswered. */
   repair: async ({ family }) => {
     const H = globalThis.__br;
     const before = H.dialogs().map((a) => a.id);
@@ -146,7 +146,7 @@ const P = {
     const dlg = await H.poll(() => H.dialogs().find((a) => !dialogsBefore.includes(a.id) && H.root(a)?.querySelector("button[data-action='yes']")), { tries: 240 });
     if (dlg) H.root(dlg).querySelector("button[data-action='yes']").click();
     const choice = await H.poll(() => H.dialogs().find((a) => H.root(a)?.querySelector(".acks-extras-held-list")), { tries: 8 });
-    if (choice) H.root(choice).querySelector("button[data-action='keepAll']").click();
+    if (choice) await choice.close();
     await H.flight;
     return { opened: true, ticked: true, asked: !!dlg };
   },
