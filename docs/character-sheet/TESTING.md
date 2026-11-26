@@ -1373,3 +1373,106 @@ speak as one of the three characters, listed by id and swept through the driver'
 `api.track` each, `gm.sweepTracked({only})`); quote the sweep's result and the ledger the
 driver prints. A refusal posts no card. Both seats' recorders, hooks and wrapped `warn` are
 restored and the open sheets closed.
+
+## The Followers tab's views
+
+The tab's switch (Cards, Org chart, Locations) over a lord's followers
+([MODEL](MODEL.md), "Followers"; lib [ORGANISATION](../lib/ORGANISATION.md), "The Followers tab's
+service mode"). What a mock cannot prove: that the sheet takes lib's six actions by name and keeps the
+choice across its own re-render, that a Send out and a Recall written through the follower's uuid land on
+the stored rosters, and that a Player seat is held to the places it owns.
+
+**Fixtures** (kept; found by marker, built when none carries it; this walk's own, since
+`henchmen/service-*` are the organisation chart walk's and that walk reshapes and clears them). Every
+step that needs a shape writes it again at its start, so a fixture left by the last run is not trusted:
+- `character-sheet/followers-lord` — a `character`, `prototypeToken.actorLink` on, owned by the Player
+  seat. Its `system.henchmenList` is exactly A and the officer.
+- `character-sheet/followers-hench-a`, `-hench-b` — `character`s with `system.retainer` enabled,
+  `category` `henchman`, `prototypeToken.actorLink` on. A's `managerid` is the lord's id; B's is **A's** id
+  and A's `henchmenList` is exactly B (a chain of two: nothing else in core or here links one). The lord's
+  list does not hold B, so the Cards view draws A and the officer and never B.
+- `character-sheet/followers-officer` — a `character`, retainer `specialist` under the lord, on the lord's
+  list. It is also the unit's officer, so it draws once, as the unit's head, and is no node of its own.
+- `character-sheet/followers-unit` — an `acks-extras.group` with `system.unit.employerUuid` the lord,
+  `officerUuid` the officer, `parentGroupUuid` blank, category `mercenary`, and one stack of an invented
+  count (7) whose template is `character-sheet/followers-monster`, a `monster`. A stack is made with
+  `acksExtras.lib.groups.addStack(group, monster, {count})` and is rebuilt only where it differs.
+- `character-sheet/followers-place-a`, `-place-b` — `acks-extras.location`s with an empty
+  `system.roster` and a `system.gmNotes` (a location with neither is pruned by the primary GM's window, so
+  a kept place without a note vanishes between walks). The Player seat owns place A and only observes place
+  B: `ownership` is `{default: 0, <player id>: 3}` and `{default: 0, <player id>: 2}`. Observer, not
+  none, so the Send out dialog lists B and the refusal is reachable.
+
+**Drive mechanics.**
+- Open a **fresh** sheet for every step that reads a view's start or a width: the sheet keeps the choice in
+  `#ui.followersView` on the instance, so only
+  `new CONFIG.Actor.sheetClasses.character["acks-extras.AcksCharacterSheet"].cls({document})`, with
+  `tabGroups.primary = "followers"` set before `render({force: true, position: {width, height}})`, is
+  certain to start on Cards. The walk keeps its sheets in `globalThis.__fw.sheets` and closes the old one
+  before it opens a new one.
+- The switch is `[data-action="followersView"][data-view="cards|chart|locations"]`, pressed with
+  `click()` and read back by `aria-pressed`; the sheet re-renders on the press, so wait for the attribute.
+- What each view draws is read from the DOM under `[data-tab="followers"]`: Cards is
+  `.acks-extras-frame__card[data-actor-id]`; the chart is `.acks-extras-org__tree` with one
+  `li[data-key]` per node, the key being the follower's **uuid**; Locations is
+  `.acks-extras-org-place` blocks, the block with no head link being the followers on no roster, and
+  `li.acks-extras-org-chip[data-uuid]` the ones on a roster. The context functions behind them,
+  `serviceChartContext` and `serviceLocationsContext` in `scripts/lib/org-chart-ui.mjs`, are not called by
+  the walk: the markup is the observable.
+- **Collapse all folds every branch with a child, the root's included.** Read B hidden and the root
+  `aria-expanded="false"`; to see A's own branch folded alone, press A's card's `orgToggle` after Expand all.
+- Show on a card resolves the follower through the nearest `[data-uuid]` (lib's
+  `.acks-extras-org-card__leader` wrapper), since a chart card is not inside a `[data-actor-id]` wrapper.
+- Send out is the card's `orgSendOut`, then the `DialogV2` it opens: set `select[name="place"]` to the
+  place's uuid and press `button[data-action="ok"]`. Recall is the chart card's `orgRecall`, or, on
+  Locations, the `orgRecall` inside `.acks-extras-org-chip__row[data-key=<uuid>]` (Recall is drawn only for
+  a follower standing directly on a roster).
+- A refusal is read from a wrapped `ui.notifications.warn` and compared with
+  `game.i18n.format("ACKS-LIB.org.refused.notOwner", {name})`; the wrap is restored at the end.
+- The Player seat is a real seat (`SEAT_PLAYER`), and its ownership is read through `isOwner` before a
+  press, never assumed.
+- A narrow window is a fresh sheet rendered with `position: {width: 460, height: 420}`; read the width the
+  sheet took, since a minimum may hold it above 460, and the body part as
+  `[data-application-part="body"]`.
+
+**Steps**, on the GM seat unless named:
+1. *Cards unchanged.* Open the lord's sheet on Followers. *Observable:* the switch is drawn with its three
+   buttons in order, each with a tooltip, Cards pressed; one Follower Card per hireling on the lord's own
+   list (A and the officer: 2) and none for B or the unit; the wage line is drawn; neither the chart nor
+   Locations is.
+2. *Org chart.* Press Org chart. *Observable:* the root card names the lord and carries a summary with a
+   tooltip that names it and no controls; A and the unit stand under it, B under A; the four keys drawn are
+   the lord, A, B and the unit; the unit's card head is the officer's Follower Card; the officer's uuid is
+   drawn once and has no `li`; no Roll, Design, Add, Recipe or pen control, and the tools are Expand all and
+   Collapse all alone; the total carries its tooltip; Show on A's card opens A's sheet.
+3. *Fold.* Collapse all, Expand all, A's own fold, then `sheet.render()`. *Observable:* Collapse all draws
+   the root alone (closed); Expand all draws all four, every branch open; A's fold hides B and leaves the
+   unit; the view and A's fold survive the re-render; a fresh sheet opens on Cards.
+4. *Send out.* On Org chart, Send out A to place A through the button and the dialog, then the unit to place
+   B. *Observable:* place A's roster holds A and no other roster does; A's card foot reads "Out at" place A
+   and the other cards' do not; place B's roster holds the unit, whose `parentGroupUuid` is still blank; B
+   stands on no roster.
+5. *Locations.* Press Locations. *Observable:* place A lists A, place B lists the unit; under "With <the
+   lord's name>" stands B alone, and the lord is not drawn anywhere; each place's total reads a figure and
+   carries a tooltip; Recall is drawn on A's and the unit's chips.
+6. *Recall.* Press Recall on A's chip, then the unit's. *Observable:* no roster holds A, then none holds the
+   unit, the unit's `parentGroupUuid` is still blank, and each stands under "With …" again with B.
+7. *Player seat.* Join as `SEAT_PLAYER`, open a fresh sheet on Followers. *Observable:* the seat is no GM,
+   owns the lord and place A, does not own place B; Cards, Org chart and Locations each render with the
+   same followers; no Roll, Design, Add, Recipe or pen control on the chart; Send out of A to place A
+   lands and raises no notice; Send out of A to place B is listed in the dialog, is refused with the
+   notOwner notice naming place B, and writes nothing (place B's roster is empty, place A still holds A);
+   no console error on the seat.
+8. *A narrow window.* A fresh sheet at 460 wide on Org chart. *Observable:* `.acks-extras-org__scroll` has
+   `scrollWidth > clientWidth`, `overflow-x: auto` and takes a sideways scroll, and the body part has
+   `overflow-y` auto or scroll, is taller than its box and takes a vertical scroll.
+
+**Not provable offline:** all of it. Nothing here has been read by a real seat before this walk.
+
+**Teardown.** The eight fixtures are kept. The walk makes nothing beyond them:
+`api.sweepTracked({only})` runs over the ledger's entries that carry no marker, and its result is
+quoted (empty when nothing was built outside a fixture). The shape step runs once more at the end, so
+both rosters are empty and the links stand as above; ownership stays as the fixtures' shape. Both seats'
+recorders and the wrapped `warn` are restored and the open sheets closed.
+
+**Walk:** `tools/live/character-followers-views.mjs` carries steps 1 to 8.
