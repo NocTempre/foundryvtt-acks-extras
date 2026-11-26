@@ -41,6 +41,20 @@ export function bargainWinner({ partyRanks = 0, merchantRanks = 0, opposedWinner
 }
 
 /**
+ * The merchant's Bargaining ranks and Charisma modifier a trade is priced with.
+ * The merchant is the Judge's counterparty and no document a seat owns, so the
+ * figures are the Judge's to type: a request that did not come from a Judge's
+ * seat is priced with the defaults, whatever its payload carries.
+ * @param {{merchantRanks?: number, merchantCha?: number}} payload  the request
+ * @param {boolean} judgeTyped  the request is a Judge's (`judgeDeclares`)
+ * @returns {{merchantRanks: number, merchantCha: number}}
+ */
+export function merchantFigures(payload, judgeTyped) {
+  const { merchantRanks = 0, merchantCha = 1 } = judgeTyped ? (payload ?? {}) : {};
+  return { merchantRanks, merchantCha };
+}
+
+/**
  * Unit price for a mundane item.
  *
  * Order: base cost → scavenged/condition value multiplier (the item's actual

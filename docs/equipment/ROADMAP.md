@@ -140,7 +140,3 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   where Foundry lets the item's owner edit it. Restore and Restore lost AC keep their shape until the page is
   read for who restores. Built, it qualifies the archived 2026-11-11 entry "Item loss can be undone from the
   Durability tab". 1 surface, 3 role reads.
-- **The item sheet's Source, from the owner's seat.** An item's sheet → the editor rail → Source is the
-  Judge's, while a character sheet's Source cell is every owner's (character-sheet DECISIONS 2026-11-25, "The
-  Source cell is every owner's"). Open: whether an item that hides its magic or wears a disguise keeps its
-  source off a seat that is not a Judge's. 1 surface, 1 role read.

@@ -684,6 +684,12 @@ function bookTextTally(bookIds) {
 const uiText = (key, data) =>
   data ? game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.ui.${key}`);
 
+/** A localized notice, led by the module id the way every importer notice is. */
+const noticeText = (key, data) => `${MODULE_ID} | ${uiText(key, data)}`;
+
+/** Up to five names joined, with the count of the rest. */
+const nameList = (names) => `${names.slice(0, 5).join(", ")}${names.length > 5 ? ` (+${names.length - 5})` : ""}`;
+
 /**
  * The notifier of a press: info when the text was saved, an error when the
  * file was refused (gone, another size, another book), a warning when the read
@@ -965,13 +971,13 @@ const allRecipes = () => [...RECIPES, ...Object.values(dynamicRecipes())];
 async function connectBookUrl(bookId, url, { remember = true, bridge = true, silent = false } = {}) {
   // Throws as well as warning: the shelf records a path only when this resolves.
   if (!BOOKS[bookId]) {
-    const message = `${MODULE_ID} | unknown book id "${bookId}".`;
+    const message = noticeText("unknownBookId", { id: bookId });
     ui.notifications.warn(message);
     throw new Error(message);
   }
   const resp = await fetch(url);
   if (!resp.ok) {
-    const message = `${MODULE_ID} | could not read ${url} (${resp.status}).`;
+    const message = noticeText("urlUnreadable", { url, status: resp.status });
     ui.notifications.warn(message);
     throw new Error(message);
   }
@@ -2143,9 +2149,9 @@ async function forgetBooks() {
     }
   }
   if (allCleared) {
-    ui.notifications.info(`${MODULE_ID} | remembered book locations on this computer dropped; in-memory prose cleared. Books on the shelf are unaffected.`);
+    ui.notifications.info(noticeText("forgetAllCleared"));
   } else {
-    ui.notifications.warn(`${MODULE_ID} | some remembered book data could not be cleared — see the console. In-memory prose was cleared.`);
+    ui.notifications.warn(noticeText("forgetPartlyCleared"));
   }
 }
 
@@ -2166,7 +2172,7 @@ function guessKind(bookId, mode) {
  * and loads each as an actor or item (see `pickHeadings`, `loadHeadings`).
  */
 async function browseAndLoad() {
-  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (creates documents and world recipes).`);
+  if (!game.user.isGM) return ui.notifications.warn(noticeText("browseGmOnly"));
 
   const options = Object.entries(BOOKS)
     .map(([id, b]) => `<option value="${id}">${b.label}${sessionDocs.has(id) ? " ✓ open" : ""}</option>`)
@@ -2188,11 +2194,9 @@ async function browseAndLoad() {
         const form = button.form;
         const bookId = form.elements.book.value;
         const page = parseInt(form.elements.page.value, 10);
-        if (!Number.isFinite(page) || page < 1) return ui.notifications.warn(`${MODULE_ID} | enter a PDF page number.`);
+        if (!Number.isFinite(page) || page < 1) return ui.notifications.warn(noticeText("browsePageNeeded"));
         if (!sessionDocs.has(bookId)) {
-          return ui.notifications.warn(
-            `${MODULE_ID} | ${BOOKS[bookId].label} is not open this session — connect it first (PoC 2 / unlock dialog).`,
-          );
+          return ui.notifications.warn(noticeText("browseBookClosed", { book: BOOKS[bookId].label }));
         }
         return pickHeadings(bookId, page);
       },
@@ -2202,10 +2206,10 @@ async function browseAndLoad() {
 
 async function pickHeadings(bookId, page) {
   const { doc, title } = sessionDocs.get(bookId);
-  if (page > doc.numPages) return ui.notifications.warn(`${MODULE_ID} | page ${page} > ${doc.numPages}.`);
+  if (page > doc.numPages) return ui.notifications.warn(noticeText("browsePastEnd", { page, pages: doc.numPages }));
   const pageData = await pageItems(doc, page);
   const heads = listHeadings(pageData);
-  if (!heads.length) return ui.notifications.warn(`${MODULE_ID} | no extraction anchors detected on PDF p. ${page}.`);
+  if (!heads.length) return ui.notifications.warn(noticeText("browseNoAnchors", { page }));
 
   const rows = heads
     .map(
@@ -2236,7 +2240,7 @@ async function pickHeadings(bookId, page) {
         const form = button.form;
         const kindChoice = form.elements.kind.value;
         const picked = [...form.querySelectorAll('input[name="sel"]:checked')].map((el) => heads[+el.value]);
-        if (!picked.length) return ui.notifications.warn(`${MODULE_ID} | nothing selected.`);
+        if (!picked.length) return ui.notifications.warn(noticeText("browseNothingSelected"));
         return loadHeadings(bookId, page, pageData, picked, kindChoice, title);
       },
     },
@@ -2249,7 +2253,7 @@ async function loadHeadings(bookId, page, pageData, picked, kindChoice) {
   for (const head of picked) {
     const prose = head.mode === "runin" ? extractRunin(pageData, head.text) : extractDisplay(pageData, head.text);
     if (!prose) {
-      ui.notifications.warn(`${MODULE_ID} | "${head.text}" extracted nothing — skipped.`);
+      ui.notifications.warn(noticeText("browseHeadingEmpty", { heading: head.text }));
       continue;
     }
     const name = head.text.replace(/:$/, "");
@@ -2476,7 +2480,7 @@ async function importArt(actor, doc, recipe) {
 
 async function applyStatsToActor(actor, doc, pageData, recipe) {
   const pairs = extractStatPairs(pageData);
-  if (!pairs.length) return ui.notifications.warn(`${MODULE_ID} | ${recipe.name}: no stat rows found on PDF p. ${recipe.page}.`);
+  if (!pairs.length) return ui.notifications.warn(noticeText("applyStatsNoRows", { name: recipe.name, page: recipe.page }));
   // A named proficiency resolves against the library's definitions before it is minted bare.
   const { system, extras, items, applied, unmapped } = mapPairs(pairs, {
     proficiency: await proficiencyResolver(),
@@ -2529,7 +2533,13 @@ async function applyStatsToActor(actor, doc, pageData, recipe) {
     `${MODULE_ID} | ${actor.name}: stats [${applied.join(", ")}]; ${spoils.length} spoils${unmapped.length ? `; unmapped: ${unmapped.join(", ")}` : ""}`,
   );
   ui.notifications.info(
-    `${MODULE_ID} | ${actor.name}: ${applied.length} stat fields, ${items.length} attack/ability items, ${spoils.length} spoils${gotArt ? ", art imported" : ""}, ${unmapped.length} labels stored raw (console has details).`,
+    noticeText(gotArt ? "applyStatsDoneArt" : "applyStatsDone", {
+      name: actor.name,
+      stats: applied.length,
+      items: items.length,
+      spoils: spoils.length,
+      raw: unmapped.length,
+    }),
   );
 }
 
@@ -2548,9 +2558,7 @@ function monsterRecipeForActor(actor) {
 async function fillMonster(actor, recipe) {
   const session = sessionDocs.get(recipe.book);
   if (!session) {
-    ui.notifications.warn(
-      `${MODULE_ID} | ${REGISTRY[recipe.book]?.label ?? recipe.book} is not open this session — connect it (PoC 2 / unlock) to fill ${actor.name}.`,
-    );
+    ui.notifications.warn(noticeText("applyStatsBookClosed", { book: REGISTRY[recipe.book]?.label ?? recipe.book, name: actor.name }));
     return false;
   }
   const pageData = await pageItems(session.doc, recipe.page);
@@ -2574,13 +2582,9 @@ function applyStatsTargets() {
  * Never every monster in the world: this rewrites system data.
  */
 async function applyStats() {
-  if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
+  if (!game.user.isGM) return ui.notifications.warn(noticeText("gmOnly"));
   const selected = applyStatsTargets();
-  if (!selected.length) {
-    return ui.notifications.warn(
-      `${MODULE_ID} | select a monster token or open its sheet first — Apply Stats targets only what you point at, never every monster.`,
-    );
-  }
+  if (!selected.length) return ui.notifications.warn(noticeText("applyStatsNoTarget"));
   let touched = 0;
   const closed = new Set();
   const unknown = [];
@@ -2619,24 +2623,11 @@ async function applyStats() {
     }
     if (await fillMonster(actor, recipe)) touched++;
   }
-  if (closed.size) {
-    ui.notifications.warn(`${MODULE_ID} | not open this session: ${[...closed].join(", ")} — connect to refill from it.`);
-  }
-  if (noStats.length) {
-    ui.notifications.warn(
-      `${MODULE_ID} | no stat block for this surface to re-read — left unchanged: ${noStats.slice(0, 5).join(", ")}${noStats.length > 5 ? ` (+${noStats.length - 5})` : ""}.`,
-    );
-  }
-  if (noMatch.length) {
-    const names = `${noMatch.slice(0, 5).join(", ")}${noMatch.length > 5 ? ` (+${noMatch.length - 5})` : ""}`;
-    ui.notifications.warn(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.applyStatsNoMatch`, { names })}`);
-  }
-  if (unknown.length) {
-    ui.notifications.warn(
-      `${MODULE_ID} | not from the cookbook and no recipe matches: ${unknown.slice(0, 5).join(", ")}${unknown.length > 5 ? ` (+${unknown.length - 5})` : ""}.`,
-    );
-  }
-  if (touched) ui.notifications.info(`${MODULE_ID} | refilled ${touched} monster${touched === 1 ? "" : "s"} from your book.`);
+  if (closed.size) ui.notifications.warn(noticeText("applyStatsClosed", { books: [...closed].join(", ") }));
+  if (noStats.length) ui.notifications.warn(noticeText("applyStatsNoStats", { names: nameList(noStats) }));
+  if (noMatch.length) ui.notifications.warn(noticeText("applyStatsNoMatch", { names: nameList(noMatch) }));
+  if (unknown.length) ui.notifications.warn(noticeText("applyStatsUnknown", { names: nameList(unknown) }));
+  if (touched) ui.notifications.info(noticeText(touched === 1 ? "applyStatsRefilledOne" : "applyStatsRefilledMany", { n: touched }));
 }
 
 /* -------------------------------------------- */

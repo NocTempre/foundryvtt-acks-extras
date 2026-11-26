@@ -61,7 +61,7 @@ import { liveDeclare, answerFromPending, ANSWER_FIELDS } from "./cast-declare.mj
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { describeSpellEffect } from "./describe.mjs";
 import { requestApply, requestUndo, registerCastRelay, entryId } from "./cast-apply.mjs";
-import { cardOf, postCastCard, updateEntry, addTargets, newTargetKey, registerCastCardHooks, CARD_ACTIONS, canPressCard, markReverted } from "./cast-card.mjs";
+import { cardOf, postCastCard, updateEntry, addTargets, newTargetKey, registerCastCardHooks, CARD_ACTIONS, canPressCard, canWriteCard, markReverted } from "./cast-card.mjs";
 import { isModRow, modParts, needsBearer, dryYields, modifierFigure, ownSaveRows, spellSaveParts, saveModifierOf, ROW_ON } from "./cast-mods.mjs";
 import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
 import { instanceCount, instanceRow, allocate, assignedOf, wholeSplit } from "./cast-instances.mjs";
@@ -1314,7 +1314,8 @@ async function pressApply(message, { target, row }) {
 async function pressApplyTargets(message) {
   const card = cardOf(message);
   const tokens = [...(game.user.targets ?? [])].map((t) => t.document ?? t).filter((t) => t?.actor);
-  if (!canPressCard(message) || !tokens.length) {
+  // The press writes the card's targets and entries itself, so it is the card's writer's.
+  if (!canWriteCard(message) || !tokens.length) {
     ui.notifications?.warn(loc("notice.noTargets"));
     return;
   }
@@ -1340,7 +1341,8 @@ async function pressThrow(message, { target, row }) {
   const card = cardOf(message);
   const { spell, caster, keyed } = rowOfCard(card, row);
   const token = target ? fromUuidSync(card.targets[target]?.uuid) : ([...(game.user.targets ?? [])][0]?.document ?? null);
-  if (!canPressCard(message) || !spell || !caster?.isOwner || !keyed || !token?.actor) {
+  // The throw's result is written to the card from this seat, so it is the card's writer's.
+  if (!canWriteCard(message) || !spell || !caster?.isOwner || !keyed || !token?.actor) {
     ui.notifications?.warn(loc("notice.noTargets"));
     return;
   }

@@ -1637,4 +1637,41 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   delete globalThis.Roll;
 }
 
-console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws, moorage and stabling, shop sources, city gate toll and duty, the city entry's payment, the Enter dialog's figures and the Judge's switch)");
+// ---- the merchant's Bargaining figures are the Judge's: a seat that is not given the control cannot send them ----
+{
+  globalThis.acksExtras = { lib: { tables: { hasDoc: () => false, getTable: () => { throw new Error("no such table"); }, citeOf: () => null } }, location: { reach: { depositReach: () => ({ can: true }) } } };
+  globalThis.game = {
+    i18n: { localize: (key) => key, format: (key) => key },
+    settings: { get: () => null },
+    users: { get: (id) => ({ judge: { id: "judge", isGM: true }, player: { id: "player", isGM: false } })[id] ?? null },
+    user: { id: "judge", isGM: true },
+    scenes: [],
+    time: { worldTime: 0 },
+  };
+  globalThis.Hooks = { on() {}, once() {}, callAll() {} };
+  globalThis.foundry = { utils: { deepClone: (x) => structuredClone(x), randomID: () => "rid" } };
+  const rope = { id: "rope", _id: "rope", type: "item", name: "Rope", system: { cost: 1, quantity: 1 }, toObject() { return this; } };
+  const seller = { uuid: "Actor.seller", id: "seller", name: "Seller", items: Object.assign([rope], { get: (id) => (id === "rope" ? rope : null) }), testUserPermission: (user) => user.id === "player" };
+  globalThis.fromUuid = async (uuid) => (uuid === seller.uuid ? seller : null);
+  const ns = (await import(new URL("../scripts/namespace.mjs", import.meta.url))).acksExtras;
+  const savedReach = ns.location;
+  ns.location = { reach: { depositReach: () => ({ can: true }) } };
+  const location = { uuid: "Actor.place", documentName: "Actor", type: "acks-extras.location", name: "Place", system: { marketClass: 3, market: { goods: { demand: [], demandOverrides: [], demandDerived: [], merchPrices: [] }, marketLog: [] } }, items: [] };
+  const trade = await import(new URL("../scripts/markets/engine/trade.mjs", import.meta.url));
+  const sale = (requestUserId) => trade.sell(location, { sellerUuid: seller.uuid, itemId: "rope", qty: 1, merchantRanks: 3, merchantCha: -3, requestUserId });
+  // With no Bargaining swing imported, a merchant who holds ranks cannot be priced: the engine stops at the printed table the figure needs.
+  assert.strictEqual((await sale(null)).error, "printedMissing", "the Judge's own figure is read: the merchant's ranks need the Bargaining table");
+  assert.notStrictEqual((await sale("player")).error, "printedMissing","a Player's payload cannot set the merchant's ranks: the figure is the Judge's");
+  const { merchantFigures } = await import(new URL("../scripts/markets/rules/pricing.mjs", import.meta.url));
+  assert.deepStrictEqual(merchantFigures({ merchantRanks: 2, merchantCha: -2 }, true), { merchantRanks: 2, merchantCha: -2 }, "the Judge's figures stand");
+  assert.deepStrictEqual(merchantFigures({ merchantRanks: 2, merchantCha: -2 }, false), { merchantRanks: 0, merchantCha: 1 }, "any other seat's are the defaults, whatever the payload says");
+  assert.deepStrictEqual(merchantFigures({}, true), { merchantRanks: 0, merchantCha: 1 }, "a Judge who typed none gets the defaults");
+  ns.location = savedReach;
+  delete globalThis.fromUuid;
+  delete globalThis.foundry;
+  delete globalThis.acksExtras;
+  delete globalThis.game;
+  delete globalThis.Hooks;
+}
+
+console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws, moorage and stabling, shop sources, city gate toll and duty, the city entry's payment, the Enter dialog's figures, the Judge's switch and the merchant's figures)");

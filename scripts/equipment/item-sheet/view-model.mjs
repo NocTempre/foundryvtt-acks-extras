@@ -60,7 +60,7 @@ const EDITOR_CELLS = Object.freeze([
   { key: "edit", icon: "fa-solid fa-pen" },
   { key: "changeArt", icon: "fa-solid fa-image" },
   { key: "ownership", icon: "fa-solid fa-user-lock", worldOnly: true },
-  { key: "source", icon: "fa-solid fa-book-open", gmOnly: true },
+  { key: "source", icon: "fa-solid fa-book-open", concealable: true },
 ]);
 
 /**
@@ -290,7 +290,12 @@ export function buildItemSheetModel(snap, viewer = {}) {
   const rightPads = Math.max(0, RIGHT_CELLS - rightCells.length);
 
   /* ---- editor rail ---------------------------------------------------- */
-  const editorCells = EDITOR_CELLS.filter((c) => (!c.worldOnly || !snap.embedded) && (!c.gmOnly || gm)).map((c) => {
+  // Source names the document the item was made from, which is its true item
+  // while the item is disguised or its magic is unknown to this seat, so a
+  // concealable cell is the Judge's until the item shows what it is. Every
+  // other cell follows the owner's permission, which draws the rail at all.
+  const conceals = masked || hideMagic || undetected;
+  const editorCells = EDITOR_CELLS.filter((c) => (!c.worldOnly || !snap.embedded) && (!c.concealable || gm || !conceals)).map((c) => {
     const on = c.key === "edit" && editing;
     // The pencil's caption changes with its state; every other cell is named
     // by its key.

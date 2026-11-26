@@ -17,7 +17,7 @@ import {
   pctMarketStock,
   itemKeyOf,
 } from "../rules/availability.mjs";
-import { quote, magicQuote, magicBandValueGp, bargainWinner, toGp } from "../rules/pricing.mjs";
+import { quote, magicQuote, magicBandValueGp, bargainWinner, merchantFigures, toGp } from "../rules/pricing.mjs";
 import { trueDemand } from "../rules/demand.mjs";
 import { marketsFlagOf, isMasterwork, isTemplateCopy, magicBasisOf, capVerdict } from "../rules/goods.mjs";
 import { registerHandler, executeAsGM, judgeDeclares } from "../../lib/sockets.mjs";
@@ -354,13 +354,12 @@ export async function purchase(location, payload) {
     itemName,
     qty: rawQty,
     dedicated = false,
-    merchantRanks = 0,
-    merchantCha = 1,
     requestUserId = null,
     resolutionId = "",
     heldItemId = null,
     sourceUuid = "",
   } = payload;
+  const { merchantRanks, merchantCha } = merchantFigures(payload, judgeDeclares(requestUserId));
 
   const qty = Math.max(1, Math.floor(Number(rawQty) || 1));
   const buyerDoc = await fromUuid(buyerUuid).catch(() => null);
@@ -714,11 +713,10 @@ export async function sell(location, payload) {
     sellerUuid,
     itemId,
     qty: rawQty,
-    merchantRanks = 0,
-    merchantCha = 1,
     requestUserId = null,
     resolutionId = "",
   } = payload;
+  const { merchantRanks, merchantCha } = merchantFigures(payload, judgeDeclares(requestUserId));
 
   const sellerDoc = await fromUuid(sellerUuid).catch(() => null);
   const seller = sellerDoc?.actor ?? sellerDoc;

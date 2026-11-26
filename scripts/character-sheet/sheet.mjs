@@ -48,7 +48,7 @@ import { cycleGrip } from "../equipment/loadout.mjs";
 import { cycleStrap } from "../equipment/overlays/shield-variants.mjs";
 import { declareLightAction, lightTypeOf } from "../equipment/sheet.mjs";
 import { takeOut, storeIn, setConcealed, setLocked, setOpened, emptyContainer, containedIn, isContainer } from "../equipment/containers.mjs";
-import { pickLock, bashOpen } from "../equipment/locks.mjs";
+import { pickLock, bashOpen, passLock } from "../equipment/locks.mjs";
 import { annotateItem } from "../equipment/api.mjs";
 import { splitOne } from "../equipment/item-sheet/stack.mjs";
 import { isEquippable, isGoods, isCurrency, isLocked, joinInTurn } from "../lib/item-model.mjs";
@@ -1272,6 +1272,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
     const item = this.#itemOf(target);
     if (!item) return;
     const locked = isLocked(item);
+    if (locked && !(await passLock(this.actor, item, "unlock"))) return;
     await (locked ? setOpened(item, true) : setLocked(item, true));
   }
 
@@ -1296,6 +1297,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
   static async #onContainerEmpty(event, target) {
     const item = this.#itemOf(target);
     if (!item) return;
+    if (!(await passLock(this.actor, item, "empty"))) return;
     const n = await emptyContainer(this.actor, item);
     if (n) ui.notifications.info(game.i18n.format("ACKS-EQUIPMENT.container.emptied", { n, name: item.name }));
   }

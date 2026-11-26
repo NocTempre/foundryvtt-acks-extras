@@ -41,7 +41,7 @@ export async function pickEmployer(preferred) {
   const choices = game.actors.filter(
     (a) =>
       a.type === ACTOR_TYPE.character &&
-      !a.system?.retainer?.enabled &&
+      !adapter.isInService(a) &&
       (game.user.isGM || a.testUserPermission(game.user, "OWNER"))
   );
   if (!choices.length) return null;

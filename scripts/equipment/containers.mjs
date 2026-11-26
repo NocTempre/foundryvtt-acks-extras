@@ -82,6 +82,36 @@ export function canSeeInside(item, user = game.user) {
 }
 
 /**
+ * Does the actor carry one of this container's keys? A key is the document
+ * dropped on the lock (`{uuid, name}` in the record), and a carried copy is told
+ * by that uuid being the copy's own, the one it was made from, or, for a copy
+ * made from a world item, which keeps no link, its name. The container is never
+ * its own key.
+ */
+export function holdsKey(actor, container) {
+  const keys = containerOf(container)?.keys;
+  if (!Array.isArray(keys) || !keys.length) return false;
+  const uuids = new Set(keys.map((k) => k?.uuid).filter(Boolean));
+  const named = (s) => String(s ?? "").trim().toLowerCase();
+  const names = new Set(keys.map((k) => named(k?.name)).filter(Boolean));
+  const held = (i) => [i.uuid, i._stats?.compendiumSource, i._stats?.duplicateSource, i.flags?.core?.sourceId].some((u) => u && uuids.has(u)) || names.has(named(i.name));
+  return !!actor?.items?.some?.((i) => i.id !== container.id && held(i));
+}
+
+/**
+ * Who may open a locked container without beating its lock: an owner holding
+ * its key, which is the lock's own answer. With no key a Player is blocked and
+ * a Judge goes ahead with a warning, so `warn` says the automation would have
+ * refused. Whether the viewer owns the actor is the caller's (Foundry's)
+ * test; this answers only for the lock.
+ * @returns {{allowed: boolean, warn: boolean}}
+ */
+export function lockBypass(actor, container, user = game.user) {
+  if (!isLocked(container) || holdsKey(actor, container)) return { allowed: true, warn: false };
+  return user?.isGM ? { allowed: true, warn: true } : { allowed: false, warn: false };
+}
+
+/**
  * Lock or unlock a container. Locking a container that was opened shuts it
  * again — the lock is still the same lock.
  */

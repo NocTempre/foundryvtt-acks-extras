@@ -986,7 +986,12 @@ client (step 8); nothing of it is taken from the request but the rolled figure w
 its bounds. With no GM connected the entry stays
 pending and the card's Apply stays. A card cast with nothing targeted posts the
 rolls and an Apply that takes the presser's targets; a thrown row waits on a
-Throw press. Apply and Throw are for a GM and the user who cast.
+Throw press. Apply on a target's entry (`canPressCard`) is for a GM, the user who
+cast, and any user who owns the caster: a seat that cannot edit the card asks the
+GM's client, whose `checkApplyRequest` tests the asking user's ownership of the
+caster and not the card's author. Throw and the Apply that takes the presser's
+targets write the card from the pressing seat, so they stay with a GM and the user
+who cast (`canWriteCard`); an owner who did not cast is drawn neither.
 
 *Undo* (`entryActions`, `undoBy`) is offered to a seat that owns the target's
 actor (`"target"`) and to the card's author who owns the caster (`"apply"`), and

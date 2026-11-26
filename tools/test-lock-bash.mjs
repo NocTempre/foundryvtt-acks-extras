@@ -119,4 +119,73 @@ await ok("picking a lock takes no Strength term", async () => {
   }
 });
 
+/* -------------------------------------------- */
+/*  Who may pass a lock: the key, the Judge     */
+/* -------------------------------------------- */
+
+const containers = await import("../scripts/equipment/containers.mjs");
+const locksMod = await import("../scripts/equipment/locks.mjs");
+
+/** A locked container whose record lists `keys`, answering `getFlag` the way a document does. */
+const lockedBox = (keys = [{ uuid: "Item.key1", name: "Brass Key" }]) => {
+  const record = { locked: true, keys };
+  return { id: "box1", name: "Strongbox", getFlag: (scope, key) => (scope === "acks-extras" && key === "container" ? record : undefined) };
+};
+/** A character carrying `items`; an item is `{id, name, uuid?, source?}`. */
+const carrier = (items = []) => ({
+  id: "ch1",
+  name: "Tester",
+  items: items.map((i) => ({ uuid: `Actor.ch1.Item.${i.id}`, ...i, _stats: { compendiumSource: i.source ?? null }, flags: {} })),
+});
+const asSeat = (isGM) => {
+  globalThis.game.user = { id: "u1", isGM };
+};
+/** What `ui.notifications.warn` was handed, with the data each message was formatted with. */
+const warned = [];
+globalThis.ui.notifications.warn = (m) => warned.push(m);
+globalThis.game.i18n.format = (k, d = {}) => `${k}|${JSON.stringify(d)}`;
+
+await ok("a held key is told by the item's own uuid, the uuid it was made from, or its name", async () => {
+  const box = lockedBox();
+  assert.equal(containers.holdsKey(carrier([{ id: "k", name: "Other", uuid: "Item.key1" }]), box), true, "the listed document itself");
+  assert.equal(containers.holdsKey(carrier([{ id: "k", name: "Other", source: "Item.key1" }]), box), true, "a copy made from a compendium key");
+  assert.equal(containers.holdsKey(carrier([{ id: "k", name: " brass KEY " }]), box), true, "a world copy keeps only its name");
+  assert.equal(containers.holdsKey(carrier([{ id: "k", name: "Iron Key" }]), box), false, "another key is not this one");
+  assert.equal(containers.holdsKey(carrier([{ id: "box1", name: "Brass Key" }]), box), false, "the container is never its own key");
+  assert.equal(containers.holdsKey(carrier([{ id: "k", name: "Brass Key" }]), lockedBox([])), false, "a lock listing no key has none to hold");
+});
+
+await ok("an owner holding the key unlocks; with none a Player is blocked and a Judge goes ahead warned", async () => {
+  const keyHolder = carrier([{ id: "k", name: "Brass Key" }]);
+  const bare = carrier();
+  const box = lockedBox();
+  asSeat(false);
+  assert.deepEqual(containers.lockBypass(keyHolder, box), { allowed: true, warn: false }, "a Player with the key");
+  assert.deepEqual(containers.lockBypass(bare, box), { allowed: false, warn: false }, "a Player without it is blocked");
+  assert.deepEqual(containers.lockBypass(bare, { ...box, getFlag: () => ({}) }), { allowed: true, warn: false }, "a container that is not locked needs no key");
+  asSeat(true);
+  assert.deepEqual(containers.lockBypass(bare, box), { allowed: true, warn: true }, "a Judge without it goes ahead, with a warning");
+  assert.deepEqual(containers.lockBypass(keyHolder, box), { allowed: true, warn: false }, "a Judge with it has nothing to be warned of");
+});
+
+await ok("passLock says what was refused: the Player's block, the Judge's warning, and nothing for a key or an open lock", async () => {
+  const box = lockedBox();
+  warned.length = 0;
+  asSeat(false);
+  assert.equal(await locksMod.passLock(carrier(), box, "unlock"), false, "a Player with no key is blocked");
+  assert.equal(warned.length, 1, "and told so");
+  assert.ok(warned[0].includes("bypassBlocked") && warned[0].includes('"name":"Strongbox"'), "naming the container");
+  assert.ok(warned[0].includes("bypassAction.unlock"), "and the action refused");
+  warned.length = 0;
+  asSeat(true);
+  assert.equal(await locksMod.passLock(carrier(), box, "empty"), true, "a Judge goes ahead");
+  assert.equal(warned.length, 1, "with one warning");
+  assert.ok(warned[0].includes("bypassWarn") && warned[0].includes("bypassAction.empty"), "that names what a Player would have been refused");
+  warned.length = 0;
+  asSeat(false);
+  assert.equal(await locksMod.passLock(carrier([{ id: "k", name: "Brass Key" }]), box, "unlock"), true, "a Player holding the key passes");
+  assert.equal(await locksMod.passLock(carrier(), { ...box, getFlag: () => ({}) }, "unlock"), true, "an open container passes");
+  assert.equal(warned.length, 0, "neither says anything");
+});
+
 console.log(`\ntest-lock-bash: ${passed} passed`);

@@ -60,11 +60,11 @@ export class PostingDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     const mayUse = (a) => game.user.isGM || a.testUserPermission(game.user, "OWNER");
     const row = (a) => ({ id: a.id, name: a.name, level: adapter.getLevel(a), ...this.#networkState(a) });
     context.employers = game.actors
-      .filter((a) => a.type === ACTOR_TYPE.character && a.hasPlayerOwner && !a.system?.retainer?.enabled && mayUse(a))
+      .filter((a) => a.type === ACTOR_TYPE.character && a.hasPlayerOwner && !adapter.isInService(a) && mayUse(a))
       .map(row);
     if (!context.employers.length) {
       context.employers = game.actors
-        .filter((a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && mayUse(a))
+        .filter((a) => a.type === ACTOR_TYPE.character && !adapter.isInService(a) && mayUse(a))
         .map(row);
     }
     context.levels = henchmanLevels().map((l) => ({ level: l }));

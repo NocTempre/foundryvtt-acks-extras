@@ -8,7 +8,7 @@
  * proficiency"). RAW constraint enforced: gloves block lockpicking (RR p. 145).
  */
 import { MODULE_ID, HOOKS, ITEM_FLAGS } from "./constants.mjs";
-import { containerOf, isLocked, setOpened, contentsOf, isFragile } from "./containers.mjs";
+import { containerOf, isLocked, setOpened, contentsOf, isFragile, lockBypass } from "./containers.mjs";
 import { slug, SLOT, ITEM_TYPE } from "../lib/vocab.mjs";
 import { isWorn, slotsOf, declaresSlots } from "../lib/item-model.mjs";
 import { unset } from "../lib/util.mjs";
@@ -212,6 +212,25 @@ export async function destroyContainer(actor, container) {
 export const canPick = (actor) => !!findAbility(actor, PICK_NAMES);
 /** Does the actor have an ability that lets them bash a container open? */
 export const canBash =(actor) => !!findAbility(actor, BASH_NAMES);
+
+/**
+ * Settle whether a locked container may be opened by `action` (`unlock`,
+ * `empty` or `unmake`) without beating its lock, and say so when it cannot or
+ * when only the Judge's seat lets it through (`lockBypass`). Resolves false for
+ * a Player with no key, who is told what was refused, and true otherwise; a
+ * Judge's pass without the key carries a warning naming the action.
+ */
+export async function passLock(actor, container, action) {
+  const { allowed, warn } = lockBypass(actor, container);
+  if (allowed && !warn) return true;
+  const data = {
+    name: container.name,
+    actor: actor?.name ?? "",
+    action: game.i18n.localize(`ACKS-EQUIPMENT.lock.bypassAction.${action}`),
+  };
+  ui.notifications?.warn?.(game.i18n.format(allowed ? "ACKS-EQUIPMENT.lock.bypassWarn" : "ACKS-EQUIPMENT.lock.bypassBlocked", data));
+  return allowed;
+}
 
 /** Localised notification; falls back to the key when unlocalised. */
 function notify(level, key, data = {}) {

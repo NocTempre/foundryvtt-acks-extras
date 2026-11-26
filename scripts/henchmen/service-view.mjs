@@ -161,7 +161,7 @@ export function clockLine(clock) {
  */
 export function buildServicePanel(actor, { pins = [] } = {}) {
   const retainer = adapter.getRetainer(actor);
-  if (!retainer.enabled) return { inService: false, emptyHint: loc("empty") };
+  if (!adapter.isInService(actor)) return { inService: false, emptyHint: loc("empty") };
   const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
   const employer = adapter.getManager(actor);
   const category = retainer.category || "henchman";

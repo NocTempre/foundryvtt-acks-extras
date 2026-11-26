@@ -383,7 +383,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   #transferTargets() {
     return game.actors.filter(
-      (a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && a.id !== this.employer.id && a.isOwner
+      (a) => a.type === ACTOR_TYPE.character && !adapter.isInService(a) && a.id !== this.employer.id && a.isOwner
     );
   }
 
@@ -480,7 +480,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     if (data?.type !== "Actor" || !data.uuid) return;
     const actor = await fromUuid(data.uuid);
-    const eligible = actor?.type === ACTOR_TYPE.character && !actor.system?.retainer?.enabled && actor.id !== this.employer.id;
+    const eligible = actor?.type === ACTOR_TYPE.character && !adapter.isInService(actor) && actor.id !== this.employer.id;
     if (!eligible) {
       ui.notifications.warn(loc("dropRefused"));
       return;

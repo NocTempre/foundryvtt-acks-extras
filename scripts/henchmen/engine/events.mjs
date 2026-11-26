@@ -559,7 +559,7 @@ export function allEmployers() {
   return game.actors.filter(
     (a) =>
       a.type === ACTOR_TYPE.character &&
-      !a.system?.retainer?.enabled &&
+      !adapter.isInService(a) &&
       (a.system?.henchmenList?.length ||
         (a.getFlag(MODULE_ID, FLAG_MONSTER_LIST) ?? []).length ||
         (anyGroups && hiredUnitsOf(a).length)),

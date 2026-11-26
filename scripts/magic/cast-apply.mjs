@@ -279,10 +279,8 @@ function checkRounds(row, e, world) {
 export function checkApplyRequest(req, world) {
   const { card, message } = world;
   if (!message || !card?.castId) return { refused: "noCard" };
-  if (req.requestUserId) {
-    if (message.authorId !== req.requestUserId) return { refused: "notAuthor" };
-    if (!world.ownsCaster) return { refused: "notOwner" };
-  }
+  // The asking seat's own ownership of the caster is the test, never the card's author: a card the Judge posted for a player's character is that player's to apply.
+  if (req.requestUserId && !world.ownsCaster) return { refused: "notOwner" };
   if (!world.spellOfCaster) return { refused: "badSpell" };
   const target = card.targets?.[req.targetKey];
   if (!target) return { refused: "badTarget" };
@@ -1042,7 +1040,8 @@ export async function requestApply(message, targetKey, requests) {
   const { updateEntry } = await import("./cast-card.mjs");
   const inputs = await castInputs(card, doc);
   const asked = [...requests, ...missingGroupKeys(card, targetKey, requests, inputs.rows).map((rowKey) => ({ rowKey }))];
-  if (game.user.isGM || doc.actor?.isOwner) {
+  // Applying here writes the card's entry, which only a seat that can edit the card does; any other asks the GM's client.
+  if (game.user.isGM || (doc.actor?.isOwner && message.isOwner)) {
     const deps = { ...(await liveApplyDeps(message.id, { writeEntry: (id, entry) => updateEntry(message, id, entry) })), ...castDeps(inputs) };
     await applyOnTarget(card, targetKey, asked, deps);
     return { ok: true };

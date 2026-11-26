@@ -2103,3 +2103,18 @@ The owner, 2026-11-26: "The control handoff can roadmap, doesn't need done now."
 - **The time-end card reads its creatures live** (`castSummons`), where the held-end card lists them in its flag, so a held-end card posted before this existed draws the select too. A time-end card posted before it kept its names in its flag cannot be redrawn from it, and draws none.
 
 *Cost:* a card whose creatures were all deleted by hand cannot be set: the select is not drawn and a stale request is refused `gone`. A time-end card set to They go keeps its outcome line and loses its Dismiss, where a `gone` end posted no card before.
+
+## 2026-11-26 — A cast card's Apply is an owner of the caster's, not the card's author's (T-0816)
+
+**Ruled.** The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server role instead of object ownership, only judge secrets are supposed to be an exception to this rule"; and "follow foundry permissions, don't invent new ones". An example: a Player whose character the Judge cast a spell for presses Apply on the Judge's card for a target's entry, with no Judge's seat in the way. `canPressCard` is the Judge, the card's author, and any user who owns the card's caster. The spell-effects plan (`wip/20261115-spell-effects-plan.md`, ruling "Throw and Apply: the caster's owners and GMs") already said it; the code tested the author.
+
+**Built.**
+
+- **Apply on a target's entry follows the caster's ownership.** A seat that is not the card's writer asks the GM's client. `checkApplyRequest` drops its `notAuthor` refusal and keeps `notOwner`, which `worldFor` answers from the asking user's own permission on the caster, never the GM client's. `requestApply` writes locally only where the seat owns the target and can edit the card (`message.isOwner`), so an owner of both the target and the caster who did not author the card also relays.
+- **`canWriteCard` is the old test** (the Judge and the author, the only users Foundry lets write a chat message). The seat carries both: `canPress` offers Apply, `canWrite` offers Throw, the Apply that takes the presser's targets, Undo from the apply seat and Revert. Undo and Revert stay as the 2026-11-25 entry ruled; the relay's `checkUndoRequest` still tests the author.
+
+**Rejected.** *A relay that writes a card from a thrown result.* Throw and the no-target Apply write the card's targets, entries and rows from the pressing seat; for a seat that cannot edit the card a GM's client would have to take the thrown figure on the seat's word, which is its own forging analysis and not a defect fix. *Offering the non-writer a Throw that then fails.* The press would roll and then be refused by Foundry.
+
+**Strongest counter, MEDIUM.** The card is its author's word, so a card forged by a Player naming another Player's character as caster is applied by a co-owner of that character. Held: the relay recomputes the spell, rows, bounds and the target's save from the documents (`worldFor`), the sender must own the caster, and the author of a forged card gained nothing they could not already write.
+
+*Cost:* an owner of the caster who did not cast is offered Apply and not Throw: a thrown row on a card the Judge cast for a Player's character waits for the Judge to press Throw. That half is the open work (a relayed Throw and Apply-to-my-targets).

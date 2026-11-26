@@ -90,7 +90,8 @@ down but never below its floor or past what week 1 left, and the remainder
 arrives in week 3. A table that is not imported, or reads a share of nothing,
 shares past the whole or a fractional floor, gives no shares, and then nothing
 is scheduled: a generic posting is refused `arrivals-missing` before any fee
-or roll (a directed search replaces pool members and arrives nowhere, so it
+or roll, once the sender's own refusals (`not-yours`, `criteria-required`)
+have answered (a directed search replaces pool members and arrives nowhere, so it
 is not), a due month roll is deferred with the market kept as it stands,
 and a network supplement is not rolled. The refusal and the deferral show
 no message; the board stays as it was.
@@ -743,7 +744,10 @@ and render on `isGM` alone; the sheet-opening control is open for everyone.
 Transfer is drawn wherever the row can act; its select lists
 only the characters the seat owns that are not in service and are not the
 employer (`#transferTargets`), since a transfer writes the new employer's
-roster, and its handler does nothing when none qualifies. A transfer also
+roster, and its handler does nothing when none qualifies. In service is
+`isInService` (`acks-adapter.mjs`): `retainer.enabled` with a `managerid`.
+Core's `delHenchman` clears `managerid` and leaves `enabled` on, so a character
+dismissed through core's sheet has no employer and counts as free. A transfer also
 moves the hireling's ownership with it (`transferOwnership`): the new employer's
 owners hold Owner, as a hire grants, and the players the old hire granted Owner
 who do not own the new employer lose it. A seat that
@@ -757,8 +761,8 @@ the calamity card, `rollLoyaltySecret` and `waiveCalamityRoll`
 (`registerEventEngine`), act only on a GM's seat: a card posted from a
 player's seat is shown to that player as its author, and the buttons are
 drawn there and do nothing. Dropping a character on the rows enrols it through
-`enrollHenchman` when it is in no one's service; the drop refuses a hireling
-already placed. Which rows are open and which filter is on are the window's
+`enrollHenchman` when it is not in service (`isInService`); the drop refuses a
+hireling already placed. Which rows are open and which filter is on are the window's
 own state (`#ui`), not a flag.
 
 ## 5. Time model

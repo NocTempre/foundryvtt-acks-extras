@@ -186,6 +186,21 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   }
 }
 
+// ---- in service: enabled AND a manager; a dismissed character is free ----
+// Core's delHenchman clears `managerid` and leaves `retainer.enabled` on, so the
+// roster reads the manager to tell a free character from one in service.
+{
+  const { isInService, isRetainer } = await import(new URL("../scripts/henchmen/acks-adapter.mjs", import.meta.url));
+  const actor = (retainer) => ({ system: { retainer } });
+  assert.strictEqual(isInService(actor({ enabled: true, managerid: "boss" })), true, "enabled with a manager is in service");
+  assert.strictEqual(isInService(actor({ enabled: true, managerid: "" })), false, "a dismissed character (enabled, no manager) is free");
+  assert.strictEqual(isInService(actor({ enabled: true })), false, "enabled with no manager field is free");
+  assert.strictEqual(isInService(actor({ enabled: false, managerid: "boss" })), false, "a manager with the block off is not in service");
+  assert.strictEqual(isInService(actor({})), false, "a plain character is free");
+  assert.strictEqual(isInService(null), false, "no actor is not in service");
+  assert.strictEqual(isRetainer(actor({ enabled: true, managerid: "" })), true, "the enabled flag alone is unchanged for its other readers");
+}
+
 // ---- the henchman limit: the imported base plus Charisma, or none ----
 // The bases below are authored for the test; none is a page's. A `retain`
 // on a fixture is a field core no longer derives, and is never read.

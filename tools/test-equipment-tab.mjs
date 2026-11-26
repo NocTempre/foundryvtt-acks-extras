@@ -179,6 +179,33 @@ const setDownOf = (controls) => controls.find((c) => c.action === "containerSetD
 }
 
 /* -------------------------------------------- */
+/*  The lock's controls: the key opens it       */
+/* -------------------------------------------- */
+
+{
+  const actions = (controls) => controls.map((c) => c.action);
+  const chest = itemOf("chest1", "Chest", { flags: { container: { locked: true, keys: [{ uuid: "Item.key1", name: "Brass Key" }] } } });
+  const keyItem = { ...itemOf("k1", "Brass Key"), uuid: "Actor.hero.Item.k1", _stats: { compendiumSource: "Item.key1" } };
+  const lockedReport = report(chest, { locked: true, visible: false });
+  const asSeat = (isGM) => {
+    globalThis.game.user = { isGM };
+  };
+  try {
+    asSeat(false);
+    const held = actions(containerControls(actorOf({ items: [chest, keyItem] }), lockedReport));
+    ok(held.includes("containerLock"), "an owner holding the key is offered Unlock");
+    ok(held.includes("containerEmpty"), "and Empty, which the key opens as well");
+    const bare = actions(containerControls(actorOf({ items: [chest] }), lockedReport));
+    ok(!bare.includes("containerLock") && !bare.includes("containerEmpty"), "a Player with no key is offered neither");
+    asSeat(true);
+    const judge = actions(containerControls(actorOf({ items: [chest] }), lockedReport));
+    ok(judge.includes("containerLock") && judge.includes("containerEmpty"), "a Judge with no key keeps both, warned when pressed");
+  } finally {
+    asSeat(false);
+  }
+}
+
+/* -------------------------------------------- */
 /*  The ground row's words                       */
 /* -------------------------------------------- */
 

@@ -499,7 +499,8 @@ t("a relayed request is refused for every wrong thing about it, and passes when 
   const req = (over = {}) => ({ requestUserId: "p1", messageId: "m", targetKey: "t1", resist: card().targets.t1.resist, entries: [{ rowKey: "burn", rolled: 7 }], ...over });
   assert.deepEqual(checkApplyRequest(req(), world()), { ok: true });
   assert.equal(checkApplyRequest(req(), world({ message: null })).refused, "noCard");
-  assert.equal(checkApplyRequest(req({ requestUserId: "p2" }), world()).refused, "notAuthor");
+  assert.deepEqual(checkApplyRequest(req({ requestUserId: "p2" }), world()), { ok: true }, "an owner of the caster who did not author the card is let through: the author is not the test");
+  assert.equal(checkApplyRequest(req({ requestUserId: "p2" }), world({ ownsCaster: false })).refused, "notOwner", "a seat that owns neither the card nor the caster");
   assert.equal(checkApplyRequest(req(), world({ ownsCaster: false })).refused, "notOwner");
   assert.equal(checkApplyRequest(req(), world({ spellOfCaster: false })).refused, "badSpell");
   assert.equal(checkApplyRequest(req({ targetKey: "t9" }), world()).refused, "badTarget");
@@ -1259,6 +1260,46 @@ t("Undo is offered to a target's owner, and to the author who owns the caster fo
   assert.deepEqual(undoOf(entry({ state: "undone" }), targetOwner), [], "nor once undone");
   assert.deepEqual([undoableEntry(entry()), undoableEntry(entry({ applied: 0 })), undoableEntry(entry({ applied: 0, recordIds: ["r"] })), undoableEntry(entry({ applied: 0, destroyed: { id: "w" } })), undoableEntry({ state: "pending", applied: 3 }), undoableEntry(undefined)], [true, false, true, true, false, false]);
   assert.equal(CAST_UNDO_HANDLER, "magicCastUndo");
+});
+
+t("an owner of the caster who did not author the card presses Apply on a target's entry, and nothing the card's writer alone can do", () => {
+  const press = (view) => [...view.sections.flatMap((s) => s.rows.flatMap((r) => r.actions.map((a) => a.action))), ...view.buttons.map((b) => b.action)];
+  const owner = { isGM: false, canPress: true, canWrite: false, ownsCaster: true, ownsTarget: () => false };
+  assert.deepEqual(press(castCardView(card(), owner, loc)), [CARD_ACTIONS.apply], "Apply on an entry the card holds");
+  const thrown = card({ entries: { t1_burn: { state: "throw" } } });
+  assert.deepEqual(press(castCardView(thrown, owner, loc)), [], "no Throw: the throw writes the card");
+  const loose = card({ targets: {}, entries: {} });
+  assert.deepEqual(press(castCardView(loose, owner, loc)), [], "no Apply that takes the presser's targets: it writes the card");
+  const withStep = card({ procedure: { undo: {}, reverted: false } });
+  assert.ok(!press(castCardView(withStep, owner, loc)).includes(CARD_ACTIONS.revert), "no Revert: the seat cannot edit the card");
+  const applied = card({ entries: { t1_burn: { state: "applied", rolled: 7, applied: 4, before: 20, after: 16 } } });
+  assert.deepEqual(press(castCardView(applied, owner, loc)), [], "no Undo for the author-owner's reach: the relay refuses it");
+  const writer = { ...owner, canWrite: true };
+  assert.deepEqual(press(castCardView(loose, writer, loc)), [CARD_ACTIONS.applyTargets], "the card's writer keeps all of it");
+  assert.deepEqual(press(castCardView(thrown, writer, loc)), [CARD_ACTIONS.throw]);
+  assert.deepEqual(press(castCardView(card(), { isGM: false, canPress: true }, loc)), [CARD_ACTIONS.apply], "a seat that names no canWrite is as canPress says");
+});
+
+await ta("canPressCard lets the author, a Judge and an owner of the caster press, and no one else; canWriteCard is the author and a Judge", async () => {
+  const { canPressCard, canWriteCard } = await import("../scripts/magic/cast-card.mjs");
+  const savedUser = globalThis.game.user;
+  const savedSync = globalThis.fromUuidSync;
+  const owns = { "Actor.c1": new Set(["owner"]) };
+  globalThis.fromUuidSync = (uuid) => (uuid === "Actor.c1" ? { testUserPermission: (user, level) => level === "OWNER" && owns["Actor.c1"].has(user.id) } : null);
+  const message = (authorId) => ({ author: { id: authorId }, isAuthor: false, flags: { "acks-extras": { castCard: { castId: "c", casterUuid: "Actor.c1" } } } });
+  const as = (user, fn) => {
+    globalThis.game.user = user;
+    return fn();
+  };
+  assert.equal(as({ id: "author", isGM: false }, () => canPressCard(message("author"))), true, "the author");
+  assert.equal(as({ id: "gm", isGM: true }, () => canPressCard(message("author"))), true, "a Judge");
+  assert.equal(as({ id: "owner", isGM: false }, () => canPressCard(message("author"))), true, "an owner of the caster who is not the author");
+  assert.equal(as({ id: "other", isGM: false }, () => canPressCard(message("author"))), false, "a seat that owns neither");
+  assert.equal(as({ id: "owner", isGM: false }, () => canWriteCard(message("author"))), false, "an owner cannot write another's card");
+  assert.equal(as({ id: "author", isGM: false }, () => canWriteCard(message("author"))), true);
+  assert.equal(as({ id: "gm", isGM: true }, () => canWriteCard(message("author"))), true);
+  globalThis.game.user = savedUser;
+  globalThis.fromUuidSync = savedSync;
 });
 
 t("the relay refuses an Undo in order: no card, no target, nothing to undo, a seat that owns neither, then what the card's figures cannot bound for a seat that owns only the caster", () => {

@@ -297,3 +297,15 @@ value badge.
   figure, keyed `apparent` so no field types over it
   (`item-sheet/view-model.mjs` `priceView`). A Judge reads every line, and a
   Judge previewing as a player reads the player's.
+
+## 2026-11-26 — The merchant's Bargaining ranks and Charisma are the Judge's, read from a Judge's request alone (T-0819)
+
+**Ruled.** The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server role instead of object ownership, only judge secrets are supposed to be an exception to this rule"; and "follow foundry permissions, don't invent new ones". An example: a Player buying rope at a market is drawn no merchant fields, and a request they send with the merchant's ranks set to 3 is priced as if it had none. The two figures describe the merchant, the Judge's counterparty, and are stored on no document a Player owns, so ownership has nothing to decide by: they are a Judge's secret, the one exception the owner names.
+
+**Built.** `merchantFigures` (`rules/pricing.mjs`) returns the payload's ranks and Charisma only where `judgeDeclares(requestUserId)` holds (the sender Foundry attested is a GM, `lib/sockets.mjs` `runRelayed`), else the defaults. `purchase`, `sell` and `placeImportOrder` price through it, so the engine now agrees with the dialogs, which draw the two inputs on a GM seat only (`templates/markets/purchase-dialog.hbs`, `sell-dialog.hbs`).
+
+**Rejected.** *Drawing the inputs for every owner of the buyer.* A Player owns the market location by default, so the control would let a Player set their opponent's profile. *Reading the merchant's figures from the imported typical profile as the venture engine does.* It changes what a plain purchase costs (the 2026-11-16 class entry's "a plain purchase at the month's price does not need it").
+
+**Strongest counter, LOW.** A forged payload with ranks 0 was already the Player's default, so only the Charisma and ranks that favour a Player could be forged (a high-rank merchant with a low modifier to lose the opposed roll). Held: the engine never read them from a seat it did not trust, and no honest client sends them.
+
+*Cost:* a Player's purchase and sale is always priced against a merchant with no Bargaining ranks, so a Player party with the proficiency takes the swing outright; a Judge who wants the merchant to have ranks makes the trade from a Judge's seat. The default Charisma of 1 and the dialogs' initial 1 are unexamined code figures, and a ROADMAP candidate for the printed-value rule.

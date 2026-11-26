@@ -97,7 +97,9 @@ the cached %-rolls — the party's own find first, the town's tenfold stock
 party's find.
 
 - **Buy/sell** (`engine/trade.mjs`): staged copper pricing (condition,
-  demand steps, Bargaining swing by opposed winner); purchases arrive through
+  demand steps, Bargaining swing by opposed winner; the merchant's ranks and
+  Charisma are typed in the Judge's dialog only, and a request not from a
+  Judge's seat is priced with the defaults, `merchantFigures`); purchases arrive through
   lib's `deliverItems` (one stack of the quantity, folded into an identical
   stack the buyer carries, or one copy per unit; docs/lib/MODEL.md, "Goods
   handed to an actor, and bundles"); sales destroy the sold document. Magic

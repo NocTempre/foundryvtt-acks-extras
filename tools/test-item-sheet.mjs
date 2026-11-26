@@ -362,11 +362,20 @@ test("the right rail is always four cells tall", () => {
   assert.equal(m.rails.right[2].pct, "50%");
   assert.equal(m.rails.right[3].v, "−2");
 });
-test("the editor rail leads with the pencil, drops ownership on embedded items and source for players", () => {
+test("the editor rail leads with the pencil and drops ownership on embedded items", () => {
   const world = buildItemSheetModel(base({ embedded: false }), { isGM: true, editable: true });
   assert.deepEqual(world.rails.editor.map((c) => c.key), ["edit", "changeArt", "ownership", "source"]);
   const embedded = buildItemSheetModel(base({ embedded: true }), { isGM: false, editable: true });
-  assert.deepEqual(embedded.rails.editor.map((c) => c.key), ["edit", "changeArt"]);
+  assert.deepEqual(embedded.rails.editor.map((c) => c.key), ["edit", "changeArt", "source"], "an owner's sheet carries Source, as the character sheet's tools do");
+});
+test("an item that hides what it is keeps Source off a seat that is not the Judge's", () => {
+  const keys = (snap, viewer) => buildItemSheetModel(snap, viewer).rails.editor.map((c) => c.key);
+  const owner = { isGM: false, editable: true };
+  assert.ok(!keys(base({ embedded: true, disguise: { enabled: true, active: true } }), owner).includes("source"), "a disguised item names its true item");
+  assert.ok(!keys(base({ embedded: true, magic: { is: true, aura: null, identified: "none", known: true } }), owner).includes("source"), "an unidentified magic item likewise");
+  assert.ok(!keys(base({ embedded: true, magic: { is: true, aura: null, identified: "full", known: false } }), owner).includes("source"), "and an undetected one");
+  assert.ok(keys(base({ embedded: true, magic: { is: true, aura: null, identified: "full", known: true } }), owner).includes("source"), "an identified one shows it");
+  assert.ok(keys(base({ embedded: true, disguise: { enabled: true, active: true } }), { isGM: true, editable: true }).includes("source"), "the Judge keeps it on a disguised item");
 });
 test("the sheet opens locked: editing needs the permission and the pencil, and the pencil says which", () => {
   const locked = buildItemSheetModel(base(), { isGM: true, editable: true });

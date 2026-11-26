@@ -108,6 +108,17 @@ export function isRetainer(actor) {
   return !!actor?.system?.retainer?.enabled;
 }
 
+/**
+ * True where the actor is in an employer's service: the retainer block is
+ * enabled and names a manager. Core's `delHenchman` clears `managerid` and
+ * leaves `enabled` on, so a dismissed character is still `isRetainer` yet has
+ * no employer, and is free to take on or be taken on.
+ */
+export function isInService(actor) {
+  const r = actor?.system?.retainer;
+  return !!r?.enabled && !!r.managerid;
+}
+
 /** The world actor named by the retainer's `managerid`, or null where none is set. */
 export function getManager(actor) {
   const id = actor?.system?.retainer?.managerid;

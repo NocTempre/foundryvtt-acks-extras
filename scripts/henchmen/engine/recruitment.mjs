@@ -619,10 +619,6 @@ export async function createPosting(
   // ownership: a player reaches a candidate through the paid search.
   const gmAdd = isPrivate && !requestUserId;
   const segment = isPrivate ? "" : segmentKeyFor(spec);
-  // A generic posting buys access to the shared pool's arrivals; with no
-  // arrival shares imported none can be scheduled, so nothing is posted or
-  // charged. A directed search replaces pool members and arrives nowhere.
-  if (!isPrivate && !arrivalShares()) return { error: "arrivals-missing" };
 
   // A request carries the sender's id, never a GM's (`runRelayed` and the
   // dialog both send a GM as null). The employer is the sender's; a directed
@@ -641,6 +637,13 @@ export async function createPosting(
         return { error: "criteria-required" };
     }
   }
+
+  // A generic posting buys access to the shared pool's arrivals; with no
+  // arrival shares imported none can be scheduled, so nothing is posted or
+  // charged. A directed search replaces pool members and arrives nowhere. The
+  // sender's own refusals above answer first, since they hold with or without
+  // the import.
+  if (!isPrivate && !arrivalShares()) return { error: "arrivals-missing" };
 
   // Alignment openness (directed class searches): an opposed-alignment
   // class is harder to recruit openly — rarity shift per the table.
@@ -1099,7 +1102,7 @@ export async function reloadMarket() {
 /**
  * Close a posting (take a notice down). Players own their own posts but
  * cannot write the location actor, so non-GM calls relay through the GM
- * socket ("closePosting") — only the posting employer's owner or a GM may
+ * socket ("closePosting") — only an owner of the posting's employer may
  * close it.
  */
 export async function closePosting(location, postingId, { requestUserId = null } = {}) {
@@ -1111,7 +1114,7 @@ export async function closePosting(location, postingId, { requestUserId = null }
 /**
  * Show or hide a posting's candidate details from players. A posting's details
  * are the employer's to flip, so the sender is held to `closePosting`'s check:
- * a GM or an owner of the employer. A Player's seat reaches the write through
+ * an owner of the employer. A Player's seat reaches the write through
  * the "setPostingDetails" relay, which re-reads the attested sender here.
  *
  * @param {Actor} location
@@ -1126,7 +1129,11 @@ export async function setPostingDetails(location, postingId, value, { requestUse
   });
 }
 
-/** Apply `change` to one posting of a place and write the list, for a sender who is a GM or owns the posting's employer (`requestUserId` null is the GM's own seat). */
+/**
+ * Apply `change` to one posting of a place and write the list, for a sender who owns the posting's
+ * employer (`requestUserId` null is the GM's own seat). Foundry counts a GM as the owner of every
+ * document, so the ownership test is the whole check and no role is read.
+ */
 async function changePosting(location, postingId, requestUserId, change) {
   const postings = (location.system.postings ?? []).map((p) => p.toObject?.() ?? foundry.utils.deepClone(p));
   const posting = postings.find((p) => p.id === postingId);
@@ -1135,8 +1142,7 @@ async function changePosting(location, postingId, requestUserId, change) {
     const user = game.users.get(requestUserId);
     const employer = posting.employerUuid ? await fromUuid(posting.employerUuid).catch(() => null) : null;
     const employerActor = employer?.actor ?? employer;
-    const allowed = user?.isGM || (employerActor && employerActor.testUserPermission(user, "OWNER"));
-    if (!allowed) return { error: "not-yours" };
+    if (!employerActor?.testUserPermission(user, "OWNER")) return { error: "not-yours" };
   }
   change(posting);
   await location.update({ "system.market.postings": postings });

@@ -32,13 +32,14 @@ import {
   contentsOf,
   isContainer,
   emptyContainer,
+  lockBypass,
   setConcealed,
   setLocked,
   setOpened,
   storeIn,
   takeOut,
 } from "./containers.mjs";
-import { pickLock, bashOpen, canPick, canBash } from "./locks.mjs";
+import { pickLock, bashOpen, canPick, canBash, passLock } from "./locks.mjs";
 import { annotateItem } from "./api.mjs";
 import { ROWS_CHANGED_HOOK } from "./weapon-rows.mjs";
 import { capacityTip } from "./printed-layers.mjs";
@@ -475,10 +476,10 @@ function containerHeader(actor, c, onRerender) {
 
   const controls = el("div", "acks-equipment-container__controls");
 
-  // The lock is the Judge's: Unlock, Empty and Unmake each open a locked
-  // container in one click, so only the GM gets them; a player gets pick and
-  // bash, which roll. See docs/equipment/DECISIONS.md, "The lock is the Judge's, and a player has to beat it".
-  const mayBypassLock = !c.locked || game.user.isGM;
+  // Unlock, Empty and Unmake each open a locked container in one click, so
+  // they go to whoever holds its key and to a Judge, whose press is warned
+  // (`passLock`); any other player gets pick and bash, which roll.
+  const mayBypassLock = lockBypass(actor, c.item).allowed;
 
   if (foldable) {
     controls.append(
@@ -498,8 +499,10 @@ function containerHeader(actor, c, onRerender) {
     if (mayBypassLock) {
       controls.append(
         ctrl(c.locked ? "fa-unlock" : "fa-lock", c.locked ? "ACKS-EQUIPMENT.container.unlock" : "ACKS-EQUIPMENT.container.lock", async () => {
-          if (c.locked) await setOpened(c.item, true);
-          else await setLocked(c.item, true);
+          if (c.locked) {
+            if (!(await passLock(actor, c.item, "unlock"))) return;
+            await setOpened(c.item, true);
+          } else await setLocked(c.item, true);
           onRerender();
         }),
       );
@@ -542,11 +545,13 @@ function containerHeader(actor, c, onRerender) {
     if (mayBypassLock) {
       controls.append(
         ctrl("fa-box-open", "ACKS-EQUIPMENT.container.empty", async () => {
+          if (!(await passLock(actor, c.item, "empty"))) return;
           const n = await emptyContainer(actor, c.item);
           if (n) ui.notifications.info(game.i18n.format("ACKS-EQUIPMENT.container.emptied", { n, name: c.item.name }));
           onRerender();
         }),
         ctrl("fa-times", "ACKS-EQUIPMENT.container.unmake", async () => {
+          if (!(await passLock(actor, c.item, "unmake"))) return;
           await emptyContainer(actor, c.item);
           await c.item.unsetFlag(MODULE_ID, "container");
           onRerender();

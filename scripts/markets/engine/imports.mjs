@@ -12,7 +12,7 @@
 import { MODULE_ID, LANG, HOOKS } from "../constants.mjs";
 import { priceBandOf, cellFor, itemKeyOf } from "../rules/availability.mjs";
 import { getSetting } from "../settings.mjs";
-import { toGp, bargainWinner } from "../rules/pricing.mjs";
+import { toGp, bargainWinner, merchantFigures } from "../rules/pricing.mjs";
 import { magicBasisOf, capVerdict } from "../rules/goods.mjs";
 import { importPlan, dueImports, hubClass, HUBS } from "../rules/imports.mjs";
 import { hubWait, marketRules, printedError } from "./printed.mjs";
@@ -68,7 +68,8 @@ async function postCard(buyer, html) {
  * market rules.
  */
 export async function placeImportOrder(location, payload) {
-  const { buyerUuid, itemName, sourceUuid = "", qty: rawQty, hub: rawHub, merchantRanks = 0, requestUserId = null, resolutionId = "" } = payload;
+  const { buyerUuid, itemName, sourceUuid = "", qty: rawQty, hub: rawHub, requestUserId = null, resolutionId = "" } = payload;
+  const { merchantRanks } = merchantFigures(payload, judgeDeclares(requestUserId));
   const hub = Object.hasOwn(HUBS, rawHub) ? rawHub : "local";
   const qty = Math.max(1, Math.floor(Number(rawQty) || 1));
 

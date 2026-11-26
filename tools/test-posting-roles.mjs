@@ -80,13 +80,36 @@ assert.deepStrictEqual(await post({ kind: "henchmanByClass", classKey: "" }, own
 assert.deepStrictEqual(await post({ kind: "henchmanByClassProficiency", classKey: "", proficiencyName: "x" }, owned, USERS.player.id), { error: "criteria-required" }, "a by-class-and-proficiency search with no class is refused");
 assert.deepStrictEqual(await post({ kind: "henchmanByProficiency", proficiencyName: "  " }, owned, USERS.player.id), { error: "criteria-required" }, "a by-proficiency search with a blank proficiency is refused");
 
+// ---- the sender's own refusals answer before a missing import ----
+// With no arrival shares imported a generic post cannot be scheduled, but a
+// request the sender may not make is refused as theirs first.
+{
+  const key = "availability.arrivalProse";
+  const saved = TABLES[key];
+  delete TABLES[key];
+  try {
+    assert.deepStrictEqual(await post(LEVEL_ONLY, owned, USERS.player.id), { error: "criteria-required" }, "a player's level-only post names its criteria, not the import");
+    assert.deepStrictEqual(await post({ kind: "henchman", general: true }, foreign, USERS.player.id), { error: "not-yours" }, "a post for an employer the sender does not own names that, not the import");
+    assert.deepStrictEqual(await post({ kind: "henchman", general: true }, owned, USERS.player.id), { error: "arrivals-missing" }, "a request the sender may make then meets the missing import");
+    assert.deepStrictEqual(await post(LEVEL_ONLY, owned, null), { error: "arrivals-missing" }, "the Judge's own post meets the missing import");
+  } finally {
+    TABLES[key] = saved;
+  }
+}
+
 // ---- flipping "players see details": the employer's owner or a GM, written for them ----
 // The owner's seat reaches the write by the GM relay, which re-reads the sender here.
 {
-  const { setPostingDetails, candidateMasked } = await import("../scripts/henchmen/engine/recruitment.mjs");
+  const { setPostingDetails, closePosting, candidateMasked } = await import("../scripts/henchmen/engine/recruitment.mjs");
   const USER_GM = { id: "g1", isGM: true };
   USERS.gm = USER_GM;
   USERS.other = { id: "p2", isGM: false };
+  // Foundry answers OWNER for a GM user on any document, so a mock that stands for
+  // a document answers true for one too.
+  for (const doc of [owned, foreign]) {
+    const byOwnership = doc.testUserPermission;
+    doc.testUserPermission = (user, ...rest) => !!user?.isGM || byOwnership(user, ...rest);
+  }
   globalThis.fromUuid = async (uuid) => (uuid === owned.uuid ? owned : uuid === foreign.uuid ? foreign : null);
   const placeOf = (employerUuid) => {
     const writes = [];
@@ -111,6 +134,21 @@ assert.deepStrictEqual(await post({ kind: "henchmanByProficiency", proficiencyNa
   const theirs = placeOf(foreign.uuid);
   assert.deepStrictEqual(await setPostingDetails(theirs, "p-1", false, { requestUserId: USERS.player.id }), { error: "not-yours" }, "a player flipping a posting for an employer they do not own is refused");
   assert.deepStrictEqual(await setPostingDetails(owner, "p-9", false, { requestUserId: USERS.player.id }), { error: "no-posting" }, "a posting that is not there is named");
+
+  // ---- closing: the same sender check, so ownership alone answers for a GM and a Player ----
+  const statusOf = (place) => place.writes[0]?.["system.market.postings"][0].status;
+  const closedByOwner = placeOf(owned.uuid);
+  assert.strictEqual((await closePosting(closedByOwner, "p-1", { requestUserId: USERS.player.id })).error, undefined, "the employer's owner closes the posting");
+  assert.strictEqual(statusOf(closedByOwner), "closed", "and the close is written");
+  const closedByGm = placeOf(owned.uuid);
+  assert.strictEqual((await closePosting(closedByGm, "p-1", { requestUserId: USER_GM.id })).error, undefined, "a GM seat closes it though the employer is not theirs");
+  assert.strictEqual(statusOf(closedByGm), "closed", "and the close is written");
+  const closedLocally = placeOf(foreign.uuid);
+  assert.strictEqual((await closePosting(closedLocally, "p-1")).error, undefined, "a local call with no sender is the GM's own");
+  assert.strictEqual(statusOf(closedLocally), "closed", "and the close is written");
+  const notClosed = placeOf(owned.uuid);
+  assert.deepStrictEqual(await closePosting(notClosed, "p-1", { requestUserId: USERS.other.id }), { error: "not-yours" }, "a non-owner cannot close it");
+  assert.strictEqual(notClosed.writes.length, 0, "and nothing is written");
 
   // ---- masking: an employer sees their own candidates in a segment their posting hides from others ----
   const masked = new Set(["henchman:2"]);

@@ -311,7 +311,7 @@ Hooks.on("renderActorSheetV2", (app, element) => {
 Hooks.on("renderActorSheetV2", (app, element) => {
   if (game.system?.id !== "acks") return;
   const actor = app.actor ?? app.document;
-  if (actor?.type !== ACTOR_TYPE.character || actor.system?.retainer?.enabled) return;
+  if (actor?.type !== ACTOR_TYPE.character || adapter.isInService(actor)) return;
   if (!actor.isOwner) return;
   // The module's own character sheet carries Roster as a chip on its
   // Followers tab; the header button dresses the system's sheet alone.

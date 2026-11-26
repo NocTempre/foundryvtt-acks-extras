@@ -21,7 +21,7 @@ import { heldGrip } from "../../equipment/attack-mods.mjs";
 import { heldDieTip } from "../../equipment/weapon-figures.mjs";
 import { wearLocation, wearLabel } from "../../equipment/wear.mjs";
 import { WEAR, WEAR_ICONS } from "../../equipment/config.mjs";
-import { containerReport, containedIn, contentsOf, isContainer } from "../../equipment/containers.mjs";
+import { containerReport, containedIn, contentsOf, isContainer, lockBypass } from "../../equipment/containers.mjs";
 import { canPick, canBash } from "../../equipment/locks.mjs";
 import { ITEM_FLAGS } from "../../equipment/constants.mjs";
 import { strapOf, overlayEnabled as shieldOverlayEnabled } from "../../equipment/overlays/shield-variants.mjs";
@@ -178,7 +178,9 @@ export const canSetDown = (actor, item) => !!actor?.isOwner && !actor.isToken &&
 /** The container header's own controls: fold, the lock, pick and bash, empty, set down. */
 export function containerControls(actor, report) {
   const out = [];
-  const mayBypass = !report.locked || game.user.isGM;
+  // Unlock and Empty open a locked container in one click: the key's holder
+  // has them, and a Judge has them with a warning on press (`passLock`).
+  const mayBypass = lockBypass(actor, report.item).allowed;
   // Folding a container writes its record, so it is the owner's like the rest.
   if (!actor.isOwner) return out;
   if (report.visible) {

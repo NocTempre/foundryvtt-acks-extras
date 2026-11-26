@@ -71,7 +71,7 @@ late instead of early and wrong. Core's own equip toggle in `veto` mode is
 judged in `preUpdateItem`, which cannot wait, and a sheet opened in the window
 shows the early answers until it redraws.
 
-## 2026-11-13 — The lock is the Judge's, and a player has to beat it
+## 2026-11-13 — The lock is the Judge's, and a player has to beat it — SUPERSEDED IN PART 2026-11-26
 
 **Ruled.** Three owner controls each open a locked container in one click: Unlock (there is no key item to check, so it is a free pass), Empty and Unmake. Only the GM gets them, because at a table the Judge is who opens it for you, including when the character legitimately holds the key. A player facing a locked container gets the two controls that have to beat it, pick and bash, both of which roll, and each is offered only when the character has the proficiency. Locking is always available, since shutting your own box is not a bypass.
 **Rejected.** Giving every owner all three controls: the lock would be the whole feature undone, since nobody would pick a lock they can click off.
@@ -437,3 +437,58 @@ stack and an emptied stack is no longer the shot's.
 
 Rejected: the combat clock (the page counts turns, not rounds); counting from
 the Save press.
+
+## 2026-11-26 — A lock's key opens it, and a Judge without the key is warned (T-0820)
+
+The 2026-11-13 entry "The lock is the Judge's, and a player has to beat it" gave
+Unlock, Empty and Unmake to the GM seat alone, on the ground that "there is no
+key item to check". The new evidence: a container's record now lists its keys
+(`container.keys`, dropped on the item sheet's lock), so there is a key to
+check, and the owner ruled 2026-11-25 that a tool follows the object's
+ownership and a role gate stands only for a Judge's secret ("Tool permissions
+are hardcoded (e.g. summons) by server role instead of object ownership, only
+judge secrets are supposed to be an exception to this rule"; "players get blocks,
+judges get warnings").
+
+**Ruled.** One predicate, `lockBypass` in `containers.mjs`, decides the three
+controls. A locked container's Unlock, Empty and Unmake are offered to an owner
+of the character who carries one of its keys. With no key a Player is not
+offered them and, pressing a stale control, is blocked with a notice; a Judge
+keeps them and gets a warning on press that says what a Player would have been
+refused (`passLock` in `locks.mjs`). A Judge who holds the key is not warned.
+A key is held when a carried item is the listed document, was made from it
+(`_stats.compendiumSource`, `duplicateSource`, `flags.core.sourceId`), or
+carries its name: a copy made from a world item keeps no link to its source, so
+the name is the only thing left to tell it by.
+
+**Rejected.** Keeping the controls GM-only and only adding the warning: it
+leaves the key-holder refused, which is the row. A Judge refused without the
+key: the Judge's seat is the table's override. Telling a key by uuid alone:
+a key handed over from the Items directory would never open its lock.
+
+**Cost.** The name match can pass a lock for any carried item that shares a
+key's name; the Judge controls the key list and the names in it. A lock that
+lists no key still opens for nobody but the Judge, as before. Not walked live.
+
+## 2026-11-26 — The item sheet's Source follows ownership unless the item conceals itself (T-0859)
+
+The character sheet's Source cell became every owner's on 2026-11-25
+(character-sheet DECISIONS, "The Source cell is every owner's"); an item sheet's
+editor rail kept it Judge-only. An item's Source names the document the item
+was made from, which is not neutral where the item hides what it is: a
+disguised item's source is its true item, and a magic item not yet identified or
+detected is hidden by the same rule that hides its aura.
+
+**Ruled.** The Source cell shows on every sheet whose editor rail is drawn
+(an owner's), and stays off a non-Judge seat while the item is disguised, or
+its magic is unidentified or undetected for that seat (`conceals` in
+`buildItemSheetModel`). That is the Judge's-secret exception to the ownership
+rule, drawn from the model's own `masked`, `hideMagic` and `undetected`.
+
+**Rejected.** Showing it to every owner always: it names the true item of a
+disguise. Keeping it Judge-only: the invented role gate the owner ruled out.
+
+**Cost.** A player's sheet shows Source for a plain item and not for a masked
+one, so the cell appears when an item is identified. The press still reads
+`_stats.compendiumSource` directly and has no second gate, since a concealing
+item's cell is not drawn.

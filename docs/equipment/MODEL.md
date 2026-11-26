@@ -644,7 +644,10 @@ sheet is locked for a viewer who may edit it, a disabled control with no
 tooltip of its own names the pencil when pointed at (`#hintLockedFields`). A
 control in the header band keeps its pointerdown and double click from the
 window header, so pressing or double-clicking the name neither drags nor
-minimizes the window.
+minimizes the window. The editor rail is drawn for whoever may edit the item,
+and its Source cell shows to every such seat except while the item is disguised
+or its magic is unidentified or undetected, when it is the Judge's, since it
+names the document the item was made from.
 
 **One Add effect control.** An effect is added from one control, `addEffect`:
 the Effects tab's own group and, for an item with no effect (the simple view,
@@ -691,6 +694,13 @@ locked crate tells you that you are carrying a locked crate, not what is inside.
 Two flags rather than one — `locked` is the lock's existence, `opened` records
 that it has been defeated — because picking a lock does not remove it and the
 Judge should not have to re-describe the lock to shut it again.
+
+**The key, and the Judge, open it in one click.** A locked container's Unlock,
+Empty and Unmake come to an owner who carries one of the container's keys
+(`holdsKey`: the key document listed on the lock, a copy made from it, or an item
+of its name), and to a Judge, whose press without the key is warned of what a
+Player would have been refused (`lockBypass`, `passLock`). A Player with no key
+is offered none of the three and has pick and bash, which roll.
 
 ### Weight, and the bundle
 
