@@ -37,7 +37,7 @@ import {
 } from "./crossing.mjs";
 import { lockPlanAsJudge, parsePick, planNote, planRefusal, reasonText, resolvePlanRound, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
-import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingRun, requestCrossingThrow, requestPartyAction, requestPartyForm, requestPartyPress, requestTakeOut, sayPartyFormAnswer, userOwnsMember } from "./player-requests.mjs";
+import { requestBringIn, requestCrossingLanding, requestCrossingPace, requestCrossingRescue, requestCrossingRun, requestCrossingThrow, requestPartyAction, requestPartyForm, requestPartyPress, requestTakeOut, sayPartyFormAnswer, userOwnsMember } from "./player-requests.mjs";
 import { spendPicks } from "../lib/picks.mjs";
 import { chooseConveyance } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
@@ -1187,12 +1187,17 @@ export const SHARED_ACTIONS = {
 
   /**
    * A member's landing save, rolled through the system's own save roll. The
-   * Judge's alone: a player's seat has no press for it.
+   * member's owner presses it: the Judge's seat rolls it with the press's
+   * event, another seat hands it to `requestCrossingLanding`, which relays it.
    */
   async crossingLand(event, target) {
-    const formation = gmFormation(this);
+    const formation = this.formation;
     const actorId = target.dataset.actorId;
-    if (!formation || !actorId) return;
+    if (!formation || !actorId || (!game.user.isGM && !ownsActor(actorId))) return;
+    if (!game.user.isGM) {
+      await requestCrossingLanding(formation, actorId, "land");
+      return;
+    }
     const result = await landFor(formation, actorId, { event });
     const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
     if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.localize(key));
@@ -1201,14 +1206,19 @@ export const SHARED_ACTIONS = {
 
   /**
    * A failed landing reported on the footing the row's pick names, with the
-   * figures it yields. The Judge's alone; no hit point or condition is applied,
+   * figures it yields. No hit point or condition is applied,
    * and a member who has attempted the jump has the pick written to the record.
+   * The member's owner presses it; a seat that is no Judge relays it.
    */
   async crossingLandingFailed(_event, target) {
-    const formation = gmFormation(this);
+    const formation = this.formation;
     const actorId = target.dataset.actorId;
     const footing = target.closest(".acks-extras-crossing-landing")?.querySelector("[data-pick='crossing-footing']")?.value;
-    if (!formation || !actorId) return;
+    if (!formation || !actorId || (!game.user.isGM && !ownsActor(actorId))) return;
+    if (!game.user.isGM) {
+      await requestCrossingLanding(formation, actorId, "footing", { footing });
+      return;
+    }
     const result = await reportLanding(formation, actorId, footing);
     const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
     if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.localize(key));
@@ -1217,12 +1227,17 @@ export const SHARED_ACTIONS = {
 
   /**
    * A drowning member brought to the surface: afloat again, the rescuer and the
-   * held drowning let go. The Judge's alone: a player's seat has no press for it.
+   * held drowning let go. The drowning member's owner presses it: the Judge's
+   * seat runs it, another seat hands it to `requestCrossingLanding`.
    */
   async crossingHaul(_event, target) {
-    const formation = gmFormation(this);
+    const formation = this.formation;
     const actorId = target.dataset.actorId;
-    if (!formation || !actorId) return;
+    if (!formation || !actorId || (!game.user.isGM && !ownsActor(actorId))) return;
+    if (!game.user.isGM) {
+      await requestCrossingLanding(formation, actorId, "haul");
+      return;
+    }
     const result = await haulToSurface(formation, actorId);
     const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
     if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.localize(key));

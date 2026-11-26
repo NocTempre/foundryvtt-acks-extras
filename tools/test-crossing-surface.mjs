@@ -140,7 +140,7 @@ const {
   CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, canCross, endCrossing, jumpFor, landFor, pruneMembers, readCrossing, reportLanding,
   setPace, throwAll, throwFor, writeMemberStep,
 } = crossing;
-const { registerRequestSocket, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction } = await import("../scripts/formation/player-requests.mjs");
+const { registerRequestSocket, requestCrossingLanding, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction } = await import("../scripts/formation/player-requests.mjs");
 
 /**
  * socketlib's stand-in. `relay` delivers a request to the registered handler as the GM
@@ -968,7 +968,7 @@ await ok("each member's row equals canClear on their own score, level, load and 
   assert.equal(rowOf(buildCrossingView(formation), "Alder").verdict, "chance", "the same gap, the standing jump");
 });
 
-await ok("a precarious or charging setup offers a Judge the landing save and a plain one does not; a player reads it with no press", async () => {
+await ok("a precarious or charging setup offers the member's owner the landing save and a plain one does not; a seat that owns no member reads it with no press", async () => {
   reset();
   load();
   const a = person("Alder", { dex: 12, owner: PLAYER.id });
@@ -984,8 +984,11 @@ await ok("a precarious or charging setup offers a Judge the landing save and a p
   await applyCrossingForm(formation, { precarious: false, charging: true });
   assert.equal(rowOf(buildCrossingView(formation), "Alder").landing.canRoll, true, "charging asks for it too");
   const player = rowOf(as(PLAYER, () => buildCrossingView(formation)), "Alder").landing;
-  assert.deepEqual([player.canRoll, player.canReport], [false, false], "a player has no press");
+  assert.deepEqual([player.canRoll, player.canReport, player.warn], [true, true, false], "the member's owner has both presses, read as a player reads the row");
   assert.ok(player.label && player.tip);
+  const other = rowOf(as(OTHER, () => buildCrossingView(formation)), "Alder").landing;
+  assert.deepEqual([other.canRoll, other.canReport], [false, false], "a seat that does not own the member has no press");
+  assert.ok(other.label && other.tip);
 });
 
 await ok("the landing save is core's own rollSave on the member, from the Judge's press, with the press's event", async () => {
@@ -1448,6 +1451,68 @@ await ok("a player's attempt is relayed: declared publicly, rolled and recorded 
     (await asAsync(PLAYER, () => requestCrossingThrow(other.formation, "Alder", "bogus"))).refused,
     "stale", "a step that is neither the attempt nor the climb up is refused before it is sent",
   );
+});
+
+await ok("a relayed landing save rolls landFor on the GM client with the skip-dialog event and a player's row: declared, one card to the Judges, and refused where the Judge would be warned", async () => {
+  const { formation } = await gapWorld({ landing: { precarious: true } });
+  const crossingId = readCrossing(formation).id;
+  seen.created.length = 0;
+  assert.deepEqual(await relay(OTHER, formation, "crossing", { crossingId, actorId: "Alder", step: "land" }), { ok: false, refused: "notOwner" }, "a non-owner is refused");
+  assert.equal(seen.saves.length, 0);
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingLanding(formation, "Alder", "land")), { ok: true });
+  assert.deepEqual(seen.saves, [["Alder", "paralysis", { event: { shiftKey: true } }]], "the system's roll on the member, its dialog skipped on the GM client");
+  const { declarations, cards } = posted();
+  assert.ok(declarations[0].content.includes("Pat declares: Alder makes the landing save."));
+  assert.equal(cards.length, 1, "the Judges' card is posted");
+  assert.ok(seen.created.indexOf(declarations[0]) < seen.created.indexOf(cards[0]), "declared before the card");
+  assert.equal(Object.keys(readCrossing(formation).members).length, 0, "nothing is written to the flag");
+  // A gap no one can reach warns the Judge and still rolls; the relayed press reads the player's row and is refused.
+  await applyCrossingForm(formation, { gap: "90" });
+  seen.created.length = 0;
+  seen.saves.length = 0;
+  seen.warned.length = 0;
+  assert.deepEqual(await relay(PLAYER, formation, "crossing", { crossingId, actorId: "Alder", step: "land" }), { ok: false, refused: "impossible" });
+  assert.deepEqual([seen.saves.length, seen.warned.length, posted().cards.length, posted().declarations.length], [0, 0, 0, 0], "nothing rolled, no Judge warning, no card and no declaration");
+  assert.equal(posted().whispers.length, 1, "the player is told why");
+  assert.deepEqual(await relay(PLAYER, formation, "crossing", { crossingId, actorId: "Alder", step: "footing", footing: "edge" }), { ok: false, refused: "impossible" }, "the footing is refused where the Judge would be warned too");
+  assert.equal(posted().cards.length, 0, "and no card is posted");
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingLanding(formation, "Alder", "land")), { ok: false, refused: "impossible" }, "the seat says it and sends nothing");
+  seen.warned.length = 0;
+  assert.equal((await landFor(formation, "Alder")).ok, true, "the Judge's own press is warned and goes ahead");
+  assert.equal(seen.warned.length, 1);
+  await applyCrossingForm(formation, { precarious: false, charging: false });
+  assert.deepEqual(await relay(PLAYER, formation, "crossing", { crossingId, actorId: "Alder", step: "land" }), { ok: false, refused: "noSave" }, "a plain landing asks for none");
+  await applyCrossingForm(formation, { precarious: true });
+  load({ jumping: null });
+  seen.created.length = 0;
+  seen.warned.length = 0;
+  seen.told.length = 0;
+  seen.saves.length = 0;
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingLanding(formation, "Alder", "land")), { ok: false, refused: "absence" }, "a figure never imported has no words");
+  assert.deepEqual([seen.warned.length, seen.told.length, seen.created.length, seen.saves.length], [0, 0, 0, 0], "and nothing is warned, sent or rolled");
+});
+
+await ok("a relayed footing writes jump.footing on the member's record and cards the Judges; a bad footing, a non-owner and a stale crossing are refused", async () => {
+  const { formation } = await gapWorld({ landing: { precarious: true } });
+  saveResult = { total: 12 };
+  naturals.push(6);
+  await jumpFor(formation, "Alder");
+  const crossingId = readCrossing(formation).id;
+  seen.created.length = 0;
+  for (const footing of ["lava", undefined, 3]) {
+    assert.deepEqual(await relay(PLAYER, formation, "crossing", { crossingId, actorId: "Alder", step: "footing", footing }), { ok: false, refused: "footing" }, `footing ${footing}`);
+  }
+  assert.deepEqual(await relay(OTHER, formation, "crossing", { crossingId, actorId: "Alder", step: "footing", footing: "edge" }), { ok: false, refused: "notOwner" });
+  assert.deepEqual(await relay(PLAYER, formation, "crossing", { crossingId: "old", actorId: "Alder", step: "footing", footing: "edge" }), { ok: false, refused: "stale" });
+  assert.equal(posted().declarations.length + posted().cards.length, 0, "a refused press declares and cards nothing");
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingLanding(formation, "Alder", "footing", { footing: "lava" })), { ok: false, refused: "footing" }, "the seat refuses it too, sending nothing");
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingLanding(formation, "Alder", "footing", { footing: "edge" })), { ok: true });
+  assert.equal(recordOf(formation).jump.footing, "edge", "the GM client wrote the footing");
+  const { declarations, cards } = posted();
+  assert.ok(declarations[0].content.includes(format("ACKS-FORMATION.request.declared", { user: "Pat", action: format("ACKS-FORMATION.request.crossingFooting", { name: "Alder", footing: "An edge" }) })));
+  assert.equal(cards.length, 1, "the landing card goes to the Judges");
+  assert.deepEqual(await relay(PLAYER, formation, "crossing", { crossingId, actorId: "Alder", step: "footing", footing: "solid" }), { ok: true });
+  assert.equal(recordOf(formation).jump.footing, "solid", "the pick can be changed");
 });
 
 await ok("an absence rolls nothing, for a Judge too: the die's figures, no gap, the shortfall die of a precarious landing, a member with no save", async () => {
@@ -1953,12 +2018,41 @@ await ok("End, a haul and a drowning member the party drops each take the held d
   assert.equal(crossingHeldOn(alder).length, 0, "End releases it");
 });
 
-await ok("a haul is the Judge's alone", async () => {
+await ok("a haul writes on a GM client only: a player's own client writes nothing", async () => {
   const { formation } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }]]);
   naturals.push(3);
   await throwFor(formation, "Alder");
   assert.deepEqual(await as(PLAYER, () => haulToSurface(formation, "Alder")), { ok: false, refused: "notGM" });
   assert.equal(memberOf(formation, "Alder").state, "drowning");
+});
+
+await ok("a relayed haul sets the drowning member afloat on the GM client, declared; a seat that does not own the member, or a member who is not drowning, is refused", async () => {
+  const { formation, actors: [alder] } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }], ["Birch", { stone: 9 }]]);
+  naturals.push(3, 3);
+  await throwFor(formation, "Alder");
+  await throwFor(formation, "Birch");
+  const crossingId = readCrossing(formation).id;
+  assert.equal(crossingHeldOn(alder).length, 1);
+  assert.deepEqual(["Alder", "Birch"].map((name) => rowOf(as(PLAYER, () => buildCrossingView(formation)), name).canHaul), [true, false], "the haul shows on the drowning member's own row and not on another's");
+  seen.created.length = 0;
+  assert.deepEqual(await relay(OTHER, formation, "crossing", { crossingId, actorId: "Alder", step: "haul" }), { ok: false, refused: "notOwner" }, "a non-owner is refused");
+  assert.deepEqual(await relay(PLAYER, formation, "crossing", { crossingId, actorId: "Birch", step: "haul" }), { ok: false, refused: "notOwner" }, "an owner of Alder is no owner of Birch, who stays drowning");
+  assert.equal(memberOf(formation, "Birch").state, "drowning");
+  assert.deepEqual(await relay(PLAYER, formation, "crossing", { crossingId: "old", actorId: "Alder", step: "haul" }), { ok: false, refused: "stale" });
+  assert.equal(memberOf(formation, "Alder").state, "drowning", "nothing was written");
+  assert.equal(posted().declarations.length, 0, "a refused press declares nothing");
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingLanding(formation, "Alder", "haul")), { ok: true });
+  assert.deepEqual([memberOf(formation, "Alder").state, memberOf(formation, "Alder").drownedRounds], ["swimming", 0], "the GM client sets the member afloat");
+  assert.equal(crossingHeldOn(alder).length, 0, "and releases the held drowning");
+  const { declarations } = posted();
+  assert.equal(declarations.length, 1);
+  assert.ok(declarations[0].content.includes(format("ACKS-FORMATION.request.declared", { user: "Pat", action: format("ACKS-FORMATION.request.crossingHaul", { name: "Alder" }) })));
+  seen.created.length = 0;
+  seen.warned.length = 0;
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingLanding(formation, "Alder", "haul")), { ok: false, refused: "notDrowning" }, "a member afloat is refused on the seat, and nothing is sent");
+  assert.deepEqual(seen.warned, [format("ACKS-FORMATION.crossing.refusal.notDrowning")]);
+  assert.deepEqual(await relay(PLAYER, formation, "crossing", { crossingId, actorId: "Alder", step: "haul" }), { ok: false, refused: "notDrowning" }, "and by the GM client");
+  assert.equal(memberOf(formation, "Birch").state, "drowning", "the other member is untouched");
 });
 
 await ok("at a swimmer's turn the primary GM posts one prompt card for the round; nothing rolls by itself", async () => {
@@ -2243,7 +2337,8 @@ await ok("a drowning row: the breath and the sink rate with their working, Vulne
   assert.equal(crossingHeldOn(game.actors.get("Alder")).length, 1, "only drowning is held");
   assert.equal(judge.target, "", "a drowning member has no target");
   const player = rowOf(swimView(formation, PLAYER), "Alder");
-  assert.deepEqual([player.said, player.canHaul, player.can], [format("ACKS-FORMATION.crossing.refusal.drowning"), false, false]);
+  assert.deepEqual([player.said, player.canHaul, player.can], [format("ACKS-FORMATION.crossing.refusal.drowning"), true, false], "the drowning member's owner reads the refusal in words and has the haul");
+  assert.deepEqual([rowOf(swimView(formation, OTHER), "Alder").canHaul], [false], "a seat that owns no member has no haul");
 });
 
 await ok("a breath or a sink rate nobody imported is blank and its tooltip is the page alone", async () => {
@@ -2385,7 +2480,9 @@ await ok("the partial draws the swim rows: a Judge's setup fields, the haul and 
   assert.ok(judge.includes('data-press-home="Alder"') && judge.includes('data-press-home="Birch"'));
   const player = swimHtml(formation, PLAYER);
   assert.equal(/name="crossing\./.test(player), false, "no Judge field in a player's DOM");
-  assert.equal(player.includes("crossingHaul"), false, "the haul is the Judge's alone");
+  assert.ok(player.includes('data-action="crossingHaul" data-actor-id="Alder"'), "the drowning member's owner draws the haul");
+  assert.equal(/crossingHaul" data-actor-id="Birch"/.test(player), false, "and only on the drowning member's row");
+  assert.equal(swimHtml(formation, OTHER).includes("crossingHaul"), false, "a seat that owns no member draws none");
   assert.ok(player.includes("acks-extras-crossing-inforce"), "a player's line stands where the fields were");
   assert.ok(player.includes('data-pick="crossing-rescuer-Alder"'), "the owner of a rescuer may pick");
   for (const html of [judge, player]) {

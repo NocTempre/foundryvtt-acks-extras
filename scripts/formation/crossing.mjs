@@ -23,10 +23,12 @@
  * the imported shortfall die for a failed one) and the footing that follows
  * (`jumpResult`), so a later reader of the round's movement finds the feet in
  * `members.<id>.jump.distance`. A jumper left hanging at the edge climbs up
- * through the climb rows' own throw (`climbUpRow`, `stepMember`). The Judge's
- * own landing save press (`landFor`) and footing pick (`reportLanding`) stand
+ * through the climb rows' own throw (`climbUpRow`, `stepMember`). The member's
+ * owner's landing save press (`landFor`) and footing pick (`reportLanding`) stand
  * beside it, as an override: the press writes nothing, and the pick, on a
- * member who has attempted, writes the record's `jump.footing` and state.
+ * member who has attempted, writes the record's `jump.footing` and state. Both
+ * run on a GM client; a seat that is no Judge reaches them through the relay, which
+ * reads the row for a player.
  *
  * A member on an obstacle holds the conditions the Spelunking grid names for it
  * (`CROSSING_STATUSES`), as held conditions (`lib/held-condition.mjs`) whose
@@ -888,22 +890,26 @@ function landingTooltip(landing) {
 
 /**
  * The landing's part of a jump row: null where the landing asks for no throw.
- * A Judge's row carries the press and the footing pick; any other seat reads
- * that a save is asked for, with its working in the tooltip.
+ * The member's owner (Foundry's ownership, a Judge included) carries the press
+ * and the footing pick; any other seat reads that a save is asked for, with its
+ * working in the tooltip. The row is read for this seat, so an owner who is no
+ * Judge reads the blocked reading and has no roll where a Judge would be warned;
+ * the footing pick is the owner's whatever the row reads, and the relay refuses
+ * it where a Judge's reading would warn.
  */
 function landingView(entry) {
   const { landing, actor } = entry;
   if (!landing.needed) return null;
-  const isGM = game.user.isGM;
+  const owns = !!actor.isOwner;
   return {
     label: saveName(landing),
     tip: landingTooltip(landing),
     ref: jumpingRef(),
-    canRoll: isGM && landing.can,
+    canRoll: owns && landing.can,
     warn: landing.warn,
     rollLabel: loc(landing.warn ? "crossing.landing.rollAnyway" : "crossing.landing.roll"),
     rollAria: loc("crossing.landing.rollFor", { name: actor.name }),
-    canReport: isGM,
+    canReport: owns,
     failedAria: loc("crossing.landing.failedFor", { name: actor.name }),
     footings: FOOTINGS.map((value) => ({ value, label: loc(`crossing.footing.${value}`) })),
   };
@@ -1727,7 +1733,7 @@ function swimRowView(crossing, entry, entries) {
       }
       : null,
     rescue: sinking ? swimRescueView(entry, entries) : null,
-    canHaul: sinking && judge,
+    canHaul: sinking && !!actor.isOwner,
   };
 }
 
@@ -1791,8 +1797,10 @@ export async function setRescuer(formation, drownedId, rescuerId, { crossingId =
 
 /**
  * Bring a drowning member to the surface: afloat again with no rounds counted,
- * the links gone and the held drowning released. The Judge's alone, and the
- * Judge's way out of a drowning no throw can end.
+ * the links gone and the held drowning released. A GM client's work and the
+ * way out of a drowning no throw can end: the Judge's seat presses it, and the
+ * drowning member's owner's press reaches it through the relay, which has
+ * checked who owns the member.
  *
  * @returns {Promise<{ok: boolean, refused?: string}>} `refused` is `notGM`, `closed`, `notSwim`,
  *   `member`, `notDrowning` or `stale`
@@ -1818,22 +1826,29 @@ export async function haulToSurface(formation, actorId) {
 /*  The landing                                 */
 /* -------------------------------------------- */
 
-/** The open crossing, a jump, and the member's entry with its row read for a Judge; or the reason there is none. */
-function landingEntry(formation, actorId) {
+/**
+ * The open crossing, a jump, and the member's entry with its row read for the
+ * seat the press is: a Judge's own press reads it for a Judge (`judge` true),
+ * and a relayed press reads it for its sender, so a player's row is the blocked
+ * reading wherever a Judge's would warn. The `game.user.isGM` test is the
+ * executor's: the landing is written and carded on a GM client.
+ */
+function landingEntry(formation, actorId, { judge = true } = {}) {
   if (!game.user.isGM) return { refused: "notGM" };
   const crossing = readCrossing(formation);
   if (!crossing) return { refused: "closed" };
   if (crossing.kind !== JUMP_KIND) return { refused: "notJump" };
   const entry = crossingMembers(formation).find((e) => e.member.actorId === actorId);
   if (!entry) return { refused: "member" };
-  return { crossing, seen: { ...entry, ...rowFor(formation, crossing, entry, { judge: true }) } };
+  return { crossing, seen: { ...entry, ...rowFor(formation, crossing, entry, judge ? { judge: true } : { judge: false, owns: true }) } };
 }
 
 /**
  * Roll one member's landing save, from a GM client: the system's own `rollSave`
  * on the member, whose dialog and card are the system's. The row is read for a
  * Judge, so an unreachable gap or a member who is down warns and goes ahead,
- * and a jump nobody imported the figures for rolls nothing. Nothing is written
+ * and a jump nobody imported the figures for rolls nothing; a relayed player's
+ * press (`judge` false) is refused wherever the Judge would be warned. Nothing is written
  * to the flag. The save's bonus is not an argument of the system's roll; a
  * situational bonus is the dialog's field. A card to the Judges records the
  * total.
@@ -1842,12 +1857,14 @@ function landingEntry(formation, actorId) {
  * @param {string} actorId the member's actor id
  * @param {object} [o]
  * @param {Event|null} [o.event] the press, so the system's skip-dialog key reads from it
+ * @param {boolean} [o.judge] the row is read for a Judge; false for a relayed player's press
+ * @param {Function|null} [o.beforeRoll] awaited once every check has passed, before the roll
  * @returns {Promise<{ok: boolean, refused?: string, message?: object, total?: number}>}
  *   `refused` is `notGM`, `closed`, `notJump`, `member`, `noSave`, `noCell`, `busy`, `cancelled`,
  *   `absence` (a figure was never imported) or the row's refusal reason
  */
-export async function landFor(formation, actorId, { event = null } = {}) {
-  const { crossing, seen, refused } = landingEntry(formation, actorId);
+export async function landFor(formation, actorId, { event = null, judge = true, beforeRoll = null } = {}) {
+  const { crossing, seen, refused } = landingEntry(formation, actorId, { judge });
   if (refused) return { ok: false, refused };
   if (!seen.landing.needed) return { ok: false, refused: "noSave" };
   if (!seen.landing.can) return { ok: false, refused: seen.row.refusal?.cls === "absence" ? "absence" : seen.row.refusal?.reason ?? "member" };
@@ -1858,6 +1875,7 @@ export async function landFor(formation, actorId, { event = null } = {}) {
   if (seen.landing.warn) ui.notifications.warn(refusalText(seen.row.refusal, seen.actor) || loc("crossing.card.overRefusalBare"));
   inFlight.add(key);
   try {
+    await beforeRoll?.();
     const roll = await seen.actor.rollSave(saveKeyOf(seen.landing), { event });
     if (!roll) return { ok: false, refused: "cancelled" };
     const foot = [];
@@ -1889,13 +1907,20 @@ export async function landFor(formation, actorId, { event = null } = {}) {
  * @param {object} formation
  * @param {string} actorId the member's actor id
  * @param {string} footing one of `FOOTINGS`
+ * @param {object} [o]
+ * @param {boolean} [o.judge] the row is read for a Judge; false for a relayed player's press, which is refused wherever the landing is not asked for or the Judge's reading of the row would warn
  * @returns {Promise<{ok: boolean, refused?: string, message?: object, outcome?: object, step?: string}>}
- *   `refused` is `notGM`, `closed`, `notJump`, `member`, `footing`, `busy` or `stale`; `step` is the state
- *   the record was written to, absent where nothing was written
+ *   `refused` is `notGM`, `closed`, `notJump`, `member`, `noSave`, `footing`, `busy`, `stale` or (a player's
+ *   press) the row's refusal reason; `step` is the state the record was written to, absent where nothing was written
  */
-export async function reportLanding(formation, actorId, footing) {
-  const { crossing, seen, refused } = landingEntry(formation, actorId);
+export async function reportLanding(formation, actorId, footing, { judge = true } = {}) {
+  const { crossing, seen, refused } = landingEntry(formation, actorId, { judge });
   if (refused) return { ok: false, refused };
+  if (!judge) {
+    if (!seen.landing.needed) return { ok: false, refused: "noSave" };
+    // A player is blocked wherever the Judge's own reading of the row would warn.
+    if (rowFor(formation, crossing, seen, { judge: true }).landing.warn) return { ok: false, refused: seen.row.refusal?.reason ?? "member" };
+  }
   const outcome = landingOutcome({ footing, depth: crossing.depth });
   if (!outcome) return { ok: false, refused: "footing" };
   const key = `${crossing.id}:${actorId}`;
@@ -1949,7 +1974,7 @@ async function postLanding(formation, seen, outcome) {
  * for a save nobody at that seat is making, so it carries the system's own
  * skip-dialog key where the setting names one.
  */
-function saveEvent(event, player) {
+export function saveEvent(event, player) {
   if (!player) return event;
   const key = skipDialogKey();
   return typeof key === "string" && key ? { [key]: true } : event;
