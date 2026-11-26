@@ -248,6 +248,20 @@ export const HOSTILE_DISPOSITION = -1;
 export const controlEndOf = (value) => (Object.hasOwn(CONTROL_ENDS, value) ? value : "stays");
 
 /**
+ * The outcome a Judge sets by hand to put a cast's creatures back under
+ * control. It is no member of `CONTROL_ENDS`, which is the vocabulary of a spell
+ * row's `controlEnd` and so of what a control end can be; `controlEndOf` reads it
+ * as `stays`, and only `controlEndPlan` and `stashAfterControlEnd` know it.
+ */
+export const UNDER_CONTROL = "control";
+
+/** The outcomes a Judge may set on one cast by hand, in the order a select lists them: back under control, then each end. */
+export const CONTROL_PICKS = Object.freeze([UNDER_CONTROL, ...Object.keys(CONTROL_ENDS)]);
+
+/** Did this cast record's creature turn hostile, and so lose its owners and its look (`controlEndPlan`)? */
+const turnedHostile = (summon) => summon?.lost === "hostile";
+
+/**
  * What ending a cast's control does, creature by creature, as a list of steps
  * the GM's client carries out. Every step carries `lost`, the outcome every
  * creature is stamped with (a non-GM's dismissal is refused on a `hostile` one).
@@ -270,8 +284,15 @@ export const controlEndOf = (value) => (Object.hasOwn(CONTROL_ENDS, value) ? val
  * A stashed creature that stays takes `op: "stamp"` the same way. With no
  * `amend` to call, a stashed creature that stays or turns hostile is
  * `unapplied`.
+ * - `UNDER_CONTROL`, a Judge's hand on a cast whose control ended: each token,
+ *   deployed members included, and each stashed creature takes `op: "control"`
+ *   with `lost` null, which clears the stamp and puts nothing on a party roster
+ *   and releases nothing. A token whose record reads hostile (`restore: true`,
+ *   also on a `stays` stamp) is given back the owners a summons grants and its
+ *   creature's own disposition; a stash decides that on its own record when it
+ *   is amended (`stashAfterControlEnd`).
  * @param {object} o
- * @param {string} o.outcome  a `CONTROL_ENDS` key, anything else reads `stays`
+ * @param {string} o.outcome  a `CONTROL_ENDS` key or `UNDER_CONTROL`, anything else reads `stays`
  * @param {{uuid: string, ownership?: object, summon?: object|null, member?: {partyId: string, actorId: string}|null}[]} [o.tokens]  the cast's scene tokens, `member` set where the roster answers for the token and `summon` the cast record the token carries
  * @param {{partyId: string, actorId: string, summon?: object|null}[]} [o.held]  the cast's stashed creatures, `summon` the cast record each carries
  * @param {boolean} [o.canRelease]  whether the roster service has a `release`
@@ -280,23 +301,25 @@ export const controlEndOf = (value) => (Object.hasOwn(CONTROL_ENDS, value) ? val
  * @returns {{outcome: string, steps: object[]}}
  */
 export function controlEndPlan({ outcome, tokens = [], held = [], canRelease = true, canAmend = true, canEject = false } = {}) {
-  const end = controlEndOf(outcome);
+  const back = outcome === UNDER_CONTROL;
+  const end = back ? UNDER_CONTROL : controlEndOf(outcome);
   const steps = [];
   for (const t of tokens) {
-    const step = { kind: "token", uuid: t.uuid, lost: end };
-    if (end === "gone") {
+    const step = { kind: "token", uuid: t.uuid, lost: back ? null : end };
+    if (back) steps.push({ ...step, op: "control", ...(turnedHostile(t.summon) ? { restore: true } : {}) });
+    else if (end === "gone") {
       if (t.member?.partyId && t.member.actorId) steps.push({ ...step, op: "release", partyId: t.member.partyId, actorId: t.member.actorId });
       else steps.push({ ...step, op: "delete" });
     } else if (end === "hostile") {
       const leaves = canEject && t.member?.partyId && t.member.actorId && isTemporaryAlly(t);
       steps.push({ ...step, op: "hostile", drop: ownershipDrop(t.ownership), disposition: HOSTILE_DISPOSITION, ...(leaves ? { leave: { partyId: t.member.partyId, actorId: t.member.actorId } } : {}) });
-    } else steps.push({ ...step, op: "stamp" });
+    } else steps.push({ ...step, op: "stamp", ...(turnedHostile(t.summon) ? { restore: true } : {}) });
   }
   for (const h of held) {
-    const step = { kind: "held", partyId: h.partyId, actorId: h.actorId, lost: end };
+    const step = { kind: "held", partyId: h.partyId, actorId: h.actorId, lost: back ? null : end };
     if (end === "gone") steps.push({ ...step, op: canRelease ? "release" : "unapplied" });
     else if (end === "hostile" && canEject && isTemporaryAlly(h)) steps.push({ ...step, op: "eject" });
-    else steps.push({ ...step, op: canAmend ? (end === "hostile" ? "hostile" : "stamp") : "unapplied" });
+    else steps.push({ ...step, op: canAmend ? (back ? "control" : end === "hostile" ? "hostile" : "stamp") : "unapplied" });
   }
   return { outcome: end, steps };
 }
@@ -307,19 +330,32 @@ export function controlEndPlan({ outcome, tokens = [], held = [], canRelease = t
  * map's `default` set to NONE and the disposition turned to
  * `HOSTILE_DISPOSITION`, which is what the deployed token's write does. Pure:
  * the argument is never mutated. Null for data that carries no summon record
- * (`summonOfData`) and for an outcome that is neither `stays` nor `hostile`,
- * so an edit built on it writes nothing there.
+ * (`summonOfData`) and for an outcome that is none of `stays`, `hostile` and
+ * `UNDER_CONTROL`, so an edit built on it writes nothing there.
+ *
+ * `UNDER_CONTROL` clears the stamp. A stash whose record reads hostile is, for
+ * `stays` and `UNDER_CONTROL` alike, given back what hostile took: each owner in
+ * `back.ownership` (user id to level, the map `summonOwnership` answers) and
+ * `back.disposition` where it is a number. A stash that was never hostile keeps
+ * its owners and its look, and with no `back` nothing is given back.
  * @param {object} data  a party stash's token data
- * @param {"stays"|"hostile"} end
+ * @param {"stays"|"hostile"|"control"} end
+ * @param {{ownership?: Object<string, number>, disposition?: number|null}} [back]  what a hostile stash is given back
  * @returns {object|null}
  */
-export function stashAfterControlEnd(data, end) {
-  if ((end !== "stays" && end !== "hostile") || !summonOfData(data).summon) return null;
+export function stashAfterControlEnd(data, end, back = {}) {
+  if ((end !== "stays" && end !== "hostile" && end !== UNDER_CONTROL) || !summonOfData(data).summon) return null;
   const out = JSON.parse(JSON.stringify(data));
-  out.delta.flags[MODULE_ID][SUMMON_RECORD_FLAG].lost = end;
+  const record = out.delta.flags[MODULE_ID][SUMMON_RECORD_FLAG];
+  const wasHostile = turnedHostile(record);
+  if (end === UNDER_CONTROL) delete record.lost;
+  else record.lost = end;
   if (end === "hostile") {
     for (const id of ownershipDrop(out.delta.ownership)) out.delta.ownership[id] = 0;
     out.disposition = HOSTILE_DISPOSITION;
+  } else if (wasHostile) {
+    if (back?.ownership && Object.keys(back.ownership).length) out.delta.ownership = { ...out.delta.ownership, ...back.ownership };
+    if (Number.isFinite(back?.disposition)) out.disposition = back.disposition;
   }
   return out;
 }

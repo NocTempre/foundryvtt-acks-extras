@@ -317,6 +317,21 @@ await t("amendSummons turns a hostile stash: owners at NONE, disposition hostile
   assert.ok(getFormation(id).members.some((m) => m.actorId === "s1"), "no ejection");
 });
 
+await t("amendSummons sets a kept hostile stash back under control: lost cleared, owners and look back, still a member, and the party's hostile reading no longer names it", async () => {
+  const { publiclyHostileMembers } = await import("../scripts/formation/formation-view.mjs");
+  const id = party([walker("c", 36), summonMember("s1")]);
+  await roster.amendSummons(id, ["s1"], turn);
+  assert.equal(publiclyHostileMembers(getFormation(id), null).length, 1, "a hostile stash that stayed on the roster is named, which is the warning the select clears");
+  const back = (data) => stashAfterControlEnd(data, "control", { ownership: { p1: 3 }, disposition: 1 });
+  assert.deepEqual(await roster.amendSummons(id, ["s1"], back), { amended: ["s1"] });
+  const stash = stashOf(id, "s1");
+  assert.equal(stash.delta.flags[SCOPE].summon.lost, undefined);
+  assert.deepEqual(stash.delta.ownership, { default: 0, p1: 3 });
+  assert.equal(stash.disposition, 1);
+  assert.ok(getFormation(id).members.some((m) => m.actorId === "s1"), "an ordinary member again");
+  assert.deepEqual(publiclyHostileMembers(getFormation(id), null), [], "the warning clears");
+});
+
 await t("amendSummons hands the edit a copy, and keeps the stash when the edit answers nothing", async () => {
   const id = party([summonMember("s1")]);
   const seen = [];

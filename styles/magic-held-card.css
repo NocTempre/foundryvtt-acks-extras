@@ -76,6 +76,14 @@
   gap: var(--acks-sp-3);
 }
 
+.acks-extras-cast-held__control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--acks-sp-3);
+  font-size: var(--acks-fs-label);
+}
+
 .acks-extras-cast-held__foot {
   display: flex;
   align-items: center;

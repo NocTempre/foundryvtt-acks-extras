@@ -15,6 +15,7 @@ const Handlebars = (await import("handlebars")).default;
 // The card's own template file, compiled as Foundry compiles it: no helper registered beyond the ones core has.
 const CARD = Handlebars.compile(fs.readFileSync(new URL("../templates/magic/cast-held-card.hbs", import.meta.url), "utf8"));
 globalThis.foundry = {
+  data: { operators: { ForcedDeletion: class ForcedDeletion {} } },
   utils: { escapeHTML: (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]) },
   applications: { handlebars: { renderTemplate: async (path, view) => (path.endsWith("cast-held-card.hbs") ? CARD(view) : "") } },
 };
@@ -591,6 +592,252 @@ await ta("a Restore press writes directly when the seat owns the card and every 
     if (value === undefined) delete globalThis[key];
     else globalThis[key] = value;
   }
+});
+
+/* -------------------------------------------- */
+/*  A Judge's hand on one cast's control end    */
+/* -------------------------------------------- */
+
+const hand = await import("../scripts/magic/cast-control-hand.mjs");
+
+const handLoc = (key) => `castControl.${key}`;
+
+t("the select's view: Under control then the three ends, the recorded outcome selected, a hint for it, a label, an aria-label and a tooltip key; with no outcome recorded an unpickable first option", () => {
+  const view = hand.controlView({ ...FLAG(), summons: SUMMONS(), outcome: "hostile" }, handLoc);
+  assert.deepEqual(view.options.map((o) => [o.value, o.label, o.selected]), [["control", "castControl.option.control", false], ["stays", "castControl.option.stays", false], ["gone", "castControl.option.gone", false], ["hostile", "castControl.option.hostile", true]]);
+  assert.equal(view.value, "hostile");
+  assert.equal(view.hint, "castControl.hint.hostile", "a line says what the chosen value did");
+  assert.deepEqual([view.label, view.aria, view.tip], ["castControl.label", "castControl.aria", "ACKS-MAGIC.castControl.tip"]);
+  for (const outcome of [undefined, "vanish"]) {
+    const bare = hand.controlView({ ...FLAG(), summons: SUMMONS(), outcome }, handLoc);
+    assert.deepEqual(bare.options[0], { value: "", label: "castControl.option.unrecorded", selected: true, disabled: true }, "Not recorded, selected and not pickable");
+    assert.deepEqual([bare.value, bare.options.length, bare.hint], ["", 5, ""]);
+  }
+  assert.equal(hand.controlView({ ...FLAG(), outcome: "control" }, handLoc).options.length, 4, "a recorded outcome has no Not recorded");
+  assert.deepEqual(hand.CONTROL_PICKS, ["control", "stays", "gone", "hostile"]);
+});
+
+t("the control-lost line also speaks for creatures set back under control; a value set by hand names who set it and drops the page reference; the kept line is not drawn under control", () => {
+  assert.equal(controlLostLine("control", loc), "controlLost.control");
+  assert.equal(heldEndView({ ...FLAG(), summons: SUMMONS(), outcome: "control" }, loc).controlLost, "controlLost.control (p. 1)", "the row's own outcome keeps its page reference");
+  const hand1 = heldEndView({ ...FLAG(), summons: SUMMONS(), outcome: "control", setBy: "Judge" }, loc, (name) => `by ${name}`);
+  assert.deepEqual([hand1.controlLost, hand1.setBy], ["controlLost.control", "by Judge"]);
+  assert.equal(heldEndView({ ...FLAG(), summons: SUMMONS(), outcome: "hostile" }, loc).setBy, "", "no hand, no line");
+  const kept = { ...FLAG(), summons: SUMMONS(), kept: [{ name: "K" }], left: [{ name: "L" }] };
+  assert.equal(heldEndView({ ...kept, outcome: "hostile" }, loc).keptInParty, 'keptInParty|{"names":"K"}');
+  assert.equal(heldEndView({ ...kept, outcome: "control" }, loc).keptInParty, "", "back under control the roster line goes");
+  assert.equal(heldEndView({ ...kept, outcome: "control" }, loc).leftParty, 'leftParty|{"names":"L"}', "who left still stands where it is");
+});
+
+/** A document that answers ownership as Foundry's does: `isOwner` for this seat, `testUserPermission` for a named user. */
+const doc = (...owners) => ({ isOwner: owners.includes("me"), testUserPermission: (user, level) => level === "OWNER" && owners.includes(user.id) });
+const handWorld = ({ docs = {}, held = {}, casters = { "Actor.c": doc("p1") } } = {}) => ({
+  subject: (entry) => (entry.tokenUuid ? (docs[entry.tokenUuid] ?? null) : (held[`${entry.held.partyId}|${entry.held.actorId}`] ?? null)),
+  caster: (uuid) => casters[uuid] ?? null,
+});
+const ownerOf = (user) => (d) => d?.testUserPermission?.(user, "OWNER") === true;
+
+t("who is drawn the select: a seat that owns every creature the card lists, by Foundry's own test on each; creatures that are gone are not asked; with none left the caster's owner; with none listed nobody", () => {
+  const flag = { ...FLAG(), summons: SUMMONS() };
+  const all = handWorld({ docs: { "Scene.s1.Token.t1": doc("p1"), "Scene.s1.Token.t2": doc("p1") }, held: { "party1|member1": doc("p1") } });
+  assert.equal(hand.mayPickControl(flag, { ...all, owns: ownerOf({ id: "p1" }) }), true);
+  assert.equal(hand.mayPickControl(flag, { ...all, owns: ownerOf({ id: "p2" }) }), false, "a seat that owns none");
+  const mixed = handWorld({ docs: { "Scene.s1.Token.t1": doc("p1"), "Scene.s1.Token.t2": doc("p2") }, held: { "party1|member1": doc("p1", "p2") } });
+  assert.equal(hand.mayPickControl(flag, { ...mixed, owns: ownerOf({ id: "p1" }) }), false, "one creature it does not own is enough");
+  const stashed = handWorld({ docs: { "Scene.s1.Token.t1": doc("p1"), "Scene.s1.Token.t2": doc("p1") }, held: { "party1|member1": doc("gm") } });
+  assert.equal(hand.mayPickControl(flag, { ...stashed, owns: ownerOf({ id: "p1" }) }), false, "a stashed creature Foundry gives the Judge alone is the Judge's");
+  assert.equal(hand.mayPickControl(flag, { ...stashed, owns: ownerOf({ id: "gm" }) }), false, "and only a seat that owns the rest too");
+  const vanished = handWorld({ docs: { "Scene.s1.Token.t1": doc("p1") } });
+  assert.equal(hand.mayPickControl(flag, { ...vanished, owns: ownerOf({ id: "p1" }) }), true, "creatures that no longer exist are skipped");
+  const none = handWorld({ casters: { "Actor.c": doc("p1") } });
+  assert.equal(hand.mayPickControl(flag, { ...none, owns: ownerOf({ id: "p1" }) }), true, "with every creature gone the caster's owner may still set the card's record");
+  assert.equal(hand.mayPickControl(flag, { ...none, owns: ownerOf({ id: "p2" }) }), false);
+  assert.equal(hand.mayPickControl(FLAG(), { ...all, owns: ownerOf({ id: "p1" }) }), false, "a card that lists no creature draws none, which is every card posted before the list was kept");
+  assert.equal(hand.mayPickControl({ ...flag, outcome: "gone" }, { ...all, owns: ownerOf({ id: "p1" }) }), false, "after they go the creatures are deleted and the card draws none");
+  const live = { ...all, entries: () => SUMMONS().slice(0, 1) };
+  assert.equal(hand.mayPickControl(FLAG(), { ...live, owns: ownerOf({ id: "p1" }) }), true, "a card that keeps no list (the time-end card) reads its creatures live");
+  const own = (...ids) => ({ ...all, owns: (d) => d.testUserPermission({ id: ids[0] }, "OWNER") });
+  assert.equal(hand.mayPickControl({ ...flag, outcome: "stays" }, own("p1")), true, "a stay end drops no owners, so a Player who owns them gets the select");
+});
+
+/** A card element the select is drawn into, and the document that makes its parts. */
+class El {
+  constructor(tag) { Object.assign(this, { tag, attrs: {}, children: [], listeners: {}, className: "", textContent: "", value: "", before: null }); }
+  setAttribute(k, v) { this.attrs[k] = String(v); }
+  append(...nodes) { this.children.push(...nodes); }
+  addEventListener(type, fn) { this.listeners[type] = fn; }
+  get nodeType() { return 1; }
+}
+const cardHtml = ({ line = true } = {}) => {
+  const root = new El("div");
+  const foot = new El("footer");
+  foot.before = (node) => root.children.push(["before-foot", node]);
+  const outcomeLine = new El("p");
+  outcomeLine.before = (node) => root.children.push(["in-line-place", node]);
+  outcomeLine.remove = () => (outcomeLine.removed = true);
+  const html = { ownerDocument: { createElement: (tag) => new El(tag) }, querySelector: (sel) => ({ ".acks-extras-cast-held": root, ".acks-extras-cast-held__foot": foot, ...(line ? { "[data-acks-extras-control-line]": outcomeLine } : {}) })[sel] ?? null };
+  return { html, root, outcomeLine };
+};
+const drawn = (root) => root.children.find((c) => Array.isArray(c))?.[1] ?? root.children.find((c) => c?.tag === "div") ?? null;
+
+t("the select is built when the card is bound, from the flag, so a card posted before this build draws it too; it carries an aria-label and a tooltip key and no id; a seat that owns not every creature is drawn none", () => {
+  globalThis.game.user = { id: "p1", isGM: false };
+  globalThis.fromUuidSync = (uuid) => ({ "Actor.c": doc("me"), "Scene.s1.Token.t1": { actor: doc("me") }, "Scene.s1.Token.t2": { actor: doc("me") } })[uuid] ?? null;
+  const message = { id: "m1", flags: { "acks-extras": { castHeldEnd: { ...FLAG(), summons: SUMMONS().slice(0, 2), outcome: "stays" } } } };
+  const mine = cardHtml();
+  hand.bindControlSelect(message, mine.html, { key: "castHeldEnd", root: ".acks-extras-cast-held", anchor: ".acks-extras-cast-held__foot" });
+  const wrap = drawn(mine.root);
+  assert.ok(wrap, "a seat that owns every creature is drawn the select");
+  assert.deepEqual([mine.root.children[0][0], mine.outcomeLine.removed], ["in-line-place", true], "it takes the outcome line's place, so the seat reads one of the two");
+  const label = wrap.children.find((c) => c.tag === "label");
+  const select = label.children.find((c) => c.tag === "select");
+  assert.equal(select.attrs["aria-label"], "ACKS-MAGIC.castControl.aria");
+  assert.equal(select.attrs["data-tooltip"], "ACKS-MAGIC.castControl.tip");
+  assert.equal("title" in select.attrs, false, "core's tooltip manager, never a title");
+  assert.equal("id" in select.attrs || "id" in label.attrs || "id" in wrap.attrs, false, "no literal id");
+  assert.deepEqual(select.children.map((o) => [o.value, o.selected]), [["control", false], ["stays", true], ["gone", false], ["hostile", false]]);
+  assert.equal(select.value, "stays");
+  assert.equal(wrap.children.find((c) => c.tag === "p").textContent, "ACKS-MAGIC.castControl.hint.stays", "a visible hint under the select");
+  const bare = cardHtml({ line: false });
+  hand.bindControlSelect({ id: "m1", flags: { "acks-extras": { castHeldEnd: { ...FLAG(), summons: SUMMONS().slice(0, 2) } } } }, bare.html, { key: "castHeldEnd", root: ".acks-extras-cast-held", anchor: ".acks-extras-cast-held__foot" });
+  const unrecorded = drawn(bare.root).children[0].children[1];
+  assert.deepEqual([unrecorded.children[0].value, unrecorded.children[0].disabled, unrecorded.value], ["", true, ""], "an old card opens on Not recorded");
+  const gone = cardHtml();
+  hand.bindControlSelect({ id: "m1", flags: { "acks-extras": { castHeldEnd: { ...FLAG(), summons: SUMMONS().slice(0, 2), outcome: "gone" } } } }, gone.html, { key: "castHeldEnd", root: ".acks-extras-cast-held", anchor: ".acks-extras-cast-held__foot" });
+  assert.deepEqual([drawn(gone.root), gone.outcomeLine.removed], [null, undefined], "after they go no select, and the outcome line stays");
+  globalThis.fromUuidSync = (uuid) => ({ "Actor.c": doc("me"), "Scene.s1.Token.t1": { actor: doc("me") }, "Scene.s1.Token.t2": { actor: doc() } })[uuid] ?? null;
+  const theirs = cardHtml();
+  hand.bindControlSelect(message, theirs.html, { key: "castHeldEnd", root: ".acks-extras-cast-held", anchor: ".acks-extras-cast-held__foot" });
+  assert.equal(drawn(theirs.root), null, "one creature it does not own and it is drawn no select");
+  delete globalThis.game.user;
+  delete globalThis.fromUuidSync;
+});
+
+/** A card message in a world of tokens, with the lib call stubbed. */
+const handCard = (flagOver = {}) => {
+  const log = { applied: [], updates: [] };
+  const message = { id: "m1", flags: { "acks-extras": { castHeldEnd: { ...FLAG(), summons: SUMMONS(), outcome: "hostile", left: [{ name: "Invented Stashed" }], kept: [{ name: "K" }], ...flagOver } } }, update: async (patch) => log.updates.push(patch) };
+  return { log, message };
+};
+const answerOf = (outcome, over = {}) => ({ ok: true, outcome, stamped: 1, deleted: 0, released: 0, hostile: 0, unapplied: 0, ...over });
+const allMine = () => handWorld({ docs: { "Scene.s1.Token.t1": doc("p1"), "Scene.s1.Token.t2": doc("p1") }, held: { "party1|member1": doc("p1") } });
+
+await ta("each of the four values re-applies on the GM's client through lib's control end, naming the cast and the value, and the card's record and drawn line follow", async () => {
+  for (const outcome of ["control", "stays", "gone", "hostile"]) {
+    const { log, message } = handCard({ outcome: outcome === "control" ? "stays" : "control" });
+    const answer = await hand.setControlOnCard({
+      message, key: "castHeldEnd", outcome, sender: { id: "p1" }, world: allMine(),
+      apply: async (caster, req) => (log.applied.push([caster, req]), answerOf(outcome)),
+      render: async (flag) => `card:${flag.outcome}`,
+    });
+    assert.deepEqual(log.applied.map(([, req]) => req), [{ castId: "x", outcome }], outcome);
+    assert.equal(answer.ok, true);
+    assert.equal(answer.outcome, outcome);
+    const [patch] = log.updates;
+    assert.equal(patch.content, `card:${outcome}`, `${outcome}: the drawn card is redrawn from the new record`);
+    assert.equal(patch["flags.acks-extras.castHeldEnd.outcome"], outcome, `${outcome}: the record says so`);
+  }
+});
+
+await ta("a value set by hand records who set it; who left the party stays recorded as having left, and what the roster kept is the card's no more than the hostile end answered", async () => {
+  const back = handCard();
+  await hand.setControlOnCard({ message: back.message, key: "castHeldEnd", outcome: "control", sender: { id: "p1" }, by: "Player One", world: allMine(), apply: async () => answerOf("control"), render: async () => "x" });
+  const first = back.log.updates[0];
+  assert.equal(first["flags.acks-extras.castHeldEnd.setBy"], "Player One");
+  assert.equal("flags.acks-extras.castHeldEnd.left" in first || "flags.acks-extras.castHeldEnd.kept" in first, false, "they still stand where they went, and the view hides the roster line under control");
+  const again = handCard({ outcome: "control", kept: [{ name: "K" }] });
+  await hand.setControlOnCard({ message: again.message, key: "castHeldEnd", outcome: "hostile", sender: { id: "p1" }, world: allMine(), apply: async () => answerOf("hostile", { kept: [] }), render: async () => "x" });
+  assert.equal(hand.isUnsetValue(again.log.updates[0]["flags.acks-extras.castHeldEnd.kept"]), true, "a hostile end that kept nobody clears the roster line");
+  const goneCard = handCard({ outcome: "gone" });
+  assert.deepEqual(await hand.setControlOnCard({ message: goneCard.message, key: "castHeldEnd", outcome: "control", sender: { id: "p1" }, world: allMine(), apply: async () => assert.fail("deleted creatures are not set"), render: async () => "x" }), { ok: false, reason: "gone" });
+  const turn = handCard({ outcome: "stays", left: undefined, kept: undefined });
+  await hand.setControlOnCard({
+    message: turn.message, key: "castHeldEnd", outcome: "hostile", sender: { id: "p1" }, world: allMine(), render: async () => "x",
+    apply: async () => answerOf("hostile", { hostile: 3, left: [{ partyId: "party1", actorId: "member1", name: "Invented Stashed", tokenUuid: "Scene.s9.Token.new1", deployed: false }], kept: [] }),
+  });
+  const patch = turn.log.updates[0];
+  assert.deepEqual(patch["flags.acks-extras.castHeldEnd.left"], [{ name: "Invented Stashed" }]);
+  assert.deepEqual(patch["flags.acks-extras.castHeldEnd.summons"][2], { name: "Invented Stashed", img: "icons/invented-stashed.webp", tokenUuid: "Scene.s9.Token.new1" }, "its roster row is gone, so the card names the token");
+});
+
+await ta("a seat that does not own every creature is refused on the GM's client and nothing is applied or written; a bad value and a card with no creature list are refused too", async () => {
+  const log = { applied: 0 };
+  const apply = async () => (log.applied++, answerOf("gone"));
+  const run = (over) => {
+    const card = handCard();
+    return hand.setControlOnCard({ message: card.message, key: "castHeldEnd", outcome: "gone", sender: { id: "p2" }, world: allMine(), apply, render: async () => "x", ...over }).then((a) => [a, card.log.updates.length]);
+  };
+  assert.deepEqual(await run({}), [{ ok: false, reason: "notOwner" }, 0]);
+  assert.deepEqual(await run({ outcome: "vanish", sender: { id: "p1" } }), [{ ok: false, reason: "badOutcome" }, 0]);
+  const noList = handCard();
+  noList.message.flags["acks-extras"].castHeldEnd.summons = [];
+  assert.deepEqual(await hand.setControlOnCard({ message: noList.message, key: "castHeldEnd", outcome: "gone", sender: { id: "p1" }, world: allMine(), apply, render: async () => "x" }), { ok: false, reason: "notOwner" });
+  assert.deepEqual(await hand.setControlOnCard({ message: null, key: "castHeldEnd", outcome: "gone", sender: { id: "p1" }, world: allMine(), apply, render: async () => "x" }), { ok: false, reason: "noCard" });
+  assert.equal(log.applied, 0);
+  const gmOwn = handCard();
+  assert.equal((await hand.setControlOnCard({ message: gmOwn.message, key: "castHeldEnd", outcome: "gone", sender: null, world: handWorld({ docs: { "Scene.s1.Token.t1": doc() }, casters: { "Actor.c": doc() } }), apply, render: async () => "x" })).ok, true, "a Judge's own call, which carries no sender, owns everything");
+});
+
+await ta("creatures that no longer exist are skipped and counted; with every one gone only the card's record changes and the answer says so", async () => {
+  const some = handCard();
+  const answer = await hand.setControlOnCard({
+    message: some.message, key: "castHeldEnd", outcome: "stays", sender: { id: "p1" }, world: handWorld({ docs: { "Scene.s1.Token.t1": doc("p1") } }), render: async () => "x",
+    apply: async () => answerOf("stays"),
+  });
+  assert.deepEqual([answer.ok, answer.skipped, answer.none], [true, 2, false]);
+  const all = handCard();
+  let applied = 0;
+  const empty = await hand.setControlOnCard({ message: all.message, key: "castHeldEnd", outcome: "stays", sender: { id: "p1" }, world: handWorld(), render: async () => "x", apply: async () => (applied++, answerOf("stays")) });
+  assert.deepEqual([empty.ok, empty.none, empty.skipped, applied], [true, true, 3, 0], "no creature, no lib call");
+  assert.equal(all.log.updates[0]["flags.acks-extras.castHeldEnd.outcome"], "stays", "the record still changes");
+});
+
+await ta("lib refusing the control end leaves the card as it was", async () => {
+  const card = handCard();
+  const out = await hand.setControlOnCard({ message: card.message, key: "castHeldEnd", outcome: "gone", sender: { id: "p1" }, world: allMine(), render: async () => "x", apply: async () => ({ ok: false, reason: "notGm" }) });
+  assert.deepEqual(out, { ok: false, reason: "notGm" });
+  assert.equal(card.log.updates.length, 0);
+});
+
+await ta("the relay op reads the card and the creatures on the GM's client and re-tests the sender's ownership there: a seat that owns the caster but not the creatures is refused; an unknown card and value are refused", async () => {
+  const w = restoreWorld({ authorGM: true, owned: { p1: ["Actor.c"] } });
+  w.message.flags["acks-extras"].castHeldEnd = { ...FLAG(), summons: [{ name: "Invented Wisp", img: "", tokenUuid: "Scene.s1.Token.t1" }], outcome: "hostile" };
+  w.actors["Scene.s1.Token.t1"] = { actor: { testUserPermission: () => false } };
+  assert.deepEqual(await magicHeldEnd({ op: "setControl", messageId: "m1", outcome: "control", requestUserId: "p1" }), { ok: false, reason: "notOwner" }, "after a hostile end the seat's ownership is gone");
+  assert.deepEqual(await magicHeldEnd({ op: "setControl", messageId: "gone", outcome: "control", requestUserId: "p1" }), { ok: false, reason: "noCard" });
+  assert.deepEqual(await magicHeldEnd({ op: "setControl", messageId: "m1", outcome: "vanish", requestUserId: "p1" }), { ok: false, reason: "badOutcome" });
+  assert.deepEqual(await magicHeldEnd({ op: "setControl", messageId: "m1", outcome: "control", requestUserId: "nobody" }), { ok: false, reason: "noUser" });
+  assert.equal(w.log.messageUpdates.length, 0);
+  delete w.actors["Scene.s1.Token.t1"];
+  const gone = await magicHeldEnd({ op: "setControl", messageId: "m1", outcome: "stays", requestUserId: "p1" });
+  assert.deepEqual([gone.ok, gone.none, gone.skipped], [true, true, 1], "the owner of the caster sets the record of a card whose creatures are all gone");
+  assert.equal(w.log.messageUpdates.length, 1);
+  assert.ok(w.log.messageUpdates[0].content.includes("controlLost.stays"), "the card is redrawn through the card's own template");
+  restoreWorldDown();
+});
+
+await ta("a pick goes to the GM's client as {op: \"setControl\", messageId, outcome} and nothing else (a Judge's own seat is that client); a refusal and a card with no creature left are told to the presser", async () => {
+  const sent = [];
+  const told = [];
+  let reply;
+  const deps = { relay: async (payload) => (sent.push(payload), reply), warn: (text) => told.push(["warn", text]), info: (text) => told.push(["info", text]) };
+  const message = { id: "m1" };
+  reply = { ok: true, outcome: "gone", skipped: 0, none: false };
+  await hand.pressControl(message, "gone", deps);
+  assert.deepEqual(sent, [{ op: "setControl", messageId: "m1", outcome: "gone" }], "the seat names the card and the value and claims nothing else");
+  assert.deepEqual(told, []);
+  reply = { ok: false, reason: "notOwner" };
+  assert.equal((await hand.pressControl(message, "control", deps)).ok, false);
+  assert.deepEqual(told.map((x) => x[0]), ["warn"]);
+  reply = { ok: true, outcome: "stays", skipped: 2, none: true };
+  await hand.pressControl(message, "stays", deps);
+  assert.deepEqual(told.slice(1).map((x) => x[0]), ["info"], "the none-left answer is a notice");
+  reply = { ok: true, outcome: "stays", skipped: 1, none: false };
+  await hand.pressControl(message, "stays", deps);
+  assert.deepEqual(told.slice(2).map((x) => x[0]), ["info"], "a skip is a notice");
+  reply = null;
+  assert.equal(await hand.pressControl(message, "stays", deps), null, "with no GM connected nothing is told twice");
+  assert.equal(told.length, 3);
 });
 
 console.log(`\n${n} cast-held tests passed`);

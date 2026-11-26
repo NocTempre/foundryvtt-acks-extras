@@ -46,6 +46,7 @@ import {
   controlEndPlan,
   summonerOf,
   summonRecordOf,
+  summonOfData,
   summonFlags,
   summonOwnership,
   validCastId,
@@ -462,9 +463,18 @@ async function dismissOp({ summonerUuid, tokenUuids, held, user }) {
  * End the control of one cast's creatures, the GM's client alone. Which
  * creatures is the cast's own record and nothing else: the tokens whose actor
  * names this summoner and carries the cast id, and the party-stashed members
- * that do (`castSummons`), never a name or a type. `outcome` is the caller's
- * reading of the spell's row (`controlEndPlan`): it is never taken from a
- * request, so the caller on the GM's client resolves it first. Every creature
+ * that do (`castSummons`), never a name or a type. `outcome` is a word the
+ * caller resolved on the GM's client: the reading of the spell's row at a
+ * cast's end (`controlEndPlan`), never a request's, or the value a Judge's
+ * hand set on that cast's card afterwards, which the card's relay validates
+ * against `CONTROL_PICKS` and the sender's ownership before it asks. A hand may
+ * also set `UNDER_CONTROL`: each creature's stamp is cleared, and a creature
+ * that had turned hostile (so also one set to `stays`) is given back the owners
+ * `summonOwnership` grants its summoner's owners and the disposition its world
+ * copy's prototype token gives, written to a token's actor and to a stash
+ * through the roster's `amendSummons`. Nothing is put back on a party roster and
+ * nothing is deleted. A world copy that cannot be read leaves the disposition as
+ * it stands and is counted in `dispositionUnread`. Every creature
  * is stamped `lost` in its record, which a non-GM's dismissal is refused on
  * once it is `hostile`; a `gone` creature is deleted as a dismissal deletes it,
  * a deployed party member and a stashed one through the roster's `release`; a
@@ -486,6 +496,15 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
   if (!game.user?.isGM) return refused("notGm");
   if (!summoner?.uuid || !castId) return refused("noCast");
   const { tokens, held } = castSummons(summoner, castId);
+  // What a creature that turned hostile is given back: the owners a summons grants its summoner's owners, and the disposition its world copy's prototype token gives, the source `getTokenDocument` reads when a summons is made.
+  const grant = summonOwnership(summoner.ownership, [], (id) => !!game.users.get(id)?.isGM);
+  let dispositionUnread = 0;
+  const lookOf = (actorId) => {
+    const look = game.actors?.get(actorId)?.prototypeToken?.disposition;
+    if (Number.isFinite(look)) return look;
+    dispositionUnread++;
+    return null;
+  };
   const service = roster();
   const canRelease = typeof service?.release === "function";
   const canAmend = typeof service?.amendSummons === "function";
@@ -516,9 +535,15 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
     if (step.op === "delete" && token) deletes.set(token.parent, [...(deletes.get(token.parent) ?? []), token.id]);
     else if (step.op === "release") releases.set(step.partyId, [...new Set([...(releases.get(step.partyId) ?? []), step.actorId])]);
     else if (step.op === "eject") toEject(step.partyId, step.actorId);
-    else if (step.kind === "held" && (step.op === "stamp" || step.op === "hostile")) amends.set(step.partyId, [...new Set([...(amends.get(step.partyId) ?? []), step.actorId])]);
-    else if (step.op === "stamp" && token?.actor) {
-      await token.actor.update({ [stampPath]: step.lost });
+    else if (step.kind === "held" && (step.op === "stamp" || step.op === "hostile" || step.op === "control")) amends.set(step.partyId, [...new Set([...(amends.get(step.partyId) ?? []), step.actorId])]);
+    else if ((step.op === "stamp" || step.op === "control") && token?.actor) {
+      // A creature set back from hostile is given back its owners in the same write; a synthetic actor's flag is cleared by writing null, since a forced deletion there is not known to land.
+      const giveBack = step.restore && Object.keys(grant).length;
+      await token.actor.update({ [stampPath]: step.lost, ...(giveBack ? { ownership: grant } : {}) });
+      if (step.restore) {
+        const look = lookOf(token.actorId);
+        if (look !== null) await token.update({ disposition: look });
+      }
       done.stamped++;
     } else if (step.op === "hostile" && token?.actor) {
       // A creature's actor is synthetic, its ownership a delta over the world copy's: a forced deletion there writes nothing at all, the stamp beside it included, and could not lower the copy's level anyway. Each owner is set to NONE instead.
@@ -532,7 +557,9 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
   for (const [scene, ids] of deletes) done.deleted += (await scene.deleteEmbeddedDocuments("Token", ids)).length;
   for (const [partyId, ids] of releases) done.released += Number((await service.release(partyId, ids))?.released) || 0;
   for (const [partyId, ids] of amends) {
-    const amended = (await service.amendSummons(partyId, ids, (data) => stashAfterControlEnd(data, plan.outcome)))?.amended ?? [];
+    // A stash gives back what hostile took only where its own record reads hostile, so its look is read only then.
+    const back = (data) => (plan.outcome !== "hostile" && summonOfData(data).summon?.lost === "hostile" ? { ownership: grant, disposition: lookOf(data.actorId) } : {});
+    const amended = (await service.amendSummons(partyId, ids, (data) => stashAfterControlEnd(data, plan.outcome, back(data))))?.amended ?? [];
     done.stamped += amended.length;
     if (plan.outcome === "hostile") done.hostile += amended.length;
   }
@@ -546,7 +573,7 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
     for (const who of answer.left ?? []) left.push({ partyId, actorId: who.actorId, name: String(who.name ?? ""), tokenUuid: who.tokenUuid ?? null, deployed: !!who.deployed });
     for (const who of answer.kept ?? []) kept.push({ partyId, actorId: who.actorId, name: String(who.name ?? "") });
   }
-  return { ok: true, outcome: plan.outcome, ...done, ...(left.length ? { left } : {}), ...(kept.length ? { kept } : {}) };
+  return { ok: true, outcome: plan.outcome, ...done, ...(dispositionUnread ? { dispositionUnread } : {}), ...(left.length ? { left } : {}), ...(kept.length ? { kept } : {}) };
 }
 
 /**

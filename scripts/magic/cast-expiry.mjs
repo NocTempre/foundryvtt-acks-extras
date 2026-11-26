@@ -38,6 +38,7 @@ import { onWorldTimeAdvanced } from "../lib/world-time.mjs";
 import { castSummons } from "../lib/summons.mjs";
 import { worldActors } from "../lib/repair.mjs";
 import { docOf, escape as esc } from "../lib/util.mjs";
+import { bindControlSelect, controlLoc, CONTROL_LINE_ATTR } from "./cast-control-hand.mjs";
 
 /** The chat-message flag a cast-ended card carries: `{casterUuid, castId}`. */
 export const CAST_ENDED_FLAG = "castEnded";
@@ -245,18 +246,47 @@ export async function postEnded({ effect, record, tokens, held = [], outcome = n
   // A spell since deleted reads by the name its record was made with.
   const spellName = docOf(record.spellUuid)?.name ?? effect.name;
   const isGM = (id) => !!game.users.get(id)?.isGM;
-  const content =
-    `<div class="acks-extras-cast-ended"><p>${esc(loc("text", { spell: spellName, name: caster?.name ?? "", n: tokens.length + held.length }))}</p>` +
-    (outcome === "hostile" ? `<p>${esc(loc("hostile"))}</p>` : "") +
-    (left.length ? `<p>${esc(loc("leftParty", { names: left.map((l) => l.name).join(", ") }))}</p>` : "") +
-    (kept.length ? `<p>${esc(loc("keptInParty", { names: kept.map((k) => k.name).join(", ") }))}</p>` : "") +
-    `<button type="button" ${DISMISS_ATTR}><i class="fa-solid fa-ghost" inert></i> ${esc(loc("dismiss"))}</button></div>`;
+  const flag = {
+    casterUuid: record.casterUuid || caster?.uuid,
+    castId: record.castId,
+    spellName: spellName ?? "",
+    casterName: caster?.name ?? "",
+    n: tokens.length + held.length,
+    ...(outcome ? { outcome } : {}),
+    ...(left.length ? { left: left.map((l) => ({ name: l.name })) } : {}),
+    ...(kept.length ? { kept: kept.map((k) => ({ name: k.name })) } : {}),
+  };
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor: caster }),
     whisper: castEndedRecipients(caster?.ownership, game.users.filter((u) => u.isGM).map((u) => u.id), isGM),
-    content,
-    flags: { [MODULE_ID]: { [CAST_ENDED_FLAG]: { casterUuid: record.casterUuid || caster?.uuid, castId: record.castId, ...(outcome ? { outcome } : {}) } } },
+    content: endedContent(flag),
+    flags: { [MODULE_ID]: { [CAST_ENDED_FLAG]: flag } },
   });
+}
+
+/**
+ * The card's body, a function of its flag: the spell and the count the card was
+ * posted with, a line for the outcome the creatures stand in (the render hook
+ * swaps it for the select on a seat that gets one, `cast-control-hand.mjs`), who
+ * set it by hand, who left the party and who stayed on its roster (not once the
+ * creatures are back under control), and Dismiss. A Judge's hand redraws it from
+ * a new flag. A card with no outcome in its flag draws no outcome line.
+ *
+ * @param {{spellName?: string, casterName?: string, n?: number, outcome?: string, setBy?: string, left?: {name: string}[], kept?: {name: string}[]}} flag  the card's `castEnded` flag
+ * @returns {string} the card's HTML
+ */
+export function endedContent(flag) {
+  const left = flag.left ?? [];
+  const kept = flag.outcome === "control" ? [] : (flag.kept ?? []);
+  const line = { stays: "stays", hostile: "hostile", control: "underControl", gone: "gone" }[flag.outcome];
+  return (
+    `<div class="acks-extras-cast-ended"><p>${esc(loc("text", { spell: flag.spellName ?? "", name: flag.casterName ?? "", n: flag.n ?? 0 }))}</p>` +
+    (line ? `<p ${CONTROL_LINE_ATTR}>${esc(loc(line))}</p>` : "") +
+    (line && flag.setBy ? `<p>${esc(controlLoc("setBy", { name: flag.setBy }))}</p>` : "") +
+    (left.length ? `<p>${esc(loc("leftParty", { names: left.map((l) => l.name).join(", ") }))}</p>` : "") +
+    (kept.length ? `<p>${esc(loc("keptInParty", { names: kept.map((k) => k.name).join(", ") }))}</p>` : "") +
+    `<button type="button" ${DISMISS_ATTR}><i class="fa-solid fa-ghost" inert></i> ${esc(loc("dismiss"))}</button></div>`
+  );
 }
 
 /**
@@ -294,6 +324,7 @@ const liveDeps = (worldTime) => ({
 export function bindCard(message, html) {
   const flag = message?.getFlag?.(MODULE_ID, CAST_ENDED_FLAG);
   if (!flag?.castId) return;
+  bindControlSelect(message, html, { key: CAST_ENDED_FLAG, root: ".acks-extras-cast-ended", anchor: `[${DISMISS_ATTR}]`, live: true });
   const owner = fromUuidSync(flag.casterUuid)?.isOwner === true;
   const may = owner && (flag.outcome !== "hostile" || game.user?.isGM === true);
   for (const button of html?.querySelectorAll?.(`[${DISMISS_ATTR}]`) ?? []) {

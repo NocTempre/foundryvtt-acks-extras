@@ -29,7 +29,9 @@
  * for creatures that went) and Dismiss all, for an owner of the caster, and on a
  * card whose creatures turned hostile for the Judge alone (RR ch. 5); Restore
  * puts back the records only, so it is offered on every outcome. The card is
- * `templates/magic/cast-held-card.hbs`.
+ * `templates/magic/cast-held-card.hbs`. A select the render hook adds
+ * (`cast-control-hand.mjs`) lets the Judge set the outcome by hand afterwards:
+ * back under control, or any of the three ends.
  *
  * A Restore the seat cannot carry out itself (the card or a listed actor is not
  * its own) is relayed to the GM's client as `{op: "restore", messageId}`. That
@@ -47,12 +49,14 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_SPELL_EFFECT, FLAG_SPELL, CAST_HELD_END_FLAG, HELD_END_HANDLER } from "./constants.mjs";
 import { spellEffectOf, spellEffectData } from "./spell-effect.mjs";
-import { castEndedRecipients } from "./cast-expiry.mjs";
+import { castEndedRecipients, endedContent, CAST_ENDED_FLAG } from "./cast-expiry.mjs";
+import { creatureEntries, summonsAfterLeave, bindControlSelect, setControlOnCard, controlLoc } from "./cast-control-hand.mjs";
 import { worldActors } from "../lib/repair.mjs";
 import { lossInFlight } from "../lib/status-effects.mjs";
 import { statusEffectData } from "../lib/held-condition.mjs";
 import { unset } from "../lib/util.mjs";
 import { CONTROL_ENDS } from "../lib/magic-vocab.mjs";
+import { UNDER_CONTROL } from "../lib/summons-logic.mjs";
 
 /** The causes a card names. */
 export const HELD_CAUSES = Object.freeze(["damage", "save", "cast", "time", "removed", "saved"]);
@@ -277,18 +281,14 @@ export async function endHeldCast(record, { cause, caster, deps }) {
   }
   // A summons held by concentration loses its control. The card lists its creatures with the ids a Dismiss names, read before the GM's client applies what the spell's row says becomes of them (`deps.control`); Dismiss is the Judge's, and is not drawn for creatures that went.
   const found = (await deps.standing?.(record)) ?? {};
-  const standing = [
-    ...(found.tokens ?? []).map((t) => ({ name: String(t.name ?? t.actor?.name ?? ""), img: String(t.texture?.src || t.actor?.img || ""), tokenUuid: String(t.uuid ?? "") })),
-    ...(found.held ?? []).map((h) => ({ name: String(h.name ?? ""), img: String(h.img ?? ""), held: { partyId: String(h.partyId ?? ""), actorId: String(h.actorId ?? "") } })),
-  ];
+  const standing = creatureEntries(found);
   // With no GM connected `control` answers null and nothing is applied: the creatures stand, and the card draws no outcome of its own.
   const control = standing.length ? await deps.control?.({ casterUuid: record.casterUuid, castId: record.castId, cause }) : null;
   const outcome = control?.ok ? control.outcome : null;
   // A stashed creature that left its party is a token now, and its Dismiss names that token: its roster row is gone.
   const left = control?.ok ? (control.left ?? []) : [];
   const kept = control?.ok ? (control.kept ?? []) : [];
-  const tokenOf = new Map(left.filter((l) => l.tokenUuid).map((l) => [`${l.partyId}|${l.actorId}`, l.tokenUuid]));
-  const summons = standing.map((s) => (s.held && tokenOf.has(`${s.held.partyId}|${s.held.actorId}`) ? { name: s.name, img: s.img, tokenUuid: tokenOf.get(`${s.held.partyId}|${s.held.actorId}`) } : s));
+  const summons = summonsAfterLeave(standing, left);
   const flag = {
     cause,
     castId: record.castId,
@@ -326,15 +326,16 @@ const CARD_TEMPLATE = `modules/${MODULE_ID}/templates/magic/cast-held-card.hbs`;
 /**
  * The line that says what became of the creatures when their control ended,
  * by outcome (`CONTROL_ENDS`): they are still on the map and the control is
- * lost, they went, or they turned hostile. An outcome that is none of these
- * draws no line.
+ * lost, they went, or they turned hostile; or, set by a Judge's hand
+ * (`cast-control-hand.mjs`), they are back under control. An outcome that is
+ * none of these draws no line.
  *
  * @param {string} [outcome="stays"]
  * @param {(key: string, data?: object) => string} loc  this card's strings, `ACKS-MAGIC.castHeld.<key>`
  * @returns {string}
  */
 export function controlLostLine(outcome = "stays", loc) {
-  return Object.hasOwn(CONTROL_ENDS, outcome) ? loc(`controlLost.${outcome}`) : "";
+  return Object.hasOwn(CONTROL_ENDS, outcome) || outcome === UNDER_CONTROL ? loc(`controlLost.${outcome}`) : "";
 }
 
 /**
@@ -344,9 +345,10 @@ export function controlLostLine(outcome = "stays", loc) {
  *
  * @param {object} flag  the card's `castHeldEnd` flag
  * @param {(key: string, data?: object) => string} loc  this card's strings, `ACKS-MAGIC.castHeld.<key>`
+ * @param {(name: string) => string} [setByText]  the line naming who set the outcome by hand, shared with the time-end card
  * @returns {object}
  */
-export function heldEndView(flag, loc) {
+export function heldEndView(flag, loc, setByText = (name) => controlLoc("setBy", { name })) {
   const cite = flag.cite ? ` (${flag.cite})` : "";
   const creatures = (flag.summons ?? []).map((c) => ({
     name: c.name,
@@ -374,9 +376,11 @@ export function heldEndView(flag, loc) {
     byline: loc("byline", { spell: flag.spellName, name: flag.casterName }),
     casterImg: flag.casterImg ?? "",
     cause: `${loc(`cause.${HELD_CAUSES.includes(flag.cause) ? flag.cause : "removed"}`)}${lost ? "" : cite}`,
-    controlLost: lost ? `${lost}${cite}` : "",
+    // The page reference stands beside the outcome the spell's row gave; one set by hand names who set it instead.
+    controlLost: lost ? `${lost}${flag.setBy ? "" : cite}` : "",
+    setBy: lost && flag.setBy ? setByText(flag.setBy) : "",
     leftParty: flag.left?.length ? loc("leftParty", { names: flag.left.map((l) => l.name).join(", ") }) : "",
-    keptInParty: flag.kept?.length ? loc("keptInParty", { names: flag.kept.map((k) => k.name).join(", ") }) : "",
+    keptInParty: flag.kept?.length && flag.outcome !== UNDER_CONTROL ? loc("keptInParty", { names: flag.kept.map((k) => k.name).join(", ") }) : "",
     sections,
     creatures,
     dismissable,
@@ -493,17 +497,39 @@ const liveDeps = () => ({
 });
 
 /**
+ * A Judge's hand on one card's control end, on the GM's client: the card is read
+ * from the world by `messageId`, the sender's ownership of every creature it
+ * lists is re-tested there, and the outcome is applied through lib's control end
+ * and written to the card (`setControlOnCard`). The request carries the card and
+ * the value and nothing else.
+ *
+ * @param {{requestUserId?: string, messageId?: string, outcome?: string}} payload
+ * @returns {Promise<{ok: boolean, reason?: string, outcome?: string, skipped?: number, none?: boolean, changed?: number}>}
+ */
+async function setControlFromCard({ requestUserId, messageId, outcome } = {}) {
+  const message = messageId ? game.messages?.get(messageId) : null;
+  const sender = requestUserId ? game.users.get(requestUserId) : null;
+  if (requestUserId && !sender) return { ok: false, reason: "noUser" };
+  const flags = message?.flags?.[MODULE_ID];
+  const key = flags?.[CAST_HELD_END_FLAG] ? CAST_HELD_END_FLAG : flags?.[CAST_ENDED_FLAG] ? CAST_ENDED_FLAG : null;
+  const render = key === CAST_HELD_END_FLAG ? (flag) => heldEndContent(flag, loc) : (flag) => endedContent(flag);
+  return setControlOnCard({ message, key, outcome, sender, by: sender?.name ?? game.user?.name ?? "", render, live: key === CAST_ENDED_FLAG });
+}
+
+/**
  * The GM's client takes the records a seat could not write: checked, then ended
  * by the tail the spell gives, never the request's.
  * The same request with `op: "control"` asks the GM's client to end the cast's
  * creatures' control instead (`cast-control.mjs`), and answers its outcome.
  * With `op: "restore"` it puts back the records of the card `messageId` names
- * (`restoreFromCard`), taking nothing else from the request.
- * @param {object} payload  `{requestUserId, casterUuid, castId, cause, op?}`, or `{requestUserId, op: "restore", messageId}`
+ * (`restoreFromCard`), taking nothing else from the request. With `op:
+ * "setControl"` it sets the outcome a card's select names (`setControlFromCard`).
+ * @param {object} payload  `{requestUserId, casterUuid, castId, cause, op?}`, or `{requestUserId, op: "restore", messageId}`, or `{requestUserId, op: "setControl", messageId, outcome}`
  * @returns {Promise<{ok: boolean, reason?: string, ended?: object[], retimed?: object[], open?: object[], restored?: number, refused?: number}>}
  */
 export async function magicHeldEnd(payload = {}) {
   if (payload.op === "restore") return restoreFromCard(payload);
+  if (payload.op === "setControl") return setControlFromCard(payload);
   const caster = payload.casterUuid ? fromUuidSync(payload.casterUuid) : null;
   const user = game.users.get(payload.requestUserId);
   const heldRemains = [...(caster?.effects ?? [])].some((e) => {
@@ -723,6 +749,8 @@ export function bindCard(message, html) {
       });
     }
   }
+  // After a Judge's hand turned the creatures gone the card draws no select (`mayPickControl`) and keeps its outcome line.
+  bindControlSelect(message, html, { key: CAST_HELD_END_FLAG, root: ".acks-extras-cast-held", anchor: ".acks-extras-cast-held__foot" });
   const foot = html.querySelector?.(".acks-extras-cast-held__foot");
   if (foot && !foot.children?.length) foot.remove();
 }

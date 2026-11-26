@@ -13,7 +13,8 @@
     </div>
   </header>
   <p class="acks-extras-cast-held__line">{{cause}}</p>
-  {{#if controlLost}}<p class="acks-extras-cast-held__line">{{controlLost}}</p>{{/if}}
+  {{#if controlLost}}<p class="acks-extras-cast-held__line" data-acks-extras-control-line>{{controlLost}}</p>{{/if}}
+  {{#if setBy}}<p class="acks-extras-cast-held__line">{{setBy}}</p>{{/if}}
   {{#if leftParty}}<p class="acks-extras-cast-held__line">{{leftParty}}</p>{{/if}}
   {{#if keptInParty}}<p class="acks-extras-cast-held__line">{{keptInParty}}</p>{{/if}}
   {{#each sections}}
