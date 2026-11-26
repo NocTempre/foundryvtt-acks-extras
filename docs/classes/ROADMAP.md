@@ -194,3 +194,11 @@ built.
 Settling a will is the Judge's press (docs/classes/DECISIONS.md, 2026-11-25), so
 the deceased's owner has no control for it. A button on the Legacy window for
 that owner, asking the Judge to settle, is not built.
+
+## Class choice at level-up from the owner's seat
+
+Character sheet → Class tab → Level up, on a 0th-level character: choosing the class it advances into is the
+Judge's (archived 2026-10-23, owner: "Check and follow RAW"; RR ch. 6 gives the choice to the Judge). The owner
+selected reversing it on 2026-11-25 while answering "follow raw" twice in the same send, so the work that
+builds it puts the question to the owner first ([../DECISIONS.md](../DECISIONS.md), 2026-11-26). 1 surface,
+2 role reads.

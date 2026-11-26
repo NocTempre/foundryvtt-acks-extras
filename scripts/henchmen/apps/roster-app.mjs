@@ -10,7 +10,7 @@
  */
 import { MODULE_ID, FLAG_RECORD, FLAG_MONSTER_LIST, HOOKS } from "../constants.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
-import { checkHenchmanLimit, enrollHenchman } from "../engine/hire.mjs";
+import { checkHenchmanLimit, enrollHenchman, transferOwnership } from "../engine/hire.mjs";
 import { assignMonsterEmployer } from "../engine/monster-employer.mjs";
 import { rosterOf } from "../engine/service-tree.mjs";
 import { unvaluedPowers } from "../effects.mjs";
@@ -420,6 +420,14 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
     await actor.setFlag(MODULE_ID, FLAG_RECORD, { ...record, employerUuid: newEmployer.uuid });
+    // The hireling's owners follow its employer, as a hire grants them. If
+    // Foundry refuses the write, the move stands and the seat is told.
+    try {
+      await actor.update({ ownership: transferOwnership(actor.ownership, this.employer, newEmployer) });
+    } catch (err) {
+      console.warn(`${MODULE_ID} | transfer ownership write failed`, err);
+      ui.notifications?.warn(loc("transferOwnershipFailed", { name: actor.name }));
+    }
     await HenchmanRecord.logEvent(actor, {
       type: "transfer",
       note: loc("transferNote", { from: this.employer.name, to: newEmployer.name }),

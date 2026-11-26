@@ -941,7 +941,7 @@ t("the sheet carries the tab after Storage on every place, leaves its controls l
   assert.doesNotMatch(sheet, /MARKET_TABS = [^\n]*research/, "the tab is not gated on a market");
   const template = fs.readFileSync("templates/location/location-sheet.hbs", "utf8");
   const at = template.indexOf('data-tab="research"');
-  assert.ok(at > 0 && at < template.indexOf("{{#if isGM}}\n  {{!-- ------------------------- GM settings"), "the section stands outside the Judge's block");
+  assert.ok(at > 0 && at < template.indexOf("{{#if isGM}}\n  {{!-- ------------------------- Things"), "the section stands outside the Judge's block");
   const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
   assert.ok((tab.match(/stopPropagation\(\)/g) ?? []).length >= 4, "each of the three change listeners and the drop zones stops its event");
   assert.doesNotMatch(tab, /instanceof (HTML|Element)/, "a node is told by nodeType, and the tab tells none");

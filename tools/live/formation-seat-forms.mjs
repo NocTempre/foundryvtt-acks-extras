@@ -1,6 +1,6 @@
 /**
  * Live walk: docs/formation/TESTING.md "The party's form, movement and Order on a
- * Player seat" (T-0792 B3). A real Player seat that owns a party member is drawn
+ * Player seat" (T-0792). A real Player seat that owns a party member is drawn
  * and uses the band's mode select and name, the city's pickers, the journey's
  * movement tiles, flight, Sky with Roll weather, the Day section and Camp, the
  * Order tab's head and a blank's controls, Load order and the Skill audit opener;

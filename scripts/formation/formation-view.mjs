@@ -2138,7 +2138,7 @@ function wheelRefusals(formation, t) {
   return out;
 }
 
-/** Context for the GM-only controls (light/spell pickers, tables, maps). */
+/** Context a Judge's seat adds: the light-source and bearer pickers, the encounter tables and a journey's country overrides. */
 export function buildGMExtras(formation) {
   const extras = {};
 

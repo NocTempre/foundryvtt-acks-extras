@@ -118,15 +118,24 @@ An unlinked token is found as a rider, a passenger or a draft animal
   weapon's amount round half to the even whole. Its multiplier is the Judge's
   way to apply a defense by hand. A type pick would send the row through
   `defenseStage` and one rounding.
+- **A seat that owns its targets.** The hit-point window (Tokens scene control, a monster sheet's heart cell,
+  the party sheet's Hit points press, the Adjust Hit Points macro, `api.lib.hp`) refuses every seat that is not
+  a Judge's, the owner of every target included. Proposed: draw it on every seat and keep the rows the seat
+  owns, with a member riding inside a party token written through a relay on the Judge's client. Its refusal
+  for such a member today reports the member as having left the party, which is untrue off a Judge's seat.
+  1 surface, 4 role reads, and the party sheet's press (2 lines in formation). Built, it qualifies formation's
+  2026-11-25 entry "A party-sheet press follows ownership of what it writes", its hit-point clause.
 
 ## What damage against defenses does not do yet
 
 The procedure is built ([MODEL.md](MODEL.md), "Damage against defenses"). Not
 built:
 
-- **A weapon Apply a player can press.** Only a Judge presses, as in the
-  system. A player's press would go through a relay the Judge's client
-  re-checks, as a cast's does.
+- **A weapon Apply a target's owner can press.** Chat → a weapon attack's card → Apply and Undo are the
+  Judge's. The system's own damage button applies to the tokens a seat controls, on any seat, so there the
+  target's owner applies. The card's record is its author's to write, so a target's owner who did not roll
+  would press through a relay the Judge's client re-checks, as a cast's does. Open: the bound on the figure
+  such a press applies. 1 surface, 4 role reads.
 - **Quality per type within one band.** A band holds one quality flag for all
   its types, so a defense that is mundane-only against one type and absolute
   against another is two bands or the Judge's.
@@ -535,3 +544,9 @@ Not built: one lib-owned advance per round for every fight. It has to take over 
 - **A secretly hostile member.** A hostility only the Judge knows is not read by the party sheet's warning, which reads what every seat sees. Who is told, and how, is undecided.
 - **A creature bound by hand.** A creature with a summoner flag and no cast record can join a party through an actor drop and is not read as temporary, so a hostile reading of it is warned of as of a person and its control never ends.
 - **A temporary ally with no spell behind it.** A creature that is on loan and not conjured (the owner: "not just conjures, could even be nonmagical") has no record the module can read, so it never leaves the party when it turns hostile. A mark a Judge sets on a member is the open design, and `isTemporaryAlly` is where it would be read.
+
+## What the group sheet does not do
+
+- **A stack's Roll from the group's owner's seat.** Actors sidebar → a group's sheet → a stack's Roll is the
+  Judge's. No player owns a group in ordinary play. Open: whether the page gives that roll to the Judge by
+  name, which keeps it the Judge's press as printed procedure. 1 surface, 1 role read.

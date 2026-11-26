@@ -82,9 +82,11 @@ import {
 } from "./turn-engine.mjs";
 
 /**
- * The behaviors behind the party sheet — the single formation UI (GM-only
- * controls hidden from players). Handlers run with `this` = the application,
- * which must expose a `formation` getter, `render()`, and `element`.
+ * The behaviors behind the party sheet, the single formation UI. A handler
+ * tests the seat it acts for: Judge-only presses through `gmFormation`, the
+ * crossing's through the party actor's ownership, a member's through
+ * `seatOwnsMember`. Handlers run with `this` = the application, which must
+ * expose a `formation` getter, `render()`, and `element`.
  */
 
 const loc = makeLoc("ACKS-FORMATION");

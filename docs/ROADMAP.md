@@ -292,3 +292,19 @@ rest follow it, and OL-5 follows OL-4.
   it; none is restated here.
 
 ---
+
+## Tool permissions that still read the seat's role
+
+The rule is [DECISIONS.md](DECISIONS.md), 2026-11-26. Each feature's own rows are in its ROADMAP; this is the
+one that crosses them.
+
+- **A role test where Foundry has a permission a world can grant.** Reads across the module answer
+  `game.user.isGM` where Foundry asks `game.user.can(...)`: Create Actors, Create Items, Create Tokens, Delete
+  Tokens, Upload Files, Configure Settings. Each agrees with Foundry on a default world and refuses what a Judge
+  grants in Configure Permissions. Most are the importer's and the party sheet's; markets, scene search,
+  treasure, battlemap, classes, domains, lib and monsters hold a few. Of the same kind: a place sheet's
+  Contents → Add child place and the Scene config's Place row "+", whose siblings Split and the storage
+  manager's Create vault already read Create Actors, and a place sheet's Recruitment → Advance week, which
+  writes the world's time. A world that grants nothing sees no change; a builder enumerates at its own base.
+
+---

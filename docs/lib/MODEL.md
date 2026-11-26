@@ -2474,7 +2474,7 @@ its page reference (the import's, else the section the module cites), and the
 hit is applied by hand with the hit-point tool. A defense is named to Judges
 and to the target's owners, who also read the target's hit points before and
 after; every other seat reads "a defense" and the amount alone. Only a Judge
-presses, as in the system.
+presses.
 
 **What does not use it.** The hit-point tool and `adjustTargets`,
 `planHpChange` and provision-day: their amounts are untyped, and the tool's

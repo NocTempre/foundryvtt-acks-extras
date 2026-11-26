@@ -110,7 +110,6 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     const context = await super._prepareContext(options);
     const sys = this.actor.system;
 
-    context.isGM = game.user.isGM;
     context.editable = this.isEditable;
     context.system = sys;
     context.actor = this.actor;

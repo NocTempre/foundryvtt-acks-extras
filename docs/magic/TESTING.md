@@ -2340,7 +2340,7 @@ The Blood sacrifice window (`apps/sacrifice-window.mjs`, `sacrifice.mjs` the mod
 world's half, `sacrifice-record.mjs` and `sacrifice-record-live.mjs` the shared record): a bucket of victims with
 the owner's checks inside each row, the yield, the verdicts and the act. Offline: `tools/test-sacrifice.mjs`, and
 `tools/test-bucket.mjs` for the row's slot. Live: `tools/live/magic-sacrifice.mjs`, the GM seat and a Player seat
-together (`SEAT_GM`, `SEAT_PLAYER`). Who sets the facts is ownership of the caster (T-0792 B1, surface 10); severity
+together (`SEAT_GM`, `SEAT_PLAYER`). Who sets the facts is ownership of the caster; severity
 still reads the role, so the walk drives the Player seat as the caster's owner and as an observer of another caster. The window opens from the Sacrifice… button beside the power tags on the
 caster's casting strip (the character sheet, under the class field), which a test drives with a real click;
 `acksExtras.magic.sacrifice.open(actor)` is the same call under it, and is how the observed caster's window is

@@ -4084,7 +4084,7 @@ survival flag is removed, the parties are returned to the names they were found 
 frontage and token shape too) and the journey and city parties to the delve, and
 nothing else is deleted. The fixtures stay.
 
-## The crossing, Search here and the Trapbreaking modifier on a Player seat (added with T-0792 B3)
+## The crossing, Search here and the Trapbreaking modifier on a Player seat
 
 A seat that owns the party actor (a seat that owns a member does, by the
 ownership sync) begins, sets up, throws for and ends the crossing; a seat that
@@ -6046,7 +6046,7 @@ Before the first step the Rules tables must be imported again: the walk reads `c
 
 Teardown: End; the tracked cards swept by the run's own ids, the result quoted; fixtures kept; restore the clock only by the walk's own readings (never roll it back by a write).
 
-## Obstacle regions (added with H1, B3, B2/H3 and P3)
+## Obstacle regions
 
 Built for the Hazard item and its compendium (Items sidebar → a Hazard item; Compendium Packs → ACKS II — Extras → Hazards), the Place row on core's Region window (Scene controls → Regions → the Region → Appearance tab), the Judges' hazard card a move posts and its Begin button (Chat), and a trap thing on a place. A mock cannot prove that the sub-type registers on a real client, that a pack entry reaches both seats read-only, that a Region window keeps the Judge's unsaved edits across a drop, that a real token move walks the trap check before the card, that a card's button reaches only a GM's seat, or that a halted move writes nothing.
 

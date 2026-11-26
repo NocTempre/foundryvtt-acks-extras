@@ -440,7 +440,7 @@ export function createFullMonsterSheet(Base) {
         tabsLabel: loc("frame.tabsLabel"),
         art,
         statblock: { columns: statblock.columns, intro: loc("statblock.intro") },
-        service: buildServicePanel(actor, { isGM: game.user.isGM, pins: sheetFlag(actor).pins ?? [] }),
+        service: buildServicePanel(actor, { pins: sheetFlag(actor).pins ?? [] }),
         pins: this.#pinBar(statblock.columns),
         sheetTools: TOOLS.filter((t) => !t.judge || game.user.isGM).map((t) => ({ key: t.key, icon: t.icon, title: loc(`frame.tools.${t.title ?? t.key}`) })),
       });

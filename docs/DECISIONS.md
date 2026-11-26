@@ -557,3 +557,38 @@ every landing out for the hour a batch takes.
 **Cost.** A landing waits for the walk that holds the lease, a walk's length at
 most, and a walk waits for a landing's gate, about six minutes. A session that
 runs `acks-commit` while it runs a batch waits for its own batch's walk.
+
+## 2026-11-26 — Tools follow Foundry's permissions; what is built ships, and the rest is on the roadmaps
+
+**Ruled.** The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server role instead of
+object ownership, only judge secrets are supposed to be an exception to this rule." The owner, 2026-11-26:
+"role permission is out except the completed batches and the first wave that was scheduled for this release",
+and "clean up what's built, roadmap rest". Standing: "follow foundry permissions, don't invent new ones"; where
+the automation would refuse, a player is blocked and a Judge is warned ([lib](lib/DECISIONS.md), 2026-11-14,
+"Where the automation would refuse, a player is blocked and a Judge is warned").
+
+- **What ships.** Summons and spells, the party sheet, places and storage, hirelings and service, and the legacy
+  ledger follow ownership. Each feature's 2026-11-25 entries say how.
+- **What every later row follows**, as those entries applied it:
+  - a press follows ownership of every document it writes;
+  - a press from a seat that is not a Judge's runs on the Judge's client, through a relay that reads the
+    sender's ownership there;
+  - creating a document reads Foundry's own permission (`game.user.can`), never the role;
+  - a Judge's secret stays the Judge's, and a control that hides something keeps hiding it when its seat changes;
+  - a step the page gives the Judge by name stays the Judge's press, recorded as printed procedure;
+  - a seat that can do nothing with a control is not shown it.
+- **The owner's selection of 2026-11-25** (the session's wording, selected): all thirteen of the listed "the Judge's"
+  rulings are reversed. Built, each in its feature's 2026-11-25 entry: sacrifice facts and the power ledger
+  ([magic](magic/DECISIONS.md), "The sacrifice window follows ownership of the caster"; "The power line opens
+  from a tag, and its controls are the character's owner's"); a trap on a place ([formation](formation/DECISIONS.md),
+  "A member-owner presses the mode's own clock and day, and drops onto a place they own"); the water penalty and
+  the crossing presses (formation, "The crossing, a member's landing and the Trapbreaking modifier follow
+  ownership"); the dungeon haul's Search here ([scene-search](scene-search/DECISIONS.md), "A member-owner's
+  Search here opens the session"). Not built, on the roadmaps: the treasure deal panel, deal toggles, roll mode
+  per pot and arms select; the scene search screen; the Books tab's Remove; class choice at level-up. Class
+  choice at level-up was selected while the owner answered "follow raw" twice in the same send, so the work
+  that builds it puts it to the owner first.
+- **Rejected.** Finishing a half-converted window in this release: the owner's words put it out.
+- **Cost.** Some windows mix ownership and role controls until their rows are built. Each is a row in its
+  feature's ROADMAP; the role reads that stand in for a permission Foundry lets a world grant are one row in
+  [ROADMAP.md](ROADMAP.md).

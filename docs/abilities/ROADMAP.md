@@ -114,3 +114,9 @@ result to the Judge. It needs one shared owner of the chat-visibility policy in
 lib (the initiative, surprise and influence cards each spell the Judge test and
 the split their own way), and `stats-map.mjs` writes `blindroll: false` on
 every imported proficiency, so a recipe-side flag comes with it.
+
+## Effect rows on an owner's seat
+
+An ability's sheet → Mechanics tab → each effect row's Edit and Delete, and Add a row, are drawn on a Judge's
+seat only (`effectsEditable`), while the editor under them writes for any seat that owns the item, as the item
+sheet's rows already draw. Drawing them on the sheet's own editability closes the gap. 1 surface, 1 role read.

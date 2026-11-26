@@ -1,6 +1,8 @@
 /**
- * Live walk, location-storage-intent: a place holds goods only once a GM turns
- * that on. Walks docs/location/TESTING.md step 23: a location made now carries
+ * Live walk, location-storage-intent: a place holds goods only once its owner
+ * turns that on; Hold goods here is the owner's control, and this walk drives it
+ * from the GM seat, which owns every place. Walks docs/location/TESTING.md step
+ * 23: a location made now carries
  * no storage; the storage manager lists every place that holds goods and no
  * other, and **Add a place** turns one on through its picker; the location
  * sheet's Storage tab offers **Hold goods here** and no deposit while storage

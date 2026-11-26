@@ -126,7 +126,7 @@ header → **Set down**. Your Load drops, the worn place shows empty, and
 risk** tag: it is on the ground, anyone standing at it can take from it, and it
 stays where you left it when you move on.
 **Pick up** on that row puts the pack back where it was worn, with whatever is
-still in it; **Open** opens the pile and shows to the Judge only. The control
+still in it; **Open** opens the pile, and shows only to a seat with Observer on it. The control
 shows only to the character's owner, on a container you carry at the top level
 (one inside another goes down with it), and not on an unlinked token's actor.
 

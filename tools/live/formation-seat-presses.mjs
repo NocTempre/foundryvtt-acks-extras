@@ -361,7 +361,7 @@ try {
 
   await run(player, P.submit, { partyId: party.id, description: "<p>QA seat note</p>", name: "QA Seat Hijack" });
   const read = await run(gm, P.partyRead, { partyId: party.id, fid });
-  // The name rides the partyForm relay for a seat owning a member (T-0792 B3, on the allow-list); the description does not, and lands from the owner's own write.
+  // The name rides the partyForm relay for a seat owning a member (T-0792, on the allow-list); the description does not, and lands from the owner's own write.
   check("the description lands as the party actor's owner wrote it, and the record's name follows the member-owner's form through the relay", read.description?.includes("QA seat note") && read.name === "QA Seat Hijack", read);
   await run(player, P.submit, { partyId: party.id, description: "<p>QA seat note</p>", name: "QA Seat Party" });
   await run(player, P.close, { partyId: party.id });

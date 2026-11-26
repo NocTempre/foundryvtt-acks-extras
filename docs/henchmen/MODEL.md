@@ -743,7 +743,10 @@ and render on `isGM` alone; the sheet-opening control is open for everyone.
 Transfer is drawn wherever the row can act; its select lists
 only the characters the seat owns that are not in service and are not the
 employer (`#transferTargets`), since a transfer writes the new employer's
-roster, and its handler does nothing when none qualifies. A seat that
+roster, and its handler does nothing when none qualifies. A transfer also
+moves the hireling's ownership with it (`transferOwnership`): the new employer's
+owners hold Owner, as a hire grants, and the players the old hire granted Owner
+who do not own the new employer lose it. A seat that
 does not own a hireling sees its row without those controls, and its ledger
 entries read-only: a compensated one as a tick. An open
 row adds the wage clock and the record, the last `ROW_EVENTS` events and the

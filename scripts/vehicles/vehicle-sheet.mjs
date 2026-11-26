@@ -158,7 +158,6 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
       isSea,
       isLand: !isSea,
       editable: this.isEditable,
-      isGM: game.user.isGM,
       header: {
         kindLabel: game.i18n.localize(VEHICLE_KINDS[sys.kind]?.label ?? ""),
         pace: isSea ? null : speed.feetPerTurn,

@@ -22,8 +22,10 @@ import { clockReading } from "../lib/world-time.mjs";
 
 /**
  * The dedicated "party" actor sub-type backing party tokens, and its sheet.
- * The sheet is the one formation UI: GM-only controls are absent from a
- * player's seat, and member-owning players get a declaration panel.
+ * The sheet is the one formation UI. A Judge's seat takes the Judge-only
+ * context (`buildGMExtras`) and any other seat the declaration panel
+ * (`buildPlayerPanel`); a control that writes a member or the party actor is
+ * drawn on what the seat owns (`seatOf`).
  */
 
 export { PARTY_TYPE };

@@ -86,6 +86,9 @@ the code, not missing from it; the rulings behind the built half are
   player write gate (`docs/domains/ROADMAP.md`, wave 3).
 - **A weapon's initiative bonus** has no field on the character; it rides
   the record and the notes.
+- **Writing a domain page from the domain's owner's seat.** A character's sheet → the window menu (⋮) →
+  Official sheet (PDF): its write into a domain is the Judge's. It follows the domain's ownership once the
+  domain sheet does ([../domains/ROADMAP.md](../domains/ROADMAP.md)). 1 role read.
 
 ## Held for a rulings round
 

@@ -452,7 +452,7 @@ by hand.
     the goods, and the name box comes back empty. Move reports no id: read
     the made place's from a `createActor` hook filtered to this seat's own
     `userId`, armed across the click alone, and match it to the typed name.
-23. **A place holds goods only once a GM turns that on.**
+23. **A place holds goods only once its owner turns that on.**
     `tools/live/location-storage-intent.mjs` walks it
     (`node tools/live/run.mjs location-storage-intent`) on a GM seat and the
     Player seat, both reloaded under a load recorder, on fixtures it keeps:

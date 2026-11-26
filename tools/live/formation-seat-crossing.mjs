@@ -1,6 +1,6 @@
 /**
  * Live walk: docs/formation/TESTING.md "The crossing, Search here and the
- * Trapbreaking modifier on a Player seat" (T-0792 B3). A real Player seat that
+ * Trapbreaking modifier on a Player seat" (T-0792). A real Player seat that
  * owns a party member opens, sets up, throws for and ends the crossing (the
  * party actor's ownership), presses a member's Haul, landing save and footing
  * (the member's ownership), presses the Dungeon tab's Search here, and types the

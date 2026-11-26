@@ -1065,3 +1065,16 @@ Two parts of the requested schema did not fit:
 - **The identify target.** It is printed in the Revised Rulebook's proficiency entries, not on the MM pages.
 
 It waits for the owner's audit pass over the MM imports. That pass first decides what the existing monster imports already carry, so the harvest does not import it twice.
+
+## Importer tools on a seat that is not the Judge's
+
+- **Refilling stats for a monster the seat owns.** `applyStats()` (API and macro, no window) refuses every
+  seat that is not a Judge's, the owner of the monster included (a summon's caster). Proposed: refill the
+  targets the seat owns and name the ones skipped, a notice that needs a design board. 1 role read.
+- **The Books tab's Remove.** Settings tab → Game Settings → ACKS II — Extras → Manage imports → Books tab →
+  Remove is the Judge's (DECISIONS 2026-11-19, "The Books tab shows a staged book's saved text…"). The owner
+  selected reversing it on 2026-11-25 ([../DECISIONS.md](../DECISIONS.md), 2026-11-26). No player owns a
+  shelf journal, so ownership changes nothing on a default world. 7 role reads.
+- **Read-only diagnostics.** Manage imports → Tools tab → Audit, and `cookbookDebug`, refuse every seat that
+  is not a Judge's though they write nothing. The writing tabs keep Foundry's own tests (Create Actors, the
+  pack's ownership). 9 role reads.

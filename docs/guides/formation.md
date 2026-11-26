@@ -1051,7 +1051,7 @@ cost in turns.*
 
 **Deal XP** divides an adventure's total between the party and shows the
 division before it is given. It opens from **Deal experience**, the star among the
-party sheet's quick tools, and only a GM sees it. While *Deal experience from
+party sheet's quick tools, and only a seat that owns every member sees it. While *Deal experience from
 the formation* is on in Game Settings, the system party sheet's own Deal XP
 button is hidden, so this is the one to use; turn the setting off to go back
 to the system's division.

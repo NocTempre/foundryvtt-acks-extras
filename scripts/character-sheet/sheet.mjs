@@ -397,7 +397,6 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
     const snap = snapshotFrame(actor);
     snap.trader = traderTabShown(actor);
     const frame = buildFrameModel(snap, {
-      isGM: gm,
       editable,
       folded,
       activeTab: this.tabGroups.primary,
@@ -420,7 +419,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
     panels.class = buildClassTab(actor);
     if (tabs.magic) panels.magic = buildMagicTab(actor);
     if (tabs.trade) panels.trade = buildTraderTab(actor, { compare: this._traderCompare });
-    if (tabs.service) panels.service = buildServicePanel(actor, { isGM: gm, pins: snap.pins });
+    if (tabs.service) panels.service = buildServicePanel(actor, { pins: snap.pins });
     const followReads = serviceReads();
     const followNodes = serviceNodes(actor, followReads);
     panels.followers = await buildFollowersTab(actor, { view: this.#ui.followersView, nodes: followNodes, reads: followReads });

@@ -8,3 +8,12 @@ What is not built.
 - **What S4 left.** A check refused at resolution (a lock at an entry its locker cannot see) is stamped resolved like any other and posts nothing, so the Judge is not told it was refused.
 - **What S6 left.** Nothing yet derives the "From the map" list (`derivedInputs`), so the tab shows none, and a door or an old trap zone cannot be named from the rail as the thing a clue shows. Only a trap, an obstacle and a condition have a drop: no kind accepts a token, a container, a journal page or an image, so a body, container, fixture, exit, lot or floor thing is made by the importer or by hand. The methodical check has no Disarm option: it needs a party check of its own (S7b, or close-out's trap ledger). The board's Seen line has no key in the thing shape.
 - **A per-rank step in `materializeRolls` (R-I1b).** Magical Engineering's and Naturalism's throws improve by a printed step per rank, and Loremastery's by a printed step per level. Today their specs, or for Loremastery the scan's unlabelled lift, give the rank-1 target flat, so an identifier at rank 2 or above reads the rank-1 target. Loremastery keeps the lift's positional key until the step is supported.
+- **The search from a member-owner's seat, past Search here.** A member-owner's Search here already opens the
+  session on the Judge's client (DECISIONS 2026-11-25, "A member-owner's Search here opens the session"). The
+  scene window's open, reopen, Round and Spend, and the API's `end` and `writeSession`, stay the Judge's:
+  owner words "rolled by judge before interaction, visible as found", "Yes, for a Judge" (reopen), "Notify the
+  Judge" (Round) (DECISIONS 2026-11-19, "The screen: what S4 built to the boards…"). The owner selected
+  reversing them on 2026-11-25 ([../DECISIONS.md](../DECISIONS.md), 2026-11-26). What the search hides before
+  it is found stays hidden. Proposed: Round and Spend from a Player go through the party-press relay as the
+  heads' Turn and Round do, and a body card's Sheet button follows the body's Limited test (it writes
+  nothing). Needs a design board for the window's bar. 3 surfaces, 21 role reads (8, 3, 10).

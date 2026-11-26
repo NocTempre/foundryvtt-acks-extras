@@ -78,3 +78,7 @@ Work that is designed but absent, deliberately. How the feature behaves now is
   onto the chosen place stamped for the trader, an intercepted consignment
   reported to the Judge. The thief's smuggling hijink belongs to the domains
   feature and is not built there either.
+- **A granted owner curates a faction.** Actors sidebar → a faction's sheet → Overview holdings (note, hidden,
+  remove, drop), Relations (stance, note, hidden, remove), the Members strength table, and Standing → Add and
+  remove, refuse a seat that is not a Judge's even where the Judge granted ownership. The hidden marks stay the
+  Judge's secret. 2 surfaces, 15 role reads (9, 6).

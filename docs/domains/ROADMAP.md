@@ -53,3 +53,8 @@ Work that is designed but absent, deliberately. How the feature behaves now is
 - The party sheet naming its domain.
 - A garrison troop roster (a record's troop table stays in the notes).
 - Prune survival for an organisation's seat.
+- **A granted owner on the domain sheet.** Actors sidebar → a domain's sheet, and `setLiege`, `hold` and
+  `release`, refuse a seat that is not a Judge's even where the Judge granted it ownership (archived
+  2026-10-17, "The wave-1 sheet is the Judge's"). A submit from such a seat would delete every hidden holding,
+  since the form writes lists by index and hidden rows are not drawn, so holdings are written by row id first.
+  1 surface, 9 role reads.

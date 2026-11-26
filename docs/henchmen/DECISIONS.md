@@ -566,3 +566,25 @@ hub's call, to be reversed if the owner reads it otherwise.
 the write creates no actor. Opening the level-only kind to players: the kind is
 the module's own and not a listed search, so a player is blocked from it as from
 any option the book does not print.
+
+## 2026-11-26 — A transfer moves the hireling's ownership with it (T-0855)
+
+The owner, 2026-11-26: "clean up what's built, roadmap rest"; standing, "follow
+foundry permissions, don't invent new ones". The call is the session
+orchestrator's, made under those words. The roster's row controls follow
+`actor.isOwner` (2026-11-25), so a transfer that left ownership as it stood left
+the new employer's player unable to work the row, and the old one still holding
+Forgive and Pick class. A transfer now writes the hireling's ownership to what a
+hire grants for the new employer (`employerOwnership`): the new employer's
+owners hold Owner, and the users the old hire granted Owner who are not among
+them lose it (`transferOwnership` in `engine/hire.mjs`). A transfer between two
+characters of one player changes nothing, and an employer only a Judge owns
+leaves no player grant.
+
+**Counter (medium).** A grant set by hand in Configure Ownership that matched the
+old employer's player is lost on transfer. *Answer:* Configure Ownership
+restores it, and the hand grant is indistinguishable from the one the hire made.
+
+**Rejected.** Leaving ownership as it stood: the row's controls would name the
+wrong seat. Adding the new employer's owners without removing the old: the old
+player keeps controls over a hireling no longer theirs.

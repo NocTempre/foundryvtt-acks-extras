@@ -1265,6 +1265,9 @@ whatever the last run left):
 | `henchmen/owner-foreign-hireling` | a henchman of the first with the Player's ownership withdrawn; one compensated entry, for the read-only tick |
 | `henchmen/owner-dismiss` | the hireling Dismiss acts on; put back on the first employer's list at that step's start |
 | `henchmen/owner-market` | an `acks-extras.location` with a market (`emptyMarket`), the Player owns it; a class override set, no posting and no special hire at the posting step's start |
+| `henchmen/swap-from` | a linked character Player A owns; the employer step 6a transfers from |
+| `henchmen/swap-to` | a character only Player B owns, out of service; the employer step 6a transfers to |
+| `henchmen/swap-hireling` | a henchman of `swap-from`, Player A owns it; put back on `swap-from` with A's ownership at step 6a's start |
 | `henchmen/owner-npc` | a character standing for an NPC; the Player owns it |
 | `henchmen/foreign-npc` | a character standing for an NPC; the Player does not own it |
 
@@ -1299,6 +1302,16 @@ fixture is taken off every other list before it is put on the first.
    manager and the record's `employerUuid` name it and only it lists the
    hireling; the transfer's own calamity opens no throw window on the Player
    seat. The step does not transfer back; the next start does.
+6a. *Transfer carries ownership, GM seat and two Player seats.* The step
+   asserts each fixture's shape first: `henchmen/swap-from` owned by Player A and
+   `henchmen/swap-to` owned by Player B only. The GM's Transfer moves
+   `henchmen/swap-hireling` from the first to the second. Then `actor.isOwner` on the hireling is true
+   on B's seat and false on A's, B's seat draws the row's controls and A's draws
+   none (the row follows `owned`), and the hireling's `ownership` holds B at
+   Owner and no key for A. Step 6's Player-seat transfer, which runs between two
+   characters Player A owns, leaves A's `isOwner` true and writes no deletion; a
+   refused ownership write on a Player seat, if one is seen, raises
+   `transferOwnershipFailed` and leaves the move standing.
 7. *Dismiss, last.* Pressing it on `owner-dismiss` and confirming takes the
    hireling off the first employer's list, clears its manager and logs a
    `dismissed` event. Core's `delHenchman` leaves a dismissed character's

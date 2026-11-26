@@ -61,3 +61,18 @@ vehicles setting its market impact. What is not built:
   `flags["acks-extras"].markets.detected` today: only a treasure deal writes it
   (`false`), and an identification or the Judge's panel sets it true. Linking a
   detection result to the item it names is unbuilt.
+- **A trader's markets, from the trader's owner's seat.** Actors sidebar → a place's sheet → Trade or Ventures
+  tab → Known to this trader, and Actors sidebar → a character's sheet → Trade tab with its Trader chip, are the
+  Judge's: the trader's owner can neither list a market nor see the tab before one is listed. Proposed: the
+  trader's owner lists, and `setMarketKnown` asks the trader's ownership in place of the role (its refusal
+  today names a market's demand, a different act). Open: what the Trader chip governs once the tab follows
+  ownership. 2 surfaces, 8 role reads. Built, it qualifies three archived entries' In force rows (2026-09-29,
+  2026-09-30, 2026-10-15).
+- **A hand-made market's switches, from the place's owner's seat.** Actors sidebar → a place's sheet → Trade
+  tab → Masterwork contact, and Ventures tab → Gate toll, are the Judge's while the same sheet's Settings tab is
+  the owner's. A hand-made place is every player's to own, so ownership would open both to every player there.
+  Open: whether the page gives the contact to the Judge by name, which keeps it the Judge's press as printed
+  procedure. 2 surfaces, 4 role reads.
+- **An item's Apparent value and Self-made, from its holder's seat.** An item's sheet → Details tab → the magic
+  panel draws both for the Judge only. The truth fields beside them are the Judge's secret and stay so; the
+  panel's mount on a fully identified item is equipment's. 1 surface, 1 role read.

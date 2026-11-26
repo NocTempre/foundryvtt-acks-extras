@@ -77,3 +77,8 @@ Re-issued 2026-11-14.
    shows no figure and does nothing in Terrain mode), T-0607 (the picker's
    clearing entry and the Dungeon/Wilderness words against the party sheet's
    Delve/Journey).
+10. **The battlemap tools on a scene owner's seat.** The battlemap scene control group (setup, capture, map
+    modes, the Country brush, Apply), the scene card's declaration and the Scene config's row are the Judge's.
+    Proposed: read the scene's ownership, the brush adding Foundry's Create Regions and the region's ownership,
+    the bake keeping Upload Files. Open: Foundry draws its own scene-building controls on a Judge's seat only;
+    read that way these already follow Foundry and the row closes unbuilt. 1 surface, 10 role reads.

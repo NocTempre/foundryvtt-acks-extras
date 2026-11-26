@@ -214,6 +214,9 @@ leave the module; the rest are inventoried" (2026-09-02).
   for a scene (a recipe's `crop`) only, and has no register a window of another
   kind reads, so the row waits on a free-standing picture register: a row naming
   page and box, the importer cutting and uploading it, the frame reading its path.
+- **The trap tools on the Walls scene control.** They read the seat's role. Foundry refuses a wall's edit to a
+  player, so ownership changes nothing on any seat; the row is the role read's removal alone. 1 surface,
+  2 role reads.
 
 ## Scoped effects for ability matching
 

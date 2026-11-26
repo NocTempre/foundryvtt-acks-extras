@@ -1,6 +1,6 @@
 /**
  * Live walk: docs/formation/TESTING.md "The heads, the Place row and the Kit on a
- * Player seat" (T-0792 B3). A real Player seat that owns a party member presses
+ * Player seat" (T-0792). A real Player seat that owns a party member presses
  * the mode head's own controls (Turn and Round ask the Judge; Rest, Hurried, Hop,
  * Next hex, Work the country and End day take effect on the Judge's client), the
  * Kit tab's light and spell controls, and drops onto the Place row of a Region it
