@@ -107,7 +107,8 @@ A split deliberately carries **nothing** across: no goods, no roster. The stack'
 contents were never per-instance (eight identical bays hold one pooled
 inventory), so dividing them would be inventing an answer the model never had.
 The split exists to let one bay *become* interesting; what goes in it is the next
-thing the GM does.
+thing the GM does. A split needs the place's owner with Foundry's right to create an
+actor, and the count drops only once the new actor exists.
 
 ## Cost
 
