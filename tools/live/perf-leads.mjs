@@ -51,6 +51,16 @@ const writeOut = process.stdout.write.bind(process.stdout);
 console.log = (...args) => console.error(...args);
 
 const ENABLED = process.env.PERF_LEADS === "1";
+/**
+ * `PERF_SET=followup` runs only the follow-up leads and adds their keys to the
+ * existing output file, leaving every earlier key as it stood:
+ *
+ *   libraryLoad            the imported shelves' load, per pack (type, running number, size, ms) and all at once
+ *   clockAdvanceKeys       the in-fight clock advance with the changed key paths of its actor updates tallied
+ *   glyphPassWithTokens    the glyph pass with tokens standing inside raised reaches
+ */
+const FOLLOWUP = ENABLED && process.env.PERF_SET === "followup";
+const FOLLOWUP_LEADS = new Set(["libraryLoad", "clockAdvanceKeys", "glyphPassWithTokens"]);
 if (ENABLED) process.env.SEAT_PLAYER ||= process.env.SEAT_GM ?? "";
 const OUT_FILE = path.join(ROOT, "aia-tmp", "20261126-perf-timings.json");
 const WALL_MS = Number(process.env.WALK_WALL_MS ?? 1_800_000);
@@ -84,6 +94,22 @@ const P = {
     H.longtasks = [];
     const reset = () => {
       H.counts = {}; H.renders = {}; H.byClass = {}; H.tokenWrites = {}; H.last = {}; H.activity = 0; H.t0 = performance.now();
+      H.keyTally = {}; H.actorWrites = {}; H.actorTypes = {};
+    };
+    /** The key paths an update changed: two segments deep, three under `flags`, an id-shaped segment masked, no value read. */
+    const keyPaths = (changes) => {
+      const out = new Set();
+      const seg = (s) => (/^[A-Za-z0-9]{16}$/.test(s) ? "<id>" : s);
+      const walk = (obj, path) => {
+        for (const [k, v] of Object.entries(obj ?? {})) {
+          const p = [...path, seg(k)];
+          const depth = p[0] === "flags" ? 3 : 2;
+          if (p.length >= depth || v === null || typeof v !== "object" || Array.isArray(v)) out.add(p.join("."));
+          else walk(v, p);
+        }
+      };
+      walk(changes, []);
+      return out;
     };
     reset();
     const names = [
@@ -94,8 +120,13 @@ const P = {
     ];
     const hooks = [];
     for (const name of names) {
-      const id = Hooks.on(name, (doc) => {
+      const id = Hooks.on(name, (doc, changes) => {
         if (!H.on) return;
+        if (name === "updateActor") {
+          for (const p of keyPaths(changes)) H.keyTally[p] = (H.keyTally[p] ?? 0) + 1;
+          H.actorWrites[doc?.id ?? "?"] = (H.actorWrites[doc?.id ?? "?"] ?? 0) + 1;
+          H.actorTypes[doc?.type ?? "?"] = (H.actorTypes[doc?.type ?? "?"] ?? 0) + 1;
+        }
         H.counts[name] = (H.counts[name] ?? 0) + 1;
         H.last[name] = performance.now() - H.t0;
         H.activity += 1;
@@ -137,7 +168,17 @@ const P = {
       H.on = false;
       const rendersTotal = Object.values(H.renders).reduce((a, b) => a + b, 0);
       const tasks = H.longtasks.filter((t) => t.at >= H.t0);
+      const writes = Object.values(H.actorWrites);
+      const updateActorKeys = writes.length
+        ? {
+          distinctActors: writes.length,
+          writesPerActor: writes.reduce((o, n) => ({ ...o, [n]: (o[n] ?? 0) + 1 }), {}),
+          actorTypes: { ...H.actorTypes },
+          keyPaths: Object.fromEntries(Object.entries(H.keyTally).sort((a, b) => b[1] - a[1])),
+        }
+        : null;
       return {
+        ...(updateActorKeys ? { updateActorKeys } : {}),
         counts: { ...H.counts },
         sheetRenders: { ...H.renders },
         sheetRendersTotal: rendersTotal,
@@ -332,11 +373,22 @@ const P = {
   },
 
   /** g. The glyph pass after a hit-point change; then the pass called directly, repeated. */
-  glyphStep: async ({ actorUuid, sceneUuid, max }) => {
+  glyphStep: async ({ actorUuid, sceneUuid, max, wait = null }) => {
     const H = globalThis.__perf;
     const G = await import("/modules/acks-extras/scripts/lib/reach-glyph.mjs");
     const scene = fromUuidSync(sceneUuid);
     if (canvas.scene?.id !== scene.id || !canvas.ready) throw new Error("the scene is not the viewed one");
+    /* With `wait`, glyphs are polled for until `want` stand (or the time is out), then one direct pass is tried. */
+    let before = null;
+    if (wait) {
+      const glyphs = () => (canvas.tokens?.placeables ?? []).filter((t) => G.glyphOf(t)).length;
+      const t = performance.now();
+      while (glyphs() < wait.want && performance.now() - t < wait.timeoutMs) await H.sleep(200);
+      const standing = glyphs();
+      let afterDirectPass = null;
+      if (standing < wait.want) { G.refreshAllGlyphs(); await H.sleep(500); afterDirectPass = glyphs(); }
+      before = { want: wait.want, standing, waitedMs: H.r1(performance.now() - t), afterDirectPass };
+    }
     const actor = fromUuidSync(actorUuid);
     if (actor.system.hp.max !== max || actor.system.hp.value !== max) await actor.update({ "system.hp.max": max, "system.hp.value": max });
     await H.sleep(600);
@@ -356,6 +408,7 @@ const P = {
     await actor.update({ "system.hp.value": max });
     const placeables = canvas.tokens?.placeables ?? [];
     return {
+      ...(before ? { glyphsBeforeHp: before } : {}),
       chatMessages: game.messages.size,
       tokensOnScene: placeables.length,
       tokensWithGlyph: placeables.filter((t) => G.glyphOf(t)).length,
@@ -541,6 +594,53 @@ const P = {
     const drawMs = Math.round((performance.now() - t1) * 10) / 10;
     return { ms, unequipped: off, redrawMs: drawMs, equippedAfter: item.system.equipped === true };
   },
+
+  /**
+   * The imported shelves' load. `all` calls `warmLibrary()` as the module does; `sequential` awaits each
+   * shelf's own `getDocuments()` one at a time. Pass one is what the page holds when it is first asked
+   * (the module's ready-time warm may be done or still running; `coldAtStart` says which); pass two
+   * empties each shelf's collection first, so the load is done again from the server. Type, a running
+   * number, size and ms only.
+   */
+  libraryLoad: async ({ mode }) => {
+    const L = await import("/modules/acks-extras/scripts/lib/library.mjs");
+    const types = ["Item", "Actor", "JournalEntry", "RollTable"];
+    const r1 = (n) => Math.round(n * 10) / 10;
+    const loaded = (pack) => [...pack.values()].length;
+    const cold = (pack) => pack.index.size > loaded(pack);
+    let obs = null;
+    try { obs = new PerformanceObserver(() => {}); obs.observe({ entryTypes: ["longtask"] }); } catch { obs = null; }
+    const longMs = async () => { await new Promise((r) => setTimeout(r, 80)); return r1((obs?.takeRecords() ?? []).reduce((a, e) => a + e.duration, 0)); };
+    const shelves = () => types.flatMap((type) => L.libraryPacks(type).map((pack) => ({ type, pack })));
+    const pass = async () => {
+      const list = shelves();
+      const coldAtStart = list.filter((s) => cold(s.pack)).length;
+      obs?.takeRecords();
+      const t0 = performance.now();
+      const packs = [];
+      if (mode === "all") {
+        await L.warmLibrary();
+        const totalMs = r1(performance.now() - t0);
+        return { shelves: list.length, coldAtStart, packs: list.map((s, i) => ({ type: s.type, n: i + 1, indexSize: s.pack.index.size, loaded: loaded(s.pack) })), totalMs, longTaskMs: await longMs() };
+      }
+      let n = 0;
+      for (const s of list) {
+        n += 1;
+        const was = cold(s.pack);
+        const a = performance.now();
+        await s.pack.getDocuments();
+        packs.push({ type: s.type, n, indexSize: s.pack.index.size, coldAtStart: was, loaded: loaded(s.pack), ms: r1(performance.now() - a) });
+      }
+      return { shelves: list.length, coldAtStart, packs, totalMs: r1(performance.now() - t0), longTaskMs: await longMs() };
+    };
+    const sinceNavigationMs = r1(performance.now());
+    const asFound = await pass();
+    let emptied = 0;
+    for (const s of shelves()) { Map.prototype.clear.call(s.pack); if (loaded(s.pack) === 0) emptied += 1; }
+    const recold = await pass();
+    try { obs?.disconnect(); } catch { /* gone */ }
+    return { mode, sinceNavigationMs, asFound, shelvesEmptied: emptied, recold };
+  },
 };
 
 /* ------------------------------------------------------------------ */
@@ -571,6 +671,7 @@ for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => { letGo
 
 /** A lead runs on its own: a throw is `null` and a note, and the script goes on. */
 async function lead(name, fn) {
+  if (FOLLOWUP !== FOLLOWUP_LEADS.has(name)) return;
   try {
     const value = await fn();
     R[name] = value ?? null;
@@ -761,8 +862,15 @@ try {
 
     open.gm = await seatConnect();
     const gm = open.gm;
-    R.meta = await run(gm, P.install);
-    note("seat", R.meta);
+    if (FOLLOWUP) {
+      Object.assign(R, JSON.parse(fs.readFileSync(OUT_FILE, "utf8")));
+      R.followupAt = new Date().toISOString();
+      R.followupMeta = await run(gm, P.install);
+      note("seat", R.followupMeta);
+    } else {
+      R.meta = await run(gm, P.install);
+      note("seat", R.meta);
+    }
 
     /* a, b, c, g, d: one arena, one fight */
     let fight = null;
@@ -842,6 +950,39 @@ try {
         const idle = await run(gm, P.clockStep);
         return { inFight, idle };
       });
+
+      /* Follow-up: the arena's fight begun as in `beginCombat20` and its sheets open, then the clock advanced once, its actor updates tallied by key path. */
+      await lead("clockAdvanceKeys", async () => {
+        if (!R.followupMeta?.primaryGM) throw new Error("this seat is not the primary GM; the clock handlers run on the primary GM's client");
+        const a = await getArena(gm);
+        await run(gm, P.openSheets, { list: [
+          { uuid: a.traveler.actorUuid, label: "monsterSheet(traveler)", ext: false },
+          { uuid: a.character.actorUuid, label: "characterSheet", ext: true },
+          { uuid: a.group.actorUuid, label: "groupSheet", ext: false },
+        ] });
+        sheetsOpen = true;
+        fight = await startFight(gm, a);
+        const begun = await run(gm, P.beginStep, { combatId: fight.combat.id, sceneUuid: a.sceneUuid, want: BEARERS, timeoutMs: 60000 });
+        const raw = await run(gm, P.clockStep);
+        return { ringsStanding: begun.ringsStanding, actorsInWorld: await run(gm, () => game.actors.size), inFight: raw };
+      });
+
+      /* Follow-up: tokens of the traveler's body stood one square off bearers, inside the raised rings; the glyph pass timed with the chat log at its present size. */
+      await lead("glyphPassWithTokens", async () => {
+        const a = await getArena(gm);
+        if (!fight) throw new Error("no fight is running (see clockAdvanceKeysNote)");
+        const probes = [];
+        for (const b of a.bearers.slice(0, 12)) {
+          const t = await gm.create("Token", { name: "Perf Glyph Probe", actorId: a.traveler.actorId, actorLink: true, x: b.slot[0], y: b.slot[1] - 100, disposition: 1 }, { parent: a.sceneUuid });
+          probes.push(t.uuid);
+        }
+        try {
+          const out = await run(gm, P.glyphStep, { actorUuid: a.traveler.actorUuid, sceneUuid: a.sceneUuid, max: 8, wait: { want: 10, timeoutMs: 15000 } });
+          return { probeTokens: probes.length, ...out };
+        } finally {
+          note("glyph probes swept", await gm.sweepTracked({ only: probes }));
+        }
+      });
     } finally {
       if (fight) { try { note("combat swept", await endFight(gm, fight)); } catch (err) { console.error("sweep:", firstLine(err)); } fight = null; }
       if (sheetsOpen) { try { await run(gm, P.closeSheets); } catch { /* closed */ } }
@@ -874,10 +1015,17 @@ try {
     });
 
     /* h: the fixtures for the two fresh-page measurements */
-    const prep = await prepareH(gm);
-    note("h prepared", { letters: prep.letters?.length ?? null, pot: !!prep.potId, weapon: !!prep.itemId });
+    const prep = FOLLOWUP ? {} : await prepareH(gm);
+    if (!FOLLOWUP) note("h prepared", { letters: prep.letters?.length ?? null, pot: !!prep.potId, weapon: !!prep.itemId });
     try { open.gm.close(); } catch { /* closed */ }
     delete open.gm;
+
+    /* Follow-up: two fresh pages, one asking the shelves one at a time, one asking as the module does. */
+    await lead("libraryLoad", async () => {
+      const sequential = await freshPage(async (page, bare) => ({ freshPage: bare, ...(await run(page, P.libraryLoad, { mode: "sequential" })) }));
+      const all = await freshPage(async (page, bare) => ({ freshPage: bare, ...(await run(page, P.libraryLoad, { mode: "all" })) }));
+      return { sequential, all };
+    });
 
     await lead("firstDeal", async () => {
       if (prep.dealNote) throw new Error(prep.dealNote);
