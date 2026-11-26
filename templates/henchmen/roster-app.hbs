@@ -49,19 +49,22 @@
         <span class="acks-extras-frame__grp">
           <button type="button" class="acks-extras-frame__ctl" data-action="openActor" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.openSheet'}}"><i class="fa-solid fa-arrow-up-right-from-square" inert></i></button>
         </span>
-        {{#if @root.isGM}}
         {{#if r.henchman}}
+        {{#if @root.isGM}}
         <span class="acks-extras-frame__grp">
           <button type="button" class="acks-extras-frame__mini" data-action="loyaltyRoll" data-tooltip="{{localize 'ACKS-HENCHMEN.throw.hirelingLoyalty'}}"><i class="fa-solid fa-dice-d20" inert></i></button>
           <button type="button" class="acks-extras-frame__ctl" data-action="obedienceRoll" data-tooltip="{{localize 'ACKS-HENCHMEN.throw.hirelingObedience'}}"><i class="fa-solid fa-list-check" inert></i></button>
         </span>
+        {{/if}}
+        {{#if r.canAct}}
         <span class="acks-extras-frame__grp">
           <button type="button" class="acks-extras-frame__ctl" data-action="calamity" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.recordCalamity'}}"><i class="fa-solid fa-skull" inert></i></button>
           <button type="button" class="acks-extras-frame__ctl" data-action="penalty" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.recordPenalty'}}"><i class="fa-solid fa-bandage" inert></i></button>
           <button type="button" class="acks-extras-frame__ctl" data-action="transfer" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.transfer'}}"><i class="fa-solid fa-right-left" inert></i></button>
           <button type="button" class="acks-extras-frame__ctl is-faint" data-action="dismiss" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.dismiss'}}"><i class="fa-solid fa-door-open" inert></i></button>
         </span>
-        {{else}}
+        {{/if}}
+        {{else if r.canAct}}
         <span class="acks-extras-frame__grp">
           <button type="button" class="acks-extras-frame__mini" data-action="moraleRoll" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.moraleRoll'}}"><i class="fa-solid fa-dice-d20" inert></i></button>
         </span>
@@ -69,7 +72,6 @@
           <button type="button" class="acks-extras-frame__ctl" data-action="transfer" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.transfer'}}"><i class="fa-solid fa-right-left" inert></i></button>
           <button type="button" class="acks-extras-frame__ctl is-faint" data-action="dismiss" data-tooltip="{{localize 'ACKS-HENCHMEN.roster.dismiss'}}"><i class="fa-solid fa-door-open" inert></i></button>
         </span>
-        {{/if}}
         {{/if}}
       </span>
       {{#if r.open}}
@@ -102,7 +104,7 @@
             <span class="acks-tag{{#if (eq e.tone "neg")}} acks-tag--danger{{/if}}">{{e.trackLabel}} {{e.signed}}</span>
             <span class="acks-extras-frame__row-label is-plain">{{e.reasonLabel}}</span>
             <span class="acks-extras-frame__row-line">{{#if e.compensated}}{{localize "ACKS-HENCHMEN.service.compensated"}}{{else}}{{e.note}}{{/if}}</span>
-            {{#if @root.isGM}}
+            {{#if r.owned}}
             <button type="button" class="acks-extras-frame__ctl acks-extras-roster__push{{#if e.compensated}} is-faint{{/if}}" data-action="toggleCompensated" data-track="{{e.track}}" data-index="{{e.index}}" data-compensated="{{e.compensated}}" data-tooltip="{{e.toggleTitle}}"><i class="fa-solid {{#if e.compensated}}fa-rotate-left{{else}}fa-hand-holding-heart{{/if}}" inert></i></button>
             {{else if e.compensated}}
             <i class="fa-solid fa-check acks-extras-roster__push" data-tooltip="{{localize 'ACKS-HENCHMEN.ledger.compensatedTag'}}" inert></i>

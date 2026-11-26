@@ -215,7 +215,11 @@ refused payment never stops the hire: the full bonus is written as
 calamity through `recordCalamity` (`engine/events.mjs`), as a missed wage is, its note the
 `ACKS-HENCHMEN.hire.signingBonusCalamity` string: the calamity counter, the
 imported calamity figure as an uncompensated ledger entry (none where it is not
-imported), and the Judge's card or the auto-roll. Like the
+imported), and then the loyalty throw: under `autoRollCalamity` it opens at
+once, but only on a GM's seat (the throw is a Judge secret); on a player's
+seat, or with the setting off, the Judge's card is posted instead. A hire on a
+place the player owns runs on the player's seat, so its unpayable bonus takes
+the card. Like the
 missed-wage calamity it does not set `special.pendingCalamity`, which is the
 downed watcher's. It is kept apart from `arrearsGp`, which
 a payday bills and `forgiveWageDebts` zeroes as wages. It is cleared by
@@ -244,8 +248,10 @@ not undo it.
   (`rules/service.mjs` `moraleParts` says which, `from: "record" | "sheet"`, and
   the Service panel's base tooltip follows). Zero is a figure.
   Each entry carries `compensated`: RR 166 penalties (permanent wounds,
-  tampering side effects) apply only *while uncompensated*, so the Judge
-  suspends one from the roster ledger and it stops scoring **without leaving
+  tampering side effects) apply only *while uncompensated*, so the hireling's
+  owner suspends one from the roster ledger or the Service tab
+  (`setPermanentCompensated`, which refuses a seat that does not own the
+  hireling) and it stops scoring **without leaving
   the record**. Nothing sets it on its own — not even the wage-arrears repair,
   which compensates instead of deleting so the forgiveness stays auditable and
   reversible
@@ -684,8 +690,10 @@ mercenary keeps no loyalty score (`keepsLoyalty`), so its Standing holds the
 morale throw alone and says why.
 
 Which seat sees which control: the Judge's throws (**Throw now** for the owed
-calamity, **Obedience**) and the compensated toggle render and run on
-`game.user.isGM` alone (`setPermanentCompensated` refuses anyone else); **Pay
+calamity, **Obedience**) render and run on `game.user.isGM` alone, as secrets;
+the compensated toggle renders for `canCompensate` (the hireling's `isOwner`)
+and `setPermanentCompensated` refuses a seat that does not own the hireling,
+silently; **Pay
 wages** renders for a GM or an owner of the employer and calls
 `payWagesFor(employer)` (§4c); the employer's name opens the employer for any
 viewer. An owed signing bonus carries two controls on its row
@@ -705,10 +713,26 @@ a row per hireling: portrait, the name as the disclosure toggle (a button, so
 a second copy of the window and the keyboard both reach it), the kind tags
 (a "bonus owed" tag in the danger tone, the owed figure in its tooltip, while
 `signingBonusOwedGp` holds any), loyalty, morale and wage with the wage's tone, and the controls the seat may
-use — the Judge's loyalty and obedience throws, calamity and penalty,
-transfer and dismiss; a mercenary's morale throw; open for everyone. An open
+use. A control that writes a hireling is drawn on the row's `canAct`: the
+window is editable (a GM or an owner of the employer) and the seat owns that
+hireling (`owned`). A henchman's row then carries calamity, penalty, transfer
+and dismiss, and a mercenary's or specialist's the morale throw, transfer and
+dismiss; the henchman's loyalty and obedience throws are the Judge's secrets
+and render on `isGM` alone; the sheet-opening control is open for everyone.
+Transfer is drawn wherever the row can act; its select lists
+only the characters the seat owns that are not in service and are not the
+employer (`#transferTargets`), since a transfer writes the new employer's
+roster, and its handler does nothing when none qualifies. A seat that
+does not own a hireling sees its row without those controls, and its ledger
+entries read-only: a compensated one as a tick. An open
 row adds the wage clock and the record, the last `ROW_EVENTS` events and the
-ledger with its toggles. Dropping a character on the rows enrols it through
+ledger with its toggles (drawn on `owned`).
+
+The loyalty throw the calamity opens is the Judge's secret. The two buttons of
+the calamity card, `rollLoyaltySecret` and `waiveCalamityRoll`
+(`registerEventEngine`), act only on a GM's seat: a card posted from a
+player's seat is shown to that player as its author, and the buttons are
+drawn there and do nothing. Dropping a character on the rows enrols it through
 `enrollHenchman` when it is in no one's service; the drop refuses a hireling
 already placed. Which rows are open and which filter is on are the window's
 own state (`#ui`), not a flag.

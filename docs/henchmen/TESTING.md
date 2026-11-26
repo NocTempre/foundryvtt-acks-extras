@@ -159,7 +159,11 @@ a step it does not name is walked by hand.
    one's service from the directory onto `[data-roster-drop]`: it is enrolled
    (`enrollHenchman`) and its row appears; drop a hireling already placed and
    the notice refuses it with nothing written. Shrink the window to about
-   500 px wide: the body scrolls and no control is clipped.
+   500 px wide: the body scrolls and no control is clipped. The row's controls
+   follow ownership, not the seat's role: on a GM's seat every row draws them;
+   on a Player seat owning the employer, a row draws them only for a hireling
+   that seat owns, and the loyalty and obedience dice only on a GM's seat
+   ("Owner controls from a Player seat" walks it).
 1a. The Service tab, on the hire's own sheet. Open the hireling's character
    sheet. *Observable:* the strip holds **Service** between Trade and
    Followers (none on a character out of service), and the band carries the
@@ -173,7 +177,8 @@ a step it does not name is walked by hand.
    opens the loyalty roll; the Player seat owning the hireling sees the row
    and no button. Toggle a ledger entry's compensation from the GM seat: the
    row strikes through and the loyalty total moves by its delta; the Player
-   seat sees no toggle. Repeat on a monster serving through
+   seat owning the hireling sees the toggle too and presses it to the same
+   effect ("Owner controls from a Player seat"). Repeat on a monster serving through
    `system.retainer.managerid`: its Service tab holds the two core fields,
    the manager picker and the same panel under them; a mercenary's Standing
    holds no loyalty row, a hint saying why, and the morale throw alone, and
@@ -1236,6 +1241,73 @@ walked in docs/lib/TESTING.md, "The repair tool".
     recipe's shape against the book, `tools/importer/test-recipe-content.mjs`).
     Teardown: the hirelings swept by their tracked uuids, the layer lifted. Not
     walked live when written.
+
+## Owner controls from a Player seat
+
+Walked by `tools/live/henchmen-owner-controls.mjs`, steps "toggle" and
+"roster", on the GM seat and the Player seat. Written from the code and not yet
+run when it was added. A GM's seat owns every document, so only a Player seat
+proves an ownership gate.
+
+**Fixtures**, each a `character`, kept and found by marker, and shaped again at
+each step's start (the walk's `shape` is idempotent; a kept fixture carries
+whatever the last run left):
+
+| Marker | Shape |
+|---|---|
+| `henchmen/owner-employer` | the Player owns it; linked; the roster's employer |
+| `henchmen/owner-employer-2` | the Player owns it; out of service; the transfer target |
+| `henchmen/foreign-employer` | the Player does not own it; out of service; absent from the transfer list |
+| `henchmen/owner-hireling` | a henchman of the first, the Player owns it; its ledger is rewritten to one uncompensated entry at the toggle step's start |
+| `henchmen/owner-merc` | category mercenary, a hireling of the first, the Player owns it |
+| `henchmen/owner-foreign-hireling` | a henchman of the first with the Player's ownership withdrawn; one compensated entry, for the read-only tick |
+| `henchmen/owner-dismiss` | the hireling Dismiss acts on; put back on the first employer's list at that step's start |
+
+Build a missing one with a linked `character`; `enrollHenchman` puts it in
+service and gives the employer's owners ownership, which the walk then sets as
+the table says. Core's roster refuses a character another actor already lists,
+and its removal clears the manager and leaves the retainer switch on, so a
+fixture is taken off every other list before it is put on the first.
+
+**Steps and observables** (Player seat unless noted):
+
+1. *Toggle, Service tab.* The hireling's Service tab draws the compensated
+   toggle as a named button; pressing it sets the entry `compensated`, moves the
+   loyalty figure by the entry's delta and logs an `adjustment`, and the entry
+   stays in the ledger.
+2. *Toggle, Roster.* The Roster window's row for the hireling, opened, draws the
+   toggle on the entry; pressing it restores the entry and the figure. The
+   foreign hireling's opened row draws the read-only tick and no toggle.
+3. *Roster controls.* The henchman row draws Calamity, Penalty, Transfer and
+   Dismiss and neither throw die; the mercenary row draws Morale, Transfer and
+   Dismiss; the foreign hireling's row draws none of the four.
+4. *Calamity, with `autoRollCalamity` held on and then off* (the world's value
+   is read, reported and restored). The counter rises by one and a `calamity`
+   event lands; no `ThrowDialog` or `InfluenceApp` renders on the Player seat;
+   the GM seat receives the calamity card with its loyalty button; the Player
+   pressing the card's throw and waive buttons (where the chat log draws the
+   card) opens no window and logs nothing.
+5. *Penalty.* One uncompensated entry is added to the ledger.
+6. *Transfer, with the setting on.* The select lists `owner-employer-2` and no
+   character the Player does not own (`foreign-employer`, and the employer
+   itself, are absent); choosing the second employer moves the hireling: its
+   manager and the record's `employerUuid` name it and only it lists the
+   hireling; the transfer's own calamity opens no throw window on the Player
+   seat. The step does not transfer back; the next start does.
+7. *Dismiss, last.* Pressing it on `owner-dismiss` and confirming takes the
+   hireling off the first employer's list, clears its manager and logs a
+   `dismissed` event. Core's `delHenchman` leaves a dismissed character's
+   retainer switch as it was, so the switch is reported and not asserted.
+
+**Mechanics learned.** The GM seat finds the cards a Player seat posts through
+a `createChatMessage` hook it installs at the start, and its ledger lists those
+by id; a card's author sees the card and its buttons, so a button's press is
+the check that the handler refuses. The loyalty-figure check assumes the
+entry's delta does not reach the score's upper bound.
+
+**Teardown.** The fixtures stay. The cards the run's calamities and transfers
+posted are tracked by id on the GM seat and swept by that list alone
+(`api.sweepTracked`). The world's `autoRollCalamity` is restored.
 
 ## Teardown
 

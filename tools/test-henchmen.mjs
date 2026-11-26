@@ -1187,6 +1187,8 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   const posted = [];
   const warned = [];
   let covered = false;
+  // The world's auto-roll-calamity setting.
+  let autoRoll = false;
   // The loyalty figures the stand-in registry holds; invented, and null once none is imported.
   let figures = { start: 4, calamity: -3 };
   // The wage tables the stand-in registry holds; invented, and empty until a check sets some.
@@ -1199,7 +1201,7 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   globalThis.CONST = { DOCUMENT_OWNERSHIP_LEVELS: { OWNER: 3 } };
   globalThis.game = {
     i18n: { localize: (k) => k, format: (k) => k, has: () => true },
-    settings: { get: (_m, k) => (k === "autoRollCalamity" ? false : "off") },
+    settings: { get: (_m, k) => (k === "autoRollCalamity" ? autoRoll : "off") },
     time: { worldTime: 1000 },
     user: { name: "gm", isGM: true },
     actors: { get: (id) => actors.get(id) ?? null },
@@ -1323,6 +1325,24 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     assert.strictEqual(rec().counters.calamities, 2, "the calamity is counted");
     assert.strictEqual(rec().events.at(-1).type, "calamity", "and logged");
     assert.deepStrictEqual(rec().loyalty.permanents.map((p) => p.delta), [-3], "but no unread figure is charged to the ledger");
+
+    // The loyalty throw is a Judge secret: under the auto-roll setting it opens
+    // at once on a GM's seat only. The hireling has no score here, so an opened
+    // throw shows as the blank-score refusal.
+    autoRoll = true;
+    const calamityCards = () => posted.filter((m) => /calamityTitle/.test(m.content ?? "")).length;
+    const throwsOpened = () => warned.filter((w) => w === "ACKS-LIB.loyaltyRoll.blank").length;
+    const cardsBefore = calamityCards();
+    const throwsBefore = throwsOpened();
+    game.user.isGM = false;
+    await recordCalamity(hireling, "from a player's seat");
+    assert.strictEqual(calamityCards(), cardsBefore + 1, "a calamity recorded from a player's seat posts the prompt card under auto-roll");
+    assert.strictEqual(throwsOpened(), throwsBefore, "and opens no throw on that seat");
+    game.user.isGM = true;
+    await recordCalamity(hireling, "from the Judge's seat");
+    assert.strictEqual(calamityCards(), cardsBefore + 1, "a GM's seat under auto-roll posts no card");
+    assert.strictEqual(throwsOpened(), throwsBefore + 1, "and opens the throw");
+    autoRoll = false;
 
     // A specialist hire records its group's imported base morale, a henchman's
     // stays null (the sheet's own field), and a figure not read is null. The

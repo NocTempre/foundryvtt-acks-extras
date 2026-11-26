@@ -308,6 +308,72 @@ await test("a loyalty roll for a hireling with no score is refused with a warnin
 });
 
 /* -------------------------------------------- */
+/*  Who may toggle the ledger and throw          */
+/* -------------------------------------------- */
+
+/** Runs `fn` on a seat with `isGM`, collecting the notices it raised, and puts the world back. */
+async function onSeat({ isGM }, fn) {
+  const saved = { user: game.user, ui: globalThis.ui, randomID: foundry.utils.randomID, fromUuid: globalThis.fromUuid };
+  const notices = [];
+  game.user = { isGM, id: isGM ? "gm" : "player", name: isGM ? "gm" : "player" };
+  globalThis.ui = { notifications: { warn: (m) => notices.push(m), info: (m) => notices.push(m), error: (m) => notices.push(m) } };
+  foundry.utils.randomID = () => "event";
+  globalThis.fromUuid = async (uuid) => actors.get(uuid.replace("Actor.", "")) ?? null;
+  try {
+    return await fn(notices);
+  } finally {
+    game.user = saved.user;
+    globalThis.ui = saved.ui;
+    foundry.utils.randomID = saved.randomID;
+    globalThis.fromUuid = saved.fromUuid;
+  }
+}
+
+/** Presses the event-card button for `action` as the listener routes it. */
+async function pressCardButton(action, payload) {
+  const clicks = [];
+  const button = { dataset: { acksExtrasAction: action, payload: JSON.stringify(payload) }, addEventListener: (_type, fn) => clicks.push(fn) };
+  bindCardListeners({ nodeType: 1, querySelectorAll: () => [button] });
+  await clicks[0]({ preventDefault() {} });
+}
+
+console.log("henchmen: the ledger toggle follows ownership, the loyalty throw stays on a GM's seat");
+await test("a seat that owns the hireling toggles the ledger entry whatever its role, and one that does not is refused silently", async () => {
+  const { hand, record } = serving({ id: "tg1", record: { loyalty: { start: 1, permanents: [{ delta: -1, reason: "wound", compensated: false }] } }, sheet: null });
+  await onSeat({ isGM: false }, async (notices) => {
+    hand.isOwner = false;
+    const writesBefore = hand.writes.length;
+    assert.equal(await events.setPermanentCompensated(hand, { index: 0 }), false, "a seat that does not own the hireling changes nothing");
+    assert.equal(record().loyalty.permanents[0].compensated, false);
+    assert.equal(hand.writes.length, writesBefore, "and writes nothing");
+    assert.deepEqual(notices, [], "and says nothing");
+    hand.isOwner = true;
+    assert.equal(await events.setPermanentCompensated(hand, { index: 0 }), true, "a player who owns the hireling compensates the entry");
+    assert.equal(record().loyalty.permanents[0].compensated, true);
+    assert.equal(record().events.at(-1).type, "adjustment", "and the toggle is logged");
+    assert.equal(await events.setPermanentCompensated(hand, { index: 0, compensated: false }), true, "the same seat restores it");
+    assert.equal(record().loyalty.permanents[0].compensated, false);
+  });
+});
+await test("the card's throw and waive buttons do nothing on a player's seat, and act on a GM's", async () => {
+  events.registerEventEngine();
+  const { hand, record } = serving({ id: "tg2", record: { loyalty: { start: null, permanents: [] } }, sheet: null });
+  const payload = { actorUuid: hand.uuid, reason: "test" };
+  await onSeat({ isGM: false }, async (notices) => {
+    await pressCardButton("rollLoyaltySecret", payload);
+    assert.deepEqual(notices, [], "the loyalty throw is not opened on a player's seat");
+    await pressCardButton("waiveCalamityRoll", payload);
+    assert.equal(record().events, undefined, "and the waive logs nothing");
+  });
+  await onSeat({ isGM: true }, async (notices) => {
+    await pressCardButton("rollLoyaltySecret", payload);
+    assert.deepEqual(notices, ["ACKS-LIB.loyaltyRoll.blank"], "a GM's seat reaches the throw (a hireling with no score is refused by name)");
+    await pressCardButton("waiveCalamityRoll", payload);
+    assert.equal(record().events.at(-1).type, "adjustment", "and the waive is logged");
+  });
+});
+
+/* -------------------------------------------- */
 /*  A monster hireling changing employer        */
 /* -------------------------------------------- */
 

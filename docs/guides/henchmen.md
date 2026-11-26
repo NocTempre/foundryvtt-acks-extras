@@ -107,13 +107,16 @@ system's sheet, the people icon in the window header.
 ![](../releases/v11.9.0/henchmen-roster.png)
 
 *An employer's roster: who is hired, on what terms. Press a hireling's name
-for its wage clock, record and history; the Judge's actions on it — a loyalty
-or obedience throw, a calamity or a penalty on the record, a transfer, a
-dismissal — sit on the row.*
+for its wage clock, record and history. The loyalty and obedience throws stay
+the Judge's; a calamity or a penalty on the record, a transfer and a dismissal
+sit on the row for the hireling's owner, and a transfer offers only your own
+characters.*
 
 **A hireling's own sheet carries a Service tab**: the same record from the
 hireling's side — loyalty and its parts, morale, the terms, the wage clock,
 the employer, the ledger and the events — with the Judge's throws beside it.
+Any ledger entry can be marked compensated there, or in the roster, by the
+hireling's owner, and restored the same way.
 A signing bonus the employer could not pay stays owed on the Signing bonus row,
 where the hireling's owner can **Pay** it or **Forgive** it.
 A calamity still owing its loyalty throw marks the tab and the sheet's

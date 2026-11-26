@@ -180,7 +180,7 @@
           <span class="acks-extras-frame__row-label is-plain">{{e.reasonLabel}}</span>
           <span class="acks-extras-frame__row-line">{{#if e.compensated}}{{localize "ACKS-HENCHMEN.service.compensated"}}{{else}}{{e.note}}{{/if}}</span>
         </span>
-        {{#if @root.isGM}}
+        {{#if s.canCompensate}}
         <button type="button" class="acks-extras-frame__ctl acks-extras-service__push{{#if e.compensated}} is-faint{{/if}}" data-action="toggleCompensated" data-track="{{e.track}}" data-index="{{e.index}}" data-compensated="{{e.compensated}}" data-tooltip="{{e.toggleTitle}}"><i class="fa-solid {{#if e.compensated}}fa-rotate-left{{else}}fa-hand-holding-heart{{/if}}" inert></i></button>
         {{/if}}
       </div>

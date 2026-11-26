@@ -5,7 +5,8 @@
  * GM-prompt-first with secret rolls: watchers on the GM client detect
  * calamities (hp crossing ≤0 on a managed hireling) and level gains, then
  * whisper the GM an event card with [Roll Loyalty (secret)] / [Waive]
- * buttons (the `autoRollCalamity` setting collapses prompt→roll). Bookkeeping
+ * buttons (the `autoRollCalamity` setting collapses prompt→roll on a GM's
+ * seat; the throw is a Judge secret and never opens elsewhere). Bookkeeping
  * lands in the HenchmanRecord ledgers; the resulting effective loyalty (base +
  * permanents + employer CHA + employer effects) is written back to core
  * `system.retainer.loyalty` so the system's own button agrees.
@@ -145,8 +146,10 @@ export async function addLoyaltyPermanent(actor, delta, reason, note = "") {
  * applies only "while uncompensated"). The entry stays in the ledger and
  * simply stops counting toward the effective score, so it stays reversible.
  *
- * GM-only, enforced here and not only in the roster template: a hireling's
- * owner is usually the player, and loyalty is secret Judge information.
+ * Open to a seat that may edit the hireling, enforced here and not only in
+ * the templates: the ledger is the hireling's own record, readable by its
+ * players, and the toggle writes that record. A seat that cannot edit the
+ * hireling is refused silently, as the signing-bonus payment is.
  * @param {Actor} actor
  * @param {object} opts
  * @param {"loyalty"|"morale"} [opts.track="loyalty"] - which ledger
@@ -155,10 +158,7 @@ export async function addLoyaltyPermanent(actor, delta, reason, note = "") {
  * @returns {Promise<boolean>} whether anything changed
  */
 export async function setPermanentCompensated(actor, { track = "loyalty", index, compensated = true } = {}) {
-  if (!game.user.isGM) {
-    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.ledger.gmOnly"));
-    return false;
-  }
+  if (!actor?.isOwner) return false;
   if (track !== "loyalty" && track !== "morale") return false;
   const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
   const permanents = [...(record[track]?.permanents ?? [])];
@@ -355,7 +355,8 @@ export async function applyObedienceOutcome(actor, { outcome, total, note = "" }
 
 /**
  * Record a calamity: counter +1, the imported calamity figure (RR 166) as a
- * permanent loyalty change, event log; then a loyalty roll (prompt or auto)
+ * permanent loyalty change, event log; then a loyalty roll (a prompt card, or
+ * opened at once on a GM's seat under the auto-roll setting)
  * unless the record skips calamity rolls (crusader/bladedancer followers,
  * Utter Domination). A figure that is not imported records no change; a blank
  * start does not stop a figure that was read from being recorded.
@@ -378,7 +379,9 @@ export async function recordCalamity(actor, note = "") {
     });
     return;
   }
-  if (getSetting("autoRollCalamity")) {
+  // The throw is a Judge secret: it opens immediately only on a GM's seat. A
+  // calamity recorded from a player's seat posts the prompt card instead.
+  if (getSetting("autoRollCalamity") && game.user.isGM) {
     openLoyaltyRoll(actor, { reason: note || game.i18n.localize("ACKS-HENCHMEN.event.calamity") });
   } else {
     await postEventCard({
@@ -944,11 +947,16 @@ export function registerEventEngine() {
   });
   onTimeAdvanced((worldTime) => queueWagesDue(worldTime));
 
+  // The loyalty throw is a Judge secret and opens on a GM's seat. A card
+  // posted from a player's seat shows its buttons to that player as author;
+  // pressing them there does nothing.
   registerCardAction("rollLoyaltySecret", async ({ actorUuid, reason }) => {
+    if (!game.user.isGM) return;
     const actor = await fromUuid(actorUuid);
     if (actor) openLoyaltyRoll(actor, { reason });
   });
   registerCardAction("waiveCalamityRoll", async ({ actorUuid }) => {
+    if (!game.user.isGM) return;
     const actor = await fromUuid(actorUuid);
     if (actor) await HenchmanRecord.logEvent(actor, { type: "adjustment", note: game.i18n.localize("ACKS-HENCHMEN.card.waived") });
   });

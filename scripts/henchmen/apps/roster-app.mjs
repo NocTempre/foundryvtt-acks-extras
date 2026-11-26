@@ -196,8 +196,13 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
       .map((actor) => this.#row(actor, mods));
   }
 
-  /** One hireling's row: who they are, what they stand at, what they cost, and the record under it. */
+  /**
+   * One hireling's row: who they are, what they stand at, what they cost, and the record under it.
+   * `owned` is this seat's ownership of the hireling (the ledger toggle); `canAct` adds the window's
+   * own seat test, since a row's controls write the employer as well as the hireling.
+   */
   #row(actor, mods) {
+    const owned = !!actor.isOwner;
     const record = actor.getFlag(MODULE_ID, FLAG_RECORD) ?? {};
     const retainer = adapter.getRetainer(actor);
     const category = retainer.category || "henchman";
@@ -254,6 +259,8 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
       isMonster,
       pending,
       open,
+      owned,
+      canAct: this.#editable && owned,
       tags,
       loyalty,
       morale: { value: signed(effectiveMoraleFor(actor)), title: loc("moraleTitle") },
@@ -333,8 +340,8 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /**
    * Record a penalty that lasts only while uncompensated — a permanent wound
    * or a tampering-with-mortality side effect. It lands in the loyalty ledger
-   * under its reason; the Judge lifts it later with the compensate toggle
-   * rather than deleting anything.
+   * under its reason; the hireling's owner lifts it later with the
+   * compensate toggle rather than deleting anything.
    */
   static async #onPenalty(_event, target) {
     const actor = this.#actor(target);
@@ -353,7 +360,7 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.render();
   }
 
-  /** Suspend or restore one ledger entry; the engine refuses a seat that is not the Judge's. */
+  /** Suspend or restore one ledger entry; the engine refuses a seat that does not own the hireling. */
   static async #onToggleCompensated(_event, target) {
     const actor = this.#actor(target);
     if (!actor) return;
@@ -375,13 +382,21 @@ export class RosterApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.#actor(target)?.sheet?.render(true);
   }
 
+  /**
+   * The characters a hireling may move to: not in service, not this employer, and owned by this
+   * seat, since a transfer writes the new employer's roster.
+   */
+  #transferTargets() {
+    return game.actors.filter(
+      (a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && a.id !== this.employer.id && a.isOwner
+    );
+  }
+
   /** Transfer employment: recalculated from the new employer; it counts as a calamity. */
   static async #onTransfer(_event, target) {
     const actor = this.#actor(target);
     if (!actor) return;
-    const candidates = game.actors.filter(
-      (a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && a.id !== this.employer.id
-    );
+    const candidates = this.#transferTargets();
     if (!candidates.length) return;
     const options = candidates.map((a) => `<option value="${a.id}">${a.name}</option>`).join("");
     const newId = await foundry.applications.api.DialogV2.prompt({

@@ -44,7 +44,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-23 — [The employer-level cap is imported, and an unread rung refuses nothing (2026-10-23)](DECISIONS-through-v11.14.5.md#the-employer-level-cap-is-imported-and-an-unread-rung-refuses-nothing-2026-10-23)
 - 2026-10-23 — [The market's henchman levels are the availability table's rows (2026-10-23)](DECISIONS-through-v11.14.5.md#the-markets-henchman-levels-are-the-availability-tables-rows-2026-10-23)
 - 2026-10-23 — [The level-gain morale bonuses and the apparent-level figure are imported (2026-10-23)](DECISIONS-through-v11.14.5.md#the-level-gain-morale-bonuses-and-the-apparent-level-figure-are-imported-2026-10-23)
-- 2026-10-23 — [The record is read on the lib frame, once, from both sides (2026-10-23)](DECISIONS-through-v11.14.5.md#the-record-is-read-on-the-lib-frame-once-from-both-sides-2026-10-23)
+- 2026-10-23 — [The record is read on the lib frame, once, from both sides (2026-10-23)](DECISIONS-through-v11.14.5.md#the-record-is-read-on-the-lib-frame-once-from-both-sides-2026-10-23) — qualified in part 2026-11-25 (the roster entry below: the compensated toggle follows the hireling's ownership; the throws stay the Judge's)
 - 2026-10-24 — [Every figure on the Service panel names its source, and Obedience reads morale (2026-10-24)](DECISIONS-through-v11.14.5.md#every-figure-on-the-service-panel-names-its-source-and-obedience-reads-morale-2026-10-24)
 - 2026-10-28 — [Wage reminders post once per month owed, and walks leave the module's cards alone (2026-10-28)](DECISIONS-through-v11.14.5.md#wage-reminders-post-once-per-month-owed-and-walks-leave-the-modules-cards-alone-2026-10-28)
 - 2026-11-04 — [A market's classes never offered are a list on the market, and a draw rolls again on one (2026-11-04)](DECISIONS-through-v11.14.5.md#a-markets-classes-never-offered-are-a-list-on-the-market-and-a-draw-rolls-again-on-one-2026-11-04)
@@ -403,3 +403,69 @@ keep a gate Foundry does not have.
 
 **Rejected.** Keeping Forgive the Judge's while Pay opens to the owner: two
 controls on one flag under two rules, and the second is the one the owner named.
+
+## 2026-11-25 — The roster's row controls and the compensated toggle follow ownership; a calamity's throw stays on the Judge's seat (T-0792, B5)
+
+The owner, 2026-11-25: "Tool permissions are hardcoded (e.g. summons) by server
+role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule". On T-0793: "Spell owner can setup the spell as needed.
+Trusted players own their sheet and instances of items within. I guess regular
+Player only gets ownership of the sheet itself and not subitems they don't own?
+In either case the approach is follow foundry permissions, don't invent new
+ones." Severity keeps reading the role ("players get blocks, judges get
+warnings"); permission reads ownership.
+
+- **The compensated toggle is the hireling's owner's.**
+  `setPermanentCompensated` refuses silently (nothing changes, no notice) a seat
+  that does not own the hireling, as Pay does; the Service panel draws the
+  toggle on `canCompensate` and the roster on the row's `owned`, and the
+  `ledger.gmOnly` notice and its lang key are gone. The ledger was already the
+  hireling's player's to read, so the old gate's reason, that loyalty is secret
+  Judge information, was not true of it.
+- **The roster's row controls follow the same test.** Calamity, Penalty,
+  Transfer and Dismiss on a henchman's row, and Morale, Transfer and Dismiss on
+  a mercenary's or specialist's, are drawn on `canAct`: the window is editable
+  (a GM or an owner of the employer) and the seat owns that hireling. A hireling
+  under a player's employer that the player does not own, such as one a Judge
+  placed, shows the row without them.
+- **Transfer offers only characters the seat owns** (B5 decision 5), the release
+  hub's call under the owner's instruction of the same day: "make the call
+  yourself and build, as long as it follows the repo's design rules". A
+  transfer writes the new employer's roster, and an unowned character's is not
+  the seat's to write. Transfer stays drawn wherever the row can act, whether or
+  not any character qualifies, and its handler does nothing then: nothing is
+  removed on any seat. A Judge's seat owns every character, so it is offered all
+  of them as before.
+- **The throws are the rule's Judge-secret exception.** The loyalty and
+  obedience dice on the row stay on `isGM`. The loyalty throw a calamity opens
+  (`recordCalamity` under `autoRollCalamity`) now opens only on a GM's seat,
+  and the calamity card's `rollLoyaltySecret` and `waiveCalamityRoll` buttons
+  act only on one; a calamity recorded from a player's seat posts the Judge's
+  card as the setting-off path does. `insistOrder` stays as it was: its card is
+  posted from the Judge's obedience throw.
+- **Why the throw needed a guard.** A hire on a place the player owns runs
+  locally (`recruit-dialog.mjs` `canLocal`, then `handleHiringOutcomePayload`,
+  `hire`, `paySigningBonus`, `recordCalamity`), so an unpayable signing bonus
+  opened the secret throw on the player's seat under the auto-roll setting, as
+  the roster's Calamity and Transfer now would. The card is whispered to GMs and
+  shown to its author, so its buttons are guarded on the handler, not by the
+  card.
+
+**Supersedes, in part,** "The record is read on the lib frame, once, from both
+sides" (2026-10-23, DECISIONS-through-v11.14.5.md, In force row above), in the
+closing sentence of its cost line, "The throws and the toggle stay the Judge's":
+the toggle half goes; the throws half stands. The entry is 33 days old, and the
+evidence it did not have is the owner's rule above.
+
+**Counter (medium).** A player can now write a calamity or a wound penalty onto
+their own hireling's record, which is the Judge's to rule. *Answer:* the record
+is a flag on a document the player owns and can edit by hand, and the roster's
+window already admitted the employer's owner to its other controls; a gate in
+front of the buttons guards nothing Foundry guards. The throw the calamity
+calls for is still the Judge's.
+
+**Rejected.** A relay op that hands a hireling to a character the seat does not
+own: it would write a wage bill and a roster entry onto another player's
+character without that player's act, a permission invented on top of Foundry's.
+If the owner wants hand-offs, it is one op plus a consent step, and a design of
+its own.
