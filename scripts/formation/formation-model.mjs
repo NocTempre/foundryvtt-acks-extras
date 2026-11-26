@@ -4,7 +4,7 @@ import { landSpeed } from "../vehicles/vehicle-speed.mjs";
 import { draftPullOf } from "../vehicles/occupants.mjs";
 import { holdOf } from "../vehicles/hold.mjs";
 import { VEHICLE_TYPE } from "../vehicles/constants.mjs";
-import { borneWeight6 } from "../lib/capacity.mjs";
+import { borneWeight6, loadStone } from "../lib/capacity.mjs";
 import { STONE } from "../lib/item-model.mjs";
 import {
   carriedBody,
@@ -738,9 +738,24 @@ export const isCasualty = (actor, member = null) =>
   !isSummonMember(member) && isPerson(actor) && (isDown(actor, member) || isDead(actor, member));
 
 /**
+ * What a carrier bears before the casualties' share, in stone. A character's is
+ * `encumbranceOf`. Core derives no encumbrance for a monster, so its own is the
+ * load lib reads off its items and coin (`loadStone`), to a tenth of a stone;
+ * null where that cannot be read (a ridden creature whose rider's body weight
+ * is not imported).
+ */
+const carrierBase = (actor) => {
+  if (actor?.type !== ACTOR_TYPE.monster) return encumbranceOf(actor);
+  const stone = loadStone(actor);
+  return stone === null ? null : Math.round(stone * 10) / 10;
+};
+
+/**
  * Carried load: each down member's body and a share of their equipment
  * encumbrance (the rescue rule, RR p. 271), split evenly among members with
- * the Carrier role.
+ * the Carrier role. Each carrier answers its own base (`carrierBase`), its base
+ * with the share (`effEnc`, null where the base is), and whether that is over
+ * its capacity.
  */
 export function carriedLoad(formation) {
   const members = realMembers(formation).map((m) => ({ member: m, actor: getMemberActor(m) }));
@@ -763,17 +778,17 @@ export function carriedLoad(formation) {
   return {
     down: down.map((e) => e.actor),
     carriers: carriers.map((e) => {
-      const baseEnc = encumbranceOf(e.actor);
+      const baseEnc = carrierBase(e.actor);
       const capacity = maxStoneOf(e.actor);
-      const effEnc = Math.round((baseEnc + sharePerCarrier) * 10) / 10;
+      const effEnc = baseEnc === null ? null : Math.round((baseEnc + sharePerCarrier) * 10) / 10;
       return {
         actor: e.actor,
         name: e.actor.name,
         baseEnc,
         effEnc,
         capacity,
-        speed: paceBearing(e.actor, effEnc),
-        over: capacity != null && effEnc > capacity,
+        speed: effEnc === null ? null : paceBearing(e.actor, effEnc),
+        over: capacity != null && effEnc !== null && effEnc > capacity,
       };
     }),
     totalStone: Math.round(totalStone * 10) / 10,

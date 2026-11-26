@@ -760,6 +760,13 @@ compendium, the RR register and a hand-made item spell them differently
 ("Lockpicking" / "Lockpicking Expertise", "Dungeon Bashing" / "Dungeonbashing
 Expertise") and this module should not maintain a rename table.
 
+A bash adds the basher's Strength to that roll as `formation/doors.mjs`
+`bashStrPart` gives it (the one owner of the figure, at the imported factor), as
+the roll's modifier: added on an "above" throw, taken away on a "below" one,
+none on an exact-match throw or where the throw declares a Strength score term
+itself. With no factor imported no term is added and the throw is still rolled.
+Picking a lock takes none.
+
 Enforced RAW: gloves block lockpicking (RR p. 145). Bashing destroys the
 container; a `fragile` one takes its contents with it.
 

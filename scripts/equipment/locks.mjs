@@ -12,6 +12,7 @@ import { containerOf, isLocked, setOpened, contentsOf, isFragile } from "./conta
 import { slug, SLOT, ITEM_TYPE } from "../lib/vocab.mjs";
 import { isWorn, slotsOf, declaresSlots } from "../lib/item-model.mjs";
 import { unset } from "../lib/util.mjs";
+import { bashStrPart } from "../formation/doors.mjs";
 
 /**
  * Proficiency names that defeat a lock, and the ones that break a container.
@@ -59,13 +60,30 @@ export function wearingGloves(actor) {
 }
 
 /**
- * Roll one of an actor's abilities through the abilities feature.
+ * Strength's term on a Dungeonbashing throw, as the modifier that joins the roll
+ * (`bashStrPart`, its one owner). A positive part lowers the target of an
+ * "above" throw, so it adds to the roll; a "below" throw takes it away, and an
+ * exact-match throw takes none. Nothing where the factor is not imported or the
+ * modifier is zero, and nothing where the throw already declares a Strength
+ * score term, which carries it.
+ */
+function bashStrengthTerm(actor, roll) {
+  if (roll?.score?.key === "str") return 0;
+  const part = bashStrPart(actor);
+  if (!part || part.missing) return 0;
+  const type = roll?.rollType || "above";
+  return type === "result" ? 0 : type === "below" ? -part.value : part.value;
+}
+
+/**
+ * Roll one of an actor's abilities through the abilities feature, with
+ * Strength's term when `strength` is set (a bash).
  *
  * Returns `{ rolled: false }` when the roll cannot be made here — no ability,
  * no roller, or the ability carries no throw. The caller reports that rather
  * than substituting a number.
  */
-async function rollProficiency(actor, item) {
+async function rollProficiency(actor, item, { strength = false } = {}) {
   const api = globalThis.acksExtras?.abilities;
   if (!api?.rollAbility) return { rolled: false, reason: "noAbilitiesModule" };
   // rollsOf is the module's single read path; an ability with no throw is a
@@ -74,7 +92,8 @@ async function rollProficiency(actor, item) {
   if (!rolls.length) return { rolled: false, reason: "noThrow" };
 
   // Rolled without the dialog: this path reads the result to open the lock.
-  const result = await api.rollAbility(item, rolls[0].key, { skipDialog: true });
+  const bonus = strength ? bashStrengthTerm(actor, rolls[0]) : 0;
+  const result = await api.rollAbility(item, rolls[0].key, { skipDialog: true, bonus });
   // `success` is null when the target could not be resolved — a shared item, or
   // a ladder with no character behind it. Unknown is not failure.
   return { rolled: true, success: result?.success ?? null, total: result?.total ?? null };
@@ -141,7 +160,7 @@ export async function bashOpen(actor, container) {
     return { ok: false, reason: "noProficiency" };
   }
 
-  const { rolled, reason, success } = await rollProficiency(actor, ability);
+  const { rolled, reason, success } = await rollProficiency(actor, ability, { strength: true });
   if (!rolled) {
     notify("info", `manual.${reason}`, { ability: ability.name });
     return { ok: false, reason };

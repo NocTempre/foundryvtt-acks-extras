@@ -42,7 +42,7 @@ import { cancelForMove, lockForJudge, lockForMember, memberBlock, queueGroup, ru
 import { getFormation, getMemberActor, getPartyActor, isDown, isHurried, memberActorById, realMembers } from "./formation-model.mjs";
 import { PARTY_CHECKS, resolveCheck, rollPartyCheck } from "./party-rolls.mjs";
 import { advanceTurns, hasEndurance, postNotesCard } from "./turn-engine.mjs";
-import { attemptDisarm, disarmRefusal, knownPlacementsNear } from "./trap-zone.mjs";
+import { attemptDisarm, disarmGate, disarmRefusal, knownPlacementsNear } from "./trap-zone.mjs";
 
 /** The party actor's flag holding the plan. */
 export const PLAN_FLAG = "turnPlan";
@@ -132,14 +132,14 @@ function registerTrapbreak(key, mode) {
     key,
     pace: mode,
     label: cfg.label,
-    options: (_actor, ctx) => near(ctx).map((p) => ({ id: p.uuid, kind: p.kind })),
+    options: (_actor, ctx) => near(ctx).map((p) => ({ id: p.uuid, kind: p.kind, ...(p.kind === "thing" ? { place: p.doc?.name ?? "" } : {}) })),
     turns: () => 1,
     blocked: (actor, option, ctx) => {
       const refusal = disarmRefusal(near(ctx).find((p) => p.uuid === option.id) ?? null, actor, mode);
       return refusal ? `trap:${refusal}` : null;
     },
     // The question of what to do with a beaten trap goes to the user who locked the entry.
-    // A Judge's lock was written past a soft refusal (`lockForJudge`), so the throw
+    // A Judge's lock is written only past a soft refusal (`judgeTrapRefusal`), so the throw
     // is made past it too; an entry a player locked is refused again if it still holds.
     resolve: (actor, option, ctx, entry) =>
       attemptDisarm(getFormation(ctx.formation.id) ?? ctx.formation, actor, {
@@ -150,6 +150,27 @@ function registerTrapbreak(key, mode) {
         judge: game.users?.get?.(entry?.by)?.isGM === true,
       }),
   });
+}
+
+/**
+ * The reason a Judge's lock of a Trapbreaking row stays refused with, or null
+ * where the refusal may be worked past. It is `disarmGate`'s block for a Judge,
+ * the gate `attemptDisarm` enforces, so a lock is written only where the throw
+ * will then be made: a refusal about the trap (spent, not found, no trap) holds
+ * for a Judge as it does for a player, and a refusal about the character (the
+ * soft ones, `SOFT_REFUSALS`) is warned past. Null for any other activity's
+ * reason.
+ * @param {string} reason The refusal the lock met (`trap:<code>` on a Trapbreaking row).
+ * @param {string} key The activity the lock chose.
+ * @param {Actor|null} actor
+ * @param {object|null} placement The trap the row is aimed at, or null for none found.
+ * @returns {string|null}
+ */
+export function judgeTrapRefusal(reason, key, actor, placement) {
+  const mode = TRAPBREAKS[key];
+  if (!mode || typeof reason !== "string" || !reason.startsWith("trap:")) return null;
+  const { block } = disarmGate(placement, actor, mode, { judge: true });
+  return block ? `trap:${block}` : null;
 }
 
 /**
@@ -235,7 +256,7 @@ export async function lockPlan(formation, request) {
 /**
  * The Judge's own lock, on a GM client: a refusal a player would get is
  * written past and answered as `warned`, except the ones nothing can be built
- * from (`lockForJudge`). Only the Judge's press calls this; the relay's write
+ * from and a Trapbreaking refusal the throw would meet again (`lockForJudge`). Only the Judge's press calls this; the relay's write
  * for a player is `lockPlan`, which refuses.
  * @param {object} formation
  * @param {{actorId: string, key: string, option?: string|null, by?: string|null}} request
@@ -251,6 +272,8 @@ export async function lockPlanAsJudge(formation, request) {
     {
       offered: actor ? offeredActivities(actor, { formation, member: state.member }) : [],
       said: (reason) => reasonText(reason, actor),
+      held: (reason, asked) =>
+        judgeTrapRefusal(reason, asked.key, actor, knownPlacementsNear(formation).find((p) => p.uuid === asked.option) ?? null),
     },
   );
   if (!result.ok) return result;
@@ -481,13 +504,18 @@ export function reasonText(reason, actor = null) {
 
 /**
  * An option's name in the select: the activity, and which choice it is. A trap
- * option names its target; any other option whose registrant gave it a string
- * `label` shows that, localized when it is a lang key that exists and as text
- * otherwise (a name assembled at render).
+ * option names its target as the Trapbreaking dialog does (a trap thing by its
+ * place's name, a wall and a zone by their kind); any other option whose
+ * registrant gave it a string `label` shows that, localized when it is a lang key
+ * that exists and as text otherwise (a name assembled at render).
  */
 export function optionLabel(row) {
   const base = activityLabel(row.key);
-  if (row.option?.kind) return `${base} (${loc(`traps.${row.option.kind === "wall" ? "targetWall" : "targetZone"}`)})`;
+  const kind = row.option?.kind;
+  if (kind) {
+    const target = kind === "wall" ? loc("traps.targetWall") : kind === "thing" ? loc("traps.targetThing", { place: row.option.place ?? "" }) : loc("traps.targetZone");
+    return `${base} (${target})`;
+  }
   const label = row.option?.label;
   if (typeof label === "string" && label) return `${base} (${hasKey(label) ? game.i18n.localize(label) : label})`;
   return base;

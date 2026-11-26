@@ -7730,7 +7730,7 @@
   "ACKS-MARKETS.catalog.title": "Shop sources",
   "ACKS-MARKETS.catalog.open": "Choose sources",
   "ACKS-MARKETS.catalog.menuHint": "Which compendiums, and whether the world's own items, stock every market's shop on the Trade tab.",
-  "ACKS-MARKETS.catalog.hint": "Ticked sources stock every market's shop. A compendium installed later is ticked until you untick it. Where two sources hold an item of the same name, the shop sells the one listed first. Orders already placed still arrive.",
+  "ACKS-MARKETS.catalog.hint": "Ticked sources stock every market's shop. A compendium installed later is ticked until you untick it, and a Judge's own shelf is unticked until you tick it. Where two sources hold an item of the same name, the shop sells the one listed first. Orders already placed still arrive.",
   "ACKS-MARKETS.catalog.legend": "Sources",
   "ACKS-MARKETS.catalog.world": "World items (sidebar)",
   "ACKS-MARKETS.catalog.count": "{n} items",

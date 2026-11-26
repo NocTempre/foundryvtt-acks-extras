@@ -390,7 +390,9 @@ export function buildFormationView(formation) {
         const carrier = load.down.length && member.roles?.includes("carrier")
           ? load.carriers.find((c) => c.actor?.id === actor?.id)
           : null;
-        return carrier ? `${base}→${carrier.effEnc}` : base;
+        if (!carrier) return base;
+        // A monster's sheet holds no encumbrance figure: its base is the load the party's reading counted.
+        return `${actor.type === "monster" ? carrier.baseEnc ?? "—" : base}→${carrier.effEnc ?? "—"}`;
       })(),
       encMax: actor?.system?.encumbrance?.max ?? "—",
       stashed: !!member.tokenData,
@@ -762,7 +764,7 @@ export function buildWarnings(formation, speed) {
         .map((c) =>
           game.i18n.format(
             c.over ? "ACKS-FORMATION.warnings.carrierOver" : "ACKS-FORMATION.warnings.carrierLine",
-            { name: c.name, base: c.baseEnc, eff: c.effEnc, cap: c.capacity ?? "—", speed: c.speed ?? "—" },
+            { name: c.name, base: c.baseEnc ?? "—", eff: c.effEnc ?? "—", cap: c.capacity ?? "—", speed: c.speed ?? "—" },
           ),
         )
         .join(" · ");

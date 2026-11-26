@@ -449,7 +449,9 @@ await ok("a target's tooltip lists the figure's base and its parts with their pa
   assert.notEqual(h.targetTip, "Probe Climb (L6)", "the source is not the whole tooltip");
   assert.ok(h.targetTip.includes("Probe Climb (L6), base 12+"), "the ladder's rung at the member's level is the base part");
   assert.ok(p.targetTip.includes("base 14+"), "the stored figure is the base part");
-  assert.ok(h.targetTip.endsWith("RR ch. 6, Spelunking") && p.targetTip.endsWith("RR ch. 6, Spelunking"), "no part names a page, so the procedure's page ends it");
+  assert.ok(h.targetTip.startsWith("Probe Climb (L6), base 12+ (XX p.9)"), "the ability that supplied the base names its page beside it: " + h.targetTip);
+  assert.ok(!h.targetTip.includes("Spelunking"), "the base's own page stands in for the procedure's: " + h.targetTip);
+  assert.ok(p.targetTip.endsWith("RR ch. 6, Spelunking"), "a stored figure names no page of its own, so the procedure's page ends it");
 
   // A figure shaped as `resolveCheck` returns it, with a cited part, an uncited one and a penalty.
   const figure = {
@@ -463,6 +465,8 @@ await ok("a target's tooltip lists the figure's base and its parts with their pa
   );
   assert.ok(!crossing.targetTooltip(figure, 1).endsWith("Spelunking"), "a part's page stands in for the procedure's");
   assert.equal(crossing.targetTooltip({ target: 12, source: "Via Adventuring", parts: [] }, 0), "Via Adventuring, base 12+ · RR ch. 6, Spelunking");
+  assert.equal(crossing.targetTooltip({ ...figure, cite: "XX p.9" }, 0), "Probe Climb (L6), base 11+ (XX p.9); +2 Probe Boots (XX p.7), +1 Probe Score, −1 Conditions", "the figure's page follows the base, the parts' pages their own");
+  assert.equal(crossing.targetTooltip({ target: 12, source: "Probe Climb", cite: "XX p.9", parts: [] }, 0), "Probe Climb, base 12+ (XX p.9)", "a cited base with no parts needs no procedure page");
   assert.equal(crossing.targetTooltip(null, 2), "RR ch. 6, Spelunking", "no figure, the page alone");
 });
 
@@ -2675,6 +2679,39 @@ await ok("a monster with no character speeds works along a squeeze at the round'
   assert.equal(crossingRow(formation, "Wolf").row.target, null, "a beast with no speed at all has no throw");
 });
 
+await ok("a monster with a stated load squeezes at its own speed, not at the character calculation run on that load, and a Speed table alone gives it one", async () => {
+  // Core's character movement calculation as a stand-in: an invented step, 0 past the maximum.
+  const calculate = function () {
+    const { value, max } = this.system.encumbrance;
+    const base = value > max ? 0 : 60;
+    this.system.movementacks.combat = base / 3;
+    this.system.movementacks.chargerun = base;
+  };
+  const had = globalThis.CONFIG.Actor;
+  globalThis.CONFIG.Actor = { documentClass: { prototype: { _calculateMovement: calculate } } };
+  try {
+    const { formation, actors } = await squeezeWorld([["Wolf", { type: "monster", load: 3 }], ["Alder", { stone: 5 }]], { form: { shape: "squeeze", length: "100" } });
+    const beast = actors.find((a) => a.name === "Wolf");
+    delete beast.system.movementacks;
+    beast.system.movement = { base: 90, encounter: 30 };
+    beast.flags = { "acks-extras": { extras: { load: { normal: 3 } } } };
+    assert.equal(crossingRow(formation, "Wolf").row.advance, 30, "its own round's move, not the calculation's 20");
+    const table = (speeds) => { beast.getFlag = (scope, key) => (scope === "acks-extras" && key === "extras" ? { speeds } : undefined); };
+    const land = [{ type: "fly", combat: 50, run: 150 }, { type: "land", combat: 25, run: 75 }];
+    table(land);
+    assert.equal(crossingRow(formation, "Wolf").row.advance, 30, "with both, the speed core derives stands over the table, so an effect on it reaches the throw");
+    beast.system.movement = { base: 0, encounter: 0 };
+    assert.equal(crossingRow(formation, "Wolf").row.advance, 25, "a Speed table alone: the land row's combat figure");
+    table([{ type: "fly", combat: 50, run: 150 }]);
+    assert.equal(crossingRow(formation, "Wolf").row.advance, 50, "a table with no land row reads its first");
+    table([{ type: "land", combat: null, run: 75 }]);
+    assert.equal(crossingRow(formation, "Wolf").row.target, null, "a blank cell is no speed, and the creature has no throw");
+    assert.equal(crossingRow(formation, "Alder").row.advance, 40, "a character's speed is read as before");
+  } finally {
+    globalThis.CONFIG.Actor = had;
+  }
+});
+
 await ok("ending a crossing warns the Judge, naming the members still stuck or drowning, and says nothing when none is", async () => {
   const squeeze = await squeezeWorld([["Alder", { stone: 5 }], ["Birch", { stone: 5 }], ["Cedar", { stone: 5 }]]);
   await stuckAt(squeeze.formation, "Alder");
@@ -2911,7 +2948,7 @@ await ok("a pick moves the throw's target, its tooltip lists the parts that sum 
   assert.equal(recordOf(formation, "Alder").pace, "faster", "the pick is on the member's record");
   let row = rowOf(buildCrossingView(formation), "Alder");
   assert.equal(row.target, "15+", "12 from the ladder and 3 from the pace");
-  assert.equal(row.targetTip, "Probe Climb (L6), base 12+; −3 Faster pace (XX p.6) · RR ch. 6, Spelunking", "the base, then the pace as a part with its page");
+  assert.equal(row.targetTip, "Probe Climb (L6), base 12+ (XX p.9); −3 Faster pace (XX p.6)", "the base with its ability's page, then the pace as a part with its own");
   assert.deepEqual(row.pace.options.map((o) => o.selected), [false, true, false]);
   naturals.push(14);
   const miss = await throwFor(formation, "Alder");

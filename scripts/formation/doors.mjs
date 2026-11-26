@@ -106,7 +106,9 @@ export function bashStrBonus(strMod) {
  * factor is not imported. The one place that figure takes its thrower's
  * Strength: `adventuringThrow` and `resolveCheck` add it, and a surface that
  * itemizes Strength itself (a door bash, which takes the stronger of a pair; a
- * squeeze push) asks them for the figure without it.
+ * squeeze push) asks them for the figure without it. A container's bash
+ * (`equipment/locks.mjs`) rolls the ability's own throw, which neither reads,
+ * and adds this part to the roll.
  *
  * @param {Actor} actor
  * @returns {{kind: "strength", label: string, value: number, cite: string}|{missing: string}|null}

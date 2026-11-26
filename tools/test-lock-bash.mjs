@@ -1,0 +1,122 @@
+/**
+ * A container's bash (`equipment/locks.mjs` `bashOpen`), offline: the
+ * Dungeonbashing throw it rolls takes the basher's Strength at the imported
+ * factor (`bashStrPart`, the one owner of that figure), and the lock pick does
+ * not. The ability roller is a recording stand-in, so what is pinned is the
+ * modifier handed to the roll: its size, its sign by the throw's type, and that
+ * it is absent with no factor imported, with no Strength modifier, and where the
+ * throw already declares a Strength score term. Actors, abilities and every
+ * figure are invented.
+ *
+ * What the roll then posts, and the card a seat reads, are the live walk's
+ * (docs/equipment/TESTING.md).
+ *
+ * Usage: node tools/test-lock-bash.mjs
+ */
+import assert from "node:assert/strict";
+
+let passed = 0;
+const ok = async (name, fn) => {
+  await fn();
+  passed++;
+  console.log(`ok   ${name}`);
+};
+
+class Stub {}
+globalThis.game = {
+  user: { id: "u1", isGM: true },
+  i18n: { localize: (k) => k, format: (k) => k, has: () => false },
+  settings: { get: () => ({}) },
+};
+globalThis.ui = { notifications: { info() {}, warn() {}, error() {} } };
+globalThis.Hooks = { on() {}, once() {}, off() {}, call() {}, callAll() {} };
+globalThis.foundry = {
+  abstract: { DataModel: class {}, TypeDataModel: class {} },
+  data: { regionBehaviors: { RegionBehaviorType: Stub }, fields: {} },
+  utils: { escapeHTML: (s) => String(s), deepClone: (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v))) },
+  applications: { api: { ApplicationV2: Stub, HandlebarsApplicationMixin: (B) => B, DialogV2: Stub }, handlebars: { renderTemplate: async () => "" } },
+};
+
+/** What the roller was asked: `[abilityName, key, options]`, one per roll. */
+const rolled = [];
+globalThis.acksExtras = {
+  abilities: {
+    rollsOf: (item) => item.rolls,
+    // A failed throw leaves the container standing: nothing past the roll is under test.
+    rollAbility: async (item, key, opts) => {
+      rolled.push([item.name, key, opts]);
+      return { success: false, total: 1 };
+    },
+  },
+};
+
+const { bashOpen, pickLock } = await import("../scripts/equipment/locks.mjs");
+const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+const { FORMATION_DOC } = await import("../scripts/formation/constants.mjs");
+
+/** An ability item holding one throw. */
+const ability = (name, roll) => ({ id: name, type: "ability", name, rolls: [{ key: "main", rollType: "above", ...roll }] });
+const basher = (strMod, throwRoll = {}) => ({
+  id: "a1",
+  name: "Tester",
+  system: { scores: { str: { mod: strMod } } },
+  items: [ability("Dungeonbashing", throwRoll), ability("Lockpicking", {})],
+});
+const crate = { id: "c1", name: "Crate" };
+const factor = (n) => registerTable({ id: FORMATION_DOC, source: "invented", tables: { bashStrengthFactor: n } }, { priority: PRIORITY.WORLD, source: "test" });
+const bashBonus = async (actor) => {
+  rolled.length = 0;
+  await bashOpen(actor, crate);
+  assert.equal(rolled.length, 1, "one roll");
+  return rolled[0][2].bonus;
+};
+
+await ok("a bash adds Strength at the imported factor to its roll", async () => {
+  factor(3);
+  try {
+    assert.equal(await bashBonus(basher(2)), 6, "the modifier times the factor");
+    assert.equal(await bashBonus(basher(-2)), -6, "a negative modifier is a negative term");
+    assert.equal(rolled[0][0], "Dungeonbashing", "the Dungeonbashing ability is the one rolled");
+    assert.equal(rolled[0][2].skipDialog, true, "still rolled without the dialog");
+  } finally {
+    unregisterTable(FORMATION_DOC, "test");
+  }
+});
+
+await ok("a bash adds no term with no factor imported or no Strength modifier", async () => {
+  assert.equal(await bashBonus(basher(2)), 0, "no factor: nothing stands in, and the roll is still made");
+  factor(3);
+  try {
+    assert.equal(await bashBonus(basher(0)), 0, "a modifier of zero needs no figure");
+  } finally {
+    unregisterTable(FORMATION_DOC, "test");
+  }
+});
+
+await ok("the term follows the throw's type, and a throw that carries Strength already is not counted twice", async () => {
+  factor(3);
+  try {
+    assert.equal(await bashBonus(basher(2, { rollType: "below" })), -6, "a roll-under throw takes it away");
+    assert.equal(await bashBonus(basher(2, { rollType: "result" })), 0, "an exact-match throw takes none");
+    assert.equal(await bashBonus(basher(2, { score: { key: "str", times: 1 } })), 0, "a Strength score term on the throw already carries it");
+    assert.equal(await bashBonus(basher(2, { score: { key: "dex", times: 1 } })), 6, "another score's term does not");
+  } finally {
+    unregisterTable(FORMATION_DOC, "test");
+  }
+});
+
+await ok("picking a lock takes no Strength term", async () => {
+  factor(3);
+  try {
+    rolled.length = 0;
+    const locked = { id: "c2", name: "Chest", flags: { "acks-extras": { container: { locked: true } } }, getFlag() {} };
+    const actor = basher(2);
+    await pickLock(actor, locked);
+    assert.deepEqual(rolled.map(([name]) => name), ["Lockpicking"], "the pick rolls its own ability");
+    assert.equal(rolled[0][2].bonus, 0, "and carries no bonus");
+  } finally {
+    unregisterTable(FORMATION_DOC, "test");
+  }
+});
+
+console.log(`\ntest-lock-bash: ${passed} passed`);

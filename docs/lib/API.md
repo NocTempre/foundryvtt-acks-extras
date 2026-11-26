@@ -1,4 +1,4 @@
-# lib API (apiVersion 101)
+# lib API (apiVersion 102)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 101,
+  apiVersion: 102,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -84,6 +84,7 @@ acksExtras.lib = {
   // 99: itemRun.logic.secondLight; the fuse runner refuses a Player's light past the stack `noSpare` and warns the Judge's seat; itemRun.pressRoll from a second GM's window is written on the primary GM's (below, "apiVersion 99, the second seats")
   // 100: org.{sendOutHolder, recallHolder, placesOf}; org-chart-ui.mjs `serviceChartContext` and `serviceLocationsContext` draw a character's service tree through the chart partials (docs/lib/ORGANISATION.md, "The Followers tab's service mode"; below, "`org`")
   // 101: templateLogic.{setAxisDefault, removeAxisOption}; itemRun.cardSaveOptions reads a card's `saveMagical: false` as no save against magic; a `targetAc` stamp row may be `{name, waived: true, by: [{name, cite}]}` (a monster target's waived step, no `value`)
+  // 102: movementScales.ownSpeeds, a creature's own speeds read without the character load calculation (below, `ownSpeeds`)
 }
 ```
 
@@ -997,6 +998,11 @@ page the table was read from, null for a Judge's override.
 - `expeditionTip({pace})` is the provenance string for a tooltip, already
   localized (the "not imported" text where nothing is), so a caller joins it
   or hands it to `data-tooltip-text` as it is.
+- `ownSpeeds(actor)` (apiVersion 102) answers a creature's own
+  `{exploration, combat, run}`, which no encumbrance moves: core's derived
+  `movement.base` and `movement.encounter` first, else the cell of a monster's
+  land Speed row (its first row where it has none); a figure that is no
+  positive number is null.
 
 The formation `marchBudget` and `dayBudget` return null hours and miles, and
 the vessel `compareToMarch`'s `partyPerHour`, `marchHours` and `faster` are

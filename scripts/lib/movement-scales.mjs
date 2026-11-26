@@ -30,6 +30,7 @@
  */
 import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
 import { positiveFigure } from "./util.mjs";
+import { getMonsterExtras } from "./senses.mjs";
 
 /** The registered document the expedition figures arrive in. */
 export const TRAVEL_DOC = "travel";
@@ -64,6 +65,26 @@ export function expeditionFigures() {
  */
 export function expeditionCite() {
   return citeOf(TRAVEL_DOC, EXPEDITION_TABLE);
+}
+
+/**
+ * A creature's own movement, which no encumbrance moves: the speeds core
+ * derives on every actor (`movement.base` per turn, which is also the run, and
+ * `movement.encounter` per round, so an effect on the base reaches both), and
+ * where one is blank the same cell of the land row of a monster's Speed table
+ * (its first row where it has none). Each figure that is no positive number is
+ * null, so a blank cell never reads as a stationary creature.
+ *
+ * @param {Actor} actor
+ * @returns {{exploration: number|null, combat: number|null, run: number|null}}
+ *   exploration per turn, combat and run per round
+ */
+export function ownSpeeds(actor) {
+  const rows = getMonsterExtras(actor)?.speeds;
+  const row = Array.isArray(rows) ? rows.find((r) => r?.type === "land") ?? rows[0] : null;
+  const core = actor?.system?.movement ?? {};
+  const run = positiveFigure(core.base) ?? positiveFigure(row?.run);
+  return { exploration: run, combat: positiveFigure(core.encounter) ?? positiveFigure(row?.combat), run };
 }
 
 /** The scales, by the book's own names. */

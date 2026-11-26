@@ -659,8 +659,11 @@ party's own stops in the Foundry-free
   not stopped: `lockPlanAsJudge` writes a choice a player would be refused
   (`lockForJudge`) and the row carries a note, "a player would be refused:
   <reason>", held on the sheet (`planNotes`) for the turn it was made on; no
-  member, no such activity or option, a choice with no imported length and a
-  refusal with no words stay refused. A player chooses for a member they own,
+  member, no such activity or option, a choice with no imported length, a
+  refusal with no words and a Trapbreaking refusal the throw would meet again
+  (`judgeTrapRefusal`, which is `disarmGate`'s block for a Judge: a trap spent,
+  not found or absent, a character with no throw) stay refused, with the gate's
+  reason. A player chooses for a member they own,
   refused on their own client with the reason in a toast and in a note on the row,
   then relayed as the `plan` request, which the GM client decides again with
   `lockPlan`, which refuses, against the attested sender and announces. When someone chose Rest, a line
@@ -3495,7 +3498,9 @@ through `resolveCheck(actor, CLIMB_CHECK)`, whether the member holds Climbing
 (the capability or an ability of that name, the union `swimming.mjs`
 `holdsSwimming` reads), the party's own standing (left behind, detached, down)
 and, for a jump, the actor's Dexterity score, level, Acrobatics and carried
-stone (`carriedLoad`'s share for a Carrier, else the member's own encumbrance).
+stone (`carriedLoad`'s share for a Carrier, else the member's own encumbrance;
+a Carrier's base is a character's encumbrance and a monster's own pack, items
+and coin, through lib's `loadStone`).
 `memberRow` and `jumpRow` answer what the seat may do (`can`, `warn`,
 `refusal`); the view and the throw take those and derive nothing of their own.
 
@@ -3855,7 +3860,9 @@ A throw on an obstacle puts rounds on the party's clock. `pressRounds`
   the speed it names (exploration is a figure per turn, combat and run per round).
   A rappel prices no pace and reads the grid's success row. A member's speeds are
   `memberSpeeds` (`crossing.mjs`), core's derived figures, shared with the swim
-  row.
+  row. A monster's are its own (lib's `ownSpeeds`: the land row of its Speed
+  table, else the speeds core derives on every actor), never the character
+  calculation run on its load.
 - **Kept on the record.** `timedStep` grows the member's `elapsed` (rounds, to a
   millionth) and appends the press's working to `timed` (feet, share, speed and
   rounds, or a miss's duration), as it was made, so the header's tooltip lists what

@@ -69,6 +69,7 @@ import { setupKeysOf } from "./hazard-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 import { capacityStone, loadStone, movementBearing } from "../lib/capacity.mjs";
+import { ownSpeeds } from "../lib/movement-scales.mjs";
 import { conditionSet, forbiddenBy } from "../lib/conditions.mjs";
 import { skipDialogKey } from "../lib/roll-dialog.mjs";
 import { saveSpec } from "../lib/saves.mjs";
@@ -382,7 +383,9 @@ function standingOf(member, actor) {
 /** The stone a member carries for a jump: a carrier's share included, from the party's own reading. */
 function carriedBy(actor, load) {
   const carrier = load.carriers.find((c) => c.actor?.id === actor.id);
-  return carrier ? carrier.effEnc : encumbranceOf(actor);
+  if (!carrier) return encumbranceOf(actor);
+  // A monster's own pack is `stoneFor`'s to read; a jump counts its carrier's share alone.
+  return actor.type === "monster" ? load.sharePerCarrier ?? 0 : carrier.effEnc;
 }
 
 /**
@@ -395,7 +398,7 @@ function carriedBy(actor, load) {
 function stoneFor(actor, load) {
   if (actor.type !== "monster") return carriedBy(actor, load);
   const carrier = load.carriers.find((c) => c.actor?.id === actor.id);
-  return monsterStone(loadStone(actor), carrier ? carrier.effEnc - carrier.baseEnc : 0);
+  return monsterStone(loadStone(actor), carrier ? load.sharePerCarrier : 0);
 }
 
 /** A monster's row with its stone parts marked as its own load, so each tooltip names that source. */
@@ -508,16 +511,23 @@ export function crossingTurn(formation, member) {
  * A member's own speeds: exploration in feet per turn, combat and run in feet per
  * round. Core's derived figures, or, bearing a stone (a body lifted, a load a
  * carrier shares), the system's calculation for that load; `lifted` takes the
- * calculation alone. An actor with neither, a monster, reads the speed core
- * derives on every actor (`movement.base` per turn, which is also its run, and
- * `movement.encounter` per round). A speed none gives is null, and a `stone`
- * left out reads the actor's own figures only.
+ * calculation alone. A monster has no encumbrance for that calculation, a stated
+ * load or not, so it moves at its own speeds (lib's `ownSpeeds`). A speed none
+ * gives is null, and a `stone` left out reads the actor's own figures only.
  */
 function memberSpeeds(actor, stone, lifted = false) {
   const own = actor.system?.movementacks ?? {};
   const max = capacityStone(actor);
   const bearing = max == null || !Number.isFinite(stone) ? null : movementBearing({ stone, max, mod: actor.system?.movement?.mod });
   if (lifted) return { exploration: bearing?.exploration ?? null, combat: bearing?.combat ?? null, run: bearing?.running ?? null };
+  if (actor.type === "monster") {
+    const moves = ownSpeeds(actor);
+    return {
+      exploration: Number.isFinite(own.exploration) ? own.exploration : moves.exploration,
+      combat: Number.isFinite(own.combat) ? own.combat : moves.combat,
+      run: Number.isFinite(own.chargerun) ? own.chargerun : moves.run,
+    };
+  }
   const core = actor.system?.movement ?? {};
   const derived = (value) => (Number.isFinite(value) && value > 0 ? value : null);
   return {
@@ -583,9 +593,10 @@ const judgePartSuffix = (part, judgeModBy) => (part.key === "judge" ? ` (${judge
  * Judge's modifier where one is set, and the pace the member moves at with its own
  * page (`pace`: `{label, size, cite}` from `paceOfRow`). `resolveCheck` itemizes only what lowered
  * the figure, so the starting figure (a ladder's rung at the member's level, or the
- * sheet's stored figure) is read back as the target plus those parts. Conditions
- * arrive as a part of the figure. The procedure's page ends the line unless a
- * part names its own.
+ * sheet's stored figure) is read back as the target plus those parts, and carries
+ * the page of the throw that supplied it (`figure.cite`; a stored figure has none).
+ * Conditions arrive as a part of the figure. The procedure's page ends the line
+ * unless the figure or a part names its own.
  */
 export function targetTooltip(figure, judgeMod = 0, pace = null, judgeModBy = null) {
   if (!figure) return spelunkingRef();
@@ -596,8 +607,8 @@ export function targetTooltip(figure, judgeMod = 0, pace = null, judgeModBy = nu
   const extra = [];
   if (mod) extra.push(partText({ value: mod, label: `${loc("crossing.judgeMod")} (${judgeModSetBy(judgeModBy)})` }));
   if (pace) extra.push(`${partText({ value: -pace.size, label: pace.label })} (${pace.cite})`);
-  const line = citedSource({ source, parts }, extra);
-  return parts.some((part) => part.cite) ? line : [line, spelunkingRef()].join(" · ");
+  const line = citedSource({ source, cite: figure.cite, parts }, extra);
+  return figure.cite || parts.some((part) => part.cite) ? line : [line, spelunkingRef()].join(" · ");
 }
 
 /** What a stretch count reads as, in a tooltip: the stretch and the page, or the page alone. */

@@ -78,23 +78,27 @@ const HARD_REASONS = new Set([
  * Judge lock calls this; a player's request relayed to the Judge's client
  * still goes through `lockForMember` and is refused.
  *
- * Stays refused: a reason in `HARD_REASONS`, a choice the member is not offered
- * (no row in `offered`), a length nobody imported (`turns` null on its row), and
- * a refusal with no words (`said` answers an empty string). The entry is built
- * as lib builds it, from the length on the row.
+ * Stays refused: a reason in `HARD_REASONS`, a reason the activity's owner says
+ * a Judge cannot work past (`held`), a choice the member is not offered (no row
+ * in `offered`), a length nobody imported (`turns` null on its row), and a
+ * refusal with no words (`said` answers an empty string). The entry is built as
+ * lib builds it, from the length on the row.
  * @param {object} plan
  * @param {object} request `lockActivity`'s request.
  * @param {object} state `memberBlock`'s state.
  * @param {object} [o]
  * @param {object[]} [o.offered] `offeredActivities`' rows for this member, unblocked or not.
  * @param {(reason: string) => string} [o.said] The words a refusal has; an empty string says it has none.
+ * @param {(reason: string, request: object) => string|null} [o.held] The reason a Judge stays refused with, or null where the refusal may be worked past; the activity's owner decides, since only it knows which of its reasons a Judge may pass.
  * @returns {{ok: true, plan: object, entry: object, warned: {reason: string, missing: string[]}|null}
  *   |{ok: false, reason: string, missing: string[]}}
  */
-export function lockForJudge(plan, request, state, { offered = [], said = (reason) => reason } = {}) {
+export function lockForJudge(plan, request, state, { offered = [], said = (reason) => reason, held = () => null } = {}) {
   const first = lockForMember(plan, request, state);
   if (first.ok) return { ...first, warned: null };
   if (HARD_REASONS.has(first.reason) || !said(first.reason)) return first;
+  const stays = held(first.reason, request);
+  if (stays) return { ...first, reason: stays };
   const optionId = request.option ?? null;
   const row = offered.find((r) => r.key === request.key && (r.option?.id ?? null) === optionId);
   if (!row || row.turns == null) return first;

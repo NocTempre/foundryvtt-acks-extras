@@ -391,6 +391,8 @@ const lang = {
   "ACKS-FORMATION.plan.reason.moved": "Moved",
   "ACKS-FORMATION.traps.refuse.noZone": "No zone",
   "ACKS-FORMATION.traps.targetWall": "Wall",
+  "ACKS-FORMATION.traps.targetZone": "Zone",
+  "ACKS-FORMATION.traps.targetThing": "Thing · {place}",
 };
 const savedGlobals = { game: globalThis.game, foundry: globalThis.foundry, Hooks: globalThis.Hooks };
 // turn-plan.mjs pulls in the formation's whole import graph, which extends core classes at load: a
@@ -406,7 +408,8 @@ globalThis.game = {
     format: (key, data = {}) => (lang[key] ?? key).replace(/\{(\w+)\}/g, (_m, k) => data[k] ?? ""),
   },
 };
-const { reasonText, optionLabel, planNote, attachPlanNotes } = await import("../scripts/formation/turn-plan.mjs");
+const { reasonText, optionLabel, planNote, attachPlanNotes, judgeTrapRefusal } = await import("../scripts/formation/turn-plan.mjs");
+const { STATES } = await import("../scripts/formation/trap-rules.mjs");
 const undoWords = [
   registerTurnActivity({
     key: "qaScene",
@@ -448,6 +451,54 @@ await test("an option's label shows beside the activity: a lang key localized, p
   assert.equal(optionLabel({ key: "qaScene", option: { id: "e", label: "Gallery of Echoes" } }), "Dig (Gallery of Echoes)");
   assert.equal(optionLabel({ key: "qaScene", option: {} }), "Dig", "no label: the activity alone");
   assert.equal(optionLabel({ key: "qaScene", option: { id: "w", kind: "wall", label: "Ignored" } }), "Dig (Wall)", "a trap option wins");
+});
+
+await test("a trap option is named as the Trapbreaking dialog names it: a thing by its place, a wall and a zone by their kind", () => {
+  assert.equal(optionLabel({ key: "qaScene", option: { id: "t", kind: "thing", place: "Cellar" } }), "Dig (Thing · Cellar)");
+  assert.equal(optionLabel({ key: "qaScene", option: { id: "t", kind: "thing" } }), "Dig (Thing · )", "a place with no name reads as the dialog's does");
+  assert.equal(optionLabel({ key: "qaScene", option: { id: "z", kind: "zone" } }), "Dig (Zone)");
+});
+
+// A Judge's lock of a Trapbreaking row: a refusal about the trap holds, one about the character is warned past.
+const trapActor = { id: "t1", name: "Ann", items: [], system: { details: { level: 1 }, adventuring: { trapbreaking: 17 } } };
+const armed = { known: true, trapUuid: "Item.trap", state: STATES.armed, kind: "zone", repeatLock: {} };
+
+await test("a Judge stays refused for a refusal about the trap, and is warned past one about the character", () => {
+  const refusal = (reason, placement, key = "trapbreakMethodical") => judgeTrapRefusal(reason, key, trapActor, placement);
+  assert.equal(refusal("trap:notFound", { ...armed, known: false }), "trap:notFound", "an unfound trap");
+  assert.equal(refusal("trap:noTrap", { ...armed, trapUuid: "" }), "trap:noTrap", "no trap on the place");
+  assert.equal(refusal("trap:alreadyDisarmed", { ...armed, state: STATES.disarmed }), "trap:alreadyDisarmed", "a trap already disarmed");
+  assert.equal(refusal("trap:alreadyDischarged", { ...armed, state: STATES.discharged }), "trap:alreadyDischarged", "a trap already spent");
+  assert.equal(refusal("trap:noZone", null), "trap:noZone", "no trap in reach");
+  assert.equal(refusal("trap:noTools", armed), null, "no tools is the character's, and warned past");
+  assert.equal(refusal("trap:noTools", armed, "trapbreakHasty"), "trap:cannotTry", "a hard refusal behind a soft one is the one the lock names: the throw would meet it");
+  assert.equal(refusal("moved", armed), null, "a reason that is not a trap's is not this activity's to hold");
+  assert.equal(refusal("trap:noTools", armed, "searchHasty"), null, "nor on another activity's key");
+});
+
+await test("lockForJudge stays refused for the reason its activity's owner holds, and writes past the rest", () => {
+  const undoTrap = registerTurnActivity({
+    key: "qaTrap",
+    pace: "methodical",
+    options: () => [{ id: "u1", kind: "zone" }],
+    turns: () => 1,
+    blocked: () => ({ reason: "trap:alreadyDisarmed", missing: [] }),
+    resolve: () => null,
+  });
+  try {
+    const request = { actorId: "a", actor: actors.a, key: "qaTrap", option: "u1", by: "gm1" };
+    const offered = offeredActivities(actors.a, {});
+    const state = { member: { actorId: "a" } };
+    const held = lockForJudge({}, request, state, { offered, held: (reason) => (reason === "trap:alreadyDisarmed" ? reason : null) });
+    assert.deepEqual([held.ok, held.reason], [false, "trap:alreadyDisarmed"], "refused: the throw would be refused too");
+    const swapped = lockForJudge({}, request, state, { offered, held: () => "trap:cannotTry" });
+    assert.deepEqual([swapped.ok, swapped.reason], [false, "trap:cannotTry"], "the owner's reason is the one reported");
+    const soft = lockForJudge({}, request, state, { offered, held: () => null });
+    assert.equal(soft.ok, true, "a refusal the owner lets pass is written with its warning");
+    assert.equal(soft.warned.reason, "trap:alreadyDisarmed");
+  } finally {
+    undoTrap();
+  }
 });
 
 await test("a row's note: the Judge's warning and a player's reason, kept for the turn they were made on", () => {
