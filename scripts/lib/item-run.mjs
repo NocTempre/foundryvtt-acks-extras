@@ -521,7 +521,7 @@ function lifeOf(subjectToken, edge = "start") {
  * (`pressRoll`) and the target the GM recomputes (`pressHere`) both take their save through it, so the two
  * agree. A card holding no modifier, a zero or a figure that is no number adds nothing.
  */
-function cardSaveOptions(card) {
+export function cardSaveOptions(card) {
   const raw = card?.saveMod;
   const mod = raw === null || raw === undefined || raw === "" ? NaN : Number(raw);
   return Number.isFinite(mod) && mod !== 0 ? { situational: mod } : {};
@@ -1743,15 +1743,20 @@ async function pressUnknownCard({ messageId, requestUserId }, write) {
  * The GM's side of Heal on an unknown drinker's card: the drinker's owners (by
  * Foundry's test on the relayed seat) heal the drinker by the card's `healDice`,
  * the bearer's own heal (`healDrinker`), and the card is patched resolved
- * `{resolved: "heal", amount, rolled, resolvedBy}`. Blank or invalid dice leave the
- * card open and the press refused `noFigure`; a body that takes no hit points
- * refuses `failed`. Answers `{ok: true, state: "heal", amount, rolled, dice}` or
- * `{ok: false, reason}` with `gone`, `notOwner`, `applied`, `noFigure` or `failed`.
+ * `{resolved: "heal", amount, rolled, resolvedBy}`. Blank or invalid dice roll and
+ * write nothing and patch the card `{resolved: "judge", why: "figure"}`, the amount
+ * the Judge's; a body that takes no hit points refuses `failed`. Answers
+ * `{ok: true, state: "heal", amount, rolled, dice}`, `{ok: true, state: "judge"}` or
+ * `{ok: false, reason}` with `gone`, `notOwner`, `applied` or `failed`.
  */
 async function swigHealHere(p) {
   return pressUnknownCard(p, async ({ message, actor, card }) => {
     const healed = await healDrinker({ actor, token: card.drinkerTokenUuid ? fromUuidSync(card.drinkerTokenUuid) : null, dice: card.healDice, flavor: card.title ?? "" });
-    if (!healed.ok) return { ok: false, reason: healed.why === "figure" ? "noFigure" : "failed" };
+    if (!healed.ok && healed.why === "figure") {
+      await serialized(message.id, () => patchCard(message, { resolved: "judge", why: "figure", resolvedBy: p.requestUserId ?? game.user?.id ?? "" }));
+      return { ok: true, state: "judge" };
+    }
+    if (!healed.ok) return { ok: false, reason: "failed" };
     await serialized(message.id, () => patchCard(message, { resolved: "heal", amount: healed.amount, rolled: healed.rolled, resolvedBy: p.requestUserId ?? game.user?.id ?? "" }));
     return { ok: true, state: "heal", amount: healed.amount, rolled: healed.rolled, dice: healed.dice };
   });

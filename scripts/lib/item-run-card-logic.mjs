@@ -4,7 +4,9 @@
  * (`newCard`, the patches that change it), the raised-item card's table (who is
  * in range, how far, the save and its result), the whispered save card, the fuse
  * card (the light throw and the lit fuse's controls), the burst card (who the
- * blast reached, their saves and damage), the strip
+ * blast reached, their saves and damage), the swig's cards (a result card of
+ * lines, the unknown drinker's choice, and the save card a swig or an on-hit
+ * hit posts), the strip
  * a body in reach reads on its sheet, and the tooltips that say where each
  * figure came from. Words are
  * the caller's, localized; a tooltip is assembled text for `data-tooltip-text`.
@@ -557,6 +559,115 @@ export function burstCardModel({ title, subtitle, words, note, noteTooltip, roll
 export function blankBurstModel({ title, subtitle, words, why, cite = "" }) {
   const rows = why === "gone" ? [] : [{ name: words.blastRow, total: "", targetText: " ", ...(blankTip({ cite }) ? { targetTooltip: blankTip({ cite }) } : {}) }];
   return { title, ...(subtitle ? { subtitle } : {}), sections: [{ rows }], bare: true, lines: [why === "gone" ? words.burstGoneLine : words.burstJudgeLine] };
+}
+
+/* -------------------------------------------- */
+/*  The swig and the on-hit save (gear S9b)      */
+/* -------------------------------------------- */
+
+/**
+ * The tooltip of a figure a heal wrote: the amount, the dice and what they
+ * rolled, then the page. `amount` is what the write healed and may be less than
+ * `rolled`, so both are named.
+ *
+ * @param {{amount: number, dice: string, rolled: number, cite?: string, words: {rolled: string}}} p
+ */
+export function healTip({ amount, dice, rolled, cite = "", words }) {
+  return `${amount}: ${dice} ${words.rolled} ${rolled}${cite ? ` (${cite})` : ""}`;
+}
+
+/**
+ * The model of a card that is a short table of result lines, each with the
+ * tooltip of where its figure came from (a drinker's heal, the swigs left, an
+ * unknown drinker's heal once chosen). Each row is `{text, tip, emphasis}`,
+ * localized by the caller; a row with no tip draws none. `lines` are the plain
+ * small print under the table. Data only.
+ *
+ * @param {{title: string, subtitle?: string, head?: string, rows: Array<{text: string, tip?: string|null, emphasis?: string}>, lines?: string[]}} p
+ */
+export function resultCardModel({ title, subtitle, head = "", rows, lines = [] }) {
+  return {
+    title, ...(subtitle ? { subtitle } : {}),
+    sections: [{ rows: rows.map(({ text, tip, emphasis }) => ({ name: text, total: "", ...(tip ? { nameTooltip: tip } : {}), ...(emphasis ? { emphasis } : {}) })) }],
+    bare: true, ...(lines.length ? { lines } : {}), labels: { name: head, total: "" },
+  };
+}
+
+/**
+ * The card of a drinker whose kind the module cannot tell: a note, and where the
+ * seat may choose (`canPress`, a seat that owns the drinker's actor), one row per
+ * choice with its press, Heal and Ask the save. A seat that may not choose reads
+ * the note alone. Each row's text and tooltip are the caller's, localized; a
+ * blank figure is a row with no figure whose tooltip is the page alone.
+ *
+ * @param {object} p
+ * @param {string} p.title
+ * @param {string} [p.subtitle]
+ * @param {{heal: string, healPressTip: string, healAria: string, askSave: string, askSaveTip: string, askSaveAria: string}} p.words
+ * @param {string} p.note
+ * @param {{text: string, tip?: string|null}} p.healRow
+ * @param {{text: string, tip?: string|null}} p.askRow
+ * @param {string} p.messageId the card's own message, which both presses name
+ * @param {boolean} p.canPress
+ */
+export function swigUnknownModel({ title, subtitle, words, note, healRow, askRow, messageId, canPress }) {
+  const row = ({ text, tip }, action) => ({ name: text, total: "", ...(tip ? { nameTooltip: tip } : {}), actions: [action] });
+  const rows = canPress ? [
+    row(healRow, { action: "itemRun.swigHeal", label: words.heal, icon: "fa-solid fa-heart-pulse", data: { messageId }, tooltip: words.healPressTip, ariaLabel: words.healAria }),
+    row(askRow, { action: "itemRun.swigAskSave", label: words.askSave, icon: "fa-solid fa-dice-d20", data: { messageId }, tooltip: words.askSaveTip, ariaLabel: words.askSaveAria }),
+  ] : [];
+  return { title, ...(subtitle ? { subtitle } : {}), note, sections: [{ rows }], bare: true, labels: { name: "", total: "", actions: "" } };
+}
+
+/** One subject's row of a save card of an outcome kind (`swig`, `onHit`), by the state of its entry (open, applied, judge, undone). */
+function outcomeRowOf(r, { words, ids, seat, messageId, canSave }) {
+  const entry = r.entry ?? {};
+  const base = { name: r.name, ...(r.detail ? { detail: r.detail } : {}), ...(r.nameTooltip ? { nameTooltip: r.nameTooltip } : {}) };
+  const target = ["applied", "judge"].includes(r.state) && numOrNull(entry.target) !== null ? entry.target : r.target;
+  // A blank save is a blank cell whose tooltip is the page alone; a no-break space keeps the cell and its tooltip without a figure.
+  const figure = numOrNull(target) === null ? { targetText: " ", ...(r.targetTip ? { targetTooltip: r.targetTip } : {}) } : { target, ...(r.targetTip ? { targetTooltip: r.targetTip } : {}) };
+  const verdict = { ...base, total: entry.total ?? "", ...(r.targetTip ? { tooltipText: r.targetTip } : {}), ...figure, outcome: r.result?.text ?? "", ...(r.result?.tip ? { outcomeTooltip: r.result.tip } : {}) };
+  switch (r.state) {
+    case "applied": {
+      const undo = seat.mayUndo?.(entry, r.key) === true && (entry.recordIds?.length || entry.hp?.length) ? [{ action: "itemRun.undo", label: words.undo, icon: "fa-solid fa-rotate-left", data: { ...ids, subject: r.key, entryKey: r.entryKey, messageId }, tooltip: words.undoOutcomeTip, ariaLabel: words.undoOutcomeAria.replace("{name}", r.name) }] : [];
+      return { ...verdict, emphasis: entry.saved ? "success" : "failure", ...(undo.length ? { actions: undo } : {}) };
+    }
+    case "judge": return { ...verdict, emphasis: "muted" };
+    case "undone": return { ...base, total: "", ...figure, outcome: words.undone, emphasis: "muted" };
+    default: return {
+      ...base, total: "", ...figure,
+      actions: seat.ownsSubject?.(r.key) === true && canSave ? [{ action: "itemRun.roll", label: words.save, icon: "fa-solid fa-shield-halved", data: { ...ids, subject: r.key, entryKey: r.entryKey, messageId }, tooltip: words.saveTip, ariaLabel: words.saveAria.replace("{name}", r.name) }] : [],
+    };
+  }
+}
+
+/**
+ * The model of a save card an outcome kind posts (`swig`, `onHit`): a row per
+ * subject with its save target and, while its entry is open, a Save press for a
+ * seat that owns the subject (a Judge's seat owns every one; the press names the
+ * entry's key so the writer finds it). A verdict row reads the total, the target
+ * and the result line the caller built (`result`: `{text, tip}`), with Undo for
+ * the seat that pressed or owns the subject while the entry holds something
+ * written. A judge row reads the caller's reason in the Result column. A card
+ * that names no save has no press and draws `lines`.
+ *
+ * @param {object} p
+ * @param {string} p.title
+ * @param {string} [p.subtitle]
+ * @param {object} p.words `undo`, `undone`, `save`, `saveTip`, `saveAria`, `undoOutcomeTip`, `undoOutcomeAria`, localized
+ * @param {Array<{key: string, name: string, state: string, entryKey: string, entry?: object, target?: number|null, targetTip?: string|null, detail?: string, nameTooltip?: string, result?: {text: string, tip?: string|null}}>} p.rows
+ * @param {{itemUuid: string, rowKey: string, activationId: string}} p.ids
+ * @param {string} p.messageId the card's own message
+ * @param {boolean} [p.canSave] the card names a save, so a Save press can roll it
+ * @param {string[]} [p.lines] small print under the table
+ * @param {{ownsSubject?: (key: string) => boolean, mayUndo?: (entry: object, key: string) => boolean}} [p.seat]
+ */
+export function outcomeCardModel({ title, subtitle, words, rows, ids, messageId, canSave = true, lines = [], seat = {} }) {
+  return {
+    title, ...(subtitle ? { subtitle } : {}),
+    sections: [{ rows: rows.map((r) => outcomeRowOf(r, { words, ids, seat, messageId, canSave })) }],
+    bare: true, ...(lines.length ? { lines } : {}), labels: { actions: "" },
+  };
 }
 
 

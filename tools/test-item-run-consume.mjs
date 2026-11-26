@@ -325,10 +325,11 @@ await t("Heal on an unknown drinker's card is the owners' by Foundry ownership: 
   assert.equal(other.system.hp.value, 12);
 });
 
-await t("Heal with a blank figure is refused as noFigure and leaves the card open", async () => {
+await t("Heal with a blank figure rolls and writes nothing and leaves the amount the Judge's", async () => {
   const { actor, id } = await unknownCard({ healDice: "" });
-  assert.deepEqual(await as("swigHeal", { messageId: id }, "owner"), { ok: false, reason: "noFigure" });
-  assert.deepEqual([cardAt(id).resolved, actor.system.hp.value, RollStub.made], [undefined, 10, []]);
+  assert.deepEqual(await as("swigHeal", { messageId: id }, "owner"), { ok: true, state: "judge" });
+  assert.deepEqual([cardAt(id).resolved, cardAt(id).why, actor.system.hp.value, RollStub.made], ["judge", "figure", 10, []]);
+  assert.equal((await as("swigHeal", { messageId: id }, "owner")).reason, "applied", "a settled card takes no second press");
 });
 
 await t("Ask the save turns the unknown card into the swig save card in place, and Save then works on it", async () => {

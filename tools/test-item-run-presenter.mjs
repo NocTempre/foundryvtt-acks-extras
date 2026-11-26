@@ -1037,5 +1037,240 @@ await t("a burst that could not happen whispers the Judges a line naming the ite
   globalThis.fromUuidSync = gear.prior;
   me.current = users[0];
 });
+/* -------------------------------------------- */
+/*  The swig and the on-hit save                 */
+/* -------------------------------------------- */
+
+const swigEnv = { prior: globalThis.fromUuidSync, format: globalThis.game.i18n.format, warn: globalThis.ui.notifications.warn };
+const drinkerActor = { uuid: "A.d", name: "Drinker", system: { saves: { death: { value: 12 } } }, testUserPermission: ownedBy("gm", "pa") };
+const drinkerToken = { id: "d", uuid: "S.d", name: "Drinker", actor: drinkerActor, testUserPermission: ownedBy("gm", "pa") };
+const struckActor = { uuid: "A.s", name: "Struck", system: { saves: { blast: { value: 14 } } }, testUserPermission: ownedBy("gm", "pb") };
+const struckToken = { id: "st", uuid: "S.s", name: "Struck", actor: struckActor, testUserPermission: ownedBy("gm", "pb") };
+const archer = { uuid: "A.at", name: "Archer", testUserPermission: ownedBy("gm", "pa") };
+const swigDocs = { "S.d": drinkerToken, "A.d": drinkerActor, "S.s": struckToken, "A.s": struckActor, "A.at": archer };
+globalThis.fromUuidSync = (uuid) => swigDocs[uuid] ?? swigEnv.prior(uuid);
+// A format that keeps its data, so a figure a line was built with is visible: `key[a=1,b=2]`.
+globalThis.game.i18n.format = (key, data = {}) => {
+  const bits = Object.entries(data).map(([k, v]) => `${k}=${v}`).join(",");
+  return bits ? `${key}[${bits}]` : key;
+};
+const warned = [];
+globalThis.ui.notifications.warn = (text) => warned.push(text);
+const L = (key) => `ACKS-LIB.itemRun.card.${key}`;
+const seen = [];
+const outcomeFor = (act) => cardOfAct(act).flags["acks-extras"].itemRunCard;
+const bodyOf = (kind, act, user) => {
+  const html = bodyFor(kind, act, user);
+  seen.push(html);
+  return html;
+};
+const outcomePost = (kind, act, over = {}) => ({ ok: true, kind, itemUuid: "I.dr", itemName: "Jug", activationId: act, rowKey: kind, actorUuid: "A.d", actorName: "Drinker", subtitle: "Drinker", subjects: [{ key: "S.d", name: "Drinker" }], saveName: "death", saveMod: null, facts: { successHealDice: "1d6", condition: "held", cite: "Book p. 7" }, card: {}, ...over });
+const buttons = (html, action) => (html.match(new RegExp(`data-action="${action}"`, "g")) ?? []).length;
+
+await t("a drinker's own swig posts one small card: the heal with its dice, what they rolled and the page, and the swigs left with the count before; an uncounted jug draws no count; a Judge's reason carries the page alone", async () => {
+  const consume = { ok: true, kind: "consume", outcome: "heal", itemUuid: "I.dr", itemName: "Jug", actorUuid: "A.d", actorName: "Drinker", tokenUuid: "S.d", left: { before: 3, after: 2 }, heal: { dice: "2d4", rolled: 7, amount: 5 }, why: "" };
+  const before = messages.length;
+  await presenter.presentUse(consume);
+  assert.equal(messages.length - before, 1, "one card");
+  const card = messages.at(-1).flags["acks-extras"].itemRunCard;
+  assert.deepEqual([card.kind, card.title, card.bearer.name, card.outcome, card.heal, card.left], ["consume", "Jug", "Drinker", "heal", { dice: "2d4", rolled: 7, amount: 5 }, { before: 3, after: 2 }], "it stores what its body draws");
+  const html = presenter.consumeBody(messages.at(-1), card);
+  seen.push(html);
+  assert.ok(html.includes(L("swigTitle") + "[item=Jug]") && html.includes(L("healedLine") + "[amount=5]"), "titled for the item, the line names what the write healed");
+  assert.ok(html.includes(`data-tooltip-text="5: 2d4 ${L("damageTip.rolled")} 7 (${L("citeSwig")})"`), "the heal's tooltip: the amount, the dice, the rolled figure and the page");
+  assert.ok(html.includes(L("swigsLeft") + "[after=2]") && html.includes(`data-tooltip-text="${L("swigsLeftTip")}[before=3] (${L("citeSwig")})"`), "the swigs left, and the count before this swig");
+  assert.ok(!html.includes("<button"), "no press");
+  await presenter.presentUse({ ...consume, left: { before: null, after: null } });
+  const bare = presenter.consumeBody(messages.at(-1), messages.at(-1).flags["acks-extras"].itemRunCard);
+  assert.ok(!bare.includes(L("swigsLeft")), "an uncounted jug names no count");
+  await presenter.presentUse({ ...consume, outcome: "judge", heal: null, why: "several" });
+  const judge = presenter.consumeBody(messages.at(-1), messages.at(-1).flags["acks-extras"].itemRunCard);
+  seen.push(judge);
+  assert.ok(judge.includes(L("why.several")) && !judge.includes(L("healedLine")) && judge.includes(`data-tooltip-text="${L("citeSwig")}"`), "a Judge's reason, its tooltip the page alone");
+  await presenter.presentUse({ ...consume, outcome: "judge", heal: null, why: "figure" });
+  assert.ok(presenter.consumeBody(messages.at(-1), messages.at(-1).flags["acks-extras"].itemRunCard).includes(L("why.figure")), "a blank figure reads as the Judge's");
+});
+
+await t("a posted outcome card stores the way a burst card does: the kind's facts, the subject keyed by safeKey, the save and its modifier, and no entries yet", async () => {
+  const before = messages.length;
+  await presenter.presentUse(outcomePost("swig", "sw1"));
+  assert.equal(messages.length - before, 1);
+  const card = outcomeFor("sw1");
+  assert.deepEqual([card.kind, card.rowKey, card.title, card.itemUuid, card.activationId, card.saveName, card.saveMod, card.actorUuid], ["swig", "swig", "Jug", "I.dr", "sw1", "death", null, "A.d"]);
+  assert.deepEqual([card.successHealDice, card.condition, card.cite], ["1d6", "held", "Book p. 7"], "the facts are on the card, since the item may be gone");
+  assert.deepEqual([card.bearer, card.subjects, card.entries], [{ uuid: "A.d", name: "Drinker" }, { "S~d": { uuid: "S.d", name: "Drinker", state: "in", latest: "" } }, {}]);
+  assert.equal(messages.at(-1).content.includes("Jug"), true, "the stored message reads as the banner");
+  await presenter.presentUse(outcomePost("onHit", "sw2", { itemName: "Dart", subtitle: "Archer", actorUuid: "A.at", actorName: "Archer", subjects: [{ key: "S.s", name: "Struck" }], saveName: "blast", saveMod: 2, facts: { formula: "1d4", delayTurns: 3, source: "Barb", cite: "Book p. 12", struckAt: 100 } }));
+  const hit = outcomeFor("sw2");
+  assert.deepEqual([hit.kind, hit.title, hit.subtitle, hit.bearer.name, hit.saveMod, hit.formula, hit.delayTurns, hit.source, hit.struckAt, Object.keys(hit.subjects)], ["onHit", "Dart", "Archer", "Archer", 2, "1d4", 3, "Barb", 100, ["S~s"]]);
+  await presenter.presentUse(outcomePost("swigUnknown", "sw3", { saveName: "", facts: { drinkerTokenUuid: "S.d", drinkerActorUuid: "A.d", healDice: "2d4", saveKind: "death", successHealDice: "1d6", condition: "held", cite: "Book p. 7" } }));
+  assert.deepEqual([outcomeFor("sw3").kind, outcomeFor("sw3").drinkerActorUuid, outcomeFor("sw3").healDice, outcomeFor("sw3").saveName], ["swigUnknown", "A.d", "2d4", ""]);
+  await presenter.presentUse({ ...outcomePost("swig", "sw4"), ok: false });
+  assert.ok(!cardOfAct("sw4"), "a refused post draws nothing");
+});
+
+await t("a swig's save card: the Save press is offered to the drinker's owners and the Judges, names the entry's key and the card, and a seat that owns neither reads the row without it", async () => {
+  const gm = bodyOf("outcomeBody", "sw1", users[0]);
+  const owner = bodyOf("outcomeBody", "sw1", users[1]);
+  const other = bodyOf("outcomeBody", "sw1", users[2]);
+  for (const html of [gm, owner]) {
+    assert.equal(buttons(html, "itemRun.roll"), 1, "one Save press");
+    assert.ok(html.includes('data-entry-key="S~d"') && html.includes(`data-message-id="${cardOfAct("sw1").id}"`) && html.includes('data-subject="S.d"') && html.includes('data-row-key="swig"') && html.includes('data-activation-id="sw1"'), "it names the entry's key, the card, the subject and the ids");
+    assert.ok(html.includes(`aria-label="${L("saveAria")}"`), "and has an accessible name");
+  }
+  assert.ok(other.includes('<span class="acks-extras-roll-detail">death</span>') && !other.includes("<button"), "a seat that owns nothing here reads the drinker's row and presses nothing");
+  assert.ok(gm.includes(L("swigTitle") + "[item=Jug]") && gm.includes(`data-tooltip-text="death 12+ (Book p. 7)"`), "the target's tooltip names the save, its figure and the page");
+  assert.ok(gm.includes('<span class="acks-extras-roll-detail">death</span>'), "the save is named under the drinker");
+  me.current = users[0];
+});
+
+await t("a swig's verdict lines: a pass reads Saved with what it healed (the success dice and the page in its tooltip), a failure the condition and how long, a judge entry the Judge's line; Undo goes to the presser or an owner while something is written", async () => {
+  const entries = outcomeFor("sw1").entries;
+  entries["S~d"] = { subject: "S.d", state: "applied", saved: true, total: 14, target: 12, amount: 4, hp: [{ uuid: "A.d", amount: -4 }], recordIds: [], presser: "pa" };
+  const pass = bodyOf("outcomeBody", "sw1", users[1]);
+  assert.ok(pass.includes(`${L("saved")} · ${L("healed")} 4`), "Saved · healed 4");
+  assert.ok(pass.includes(`data-tooltip-text="${L("successHealTip")}: 1d6 (Book p. 7)"`), "the dice that healed and the page");
+  assert.ok(pass.includes(">14<") && pass.includes("12+"), "the total and the target");
+  assert.equal(buttons(pass, "itemRun.undo"), 1, "the presser may undo the heal");
+  assert.equal(buttons(bodyOf("outcomeBody", "sw1", users[0]), "itemRun.undo"), 1, "a Judge owns the drinker too");
+  assert.equal(buttons(bodyOf("outcomeBody", "sw1", users[2]), "itemRun.undo"), 0, "a seat that owns neither has none");
+  assert.ok(!pass.includes('data-action="itemRun.roll"'), "no Save press once the entry holds a verdict");
+  entries["S~d"] = { subject: "S.d", state: "applied", saved: true, total: 14, target: 12, amount: 0, hp: [], recordIds: [], presser: "pa" };
+  assert.equal(buttons(bodyOf("outcomeBody", "sw1", users[1]), "itemRun.undo"), 0, "a pass that healed nothing wrote nothing to undo");
+  entries["S~d"] = { subject: "S.d", state: "applied", saved: false, total: 5, target: 12, recordIds: ["e1"], names: ["Held"], life: "turn", presser: "pa" };
+  const fail = bodyOf("outcomeBody", "sw1", users[1]);
+  assert.ok(fail.includes(`${L("failed")} · Held, ${L("life.turn")}`), "Failed · the condition, and how long the existing cards say it lasts");
+  assert.ok(fail.includes(`data-tooltip-text="${L("conditionTip")}: Held (Book p. 7)"`) && buttons(fail, "itemRun.undo") === 1);
+  entries["S~d"] = { subject: "S.d", state: "judge", saved: true, total: 14, target: 12, why: "figure", presser: "pa" };
+  const judge = bodyOf("outcomeBody", "sw1", users[0]);
+  assert.ok(judge.includes(L("why.figure")) && judge.includes('data-tooltip-text="Book p. 7"') && buttons(judge, "itemRun.undo") === 0, "the Judge's line, the page alone, nothing to undo");
+  entries["S~d"] = { subject: "S.d", state: "undone", saved: false, total: 5, target: 12, presser: "pa" };
+  const undone = bodyOf("outcomeBody", "sw1", users[0]);
+  assert.ok(undone.includes(L("undone")) && buttons(undone, "itemRun.undo") === 0 && buttons(undone, "itemRun.roll") === 0, "an undone entry says so and offers nothing");
+  me.current = users[0];
+});
+
+await t("a swig that names no save has no Save press: the target cell is blank with the page alone, and the Judge's line says so", async () => {
+  await presenter.presentUse(outcomePost("swig", "sw5", { saveName: "", facts: { successHealDice: null, condition: null, cite: "" } }));
+  const html = bodyOf("outcomeBody", "sw5", users[0]);
+  assert.ok(!html.includes("<button") && html.includes(L("noSaveLine")), "no press, the Judge's line");
+  assert.ok(html.includes(`data-tooltip-text="${L("citeSwig")}"`), "a blank swig kind cites the swig's page; no number stands in");
+  assert.ok(!html.includes("acks-extras-roll-detail"), "no save is named");
+});
+
+await t("an on-hit card speaks for the attacker: the struck token's owner presses Save, the attacker's owner does not, the save reads with its modifier and the row it came from, and a failure reads the delayed damage with its tooltip", async () => {
+  const gm = bodyOf("outcomeBody", "sw2", users[0]);
+  const struckOwner = bodyOf("outcomeBody", "sw2", users[2]);
+  const attackerOwner = bodyOf("outcomeBody", "sw2", users[1]);
+  assert.equal(buttons(gm, "itemRun.roll"), 1);
+  assert.ok(struckOwner.includes('data-action="itemRun.roll"') && struckOwner.includes('data-entry-key="S~s"'), "the struck body's owner presses, with the entry's key");
+  assert.ok(!attackerOwner.includes("<button") && !attackerOwner.includes("Struck"), "owning the attacker is not owning the struck body: its row is not shown to that seat");
+  assert.ok(gm.includes("Dart") && gm.includes("Archer") && !gm.includes(L("swigTitle")), "titled for the source, speaking as the attacker");
+  assert.ok(gm.includes('<span class="acks-extras-roll-detail">blast +2</span>'), "the save with its modifier");
+  assert.ok(gm.includes(`data-tooltip-text="${L("saveModTip")}[source=Barb]: +2 (Book p. 12)"`), "the modifier's tooltip names its source row and the page");
+  assert.ok(gm.includes("blast 14+") && gm.includes("Situational"), "the target's tooltip lists the modifier among its parts");
+  const entries = outcomeFor("sw2").entries;
+  entries["S~s"] = { subject: "S.s", state: "applied", saved: false, total: 3, target: 14, recordIds: ["r1"], names: ["Barb"], life: "timed", presser: "pb" };
+  const failed = bodyOf("outcomeBody", "sw2", users[2]);
+  assert.ok(failed.includes(`${L("failed")} · ${L("onHitLine")}[formula=1d4,delayTurns=3]`), "Failed · the formula in its turns");
+  assert.ok(failed.includes(`data-tooltip-text="${L("onHitTip")}[source=Barb]: ${L("onHitLine")}[formula=1d4,delayTurns=3] (Book p. 12)"`), "read from the imported row, with its page");
+  assert.equal(buttons(failed, "itemRun.undo"), 1, "undo for the presser");
+  entries["S~s"] = { subject: "S.s", state: "applied", saved: true, total: 15, target: 14, recordIds: [], presser: "pb" };
+  const passed = bodyOf("outcomeBody", "sw2", users[2]);
+  assert.ok(passed.includes(L("saved")) && !passed.includes(L("onHitLine")) && buttons(passed, "itemRun.undo") === 0, "a pass is Saved and writes nothing");
+  entries["S~s"] = { subject: "S.s", state: "judge", saved: false, total: 3, target: 14, why: "figure", presser: "pb" };
+  assert.ok(bodyOf("outcomeBody", "sw2", users[0]).includes(L("why.figure")), "a blank figure is the Judge's line");
+  await presenter.presentUse(outcomePost("onHit", "sw6", { itemName: "Dart", actorUuid: "A.at", actorName: "Archer", subjects: [{ key: "S.s", name: "Struck" }], saveName: "blast", saveMod: null, facts: { formula: "1d4", delayTurns: 3, source: "Barb", cite: "", struckAt: null } }));
+  const plain = bodyOf("outcomeBody", "sw6", users[0]);
+  assert.ok(!plain.includes("blast +") && !plain.includes(L("saveModTip")), "no modifier, none drawn");
+  outcomeFor("sw6").entries["S~s"] = { subject: "S.s", state: "applied", saved: false, total: 3, target: 14, recordIds: ["r1"], names: ["Barb"], life: "timed", presser: "pb" };
+  const noPage = bodyOf("outcomeBody", "sw6", users[0]);
+  assert.ok(noPage.includes(`data-tooltip-text="${L("onHitTip")}[source=Barb]: ${L("onHitLine")}[formula=1d4,delayTurns=3]"`), "an item that prints no page cites none, and no page is borrowed");
+  me.current = users[0];
+});
+
+await t("an unknown drinker's card: Heal and Ask the save for a seat that owns the drinker's actor (a Judge's seat owns every one), the note alone for any other seat, and blank dice a blank cell with the page", async () => {
+  const gm = bodyOf("swigUnknownBody", "sw3", users[0]);
+  const owner = bodyOf("swigUnknownBody", "sw3", users[1]);
+  const other = bodyOf("swigUnknownBody", "sw3", users[2]);
+  for (const html of [gm, owner]) {
+    assert.ok(buttons(html, "itemRun.swigHeal") === 1 && buttons(html, "itemRun.swigAskSave") === 1, "both presses");
+    assert.ok(html.includes(`data-message-id="${cardOfAct("sw3").id}"`) && html.includes(`aria-label="${L("healAria")}"`) && html.includes(`aria-label="${L("askSaveAria")}"`), "each names the card and has an accessible name");
+    assert.ok(html.includes(L("unknownNote") + " (Book p. 7)") && html.includes(L("unknownHeal") + "[dice=2d4]") && html.includes(L("unknownAsk") + "[kind=death]"), "the note with its page, and each choice with its figure");
+    assert.ok(html.includes(`data-tooltip-text="${L("unknownHealLabel")}[item=Jug]: 2d4 (Book p. 7)"`) && html.includes(`data-tooltip-text="${L("unknownAskLabel")}[item=Jug]: death (Book p. 7)"`), "each figure's tooltip: read from the imported row, with its page");
+    assert.ok(html.includes(L("swigTitle") + "[item=Jug]"));
+  }
+  assert.ok(!other.includes("<button") && other.includes(L("unknownNoteOther") + " (Book p. 7)") && !other.includes(L("unknownHeal")), "a seat that does not own the drinker reads the card without the choice");
+  await presenter.presentUse(outcomePost("swigUnknown", "sw7", { saveName: "", facts: { drinkerTokenUuid: "S.d", drinkerActorUuid: "A.d", healDice: null, saveKind: null, successHealDice: null, condition: null, cite: "" } }));
+  const blank = bodyOf("swigUnknownBody", "sw7", users[0]);
+  assert.ok(blank.includes(L("unknownHealBlank")) && blank.includes(L("unknownAskBlank")) && !blank.includes("dice=") && !blank.includes("kind="), "a blank figure is blank");
+  assert.ok(blank.includes(`data-tooltip-text="${L("citeSwig")}"`) && buttons(blank, "itemRun.swigHeal") === 1, "its tooltip is the page alone, and the press stays");
+  me.current = users[0];
+});
+
+await t("Heal turns the unknown card into the heal it wrote, with no press; Ask the save turns it into the swig save card in place, which draws as one and offers Save to the drinker's owners", async () => {
+  const stored = outcomeFor("sw3");
+  Object.assign(stored, { resolved: "heal", amount: 4, rolled: 6, resolvedBy: "pa" });
+  const healed = bodyOf("cardBody", "sw3", users[1]);
+  assert.ok(healed.includes(L("healedLine") + "[amount=4]") && healed.includes(`data-tooltip-text="4: 2d4 ${L("damageTip.rolled")} 6 (Book p. 7)"`) && !healed.includes("<button"), "Healed, the dice and the page, no presses");
+  Object.assign(stored, { resolved: "judge", why: "figure" });
+  const judged = bodyOf("cardBody", "sw3", users[1]);
+  assert.ok(judged.includes(L("why.figure")) && !judged.includes("<button"), "a Heal with blank dice leaves the Judge's line and no presses");
+  delete stored.resolved;
+  delete stored.why;
+  Object.assign(stored, { kind: "swig", rowKey: "swig", saveName: "death", asked: true, askedBy: "pa" });
+  const asked = bodyOf("cardBody", "sw3", users[1]);
+  assert.ok(asked.includes('data-action="itemRun.roll"') && asked.includes('data-entry-key="S~d"') && !asked.includes("itemRun.swigHeal") && asked.includes(`data-tooltip-text="death 12+ (Book p. 7)"`), "it re-dispatches on its live kind");
+  me.current = users[0];
+});
+
+await t("a press on the unknown card's buttons reaches the runtime's presses and a refusal is told: Ask the save by the drinker's owner flips the card, and a second press is refused as answered", async () => {
+  await presenter.presentUse(outcomePost("swigUnknown", "sw8", { saveName: "", facts: { drinkerTokenUuid: "S.d", drinkerActorUuid: "A.d", healDice: "2d4", saveKind: "death", successHealDice: "1d6", condition: "held", cite: "Book p. 7" } }));
+  const message = cardOfAct("sw8");
+  me.current = users[0];
+  const button = (action) => ({ dataset: { action, messageId: message.id } });
+  warned.length = 0;
+  await presenter.press(message, button("itemRun.swigAskSave"));
+  const card = outcomeFor("sw8");
+  assert.deepEqual([card.kind, card.rowKey, card.saveName, card.asked, warned.length], ["swig", "swig", "death", true, 0], "the press reached swigAskSave and the card is the save card");
+  await presenter.press(message, button("itemRun.swigHeal"));
+  assert.deepEqual(warned, ["ACKS-LIB.itemRun.refused.applied"], "a press on a card already answered is refused, and the refusal is told");
+});
+
+await t("a press follows the document it writes, by ownership and never by role: Heal and Ask the save read the drinker's actor, Save reads the token, and a seat that declares itself a Judge and owns neither is offered nothing", async () => {
+  const held = { token: drinkerToken.testUserPermission, actor: drinkerActor.testUserPermission };
+  users.push({ id: "pc" }, { id: "gj", isGM: true });
+  const [pa, pc, gj] = [users[1], users.at(-2), users.at(-1)];
+  drinkerActor.testUserPermission = ownedBy("gm", "pa");
+  drinkerToken.testUserPermission = ownedBy("gm", "pc");
+  await presenter.presentUse(outcomePost("swigUnknown", "sw9", { saveName: "", facts: { drinkerTokenUuid: "S.d", drinkerActorUuid: "A.d", healDice: "2d4", saveKind: "death", successHealDice: "1d6", condition: "held", cite: "Book p. 7" } }));
+  const actorOwner = bodyOf("swigUnknownBody", "sw9", pa);
+  const tokenOwner = bodyOf("swigUnknownBody", "sw9", pc);
+  const roleOnly = bodyOf("swigUnknownBody", "sw9", gj);
+  assert.ok(buttons(actorOwner, "itemRun.swigHeal") === 1 && buttons(actorOwner, "itemRun.swigAskSave") === 1, "the owner of the drinker's actor is offered the choice");
+  assert.ok(!tokenOwner.includes("<button") && !roleOnly.includes("<button"), "an owner of the token alone, and a seat that is a Judge by role only, are not");
+  await presenter.presentUse(outcomePost("swig", "sw10"));
+  assert.equal(buttons(bodyOf("outcomeBody", "sw10", pc), "itemRun.roll"), 1, "the Save press follows the token: its owner has it");
+  assert.equal(buttons(bodyOf("outcomeBody", "sw10", pa), "itemRun.roll"), 0, "and the owner of the actor alone does not");
+  assert.equal(buttons(bodyOf("outcomeBody", "sw10", gj), "itemRun.roll"), 0, "a role presses nothing");
+  drinkerToken.testUserPermission = held.token;
+  drinkerActor.testUserPermission = held.actor;
+  users.splice(-2, 2);
+  me.current = users[0];
+});
+
+await t("every key a swig or on-hit card draws is in lang/en.json, and no card uses a title attribute", async () => {
+  const { readFileSync } = await import("node:fs");
+  const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  const used = new Set(seen.flatMap((html) => html.match(/ACKS-LIB\.[A-Za-z0-9_.]+/g) ?? []).map((key) => key.replace(/\.+$/, "")));
+  assert.ok(used.size > 15, "the bodies drew their words");
+  assert.deepEqual([...used].filter((key) => !(key in lang)), [], "each key exists");
+  assert.ok(seen.every((html) => !/\stitle="/.test(html)), "tooltips are core's, never a title attribute");
+});
+
+globalThis.fromUuidSync = swigEnv.prior;
+globalThis.game.i18n.format = swigEnv.format;
+globalThis.ui.notifications.warn = swigEnv.warn;
+me.current = users[0];
 
 console.log(`\ntest-item-run-presenter: ${passed} checks passed.`);

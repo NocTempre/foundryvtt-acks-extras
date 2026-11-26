@@ -13,6 +13,13 @@
  *   happen whispers the Judges a line and posts no table. The body is built for the
  *   seat that views it, each press offered by ownership of what it acts on.
  *
+ * - A swig draws one of three cards: the drinker's own heal or the Judge's reason
+ *   as a small result card (`kind: "consume"`), and the prompt cards a feature
+ *   posts through `postOutcomeCard` (`swig`, `onHit`: a Save press per subject its
+ *   owner may press, and the verdict's result line; `swigUnknown`: Heal and Ask the
+ *   save for the owners of the drinker's actor, which Ask the save turns into a
+ *   `swig` card in place). A stored card's live kind picks its body.
+ *
  * - An always-on engaged reach (T10, `isEngagedActivation`) raises no card: its
  *   prompt posts, or joins, the engaged card of its subject's moment, one row per
  *   item kind with every bearer of the kind named on it (board 5b), and whispers
@@ -43,8 +50,8 @@ import { itemCite, itemRunRowsOf, mayUndoEntry, promptCardModel, reachFigures } 
 import { HP_REASON } from "./hp-logic.mjs";
 import { actorDefenses, defenseFigures, defenseStage } from "./defenses.mjs";
 import { pickPoint } from "./point-pick.mjs";
-import { admittedWithCount, blankBurstModel, blankTip, burstCardModel, burstDamageOf, countSubjectAction, damageTip, fuseCardModel, throwTip, engagedCardKey, engagedCardModel, engagedEntry, isCountedIn, newEngagedCard, openEngagedOf, ownsEveryBearer, patchEngagedPrompt, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard, signedFigure, standingPartTip, unsettledRows } from "./item-run-card-logic.mjs";
-import { applyAllEntries, applyEntry, cardOf, handOn, kindKeyOf, moveFuseSpot, notEngaged, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setFuseOffNow, setPressListener, setUsePresenter, tickBearer, tickSubject, undoCardEntry, untickBearer } from "./item-run.mjs";
+import { admittedWithCount, blankBurstModel, blankTip, burstCardModel, burstDamageOf, countSubjectAction, damageTip, fuseCardModel, healTip, importTip, outcomeCardModel, resultCardModel, swigUnknownModel, throwTip, engagedCardKey, engagedCardModel, engagedEntry, isCountedIn, newEngagedCard, openEngagedOf, ownsEveryBearer, patchEngagedPrompt, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard, signedFigure, standingPartTip, unsettledRows } from "./item-run-card-logic.mjs";
+import { applyAllEntries, applyEntry, cardOf, cardSaveOptions, handOn, kindKeyOf, moveFuseSpot, notEngaged, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setFuseOffNow, setPressListener, setUsePresenter, swigAskSave, swigHeal, tickBearer, tickSubject, undoCardEntry, untickBearer } from "./item-run.mjs";
 import { saveSpec } from "./saves.mjs";
 import { tokenEdgeGapFeet } from "./distance-units.mjs";
 import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
@@ -84,13 +91,16 @@ const storedContent = (title, subtitle) => renderRollCard({ title, subtitle, bar
 /*  What a use or a moment draws                 */
 /* -------------------------------------------- */
 
-/** The use of an item: a raise posts the raised card and replays the moments that came first; a once-only use posts its card. */
+/** The use of an item: a raise posts the raised card and replays the moments that came first; a once-only use, a fuse, a burst, a swig and an outcome card each post theirs. */
 async function present(result) {
   if (result?.kind === "toggle" && result.active) return postRaised(result);
   if (result?.kind === "once") return postOnce(result);
   if (result?.kind === "reach") return onReach(result);
   if (result?.kind === "fuse") return postFuse(result);
   if (result?.kind === "burst") return postBurst(result);
+  if (result?.kind === "consume") return postConsume(result);
+  // A card of a kind some feature owns (`postOutcomeCard`): its `rowKey` is its kind.
+  if (result?.ok === true && result.card && Array.isArray(result.subjects) && typeof result.kind === "string" && result.rowKey === result.kind) return postOutcome(result);
   return null;
 }
 
@@ -327,6 +337,51 @@ async function postBurst(result) {
   posted.set(result.activationId, made?.id ?? null);
 }
 
+/* -------------------------------------------- */
+/*  The swig and the on-hit save                 */
+/* -------------------------------------------- */
+
+/** The page that prints the swig, the module's one citation for its cards where the item names none. */
+const swigCite = () => loc("itemRun.card.citeSwig");
+
+/** A figure read from an imported row as a tooltip: the row's label, the figure and its page; the label and figure alone where the item names no page. */
+const rowTip = ({ label, figure, cite }) => importTip({ label, figure, cite }) ?? `${label}: ${figure}`;
+
+/**
+ * A drinker's own swig (`runConsume` with the bearer's own kind, or nothing
+ * healed): one small result card. It stores what its body draws, since the item
+ * may be gone: the heal's dice, rolled figure and amount, the Judge's reason,
+ * the swigs left and the page.
+ */
+async function postConsume(result) {
+  const item = fromUuidSync(result.itemUuid ?? "");
+  const token = fromUuidSync(result.tokenUuid ?? "");
+  const bearer = { uuid: result.actorUuid ?? "", name: result.actorName ?? "" };
+  const card = {
+    ...newCard({ itemUuid: result.itemUuid ?? "", rowKey: "", activationId: foundry.utils.randomID(), kind: "consume", bearer, cardId: foundry.utils.randomID() }),
+    title: result.itemName ?? item?.name ?? "", cite: itemCite(item) || swigCite(), outcome: result.outcome ?? "judge", heal: result.heal ?? null, why: result.why ?? "", left: result.left ?? { before: null, after: null },
+  };
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker?.({ token }), content: storedContent(card.title, bearer.name), flags: { [MODULE_ID]: { [FLAG_ITEM_RUN_CARD]: card } } });
+}
+
+/**
+ * A prompt card of a kind some feature owns (`postOutcomeCard`: `swig`,
+ * `swigUnknown`, `onHit`): stored the way a burst card is, with the facts the
+ * kind's presses read, one subject entry per struck or drinking token keyed by
+ * `safeKey` and no entries yet. Nothing here draws a number; the body reads the
+ * card live for each seat.
+ */
+async function postOutcome(result) {
+  const bearer = { uuid: result.actorUuid ?? "", name: result.actorName ?? "" };
+  const doc = bearer.uuid ? fromUuidSync(bearer.uuid) : null;
+  const card = {
+    ...newCard({ itemUuid: result.itemUuid ?? "", rowKey: result.rowKey, activationId: result.activationId, kind: result.kind, bearer, cardId: foundry.utils.randomID() }),
+    title: result.itemName ?? "", subtitle: result.subtitle || bearer.name, ...(result.facts ?? {}), saveName: result.saveName ?? "", saveMod: result.saveMod ?? null, actorUuid: bearer.uuid,
+    subjects: Object.fromEntries((result.subjects ?? []).map((s) => [safeKey(s.key), { uuid: s.key, name: s.name, state: "in", latest: "" }])), entries: {},
+  };
+  await ChatMessage.create({ speaker: ChatMessage.getSpeaker?.({ actor: doc?.actor ?? doc }), content: storedContent(card.title, card.subtitle), flags: { [MODULE_ID]: { [FLAG_ITEM_RUN_CARD]: card } } });
+}
+
 /** The words the fuse card and the burst card show, localized: `itemRun.card.<key>` for each, with the nested ones read apart. */
 const FUSE_WORD_KEYS = ["throw", "base", "lit", "unlit", "fumble", "judgeDecides", "unlitLine", "fumbleLine", "judgeLine", "fuseHint", "moveSpot", "moveSpotTip", "moveSpotAria", "setOff", "setOffTip", "setOffAria"];
 const BURST_WORD_KEYS = ["inArea", "damage", "apply", "applyTip", "applyAria", "applyAll", "applyAllTip", "applyAllAria", "undoApplyTip", "undoAria", "saveAria", "handOn", "handOnTip", "handOnAria", "handed", "structure", "blastRow", "burstGoneLine", "burstJudgeLine"];
@@ -378,11 +433,11 @@ function whyText(why) {
   return loc(["figure", "several"].includes(why) ? `itemRun.card.why.${why}` : "itemRun.card.why.other");
 }
 
-/** A body's save target and its tooltip for the save a burst card names: the computed parts and the page, or a blank with the page alone. */
-function burstSaveFigure(actor, saveName, cite) {
+/** A body's save target and its tooltip for the save a burst or an outcome card names: the computed parts and the page, or a blank with the page alone. `options` are `saveSpec`'s, a card's modifier among them. */
+function burstSaveFigure(actor, saveName, cite, options = {}) {
   if (!actor || !saveName) return { target: null, tip: blankTip({ cite }) };
   try {
-    const spec = saveSpec(actor, saveName);
+    const spec = saveSpec(actor, saveName, options);
     return spec?.target == null ? { target: null, tip: blankTip({ cite }) } : { target: spec.target, tip: saveTip({ save: saveName, target: spec.target, parts: spec.parts ?? [], cite }) };
   } catch {
     return { target: null, tip: blankTip({ cite }) };
@@ -438,6 +493,110 @@ function burstBody(message, card) {
       mayUndo: (entry, key) => mayUndoEntry(entry, game.user.id, ownerIdsOf(fromUuidSync(key))),
     },
   }));
+}
+
+/** The words the swig and on-hit cards show, localized: `itemRun.card.<key>` for each, beside the common card words. */
+const OUTCOME_WORD_KEYS = ["saveAria", "swig", "healed", "successHealTip", "conditionTip", "noSaveLine", "heal", "healPressTip", "healAria", "askSave", "askSaveTip", "askSaveAria", "undoOutcomeTip", "undoOutcomeAria"];
+const outcomeWords = () => ({ ...words(), ...readWords(OUTCOME_WORD_KEYS) });
+
+/** Whether this window's user owns a document, by Foundry's own test: a Judge's seat owns every one, and no role is read. */
+const ownsDoc = (doc) => doc?.testUserPermission?.(game.user, "OWNER") === true;
+
+
+/** The text and tooltip a drinker's heal reads as: "Healed {amount}", with the dice, what they rolled and the page. */
+function healedRow({ amount, dice, rolled, cite }) {
+  return { text: loc("itemRun.card.healedLine", { amount }), tip: healTip({ amount, dice, rolled, cite, words: { rolled: loc("itemRun.card.damageTip.rolled") } }), emphasis: "success" };
+}
+
+/** Build the body of a drinker's own swig card: the heal it wrote, or the Judge's reason, and the swigs left where the item counts them. */
+function consumeBody(message, card) {
+  const w = outcomeWords();
+  const cite = card.cite ?? swigCite();
+  const rows = [card.outcome === "heal" && card.heal ? healedRow({ ...card.heal, cite }) : { text: whyText(card.why), tip: blankTip({ cite }), emphasis: "muted" }];
+  if (Number.isFinite(card.left?.after)) rows.push({ text: loc("itemRun.card.swigsLeft", { after: card.left.after }), tip: `${loc("itemRun.card.swigsLeftTip", { before: card.left.before })}${cite ? ` (${cite})` : ""}` });
+  return renderRollCard(resultCardModel({ title: loc("itemRun.card.swigTitle", { item: card.title ?? "" }), subtitle: card.bearer?.name, head: w.swig, rows }));
+}
+
+/** Build the body of the card of a drinker the module cannot tell: the choice for a seat that owns the drinker's actor, the note alone for any other, and the heal it came to once chosen. */
+function swigUnknownBody(message, card) {
+  const w = outcomeWords();
+  const cite = card.cite || swigCite();
+  const title = loc("itemRun.card.swigTitle", { item: card.title ?? "" });
+  const dice = card.healDice || null;
+  if (card.resolved === "heal") return renderRollCard(resultCardModel({ title, subtitle: card.bearer?.name, head: w.swig, rows: [healedRow({ amount: card.amount, dice, rolled: card.rolled, cite })] }));
+  if (card.resolved === "judge") return renderRollCard(resultCardModel({ title, subtitle: card.bearer?.name, head: w.swig, rows: [{ text: whyText(card.why), tip: blankTip({ cite }), emphasis: "muted" }] }));
+  const doc = card.drinkerActorUuid ? fromUuidSync(card.drinkerActorUuid) : null;
+  const canPress = ownsDoc(doc?.actor ?? doc);
+  const kind = card.saveKind || null;
+  return renderRollCard(swigUnknownModel({
+    title, subtitle: card.bearer?.name, words: w, note: `${loc(canPress ? "itemRun.card.unknownNote" : "itemRun.card.unknownNoteOther")} (${cite})`, messageId: message.id, canPress,
+    healRow: { text: dice ? loc("itemRun.card.unknownHeal", { dice }) : loc("itemRun.card.unknownHealBlank"), tip: dice ? rowTip({ label: loc("itemRun.card.unknownHealLabel", { item: card.title ?? "" }), figure: dice, cite }) : blankTip({ cite }) },
+    askRow: { text: kind ? loc("itemRun.card.unknownAsk", { kind }) : loc("itemRun.card.unknownAskBlank"), tip: kind ? rowTip({ label: loc("itemRun.card.unknownAskLabel", { item: card.title ?? "" }), figure: kind, cite }) : blankTip({ cite }) },
+  }));
+}
+
+/** The result line of a save card's verdict entry, `{text, tip}`: what a pass healed or a failure wrote and for how long, the delayed damage an on-hit failure set, or the Judge's reason. */
+function outcomeResult(card, entry, cite, w) {
+  if (entry.state === "judge") return { text: whyText(entry.why), tip: blankTip({ cite }) };
+  if (card.kind === "onHit") {
+    if (entry.saved === true) return { text: w.saved };
+    const figure = loc("itemRun.card.onHitLine", { formula: card.formula ?? "", delayTurns: card.delayTurns ?? "" });
+    return { text: `${w.failed} · ${figure}`, tip: rowTip({ label: loc("itemRun.card.onHitTip", { source: card.source ?? "" }), figure, cite }) };
+  }
+  if (entry.saved === true) {
+    const text = Number.isFinite(entry.amount) ? `${w.saved} · ${w.healed} ${entry.amount}` : w.saved;
+    return { text, tip: card.successHealDice ? rowTip({ label: w.successHealTip, figure: card.successHealDice, cite }) : blankTip({ cite }) };
+  }
+  const names = (entry.names ?? []).join(", ");
+  return names ? { text: `${w.failed} · ${names}, ${lifeWord(entry.life)}`, tip: rowTip({ label: w.conditionTip, figure: names, cite }) } : { text: w.failed, tip: blankTip({ cite }) };
+}
+
+/**
+ * Build the body of a save card of an outcome kind (`swig`, `onHit`) for a seat:
+ * the subjects with their save targets read live, the Save press for a seat that
+ * owns the subject, and each verdict's result line. The save is named with its
+ * modifier where the card holds one, the modifier's tooltip naming the row it was
+ * read from. A card that names no save draws the Judge's line and no press.
+ */
+function outcomeBody(message, card) {
+  const w = outcomeWords();
+  const swig = card.kind === "swig";
+  const cite = card.cite || (swig ? swigCite() : "");
+  const saveName = String(card.saveName ?? "");
+  const mod = card.saveMod === null || card.saveMod === undefined || card.saveMod === "" || !Number.isFinite(Number(card.saveMod)) ? null : Number(card.saveMod);
+  // A swig's one subject is the drinker the card is about; any other kind's subjects are bodies struck, shown to the seats that own them as the burst card and the once-only card show theirs.
+  const shown = Object.values(card.subjects ?? {}).filter((sub) => swig || ownsDoc(fromUuidSync(sub.uuid)));
+  const rows = shown.map((sub) => {
+    const entryKey = safeKey(sub.uuid);
+    const entry = card.entries?.[entryKey] ?? null;
+    const state = ["applied", "judge", "undone"].includes(entry?.state) ? entry.state : "open";
+    const figure = burstSaveFigure(fromUuidSync(sub.uuid)?.actor ?? null, saveName, cite, cardSaveOptions(card));
+    const row = { key: sub.uuid, name: sub.name, state, entryKey, entry, target: figure.target, targetTip: figure.tip };
+    if (saveName) row.detail = mod === null ? saveName : `${saveName} ${signedFigure(mod)}`;
+    if (saveName && mod !== null) row.nameTooltip = rowTip({ label: loc("itemRun.card.saveModTip", { source: card.source ?? card.title ?? "" }), figure: signedFigure(mod), cite });
+    if (state === "applied" || state === "judge") row.result = outcomeResult(card, entry, cite, w);
+    return row;
+  });
+  return renderRollCard(outcomeCardModel({
+    title: swig ? loc("itemRun.card.swigTitle", { item: card.title ?? "" }) : (card.title ?? ""), subtitle: card.subtitle || card.bearer?.name, words: w, rows,
+    ids: { itemUuid: card.itemUuid, rowKey: card.rowKey ?? "", activationId: card.activationId }, messageId: message.id, canSave: !!saveName, lines: saveName ? [] : [w.noSaveLine],
+    seat: { ownsSubject: (key) => ownsDoc(fromUuidSync(key)), mayUndo: (entry, key) => mayUndoEntry(entry, game.user.id, ownerIdsOf(fromUuidSync(key))) },
+  }));
+}
+
+/** The kinds of card a body of its own draws; any other kind a stored card holds is an outcome kind a feature registered. */
+const OWN_CARD_KINDS = new Set(["toggle", "once", "engaged", "fuse", "burst", "consume"]);
+
+/** The body of a stored card for a seat, read from its live kind: Ask the save turns a `swigUnknown` card into a `swig` one in place. */
+function cardBody(message, card) {
+  if (card.kind === "once") return onceBody(message, card);
+  if (card.kind === "engaged") return engagedBody(message, card);
+  if (card.kind === "fuse") return fuseBody(message, card);
+  if (card.kind === "burst") return burstBody(message, card);
+  if (card.kind === "consume") return consumeBody(message, card);
+  if (card.kind === "swigUnknown") return swigUnknownBody(message, card);
+  if (card.kind && !OWN_CARD_KINDS.has(card.kind)) return outcomeBody(message, card);
+  return raisedBody(message, card);
 }
 
 /* -------------------------------------------- */
@@ -735,6 +894,8 @@ async function press(message, button) {
     case "itemRun.handOn": return fail(await handOn({ messageId, vehicleUuid: d.vehicleUuid }));
     case "itemRun.moveSpot": return moveSpot(message, ids);
     case "itemRun.setOff": return fail(await setFuseOffNow({ activationId: ids.activationId }));
+    case "itemRun.swigHeal": return fail(await swigHeal({ messageId }));
+    case "itemRun.swigAskSave": return fail(await swigAskSave({ messageId }));
     default: return null;
   }
 }
@@ -747,7 +908,7 @@ function onRender(message, html) {
   const root = html?.nodeType === 1 ? html : (html?.[0] ?? null);
   const body = root?.querySelector?.(".message-content");
   if (!body || !(card || whisper)) return;
-  body.innerHTML = whisper ? whisperBody(whisper) : card.kind === "once" ? onceBody(message, card) : card.kind === "engaged" ? engagedBody(message, card) : card.kind === "fuse" ? fuseBody(message, card) : card.kind === "burst" ? burstBody(message, card) : raisedBody(message, card);
+  body.innerHTML = whisper ? whisperBody(whisper) : cardBody(message, card);
   body.querySelectorAll("[data-action^='itemRun.']").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -774,4 +935,4 @@ export function installItemRunPresenter() {
   Hooks.on("renderChatMessageHTML", onRender);
 }
 
-export { present as presentUse, onReach as presentReach, onLifted, recheckHere, raisedBody, whisperBody, onceBody, engagedBody, fuseBody, burstBody, lifeWord, messageIdFor, refusal, saveFigureOf };
+export { present as presentUse, onReach as presentReach, onLifted, recheckHere, raisedBody, whisperBody, onceBody, engagedBody, fuseBody, burstBody, consumeBody, swigUnknownBody, outcomeBody, cardBody, press, lifeWord, messageIdFor, refusal, saveFigureOf };

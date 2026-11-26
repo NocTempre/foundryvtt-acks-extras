@@ -540,4 +540,72 @@ t("a burst that rolled nothing is a plain line, with the blast's blank cell and 
   assert.deepEqual(pressesOf(figure), []);
 });
 
+/* -------------------------------------------- */
+/*  The swig and the on-hit save                 */
+/* -------------------------------------------- */
+
+const { healTip, outcomeCardModel, resultCardModel, swigUnknownModel } = await import("../scripts/lib/item-run-card-logic.mjs");
+const swigWords = { ...words, save: "Save", saveTip: "Roll this body's save", saveAria: "Roll the save for {name}", undo: "Undo", undone: "Undone", undoOutcomeTip: "Take back", undoOutcomeAria: "Undo the result for {name}", heal: "Heal", healPressTip: "Heal tip", healAria: "Heal the drinker", askSave: "Ask the save", askSaveTip: "Ask tip", askSaveAria: "Ask the drinker" };
+const swigIds = { itemUuid: "I.1", rowKey: "swig", activationId: "act" };
+const swigSeat = (owned, presser = "") => ({ ownsSubject: (key) => owned.includes(key), mayUndo: (entry, key) => entry?.presser === presser || owned.includes(key) });
+const swigRow = (over = {}) => ({ key: "S.d", name: "Drinker", state: "open", entryKey: "S~d", entry: null, target: 12, targetTip: "death 12+ (Book p. 7)", ...over });
+const outcomeModel = (rows, over = {}) => outcomeCardModel({ title: "Jug", subtitle: "Drinker", words: swigWords, rows, ids: swigIds, messageId: "M1", seat: swigSeat(["S.d"]), ...over });
+
+t("a heal's tooltip names the amount the write healed, the dice, what they rolled and the page, so a heal the hit points capped reads both figures", () => {
+  assert.equal(healTip({ amount: 5, dice: "2d4", rolled: 7, cite: "Book p. 7", words: { rolled: "rolled" } }), "5: 2d4 rolled 7 (Book p. 7)");
+  assert.equal(healTip({ amount: 7, dice: "2d4", rolled: 7, words: { rolled: "rolled" } }), "7: 2d4 rolled 7", "no page, none named");
+});
+
+t("a result card is a short table of lines, each with the tooltip of where its figure came from, and a line with none draws none", () => {
+  const model = resultCardModel({ title: "Jug · a swig", subtitle: "Drinker", head: "Swig", rows: [{ text: "Healed 5", tip: "5: 2d4 rolled 7 (Book p. 7)", emphasis: "success" }, { text: "2 swigs left" }], lines: ["small print"] });
+  assert.deepEqual(model.sections[0].rows, [{ name: "Healed 5", total: "", nameTooltip: "5: 2d4 rolled 7 (Book p. 7)", emphasis: "success" }, { name: "2 swigs left", total: "" }]);
+  assert.deepEqual([model.labels, model.lines, model.subtitle, model.bare], [{ name: "Swig", total: "" }, ["small print"], "Drinker", true]);
+  assert.deepEqual(pressesOf(model), []);
+  assert.equal("lines" in resultCardModel({ title: "t", rows: [] }), false);
+});
+
+t("the unknown drinker's card: the note and, for a seat that owns the drinker's actor, Heal and Ask the save in their own rows, each pressing the card by its message id; any other seat reads the note alone", () => {
+  const rows = { healRow: { text: "As a beastman: heals 2d4", tip: "Jug · heals: 2d4 (Book p. 7)" }, askRow: { text: "As a human or demi-human: a death save" } };
+  const base = { title: "Jug · a swig", subtitle: "Drinker", words: swigWords, note: "Choose how the swig acts (Book p. 7)", messageId: "M7", ...rows };
+  const owner = swigUnknownModel({ ...base, canPress: true });
+  assert.deepEqual(pressesOf(owner), ["itemRun.swigHeal", "itemRun.swigAskSave"]);
+  const [heal, ask] = owner.sections[0].rows;
+  assert.deepEqual([heal.name, heal.nameTooltip, heal.actions[0].data, heal.actions[0].ariaLabel, heal.actions[0].tooltip], ["As a beastman: heals 2d4", "Jug · heals: 2d4 (Book p. 7)", { messageId: "M7" }, "Heal the drinker", "Heal tip"]);
+  assert.deepEqual([ask.name, "nameTooltip" in ask, ask.actions[0].data, ask.actions[0].label], ["As a human or demi-human: a death save", false, { messageId: "M7" }, "Ask the save"], "a figure with no tooltip draws none");
+  assert.equal(owner.note, "Choose how the swig acts (Book p. 7)");
+  const other = swigUnknownModel({ ...base, canPress: false });
+  assert.deepEqual([pressesOf(other), other.sections[0].rows, other.note], [[], [], "Choose how the swig acts (Book p. 7)"]);
+});
+
+t("a save card's open row: the Save press for a seat that owns the subject names the entry's key, the card and the ids; a seat that owns it not has none; a blank target is a blank cell with the tooltip alone", () => {
+  const model = outcomeModel([swigRow()]);
+  const [row] = model.sections[0].rows;
+  assert.deepEqual([row.name, row.target, row.targetTooltip, row.total], ["Drinker", 12, "death 12+ (Book p. 7)", ""]);
+  assert.deepEqual(row.actions, [{ action: "itemRun.roll", label: "Save", icon: "fa-solid fa-shield-halved", data: { ...swigIds, subject: "S.d", entryKey: "S~d", messageId: "M1" }, tooltip: "Roll this body's save", ariaLabel: "Roll the save for Drinker" }]);
+  assert.deepEqual(pressesOf(outcomeModel([swigRow()], { seat: swigSeat([]) })), [], "a seat that owns nothing here has no press");
+  const blank = outcomeModel([swigRow({ target: null, targetTip: "Book p. 7" })], { canSave: false, lines: ["No save is named"] });
+  const [cell] = blank.sections[0].rows;
+  assert.deepEqual([cell.targetText, cell.targetTooltip, "target" in cell, cell.actions, blank.lines], [" ", "Book p. 7", false, [], ["No save is named"]]);
+  const detailed = outcomeModel([swigRow({ detail: "blast +2", nameTooltip: "Save modifier read from the Barb row: +2 (Book p. 12)" })]).sections[0].rows[0];
+  assert.deepEqual([detailed.detail, detailed.nameTooltip], ["blast +2", "Save modifier read from the Barb row: +2 (Book p. 12)"]);
+});
+
+t("a save card's verdict rows: applied reads the total, the entry's target and the caller's result line with its tooltip and an Undo while something is written, judge reads the reason, undone says so and offers nothing", () => {
+  const entry = { state: "applied", saved: true, total: 14, target: 11, amount: 4, hp: [{ uuid: "A.d", amount: -4 }], presser: "pa" };
+  const result = { text: "Saved · healed 4", tip: "Dice healed on a passed save: 1d6 (Book p. 7)" };
+  const [applied] = outcomeModel([swigRow({ state: "applied", entry, result })]).sections[0].rows;
+  assert.deepEqual([applied.total, applied.target, applied.outcome, applied.outcomeTooltip, applied.emphasis, applied.actions.map((a) => a.action)], [14, 11, "Saved · healed 4", "Dice healed on a passed save: 1d6 (Book p. 7)", "success", ["itemRun.undo"]]);
+  assert.deepEqual(applied.actions[0].data, { ...swigIds, subject: "S.d", entryKey: "S~d", messageId: "M1" });
+  assert.equal(applied.tooltipText, "death 12+ (Book p. 7)", "the total's tooltip is the save's");
+  assert.deepEqual(pressesOf(outcomeModel([swigRow({ state: "applied", entry, result })], { seat: swigSeat([], "pa") })), ["itemRun.undo"], "the seat that pressed may undo");
+  assert.deepEqual(pressesOf(outcomeModel([swigRow({ state: "applied", entry, result })], { seat: swigSeat([], "pb") })), [], "a seat that did neither may not");
+  assert.deepEqual(pressesOf(outcomeModel([swigRow({ state: "applied", entry: { ...entry, hp: [], recordIds: [] }, result })])), [], "a pass that wrote nothing has nothing to undo");
+  const failed = outcomeModel([swigRow({ state: "applied", entry: { state: "applied", saved: false, total: 5, target: 11, recordIds: ["e1"], presser: "pa" }, result: { text: "Failed · Held" } })]).sections[0].rows[0];
+  assert.deepEqual([failed.emphasis, failed.outcome, "outcomeTooltip" in failed, failed.actions.length], ["failure", "Failed · Held", false, 1]);
+  const judge = outcomeModel([swigRow({ state: "judge", entry: { state: "judge", saved: true, total: 14, target: 11, why: "figure" }, result: { text: "The Judge settles this one", tip: "Book p. 7" } })]).sections[0].rows[0];
+  assert.deepEqual([judge.emphasis, judge.outcome, judge.outcomeTooltip, judge.actions], ["muted", "The Judge settles this one", "Book p. 7", undefined]);
+  const undone = outcomeModel([swigRow({ state: "undone", entry: { state: "undone" } })]).sections[0].rows[0];
+  assert.deepEqual([undone.outcome, undone.emphasis, undone.actions], ["Undone", "muted", undefined]);
+});
+
 console.log(`\ntest-item-run-cards: ${passed} checks passed.`);
