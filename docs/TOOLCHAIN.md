@@ -86,7 +86,7 @@ acks-<feature>/
   to. The commit stays local: `acks-commit` lands it with `--no-push`. Local
   commits accumulate, and the complete work package goes up in one push. A
   push takes the owner's explicit word, and "commit" is not that word; a
-  release or hotfix the owner asked for carries its own atomic push and tag.
+  release the owner asked for carries its own atomic push and tag.
   A push sends every local commit beneath its sha, other sessions' included,
   so the ask names them. A go-ahead to push never covers a force-push,
   anything that could carry licensed text, or publishing a previously-private
@@ -190,45 +190,36 @@ a module directory** — every in-repo document (MODEL, DECISIONS, ROADMAP,
 guides, the snapshot gallery) is read on GitHub, so shipping it would add weight
 to every user's download for no consumer.
 
-### Release kinds
+### One release path
 
-Every release is one of three kinds, and the kind is **declared, not derived**.
-It is not read off the version number — the number is a date and says nothing
-about how big a release is. The user declares it; ask which kind is intended
-when the user calls a release and has not said. **That is the only time a
-release is asked about.** A plan, a brief, a report and a wrap-up carry no
-question about a release's kind, its timing, or what it waits for: a work
-package is defined by its slices, and the release is the owner's to call when
-they want one. A **major release is only ever explicit**; it is
-never inferred from the size of a diff. The kind is recorded in the release
-commit's subject, `Release <version> (<kind>) — …`
-(`Release 2026.12.15 (major) — …`).
+There is one release path and no release kind (ruling: `docs/DECISIONS.md`,
+2026-11-26). The version is a date and says nothing about a release's size. A
+release is the owner's to call, and a plan, a brief, a report and a wrap-up
+carry no question about its timing or what it waits for. The release commit's
+subject is `Release <version> — …`.
 
-| Kind | Shots (§4b) | Walks required (§4a) | Logs | Version |
-|---|---|---|---|---|
-| **Major** | full gallery | every walk | rolled (`logs-rolled`) | the day's next |
-| **Minor** | changed features | those the changed surfaces' recipes name | compiled only | the day's next |
-| **Hotfix** | none unless asked | those the changed surfaces' recipes name | compiled only | the day's next |
+| Gate | What a release owes |
+|---|---|
+| Offline | the commit tool's clone gate on the release commit: `build:packs`, `validate`, `test` |
+| Live (§4a) | the smoke walk, passed on the release's own runtime tree |
+| Logs | the changelog compiled from its fragments |
+| Version | the day's next |
 
-Every other gate is the same for all three kinds; a hotfix is no shortcut
-through the go-live gate.
+No release owes a screenshot, a guide step, a gallery row or a rolled log.
+Documentation and a roll are tasks of their own, done on the owner's ask.
 
 ### Release shape
 
-A release is two commits and a tag, all on `main`:
+A release is one commit and a tag, on `main`:
 
 - The **release commit** holds the version bump, the compiled changelog section
   with its fragments removed, `packs/_source` where it changed, and any fix
   released with it. It lands through `acks-commit` **before** the live session,
   and the commit tool's clone gate on it (`build:packs`, `validate`, `test`) is
-  the one full local gate. The walks then run on a runtime that is committed
-  and gated.
-- The **docs commit** holds the shots, `docs/GALLERY.md` and the guides. It
-  lands after the walks and is gated only by what reads docs: the docs-site sync
-  where the repo has `docs/site/`, else nothing. A hotfix that takes no shots
-  has none.
-- The tag goes on the last of them, in one atomic push with the branch, and CI
-  gates the tagged commit in full (the pipeline above).
+  the one full local gate. The smoke walk then runs on a runtime that is
+  committed and gated.
+- The tag goes on it, in one atomic push with the branch, and CI gates the
+  tagged commit in full (the pipeline above).
 
 The preflight brackets the release: one run at the version bump, before the
 live session, and one on the commit the tag names. The gitignored local-only
@@ -244,11 +235,9 @@ The steps and their commands are the **`acks-release` skill**.
 
 - **A new surface's `docs/<feature>/TESTING.md` is written during the build,
   before its first release** — not after the first field report. The recipe
-  is the definition of "works"; a surface that ships without one shipped
-  untested by construction. (This, plus the preflight gate walking the recipe
-  for every changed surface, is the whole defense against shipping a surface
-  that then needs a hotfix chain — there is no release-cadence rule; ship as
-  often as the gates pass. Ruling: DECISIONS.md, 2026-08-19.)
+  is the definition of "works", and the landing that changes the surface
+  checks it by that recipe. There is no release-cadence rule; ship as often
+  as the gates pass. (Rulings: DECISIONS.md, 2026-08-19 and 2026-11-26.)
 - **A published version is never retagged.** A release that needs fixing is
   the day's next version, which the preflight prints.
 - **A runtime or manifest change and its release travel together.** After
@@ -267,7 +256,7 @@ The steps and their commands are the **`acks-release` skill**.
 
 ## 4a. Live verification before go-live
 
-Live verification is a **go-live gate** for every release kind: offline
+Live verification is a **go-live gate** for every release: offline
 checks run against mocked Foundry globals, and every module-breaking bug in
 this family's history passed a green offline suite (the incidents are in
 DECISIONS.md — acks-equipment v0.12.1's dead-at-`init` releases,
@@ -280,26 +269,28 @@ player seats, pre-upgrade shapes, what to report — is
 states the policy and the gate that enforces it.
 
 **No waiver for walks: a tag needs a machine with a test server.** A machine
-whose `C:\Proj\acks-rules\TEST_ENVIRONMENT.md` is absent cannot tag a release
-of any kind. Live checks outside a release keep the skip
+whose `C:\Proj\acks-rules\TEST_ENVIRONMENT.md` is absent cannot tag a release.
+Live checks outside a release keep the skip
 (`live-testing.md`, "Environment").
 
 **The walk-result gate.** A module that has `tools/live/run.mjs` tracked
-records its walks there; the preflight's check 9, `live-walks`, runs on every
-kind and reads only the file the runner writes,
+records its walks there; the preflight's `live-walks` check runs on every
+release and reads only the file the runner writes,
 `aia-tmp/live/walk-results.json` (gitignored, never committed, one entry per
 walk, the latest attempt wins). No ledger and no machine path enters a repo.
 The states, the runtime tree id and the walk-file hash are defined in the
 header of `tools/walk-results.mjs`; in short, a walk ends `passed`
-only on a `WALK END` line, at least one PASS, no FAIL and exit 0. For a minor
-and a hotfix a result is current when its attempt started after the last
-release: a walk is run once, and again only after a fix to what it found. A
-major audits each result against the whole runtime tree, so any runtime byte
-makes it stale. An edit to the walk's own file makes its result stale in every
-kind. The preflight refuses a result file that is missing, tracked or of an
-unknown schema; a required walk that was not run, is stale, changed during its
-run or is partial; and a non-pass that is not classified. On a clear run it
-prints the walk table the release report quotes under "exercised live".
+only on a `WALK END` line, at least one PASS, no FAIL and exit 0. A release
+requires the smoke walk, `window-contract`, alone, and its result is
+current against the release's runtime tree: a pass from before the last
+runtime change is stale, and a source with no `tools/live/window-contract.mjs`
+is refused. An edit to a walk's own file makes a result that did not pass
+stale and leaves a pass standing. The preflight refuses a result file that is
+missing, tracked or of an unknown schema; a smoke walk that was not run, is
+stale, changed during its run or is partial; and a non-pass that is not
+classified. On a clear run it prints the smoke walk's row, which the release
+report quotes under "exercised live". Every other walk is a tool for a bug
+hunt or an audit the owner asks for.
 
 Each walk runs holding the landing lease (`shared-tree.md`, "The tree you gate
 is the tree you commit"): the runner takes it before the walk's runtime tree id
@@ -310,9 +301,9 @@ past that the walk and those after it are not started and the runner exits 5.
 `--list` and `--classify` take none, and nothing skips it
 (`docs/DECISIONS.md`, 2026-11-25, "Each walk runs under the landing lease").
 
-- **Required walks.** Which walks a kind requires is §4's kinds table. A
-  recipe names a walk by mentioning `tools/live/<name>.mjs` in its
-  `docs/<feature>/TESTING.md`.
+- **Required walks.** The smoke walk, and no other. A walk a recipe names is
+  required by nothing, and a new walk script is written only where the owner
+  asks for one.
 - **Classifying a non-pass.** The module runner's
   `node tools/live/run.mjs --classify <walk> <T-id> defect|world-state|stale-walk|environment`
   checks the bug-intake ledger row at that moment (the ledger's path comes
@@ -324,38 +315,15 @@ past that the walk and those after it are not started and the runner exits 5.
 
 ## 4b. Release snapshots
 
-A snapshot is a screenshot of a feature working in the live test world, taken
-**during the §4a verification session** — not staged afterwards, not from some
-other world. That single provenance is what lets one artifact do three jobs at
-once: it is evidence the live check actually ran (audit), it is what the release
-notes and README are built from (advertisement), and it is what a user looks at
-to understand what the feature does (guide). A shot taken outside the
-verification run earns none of the three — it proves nothing about this release,
-and it dates from a build nobody gated.
+**No release owes a snapshot** (ruling: `docs/DECISIONS.md`, 2026-11-26).
+Documentation is a task of its own, and this section says how a shot is taken
+when the owner asks for one. What a release does owe a reader is in the
+changelog: each bullet says where its feature is found
+(`.claude/rules/docs-doctrine.md`).
 
-**What to capture** follows from the Shots column of the kind table (§4):
-
-- **Major** — every feature area the module ships, re-shot against the current
-  build. Unchanged areas are included on purpose: a major release republishes
-  the whole gallery, and a shot carried over from three versions ago quietly
-  advertises a UI that has since moved.
-- **Minor** — one shot per Added/Changed changelog entry that has a user-visible
-  surface. An entry with no UI (an API addition, an internal refactor) gets no
-  shot, and says so rather than inventing a frame for it.
-- **Hotfix** — none, unless the fix is visible in the UI *and* the user asks.
-
-**Each entry names its shot, and the preflight holds it to that.** On a major
-or a minor, every top-level Added or Changed bullet in the version's changelog
-section carries `<!-- shot: <feature-slug> -->`, one per shot it owns (the
-bullets arrive from `changelog.d/` fragments, and the marker is written in the
-fragment), naming
-`docs/releases/v<version>/<feature-slug>.png`, or `<!-- no-shot: <reason> -->`.
-Both are HTML comments, so neither shows in the rendered changelog or on the
-release page built from the section. `tools/release-preflight.mjs` refuses a
-bullet with neither, a reason left empty, and, on its run before the tag, a
-named PNG that is not there; its header carries the mechanics. A shot marker on
-a bullet under another heading is checked the same way without being owed. One
-shot may serve two entries when a single frame shows both.
+A snapshot is a screenshot of a feature working in the live test world, shot
+from something a user can produce and never from an API-built fixture. It is
+what a user looks at to understand what the feature does.
 
 **Where they live.** `docs/releases/v<version>/<feature-slug>.png`, committed.
 The whole of `docs/` is on the zip denylist (§4) — the release artifact carries
@@ -364,18 +332,15 @@ Foundry never reads a markdown file out of a module directory. So snapshots stay
 reviewable in git and linkable from release notes without adding weight to the
 download every user pulls. A past release's directory MAY be rewritten where
 the surface it shows has changed — a shot is documentation of the feature, not
-an immutable record of the day it shipped. The only snapshot economy rule is
-the kind table above: a minor never needs to RE-capture surfaces its changes
-did not touch.
+an immutable record of the day it shipped.
 
 **`docs/GALLERY.md` is the index and the provenance record.** One row per
 feature area: the feature, a one-line caption, and a link to its current shot.
-A major release rewrites every row; a minor release rewrites only the rows it
-re-shot. A row still pointing into an older `v<version>/` directory is therefore a
-truthful statement of how stale that image is — which is the audit, visible at a
-glance. Between majors that is the whole story; a major deletes the
-`docs/releases/v<version>/` folders no guide and no GALLERY row links (the tag
-keeps them). README and release notes link to `GALLERY.md`, never to a raw PNG
+A documentation pass rewrites the rows it re-shot. A row still pointing into an
+older `v<version>/` directory is therefore a truthful statement of how stale
+that image is, visible at a glance. A log roll (`tools/logs.mjs roll`) lists the
+`docs/releases/v<version>/` folders no guide and no GALLERY row links, for
+removal (the tag keeps them). README and release notes link to `GALLERY.md`, never to a raw PNG
 path, so the links survive the next refresh.
 
 ```markdown
@@ -455,17 +420,8 @@ the pane composites frames only while displayed, so a headless or backgrounded
 session times out with no picture regardless of what the page contains. That is
 the reason this driver exists.
 
-A machine without a test server cannot tag a release (§4a), so no snapshot
-obligation is waived for want of one. The shots land in the release's docs
-commit (§4, "Release shape"), and the preflight run on the commit the tag names
-refuses a shot the changelog names that the commit lacks.
-
-**Report** which shots you took and which obligations you could not meet. An
-entry with no user-visible surface is a legitimate "no shot", and its marker is
-the record; a feature you could not get on screen is a gap, and naming it is
-the whole point. A gap is never written as a `no-shot`: that marker says the
-entry has no surface, and on one that has a surface it turns the gap into a
-false record.
+**Report** which shots you took and which you were asked for and could not
+get on screen. A gap is named, never passed over.
 
 ## 5. Dev harness
 
@@ -683,7 +639,7 @@ Full ruling and its corollaries: DECISIONS, 2026-07-19.
 - The agent assets live in `.claude/`, project-scoped and committed:
   - `.claude/skills/` — the roster: `acks-bug-triage` (intake ledger +
     dispositions), `acks-hotfix` (patch scoping), `acks-minor` (minor
-    scoping), `acks-release` (mechanics for all three kinds), `acks-commit`
+    scoping), `acks-release` (the one release path), `acks-commit`
     (one session's change out of a shared tree, and the tool that builds and
     gates it), `acks-branch` (opens, lands, syncs, closes and parks topic and parked
     branches), `acks-hygiene-sweep` (standing audit + its tooling),

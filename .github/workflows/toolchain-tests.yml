@@ -62,10 +62,11 @@ jobs:
         run: node tools/toolchain-tests/test-ip-scan.mjs
 
       # The release preflight's refusals fire only on a release being
-      # prepared: a bumped version, its changelog section, shots that were or
-      # were not taken. Throwaway repositories tagged one version back stage
-      # each and check what the preflight lets through and what it names.
-      - name: Release preflight holds a major or minor's changelog entries to their shots
+      # prepared: a bumped version, its changelog section, a smoke walk result
+      # bound to the runtime tree. Throwaway repositories tagged one version
+      # back stage each and check what the preflight lets through and what it
+      # names.
+      - name: Release preflight holds a release to its version, its compiled changelog and its smoke walk
         run: node tools/toolchain-tests/test-release-preflight.mjs
 
       # Compile and roll rewrite the logs, and a wrong rewrite shows only

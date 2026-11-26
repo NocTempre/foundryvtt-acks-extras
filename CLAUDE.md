@@ -134,11 +134,15 @@ module-breaking bug in this family passed them.
 
 ## Release
 
-Every release is a **major**, **minor** or **hotfix** — declared by the user,
-never derived. Ask only when the user calls a release without naming its
-kind, and never while planning or reporting work (TOOLCHAIN §4, "Release
-kinds"); a major is always explicit. What each kind
-requires is TOOLCHAIN §4's table, and `/acks-release` walks the steps with
+**There is one release path and no release kind.** The owner: "The whole
+concept of hotfix, minor and major are retired. We're going to rolling
+release." A release is cut from `main` when the owner calls for one, and no
+session asks for or names a kind. Its live gate is the smoke walk alone, a
+real load with no thrown error on the release's own runtime tree; no walk is
+required beside it, and a walk is run again only on the owner's ask. No
+release owes a screenshot, a guide step or a gallery row: documentation is
+its own task. A changelog bullet says where its feature is found
+(`.claude/rules/docs-doctrine.md`). `/acks-release` walks the steps with
 their commands. Never `gh run watch` (it hangs); never retag a published
 release (the release is the day's next version).
 
@@ -148,8 +152,8 @@ it is a surface nobody can reach: extras 4.16.0 shipped class `paths` with no
 importer emitting one and a sheet that listed options without being able to add
 one, so every imported class showed "No paths" and the feature existed only for
 the API. Shipping the dependency half first is right (TOOLCHAIN §10e) and is not
-the same as shipping half a feature. **Shoot the release snapshot from something
-a USER can produce, never from an API-built fixture** — a fixture proves the code
+the same as shipping half a feature. **Shoot a screenshot from something a USER
+can produce, never from an API-built fixture** — a fixture proves the code
 renders and hides exactly this.
 
 ## Conventions

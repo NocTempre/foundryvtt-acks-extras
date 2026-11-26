@@ -67,8 +67,8 @@ shape") names, run on the release's own commits.
 - **An open CHANGELOG heading reserves nothing.** Only the tag list says what
   shipped. Read it before writing into a section and again before staging; a
   version a peer published is spent, and the answer is the day's next version.
-- **A release tags its own commit's sha, never `HEAD`:** the docs commit, or
-  the release commit where a hotfix takes no shots. It pushes that sha with its
+- **A release tags its own commit's sha, never `HEAD`:** the release commit,
+  the one that bumps the version. It pushes that sha with its
   tag in one atomic push, so a commit that landed above it stays local for the
   session that made it.
 - **One runtime writer on `main`'s tree during a release's live window.** From

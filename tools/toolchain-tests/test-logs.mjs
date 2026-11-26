@@ -13,8 +13,7 @@
  * CHANGELOG, the index anchors, what is flagged for a reviewer, the previous
  * tag's choice and a second run. A later roll, on a live DECISIONS an earlier
  * roll already rewrote, is checked for the carried index, the new archive's
- * rows, a row removed between the rolls, a repeat run and the preflight's
- * `logs-rolled` verdict on the result.
+ * rows, a row removed between the rolls and a repeat run.
  *
  * Usage:  node tools/toolchain-tests/test-logs.mjs [<logs.mjs>]
  *         (defaults to tools/logs.mjs; pass a modified copy to
@@ -149,18 +148,6 @@ const ROLL_TWICE_COMMITS = [
 /** A regex that matches exactly `text`. */
 const exact = (text) => new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}$`, "u");
 
-/**
- * Runs the release preflight (`--kind major --live-pending`) in the
- * case's repository and returns a problem for every `logs-rolled` line it
- * prints, or for a run that printed nothing at all.
- */
-function preflightLogsRolled(root) {
-  for (const file of ["release-preflight.mjs", "walk-results.mjs"]) put(root, `tools/${file}`, fs.readFileSync(path.join(TEMPLATE_ROOT, "tools", file), "utf8"));
-  const r = spawnSync(process.execPath, [path.join("tools", "release-preflight.mjs"), "--kind", "major", "--live-pending"], { cwd: root, env: GIT_ENV, encoding: "utf8" });
-  const text = `${r.stdout}${r.stderr}`;
-  if (!text.trim()) return ["release-preflight printed nothing"];
-  return text.split("\n").filter((l) => /logs-rolled/u.test(l)).map((l) => `preflight: ${l.trim()}`);
-}
 
 const CASES = [
   // -- compile -----------------------------------------------------------------
@@ -396,7 +383,7 @@ const CASES = [
     args: ["roll"],
     status: 0,
     out: [/logs: rolling from v2026\.1\.2/u, /docs\/x\/DECISIONS\.md: 1 index row\(s\) drafted from 1 archived entry, 1 carried from the live index; 1 entry after v2026\.1\.2 kept/u],
-    check: (root) => [...archivesMatch("v2026.1.2", [[X_ARCHIVE_2, "docs/x/DECISIONS.md"]])(root), ...preflightLogsRolled(root)],
+    check: (root) => archivesMatch("v2026.1.2", [[X_ARCHIVE_2, "docs/x/DECISIONS.md"]])(root),
     files: {
       "docs/x/DECISIONS.md": [exact(X_ROLLED_TWICE), /^- 2026-01-02 — \[Beta — IN FORCE\]\(DECISIONS-through-v2026\.1\.2\.md#2026-01-02--beta--in-force\)$/mu],
     },

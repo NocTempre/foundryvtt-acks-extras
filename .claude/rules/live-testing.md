@@ -1,7 +1,9 @@
 # Live testing (canonical — every other statement points here)
 
-Read this before any live test, live check, or release gate. The release
-snapshot rules are TOOLCHAIN §4b; the release procedure is `/acks-release`.
+Read this before any live test, live check, or release gate. A release's live
+gate is the smoke walk alone (TOOLCHAIN §4a); a walk script is written, and a
+passed walk run again, only where the owner asks. The release procedure is
+`/acks-release`.
 
 ## Why this is a gate
 
@@ -143,7 +145,7 @@ test server tags one (TOOLCHAIN §4a).
    close it. Quote the ledger, with each fixture's marker, as the record of
    what the run built and kept, and a setup check's sweep result — removed,
    could not find, refused — as the record of what it deleted. A release's
-   walks are recorded in the runner's result file and judged by the
+   smoke walk is recorded in the runner's result file and judged by the
    preflight's `live-walks` check (TOOLCHAIN §4a).
 
    **A claim is as wide as the check behind it.** Sort the report three ways:

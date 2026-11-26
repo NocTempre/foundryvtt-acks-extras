@@ -1,7 +1,7 @@
 /**
- * Changelog fragments and the major-release roll. `release-preflight.mjs`
- * checks the results (`changelog-compiled` on every kind, `logs-rolled` on a
- * major); this tool produces them.
+ * Changelog fragments and the log roll. `release-preflight.mjs` checks the
+ * compiled changelog (`changelog-compiled`), which `compile` produces; `roll`
+ * is run on the owner's ask and no preflight check reads its result.
  *
  * Commands:
  *   compile [--label "<text>"]   Writes `## <version> — <label>` (or `## <version>`

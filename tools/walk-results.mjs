@@ -16,12 +16,15 @@
  * the release zip ships, with `packs/_source` standing in for the compiled
  * packs and with the files a release edits as a matter of course left out
  * (changelog, readme, licence, and `module.json`'s version, download and
- * manifest). The id is taken at the walk's start and again at its end, and
- * under a major's audit a result whose id differs from the current one is
- * stale (`evaluate` says what a minor and a hotfix hold it to). The walk's own file
- * sits outside that tree (`tools/` is not shipped), so an edit to the walk is
- * a separate hash. Line endings are normalized before hashing, so the id of a
- * working tree and of the commit it becomes agree under any `core.autocrlf`.
+ * manifest). The id is taken at the walk's start and again at its end, and a
+ * result whose id differs from the current one is stale wherever `evaluate`
+ * holds the walk to the tree (the audit reading, and the walks it names in
+ * `treeBound`). The walk's own file sits outside that tree (`tools/` is not
+ * shipped), so it is hashed apart; the audit reading holds every result to it,
+ * and the reading with `since` holds a result that did not pass to it and lets
+ * a pass stand (`evaluate`). Line endings are normalized before hashing, so
+ * the id of a working tree and of the commit it becomes agree under any
+ * `core.autocrlf`.
  *
  * The id is computed in a temporary index and the objects are written into the
  * repository's object database, so `git diff-tree -r --name-only <a> <b>`
@@ -99,6 +102,14 @@ export function isRuntimePath(rel) {
 }
 
 // -- walks -------------------------------------------------------------------
+
+/**
+ * The smoke walk: the one walk a release requires. It loads the world, opens
+ * the module's windows and fails on a thrown or logged error. The preflight
+ * binds its result to the release's runtime tree (`treeBound`), so a pass from
+ * before the last runtime change is not accepted.
+ */
+export const SMOKE_WALK = "window-contract";
 
 const walkName = (name) => (name.startsWith("_") || name === "run" ? null : name);
 
@@ -405,21 +416,34 @@ export function recordClassification(root, name, { row, as, status, version } = 
  * passed or classified for this release; a defect is ok only when its ledger
  * row is `deferred`.
  *
- * What "current" means depends on `since`. Without it the result is held to
+ * What "current" means depends on `since`. Without it every result is held to
  * the whole runtime tree: any byte that differs makes it stale, which is the
- * audit a major runs. With `since`, the ISO time of the last release, a result
- * is current when its attempt started after that time, whatever the tree has
- * become, so a walk is run once in a release and again only after a fix to
- * what it found (the latest attempt wins).
+ * audit reading the owner may ask for. With `since`, the ISO time of the last
+ * release, a result is current when its attempt started after that time,
+ * whatever the tree has become, so a walk is run once in a release and again
+ * only after a fix to what it found (the latest attempt wins).
+ *
+ * The walk's own file is held to `walkBlobs` by the same split. Without
+ * `since` a result whose recorded blob differs from the current one is stale.
+ * With `since`, a result that passed and began after `since` stands whatever
+ * its walk's file has become (the row says so in its `why`), and one that did
+ * not pass is stale, since a classification belongs to an attempt of the script
+ * it was made on and a repaired walk is run to earn its pass.
+ *
+ * `treeBound` names the walks that `since` does not loosen: each is held to the
+ * whole runtime tree as the audit reading holds every walk, whatever `since`
+ * says (its walk-file allowance above is unchanged). The preflight binds
+ * `SMOKE_WALK` so.
  */
-export function evaluate({ data, required, tree, walkBlobs = {}, version, diffPaths, since }) {
+export function evaluate({ data, required, tree, walkBlobs = {}, version, diffPaths, since, treeBound = [] }) {
   return required.map((walk) => {
     const e = data?.walks?.[walk];
     const refuse = (why) => ({ walk, state: e?.state ?? "not run", ok: false, why });
     if (!e) return refuse("not run");
-    if (e.walkBlob !== (walkBlobs[walk] ?? null)) return refuse("stale: the walk changed since it ran");
+    const walkMoved = e.walkBlob !== (walkBlobs[walk] ?? null);
+    if (walkMoved && !(since !== undefined && e.state === "passed")) return refuse("stale: the walk changed since it ran");
     if (e.treeStart !== e.treeEnd) return refuse("the runtime changed during its run");
-    if (since !== undefined) {
+    if (since !== undefined && !treeBound.includes(walk)) {
       if (!(Date.parse(e.startedAt) > Date.parse(since))) return refuse(`stale: it ran before the last release (${since})`);
     } else if (e.treeStart !== tree) {
       let paths = [];
@@ -433,7 +457,7 @@ export function evaluate({ data, required, tree, walkBlobs = {}, version, diffPa
       return refuse(`stale: runtime differs${paths.length ? ` — ${shown}${more}` : ""}`);
     }
     if (e.partial) return refuse(`partial: ${e.partial}`);
-    if (e.state === "passed") return { walk, state: e.state, ok: true, why: "passed" };
+    if (e.state === "passed") return { walk, state: e.state, ok: true, why: walkMoved ? "passed; the walk's file changed since" : "passed" };
     const c = e.classification;
     if (!c) return refuse(`${e.state}, not classified`);
     if (c.version !== version) return refuse(`classified for ${c.version}; classify again for this release`);

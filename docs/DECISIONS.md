@@ -43,7 +43,7 @@ Toolchain rulings made in `acks-module-template` before it was folded into this 
 - 2026-08-05 — [The worktree that renamed a repo, and the sync that ran ahead of the push](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-08-05--the-worktree-that-renamed-a-repo-and-the-sync-that-ran-ahead-of-the-push--in-force-except-the-single-branch-guards-scope-superseded-in-part-2026-11-12) — except the single-branch guard's scope (superseded in part 2026-11-12); its sync half superseded 2026-11-18 (the template is folded in)
 - 2026-09-01 — [Two modules become one](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-01--two-modules-become-one--in-force)
 - 2026-08-15 — [Math may ship; the book's words may not](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-08-15--math-may-ship-the-books-words-may-not--in-force-except-its-citation-clause-superseded-2026-09-03) — except its citation clause (superseded 2026-09-03)
-- 2026-08-19 — [The soak rules are removed; the recipe walk is the whole gate](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-08-19--the-soak-rules-are-removed-the-recipe-walk-is-the-whole-gate--in-force)
+- 2026-08-19 — [The soak rules are removed; the recipe walk is the whole gate](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-08-19--the-soak-rules-are-removed-the-recipe-walk-is-the-whole-gate--in-force) — except the gate itself, which is the smoke walk (superseded in part 2026-11-26)
 - 2026-09-03 — [The page reference ships; removing it protected nothing](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-03--the-page-reference-ships-removing-it-protected-nothing--in-force)
 - 2026-09-05 — [Teardown is by the run's own ids; the prose that said so did not hold](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-05--teardown-is-by-the-runs-own-ids-the-prose-that-said-so-did-not-hold--in-force-except-a-sweep-at-the-end-of-every-run-superseded-2026-10-26) — except a sweep at the end of every run (superseded 2026-10-26)
 - 2026-09-07 — [The window contract gates what a caption can reach, not only what a window can scroll](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-07--the-window-contract-gates-what-a-caption-can-reach-not-only-what-a-window-can-scroll--in-force)
@@ -74,17 +74,16 @@ Toolchain rulings made in `acks-module-template` before it was folded into this 
 - 2026-10-26 — [A fixture, once built, stays; only a check of setup deletes one](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-26--a-fixture-once-built-stays-only-a-check-of-setup-deletes-one--in-force)
 - 2026-10-28 — [The driver finds a kept fixture by its marker; a session's own is the recipe's marker with `@<tag>`, and a marker on two documents stops the run](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-28--the-driver-finds-a-kept-fixture-by-its-marker-a-sessions-own-is-the-recipes-marker-with-tag-and-a-marker-on-two-documents-stops-the-run--in-force)
 - 2026-10-29 — [A run's own leavings are its own to remove; the 2026-10-26 ruling relaxed the asking and preserved nothing](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-29--a-runs-own-leavings-are-its-own-to-remove-the-2026-10-26-ruling-relaxed-the-asking-and-preserved-nothing--in-force)
-- 2026-11-06 — [A changelog entry names its release shot, and the preflight refuses one that does not](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-06--a-changelog-entry-names-its-release-shot-and-the-preflight-refuses-one-that-does-not--in-force)
 - 2026-11-06 — [The disclaimer carries no registration number](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-06--the-disclaimer-carries-no-registration-number--in-force)
 - 2026-11-10 — [The developer reference is published, not shipped](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-10--the-developer-reference-is-published-not-shipped--in-force)
 - 2026-11-12 — [One slice per agent, about ten ledger rows per session](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--one-slice-per-agent-about-ten-ledger-rows-per-session--in-force)
 - 2026-11-12 — [Unpushed commits are named at the end of a turn](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--unpushed-commits-are-named-at-the-end-of-a-turn--in-force) — the template beside the checkout superseded 2026-11-18 (the template is folded in)
 - 2026-11-12 — [The release workflow scans the tree once](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--the-release-workflow-scans-the-tree-once--in-force)
 - 2026-11-12 — [A release is versioned by its day](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-release-is-versioned-by-its-day--in-force)
-- 2026-11-12 — [Changelog fragments, and a major rolls the logs](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--changelog-fragments-and-a-major-rolls-the-logs--in-force)
+- 2026-11-12 — [Changelog fragments, and a major rolls the logs](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--changelog-fragments-and-a-major-rolls-the-logs--in-force) — except that a roll is run on the owner's ask and no release waits on it (superseded in part 2026-11-26)
 - 2026-11-12 — [A later roll carries the live index forward](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-later-roll-carries-the-live-index-forward--in-force)
-- 2026-11-12 — [A tag needs a recorded walk result for every required walk](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-tag-needs-a-recorded-walk-result-for-every-required-walk--in-force) — except that a result goes stale on any runtime byte, which now holds for a major only (superseded in part 2026-11-25)
-- 2026-11-12 — [A release commits before its live session and tags its docs commit](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-release-commits-before-its-live-session-and-tags-its-docs-commit--in-force-r15s-by-procedure-qualified-2026-11-15-a-topics-landing-is-guarded) — R15's "by procedure" qualified 2026-11-15 (a topic's landing is guarded)
+- 2026-11-12 — [A tag needs a recorded walk result for every required walk](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-tag-needs-a-recorded-walk-result-for-every-required-walk--in-force) — except that the smoke walk is the only required walk, and it alone is held to the runtime tree (superseded in part 2026-11-26)
+- 2026-11-12 — [A release commits before its live session and tags its docs commit](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-release-commits-before-its-live-session-and-tags-its-docs-commit--in-force-r15s-by-procedure-qualified-2026-11-15-a-topics-landing-is-guarded) — R15's "by procedure" qualified 2026-11-15 (a topic's landing is guarded); there is no docs commit, and the tag is on the release commit (superseded in part 2026-11-26)
 - 2026-11-12 — [Topic and parked branches return, opened and landed by one tool](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--topic-and-parked-branches-return-opened-and-landed-by-one-tool--in-force-except-which-work-takes-a-branch-superseded-in-part-2026-11-15) — except which work takes a branch (superseded in part 2026-11-15)
 - 2026-11-12 — [A new phase is a clean session, its own orchestrator](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-new-phase-is-a-clean-session-its-own-orchestrator--in-force)
 - 2026-11-14 — [A field with nothing imported stays blank](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-14--a-field-with-nothing-imported-stays-blank--in-force)
@@ -251,7 +250,7 @@ produces stays, under whatever name it carries.
 re-imported keeps whatever shape that version left; the release notes say so
 once, and a repair or a re-import is how such a world catches up.
 
-## 2026-11-13 — 30. A major's gate is 47 walks, and the rest are suites
+## 2026-11-13 — 30. A major's gate is 47 walks, and the rest are suites — SUPERSEDED IN PART 2026-11-26
 
 **Problem.** A major requires every walk in `tools/live/` (§28), and the set
 had grown to 69 walks, about 265 seat-minutes of one world, with no recorded
@@ -497,7 +496,7 @@ The rejection is the session's that wrote the rule, not the owner's.
 longer flagged for the owner's eye while it is built. The release that ships
 it names them in one line when it is cut (`acks-minor` §1).
 
-## 2026-11-25 — A minor's walk is run once, and again after a fix
+## 2026-11-25 — A minor's walk is run once, and again after a fix — SUPERSEDED 2026-11-26
 
 **Problem.** A walk's result was bound to the whole runtime tree, so one byte
 anywhere in the module made every recorded walk stale. A minor with a dozen
@@ -592,3 +591,74 @@ the automation would refuse, a player is blocked and a Judge is warned ([lib](li
 - **Cost.** Some windows mix ownership and role controls until their rows are built. Each is a row in its
   feature's ROADMAP; the role reads that stand in for a permission Foundry lets a world grant are one row in
   [ROADMAP.md](ROADMAP.md).
+
+## 2026-11-26 — One release path: kinds are retired, the smoke walk is the live gate, and no release waits on a document
+
+**Problem.** One day after "A minor's walk is run once, and again after a
+fix", a release session ordered every walk run again as a "release batch" on
+a frozen tree before the cut, and told the owner the release waited on it.
+The earlier ruling had changed one clause of the gate and none of what a
+session reads first. The preflight still built a required list from every
+walk a recipe names, so a walk written for a landing joined the gate by
+itself: `tools/live` held 135 walks, 48 of them written in two days. A major
+or a minor still owed a shot for every Added and Changed bullet, and 95
+bullets carried none. Each session was still told to establish a release
+kind, which chose among three tables of those obligations.
+
+**New evidence.** The owner, 2026-11-26, on that order: "Why is release batch
+reruning checks at all?", "THIS WAS ALREADY CALLED OUT AS A CRITICAL MISS",
+"Only what changed needs checked, and that's part of the implement land", "A
+rewalk is only needed when requested (bug hunt or audit) or fails a smoke
+test on final inspection (throw errors, fails to capture snapshot, etc)", and
+"The defects are mostly design and HMI, I need results faster and more
+efficiently, checks are for stability/error detection only, not critical
+stress test". On the list: "Why is there a required list?", and to "Remove
+the required walk list and gate releases on the smoke test, starting with
+this release?", "Yes, remove it". Then: "The documentation is a separate ask.
+The whole concept of hotfix, minor and major are retired. We're going to
+rolling release." and "So dropping mandatory screenshots for all surfaces is
+removed. Do include the directions on where to find each feature using the
+project vocabulary".
+
+**Ruled.**
+
+- A walk is there to find instability and errors: the surface opens, its
+  presses run without throwing, and its writes land. It is not a stress test,
+  and it does not judge design or handling, which the owner finds in use. A
+  walk that fails for a fault of its own script is classified and left; it is
+  not repaired in a loop to get a pass.
+- There is one release path and no release kind. A release is cut from `main`
+  when the owner calls for one, and `tools/release-preflight.mjs` takes no
+  kind.
+- The live gate is the smoke walk, `window-contract`: a real load with no
+  thrown error, passed on the release's own runtime tree. There is no list of
+  required walks, and a recipe that names a walk requires nothing.
+- A change is checked on its own surface as part of its landing. A walk is
+  run again only when the owner asks for it (a bug hunt, an audit) or when
+  the smoke walk fails on its surface.
+- No release owes a screenshot, a guide step or a gallery row. Documentation
+  is its own task, done when the owner asks for it.
+- A changelog bullet that names a feature says where it is found, in the path
+  vocabulary of `.claude/rules/docs-doctrine.md`.
+
+Two readings of those rulings are the release session's and not the owner's
+words. What only a major did (rolling the logs, re-issuing each ROADMAP,
+rolling the bug ledger, holding every walk to the tree) is done when the
+owner asks for it and gated by nothing. A changed surface with no
+`TESTING.md` recipe is a note in the preflight's output and no longer a
+refusal.
+
+This supersedes the 2026-11-25 entry whole, the gate of 2026-11-13's entry 30
+(a major's 47 walks), and the 2026-08-19 ruling that the recipe walk is the
+whole gate.
+
+**Rejected.** Keeping three kinds with lighter tables. Each table is where the
+obligations collected again after a ruling removed them. Keeping the
+walk-file hash as the tie between a new check and its first run: it cannot
+tell a new check from a comment, and it charged a rewalk for both.
+
+**Cost.** A landing that breaks a surface is found before the tag only where
+it throws at load or in a window the smoke walk opens, and otherwise in use
+or by a bug report. Nothing rolls the logs by itself, so `CHANGELOG.md` and
+each DECISIONS file grow until the owner asks for a roll. A screenshot in a
+guide or the gallery goes stale with no check to say so.
