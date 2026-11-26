@@ -2984,7 +2984,7 @@ Rejected: a Save rolled against a figure nobody imported (the module would
 supply the number); a declared press for any owner of the subject (a verdict
 with no throw is a ruling, which is the Judge's).
 
-## 2026-11-25 — A fuse's press reads Light, and a burning fuse offers it only from a spare (gear S9c)
+## 2026-11-25 — A fuse's press reads Light, and a burning fuse offers it only from a spare (gear S9c) — SUPERSEDED IN PART 2026-11-26
 
 A fuse item's row, its stack-row press and its Token HUD control say Light
 (the press the fuse card already names), and its row reads Lit with the
@@ -3007,3 +3007,42 @@ prepared value up as an id, which answers nothing, so every reach moment
 id shape. `regions.mjs` `attachedToken` reads the id from either shape and
 the token through the scene, and the mocks now give the prepared shape. Found
 by the `lib-aura-cards` walk.
+
+## 2026-11-26 — The runner holds a second light (gear S9d)
+
+Supersedes in part the 2026-11-25 entry on Light, whose "Rejected: refusing at
+the runner" stood on scope: the rows and the HUD held the rule, and the hotbar
+still reached the door. The new evidence is the owner's priority, 2026-11-26:
+"14.2.0 migration leftovers and Defects and gaps in the beastman work itself I
+want done first." A hotbar macro or any `Item#use` lit a second fuse on a single
+burning bomb, writing a record with nothing to burst, so the rule moved to the
+one place every door goes through. `runFuse` asks `secondLight` before any die:
+with a spare it lights; with none a Player's seat is refused `noSpare` and the
+Judge's own seat is warned and lights another, the same split as every other
+player block and judge warning. The rows and the HUD keep drawing no Light
+without a spare.
+
+A refusal the GM's window answered for a Player's relayed use was told only on
+the GM's window; `useItem` now tells the Player's own window as well, for every
+refusal the runner names, not only this one.
+
+Rejected: a guard per entry point (the hotbar, the macro API and the sheet are
+three doors to one runner).
+
+## 2026-11-26 — A second GM's press is written on the primary GM's window (gear S9d)
+
+`executeAsGM` runs a handler on whichever GM window calls it, so a Passed,
+Failed or Save pressed from a second GM seat was written on that seat's own
+window. The write landed (a GM may write anything), but the card's press
+listener answers only on the primary GM's window, so a whispered prompt was
+never marked answered and an early press was never told to the Judges. The
+S9c landing note said such a press was refused `judgeOnly` when relayed; it was
+not, since `runRelayed` stamps a GM sender as the Judge's own. `pressOnPrimary`
+writes here on the primary GM's window and relays from a second GM's to the
+active GM with `executeAsUser`, carrying the pressing Judge's id as `presser`,
+which `pressHere` reads only where no Player's id was stamped. A Player's
+declared press stays refused `judgeOnly` on its own side.
+
+Rejected: leaving the write on the pressing window (the listener's half is
+lost); recording the primary GM as the presser of a second GM's press (the
+entry would name a Judge who pressed nothing).

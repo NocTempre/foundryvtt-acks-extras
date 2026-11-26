@@ -5337,4 +5337,41 @@ Step 10, the Judge's call (`lib-aura-swig.mjs`):
 
 ### Not walked
 
-A Light press from the sheet row or the HUD control (only their labels and presence), a Player's own seat lighting a fuse, a Judge's call on a burst card or an on-hit card whose save name is blank (the swig card is the one walked; the row model is shared), a GM seat that is not the primary one, and a Player's seat seeing a lit tag on a body it only observes.
+A Light press from the sheet row or the HUD control (only their labels and presence), a Player's own seat lighting a fuse, a Judge's call on a burst card or an on-hit card whose save name is blank (the swig card is the one walked; the row model is shared), and a Player's seat seeing a lit tag on a body it only observes.
+
+## S9d: the second light, the second GM seat
+
+Offline: `tools/test-item-run-second.mjs`. The model is [MODEL.md](MODEL.md), "The aura reach and the item carrier" (the fuse item, "Per seat"). Walked by `tools/live/lib-aura-fuse.mjs` step 6c and `tools/live/lib-aura-swig.mjs` step 10b; written from the code and not yet run. Where: step 6c runs `Item#use` in each seat's page, as a hotbar macro calls it; step 10b, the Chat tab of a second GM seat.
+
+### Fixtures
+
+No fixture is new. Step 6c uses the S9a markers `lib/aura-fuse-bearer` with its `-token` and `lib/aura-fuse-item`, its quantity written to 1 and the Player seat given Owner of the bearer at the start. Step 10b uses `lib/aura-swig-grog-human` on `lib/aura-swig-human`, its `saveKind` written null as in step 10, and seats a third client: the world's Assistant Gamemaster user, found on the GM seat by its role (`CONST.USER_ROLES.ASSISTANT`, so no user name is set) and opened on `CAPTURE_PORT_GM2` (default 9485). The step is skipped where no such user exists, or where a client already holds it, since this walk drives no peer's seat.
+
+### Steps
+
+Step 6c, the second light (`lib-aura-fuse.mjs`):
+
+1. **The first light.** The GM seat uses the item with its die at the top. *Observable:* the card's outcome is `lit` and the bearer holds one fuse record.
+2. **A Player's second light.** The Player seat calls `item.use()` on the same item. *Observable:* the Player's window shows the warning `ACKS-LIB.itemRun.refused.noSpare`; the bearer still holds one fuse record; the GM's window showed its own error toast for the relayed refusal, once (the step takes that toast out of the close's error record by its exact text).
+3. **The Judge's second light.** The GM seat calls `item.use()` with its die at the top. *Observable:* the GM's window shows the warning `ACKS-LIB.itemRun.warn.noSpare` naming the item, and a second fuse record is written on the bearer.
+
+Step 10b, the second GM seat (`lib-aura-swig.mjs`):
+
+4. **The seat.** *Observable:* the second seat is a GM and not the active GM, and the GM seat is still the active one.
+5. **Drawn.** A swig card that names no save, posted by the GM seat. *Observable:* the second GM seat's page draws Passed and Failed on the drinker's row.
+6. **Failed from the second seat.** *Observable:* the entry is `applied`, `saved` false, `declared` true, no `total` or `target`, its `presser` the Assistant Gamemaster user's id; the condition is written once; the row reads Failed with the Judge's-call mark on the second seat, which is drawn Undo and no declare button.
+7. **Undo from the second seat.** *Observable:* the entry reads `undone` and the condition record is gone; the second seat logged no console error.
+
+### Teardown
+
+As S9c: `api.sweepTracked({only})` for the run's own products, its result quoted. Step 6c writes no new document but fuse records on the kept bearer, which the next `reset` clears; step 10b's seat is closed with the walk's others.
+
+### What a walker verifies (inferred, not read from a running world)
+
+- That `game.users.activeGM` is the Gamemaster and not the Assistant while both are seated (core picks the active GM; the step checks it and stops where it is not).
+- That the relay reaches the primary GM's lead window through socketlib's `executeAsUser`, which the suite stands in for.
+- That `item.use()` from the Player's page goes through the claimant to `useItem`, as the hotbar's does.
+
+### Not walked
+
+A Save press from a second GM seat (it takes the same relay), and a second window of the active GM's own user (it writes locally, as before).
