@@ -25,9 +25,10 @@
  * drawn again; the Judge's Search
  * here on the Dungeon tab (a session with no fight and no pot, pressed again
  * brings the same screen forward, an assigned member shows on the Turn plan);
- * the Player seat's Search here (one declaration card, nothing opened or
- * moved); the Judge accepting (the session opens, the Player seat's screen
- * follows Show the scene); the party token moved out of every area and a
+ * the Player seat's Search here (the press runs on the Judge's client: the
+ * session opens there, one public declaration card names the player, and no
+ * screen opens on the Player seat); the Judge's own press after that session
+ * ends (the session opens, the Player seat's screen follows Show the scene); the party token moved out of every area and a
  * fresh fight's card refused with the no-place notice, then pressable again
  * with the token back, then that card's pot closed (deleted) from its window and
  * the card pressed again, reopening the scene with the bodies, no lots and the
@@ -1088,8 +1089,8 @@ try {
   await run(gm, P.closeScreen, { fid });
   await run(gm, P.closeSheet, { partyId: actorIds.party });
 
-  /* ================= Steps 6 and 7: the Player's declaration, the Judge accepts ================= */
-  section("Step 6. the Player seat's declaration");
+  /* ================= Steps 6 and 7: the Player's press, then the Judge's own ================= */
+  section("Step 6. the Player seat's press opens the session on the Judge's client");
   const seatInfo = await run(player, P.seatInfo);
   note("the seat that answers a relay (the Player seat's view of the active GM)", seatInfo);
   const activeIsLane = seatInfo.activeGM === MACHINE.gm;
@@ -1106,21 +1107,24 @@ try {
     return ms.length ? ms : null;
   }, { tries: 40, every: 300 });
   for (const m of declared ?? []) trackMessage(m.id);
+  const opened6 = await run(gm, P.waitSession, { partyId: actorIds.party, open: true });
   await sleep(1500);
-  const clock6 = await run(gm, P.clock, { fid });
   const potsPost6 = await run(gm, P.pots, { known: knownPots });
   const s6 = await run(gm, P.session, { partyId: actorIds.party });
   const winP6 = await run(player, P.winState, { fid });
   note("the declaration's cards (the card's own text is compared in the page, not printed)", (declared ?? []).length);
   if (!activeIsLane) note("a GM client other than this lane's is the active GM; the relay may have been answered there", seatInfo);
   check(
-    "the Player's press posted one declaration card, naming the user and the declaration, to the table, and nothing opened: no session, no pot, the clock and the plan unchanged, no screen on the Player seat",
-    decl.found && (declared ?? []).length === 1 && (declared[0].html ?? "").replace(/<[^>]*>/g, "").trim() === declText && !s6.open && potsPost6.count === potsPre6.count && sameJson(clock6, clock0) && !winP6.open,
-    { found: decl.found, cards: (declared ?? []).length, textOk: !!declared?.[0] && (declared[0].html ?? "").replace(/<[^>]*>/g, "").trim() === declText, session: s6.open, pots: [potsPre6.count, potsPost6.count], clockSame: sameJson(clock6, clock0), activeIsLane },
+    "the Player's press opened the session on the Judge's client (read on the Judge's seat), posted one declaration card naming the user and the declaration, dealt no pot, and opened no screen on the Player seat",
+    decl.found && !!opened6 && s6.open && (declared ?? []).length === 1 && (declared[0].html ?? "").replace(/<[^>]*>/g, "").trim() === declText && potsPost6.count === potsPre6.count && !winP6.open,
+    { found: decl.found, opened: !!opened6, session: s6.open, cards: (declared ?? []).length, textOk: !!declared?.[0] && (declared[0].html ?? "").replace(/<[^>]*>/g, "").trim() === declText, pots: [potsPre6.count, potsPost6.count], playerScreen: winP6.open, clock: [clock0, await run(gm, P.clock, { fid })], activeIsLane },
   );
-  section("Step 7. the Judge accepts");
+  await run(gm, P.endSession, { fid });
+  await run(gm, P.closeScreen, { fid });
+  await run(gm, P.waitSession, { partyId: actorIds.party, open: false });
+  section("Step 7. the Judge's own press, and the Player seat's screen follows Show");
   await run(gm, P.openSheet, { partyId: actorIds.party });
-  const acc = await press(gm, PORTS.gm, { scope: "doc", sel: '[data-action="searchHere"]' }, "Search here (Judge accepts)");
+  const acc = await press(gm, PORTS.gm, { scope: "doc", sel: '[data-action="searchHere"]' }, "Search here (Judge)");
   const opened7 = await run(gm, P.waitSession, { partyId: actorIds.party, open: true });
   if (opened7) await run(gm, P.waitWin, { fid });
   const shown7 = await run(gm, P.show, { fid });

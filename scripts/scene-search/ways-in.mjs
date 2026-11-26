@@ -10,9 +10,9 @@
  * and with the pot it dealt reattached, and deals nothing again.
  *
  * Judge-only, since opening a session deals a haul. A player's press on the
- * Dungeon tab is not this call: it is a declaration the party's request relay
- * announces (`formation/player-requests.mjs`, `declareSearch`), and the Judge
- * then presses.
+ * Dungeon tab reaches this call through the party-press relay
+ * (`formation/party-press.mjs`, `searchHere`), which makes it on the Judge's
+ * client and announces the press to the table.
  *
  * The world is reached through `deps` so a suite supplies its own;
  * `ways-in-live.mjs` is the module's wiring over the real ones.
