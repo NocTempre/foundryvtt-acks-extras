@@ -23,23 +23,27 @@ sibling features (henchmen today; domains later) read through lib.
   - **Storage at a place**: the lib subsystem owns the primitives (providers, stored
     goods, transfers, the deletion fallback); this module owns the experience
     — the location sheet, the character sheet's Storage tab, the retirement of
-    the system's banked-coin column, the vault sweep, and the GM manager.
+    the system's banked-coin column, the vault sweep, and the storage manager.
     A location holds goods only once its owner turns storage on: the create hook
     sets no storage flag, and an importer's world copy of a library place
     leaves the library's behind unless goods are stored on it. The place's
     owner (a Judge, or a seat with OWNER on it) turns it on with the Storage
-    tab's **Hold goods here** or a drop on the location's sheet; a Judge also
-    turns it on with the manager's **Add a place**, and the manager's new-place
-    target and a vault are made holding goods. The manager lists every
-    provider, and its Move to targets are the same list. `pruneEmptyLocations`
+    tab's **Hold goods here** or a drop on the location's sheet, or with the
+    manager's **Add a place**, which lists the actors the seat owns; the
+    manager's new-place target and a vault are made holding goods. The manager
+    opens on every seat and lists the providers the seat owns, and its Move to
+    targets are the same list; a place the seat does not own is never listed,
+    counted or named. It offers a character as an owner only at LIMITED or
+    better. Create vault and the new-place target are drawn for a seat that may
+    create an actor (`canCreate`, `Actor.canUserCreate`). `pruneEmptyLocations`
     spares a provider. The place's own Storage tab shows to a seat that
     observes the place (`canSeeStorage`, `testUserPermission` at OBSERVER), so
     it lists whose goods are held there and the till's total to that seat; its
     deposit and take controls move the seat's own goods through the storage
     relay. The house bucket's Take and its retrievable lock (`houseControls`)
     are the place's owner's, and any other seat takes a house row only once it is
-    marked retrievable. **Hold goods here** is the owner's too, and **Open
-    manager** stays the Judge's. A ground pile takes no deposit from anyone, a
+    marked retrievable. **Hold goods here** is the owner's too, and so is **Open
+    manager** (the sheet's `editable`). A ground pile takes no deposit from anyone, a
     Judge included.
   - **Table schemas**: typed shapes for the people/economy documents
     (cultures & names, occupations, age tables, class registry +

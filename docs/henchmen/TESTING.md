@@ -720,7 +720,7 @@ a step it does not name is walked by hand.
     world must hold the imported class tables; the class a die of 1 draws is
     read from them in page context (`bracketRow` over the distribution's first
     bucket), never written down.
-    - Open the place's sheet on GM Settings, press **Add a class never offered
+    - Open the place's sheet on its Settings tab, press **Add a class never offered
       here**, and pick that class in the new row's select.
       *Observable:* before the press the block says every class can be
       offered; the press makes one row whose options are exactly
@@ -772,7 +772,7 @@ a step it does not name is walked by hand.
       seat with `{error}`; the dialog itself checks no step.
     - The place's Demographics block, under a second layer of the walk's own
       on the GM seat holding the `people` document's `cultures` table with two
-      invented cultures: the sheet on GM Settings, **Add** pressed.
+      invented cultures: the sheet's Settings tab, **Add** pressed.
       *Observable:* one row stored on the first culture and shown in its
       select, whose options are the table's cultures by label in the table's
       order. The layer is lifted and the place's demographics emptied

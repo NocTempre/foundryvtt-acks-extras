@@ -24,6 +24,14 @@
  *       listed, one it observes is not), nesting a place and Detach, the house
  *       lock and Take, Hold goods and a compendium item dropped on the sheet.
  *       A place the seat only observes draws and does none of it.
+ *   storage manager: any seat opens it (the sheet's Open manager, the exported
+ *       function, the settings menu, the shipped macro) and it lists, moves,
+ *       reassigns and enables only what the seat owns: a place with no level
+ *       or an observed one is never listed, offered or named; Create vault and
+ *       the new-place target follow the seat's create right, read from the
+ *       context; Reassign offers no character the seat cannot see; the
+ *       Enable and Disable Storage Here macros warn on an actor the seat does
+ *       not own and run on one it does.
  *
  * Fixtures, kept and found by marker, each made OWNER for the Player seat and
  * brought to the shape a step needs at that step's start (the GM seat writes
@@ -34,6 +42,9 @@
  *   `location/owner-hero`     a character the Player owns, the storage group's claimant
  *   `location/owner-hire-mine`   a character the Player owns, offered for hire
  *   `location/owner-hire-theirs` a character the Player only observes
+ *   `location/owner-vault`  a location the Player owns, the hero's vault
+ *   `location/owner-closed` a location with no level for the Player, a provider
+ *   `location/owner-unseen` a character with no level for the Player
  * Every figure printed is a boolean, a count or a lang key's answer; no place
  * in the world is named.
  */
@@ -633,6 +644,243 @@ const P = {
     if (ids.length) await game.actors.get(aId).deleteEmbeddedDocuments("Item", ids);
     return ids.length;
   },
+
+  /**
+   * GM seat: bring the manager's places to a shape. The Player owns A, B and
+   * the vault (the hero's) and gets `closedLevel` on the closed place; every
+   * row of this group's tag, and each item id in `drop` (the rope a Move landed
+   * on B, read back from that step), is cleared from the places and the hero;
+   * storage is switched to the flags named; and, when `stored`, A holds one
+   * rope stamped to the hero.
+   */
+  shapeManager: async ({ aId, bId, vaultId, closedId, heroId, pid, closedLevel, closedProvider, aProvider, bProvider, stored, tag, rope, drop }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = acksExtras.lib.storage;
+    const docs = { a: game.actors.get(aId), b: game.actors.get(bId), vault: game.actors.get(vaultId), closed: game.actors.get(closedId) };
+    const hero = game.actors.get(heroId);
+    for (const doc of [...Object.values(docs), hero]) {
+      const own = doc.items.filter((i) => i.flags?.world?.fixtureItem === tag || drop.includes(i.id)).map((i) => i.id);
+      if (own.length) await doc.deleteEmbeddedDocuments("Item", own);
+    }
+    for (const key of ["a", "b", "vault"]) await docs[key].update({ [`ownership.${pid}`]: 3 });
+    await docs.closed.update({ [`ownership.${pid}`]: closedLevel });
+    await S.setProvider(docs.a, aProvider);
+    await S.setProvider(docs.b, bProvider);
+    await S.setProvider(docs.closed, closedProvider);
+    await S.setProvider(docs.vault, true, { vaultOf: hero.uuid });
+    if (stored) await S.stockProvider(docs.a, [{ name: rope, type: "item", flags: { world: { fixtureItem: tag } } }], { ownerUuid: hero.uuid, ownerName: hero.name });
+    await sleep(600);
+    return {
+      closedLevel: docs.closed.ownership?.[pid] ?? null,
+      providers: { a: S.isProvider(docs.a), b: S.isProvider(docs.b), closed: S.isProvider(docs.closed), vault: S.isProvider(docs.vault) },
+      vaultOf: S.vaultOwnerUuid(docs.vault) === hero.uuid,
+      aHolds: docs.a.items.filter((i) => i.name === rope).length,
+      bHolds: docs.b.items.filter((i) => i.name === rope).length,
+    };
+  },
+
+  /** Player seat: wait up to five seconds for this client to hold the levels, flags and rope a manager step needs. */
+  seenManager: async ({ aId, bId, vaultId, closedId, closedLevel, closedProvider, aProvider, bProvider, stored, rope }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const S = acksExtras.lib.storage;
+    const [a, b, vault, closed] = [aId, bId, vaultId, closedId].map((id) => game.actors.get(id));
+    const read = () => ({
+      owns: [a, b, vault].every((doc) => doc.isOwner),
+      closedLevel: ["OWNER", "OBSERVER", "LIMITED"].find((name) => closed.testUserPermission(game.user, name)) ?? "NONE",
+      closedProvider: S.isProvider(closed),
+      aProvider: S.isProvider(a),
+      bProvider: S.isProvider(b),
+      vault: S.isProvider(vault) && !!S.vaultOwnerUuid(vault),
+      aHolds: a.items.filter((i) => i.name === rope).length,
+    });
+    const want = { owns: true, closedLevel, closedProvider, aProvider, bProvider, vault: true, aHolds: stored ? 1 : 0 };
+    for (let i = 0; i < 50; i++) {
+      const now = read();
+      if (Object.keys(want).every((key) => now[key] === want[key])) break;
+      await sleep(100);
+    }
+    return { ...read(), isGM: game.user.isGM };
+  },
+
+  /**
+   * Open the storage manager on this seat by `how` (`api`: the exported
+   * function, `menu`: the settings menu's own class, `macro`: the shipped
+   * macro), from a closed window, and read it: the places listed in its rail
+   * and in its context, the move targets, the controls the create right
+   * draws, and whether the closed place's name is anywhere in it. `placeId`
+   * focuses the api's call on a place.
+   */
+  managerView: async ({ how, placeId, closedName }) => {
+    const { sleep } = globalThis.__lpoKit;
+    const id = "acks-location-storage-manager";
+    await foundry.applications.instances.get(id)?.close();
+    const out = { how, isGM: game.user.isGM };
+    if (how === "menu") {
+      const menu = game.settings.menus.get("acks-extras.storageManager");
+      out.restricted = menu?.restricted ?? null;
+      await new menu.type().render({ force: true });
+    } else if (how === "macro") {
+      const pack = game.packs.find((p) => p.metadata.packageName === "acks-extras" && p.documentName === "Macro" && p.index.some((e) => e.name === "Open Storage Manager"));
+      const macro = await pack?.getDocument(pack.index.find((e) => e.name === "Open Storage Manager")._id);
+      out.macro = !!macro;
+      await macro?.execute();
+    } else {
+      acksExtras.location.openStorageManager(placeId ? game.actors.get(placeId) : null);
+    }
+    let app = null;
+    for (let i = 0; i < 50 && !app?.rendered; i++) {
+      app = foundry.applications.instances.get(id);
+      if (!app?.rendered) await sleep(100);
+    }
+    out.rendered = !!app?.rendered;
+    if (!app?.rendered) return out;
+    await sleep(400);
+    const root = app.element;
+    const ctx = await app._prepareContext({});
+    out.listed = [...root.querySelectorAll(".acks-location-manager-place")].map((li) => li.dataset.placeUuid);
+    out.contextPlaces = ctx.places.map((p) => p.uuid);
+    out.vaults = ctx.places.filter((p) => p.isVault).map((p) => p.uuid);
+    out.allOwned = out.listed.every((uuid) => !!fromUuidSync(uuid)?.isOwner);
+    out.current = ctx.place?.uuid ?? null;
+    out.targets = [...root.querySelectorAll("select[data-pick=target] option")].map((o) => o.value);
+    out.contextTargets = ctx.targets.map((t) => t.uuid);
+    out.canCreate = ctx.canCreate;
+    out.newTarget = out.targets.includes("__new__");
+    out.createVault = !!root.querySelector('[data-action="createVault"]');
+    out.named = !!closedName && root.textContent.includes(closedName);
+    out.owners = ctx.owners.map((o) => o.uuid);
+    return out;
+  },
+
+  /** Press Open manager on place A's Storage tab and read which place the manager opened on. */
+  sheetOpenManager: async ({ aId }) => {
+    const { open, sleep } = globalThis.__lpoKit;
+    const id = "acks-location-storage-manager";
+    await foundry.applications.instances.get(id)?.close();
+    const place = game.actors.get(aId);
+    const sheet = await open(place, "storage");
+    const button = sheet.element.querySelector('[data-action="openManager"]');
+    const out = { present: !!button, disabled: button ? !!button.disabled : null };
+    button?.click();
+    let app = null;
+    for (let i = 0; i < 50 && button && !app?.rendered; i++) {
+      app = foundry.applications.instances.get(id);
+      if (!app?.rendered) await sleep(100);
+    }
+    out.opened = !!app?.rendered;
+    out.on = app?.place?.uuid ?? null;
+    await app?.close();
+    await sheet.close();
+    return out;
+  },
+
+  /** Open the manager on place A, pick the hero's rope there and press Move to B; read where the rope is after. */
+  moveGoods: async ({ aId, bId, rope }) => {
+    const { sleep } = globalThis.__lpoKit;
+    const id = "acks-location-storage-manager";
+    await foundry.applications.instances.get(id)?.close();
+    const [a, b] = [aId, bId].map((x) => game.actors.get(x));
+    acksExtras.location.openStorageManager(a);
+    let app = null;
+    for (let i = 0; i < 50 && !app?.rendered; i++) {
+      app = foundry.applications.instances.get(id);
+      if (!app?.rendered) await sleep(100);
+    }
+    await sleep(400);
+    const out = { rendered: !!app?.rendered, listsRope: !!app?.element?.textContent.includes(rope) };
+    app.element.querySelector('[data-action="toggleAll"]')?.click();
+    await sleep(500);
+    const select = app.element.querySelector("select[data-pick=target]");
+    out.targetOffered = [...(select?.options ?? [])].some((o) => o.value === b.uuid);
+    if (select) select.value = b.uuid;
+    app.element.querySelector('[data-action="move"]')?.click();
+    const holds = (doc) => doc.items.filter((i) => i.name === rope).length;
+    for (let i = 0; i < 50 && holds(b) === 0; i++) await sleep(100);
+    out.aHolds = holds(a);
+    out.bHolds = holds(b);
+    out.landed = b.items.filter((i) => i.name === rope).map((i) => i.id);
+    await app.close();
+    return out;
+  },
+
+  /**
+   * Open the manager on place A, optionally pick the hero's rope, press the
+   * control named by `action` and read the options of the dialog it opens
+   * (the actors or characters it offers, each with whether the seat owns it
+   * and whether it sees it). The dialog is closed unanswered.
+   */
+  managerDialog: async ({ aId, action, pick }) => {
+    const { dialog, sleep } = globalThis.__lpoKit;
+    const id = "acks-location-storage-manager";
+    await foundry.applications.instances.get(id)?.close();
+    acksExtras.location.openStorageManager(game.actors.get(aId));
+    let app = null;
+    for (let i = 0; i < 50 && !app?.rendered; i++) {
+      app = foundry.applications.instances.get(id);
+      if (!app?.rendered) await sleep(100);
+    }
+    await sleep(400);
+    if (pick) {
+      app.element.querySelector('[data-action="toggleAll"]')?.click();
+      await sleep(500);
+    }
+    const button = app.element.querySelector(`[data-action="${action}"]`);
+    const out = { button: !!button };
+    button?.click();
+    const dlg = button ? await dialog("ok") : null;
+    out.prompted = !!dlg;
+    out.options = [...(dlg?.querySelectorAll("select option") ?? [])].map((o) => o.value);
+    out.owned = out.options.every((uuid) => !!fromUuidSync(uuid)?.isOwner);
+    out.visible = out.options.every((uuid) => !!fromUuidSync(uuid)?.testUserPermission(game.user, "LIMITED"));
+    const host = [...foundry.applications.instances.values()].find((x) => x !== app && (x.element === dlg || x.element?.contains?.(dlg)));
+    await host?.close();
+    await app.close();
+    return out;
+  },
+
+  /** Run a shipped macro by name from this seat, with no token controlled, and read the warnings it raised. */
+  runMacro: async ({ name }) => {
+    const { sleep } = globalThis.__lpoKit;
+    globalThis.__lpoWarns = [];
+    canvas.tokens?.releaseAll();
+    const pack = game.packs.find((p) => p.metadata.packageName === "acks-extras" && p.documentName === "Macro" && p.index.some((e) => e.name === name));
+    const macro = await pack?.getDocument(pack.index.find((e) => e.name === name)._id);
+    if (!macro) return { found: false };
+    const controlled = canvas.tokens?.controlled?.length ?? null;
+    await foundry.applications.instances.get("acks-location-storage-manager")?.close();
+    await macro.execute();
+    await sleep(800);
+    const warns = globalThis.__lpoWarns;
+    globalThis.__lpoWarns = [];
+    return { found: true, controlled, warns, manager: !!foundry.applications.instances.get("acks-location-storage-manager")?.rendered };
+  },
+
+  /** GM seat: point the Player's assigned character at an actor (or nothing), and read the one it had. */
+  setCharacter: async ({ pid, actorId }) => {
+    const user = game.users.get(pid);
+    const before = user.character?.id ?? null;
+    await user.update({ character: actorId });
+    return { before, now: user.character?.id ?? null };
+  },
+
+  /** Player seat: wait up to five seconds for this client to hold its assigned character. */
+  seenCharacter: async ({ actorId }) => {
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    for (let i = 0; i < 50 && (game.user.character?.id ?? null) !== actorId; i++) await sleep(100);
+    return { id: game.user.character?.id ?? null, isGM: game.user.isGM };
+  },
+
+  /** Read a place's storage flag, owned state and rows named `rope` on this seat. */
+  providerState: async ({ id, rope }) => {
+    const doc = game.actors.get(id);
+    return { provider: acksExtras.lib.storage.isProvider(doc), isOwner: !!doc.isOwner, rope: doc.items.filter((i) => i.name === rope).length };
+  },
+
+  /** Close the storage manager on this seat. */
+  closeManager: async () => {
+    await foundry.applications.instances.get("acks-location-storage-manager")?.close();
+    return true;
+  },
 };
 
 async function run(api, fn, ...args) {
@@ -1013,8 +1261,143 @@ async function groupOwnerAdmin(ctx) {
   await shapeAdmin({});
 }
 
+const MANAGER_TAG = "location/owner-manager";
+const MANAGER_ROPE = "Owner Walk Manager Rope";
+const MANAGER_CLOSED = "Owner Walk Closed";
+
+/**
+ * The storage manager: any seat opens it, and it works on what the seat owns.
+ * The Player owns places A and B and the hero's vault, and has no level on the
+ * closed place (an importer-stamped place keeps the table default of None), or
+ * observes it. Every step brings the shape it needs from the GM seat and
+ * asserts it on the Player seat before it presses anything. The create right
+ * is read from the context and is the world's, never edited. The rows the group
+ * makes carry its tag and name and are cleared at its end.
+ */
+async function groupStorageManager(ctx) {
+  const { gm, player, ids, pid } = ctx;
+  const { aId, bId, vaultId, closedId, unseenId, heroId, theirsId } = ids;
+  const uuid = (id) => `Actor.${id}`;
+  const levelName = (level) => Object.keys(LEVEL).find((key) => LEVEL[key] === level);
+  await run(gm, P.kit);
+  await run(player, P.kit);
+  await run(player, P.arm);
+
+  // The ids a Move landed on B, deleted by the next shape; the walk reads them back from the step.
+  let landed = [];
+  /** Shape on the GM seat, then wait for the Player seat to hold it. */
+  const shapeManager = async (shape) => {
+    const full = { closedLevel: LEVEL.NONE, closedProvider: true, aProvider: true, bProvider: true, stored: false, ...shape };
+    const base = { aId, bId, vaultId, closedId, rope: MANAGER_ROPE };
+    const shaped = await run(gm, P.shapeManager, { ...base, heroId, pid, tag: MANAGER_TAG, drop: landed, ...full });
+    landed = [];
+    const seen = await run(player, P.seenManager, { ...base, ...full, closedLevel: levelName(full.closedLevel) });
+    const agree =
+      !seen.isGM && seen.owns && seen.closedLevel === levelName(full.closedLevel) && shaped.closedLevel === full.closedLevel &&
+      shaped.providers.a === full.aProvider && seen.aProvider === full.aProvider && shaped.providers.b === full.bProvider && seen.bProvider === full.bProvider &&
+      shaped.providers.closed === full.closedProvider && seen.closedProvider === full.closedProvider && shaped.vaultOf && seen.vault &&
+      shaped.aHolds === (full.stored ? 1 : 0) && seen.aHolds === (full.stored ? 1 : 0) && shaped.bHolds === 0;
+    return { shaped, seen, agree };
+  };
+
+  section("manager 1: Open manager is on a place's Storage tab for its owner and opens the manager on that place");
+  let s = await shapeManager({ stored: true });
+  check("the Player owns A, B and the vault; A holds a rope stamped to the hero; the closed place is None to the Player", s.agree, s);
+  let r = await run(player, P.sheetOpenManager, { aId });
+  check("Open manager is drawn and live, and pressing it opens the manager on place A", r.present && r.disabled === false && r.opened && r.on === uuid(aId), r);
+
+  section("manager 2: the api, the settings menu and the shipped macro open it on the Player seat, and it lists what the Player owns");
+  check("the closed place is None to the Player and holds goods", s.agree && s.shaped.providers.closed, s.shaped.providers);
+  for (const how of ["api", "menu", "macro"]) {
+    const v = await run(player, P.managerView, { how, closedName: MANAGER_CLOSED });
+    if (how === "menu") check("the settings menu is not restricted to a role", v.restricted === false, v);
+    check(`opened by ${how}: the window renders on a Player seat`, !v.isGM && v.rendered && (how !== "macro" || v.macro), v);
+    check(`opened by ${how}: the rail lists A, B and the hero's vault, in the rail and in the context, and every place listed is one the seat owns`, [uuid(aId), uuid(bId), uuid(vaultId)].every((u) => v.listed?.includes(u) && v.contextPlaces?.includes(u)) && v.allOwned, v);
+    check(`opened by ${how}: the vault is marked a vault, and the closed place is neither listed, offered as a target nor named`, v.vaults?.includes(uuid(vaultId)) && !v.listed?.includes(uuid(closedId)) && !v.targets?.includes(uuid(closedId)) && !v.named, v);
+  }
+
+  section("manager 3: a place the Player only observes is listed no more than one it has no level on");
+  s = await shapeManager({ closedLevel: LEVEL.OBSERVER });
+  check("the closed place is OBSERVER to the Player", s.agree && s.seen.closedLevel === "OBSERVER", s);
+  let v = await run(player, P.managerView, { how: "api", closedName: MANAGER_CLOSED });
+  check("it is not listed, not a move target and not named", v.rendered && !v.listed.includes(uuid(closedId)) && !v.contextTargets.includes(uuid(closedId)) && !v.targets.includes(uuid(closedId)) && !v.named, v);
+  v = await run(player, P.managerView, { how: "api", placeId: closedId, closedName: MANAGER_CLOSED });
+  check("handing the manager that place focuses the first place the seat owns instead, and draws none of its goods", v.rendered && v.current !== uuid(closedId) && v.current !== null && !v.named, { current: v.current, named: v.named });
+
+  section("manager 4: Move between two places the Player owns");
+  s = await shapeManager({ stored: true });
+  check("A holds the hero's rope and B holds none", s.agree && s.shaped.bHolds === 0, s);
+  r = await run(player, P.moveGoods, { aId, bId, rope: MANAGER_ROPE });
+  landed = r.landed ?? [];
+  check("the manager lists the rope, offers B as a target, and Move takes the rope to B", r.rendered && r.listsRope && r.targetOffered && r.aHolds === 0 && r.bHolds === 1, r);
+
+  section("manager 5: Create vault and the new-place target follow the seat's create right");
+  s = await shapeManager({});
+  check("the Player owns A, B and the vault", s.agree, s);
+  v = await run(player, P.managerView, { how: "api", closedName: MANAGER_CLOSED });
+  note("this world gives the Player seat the create-actor right", v.canCreate);
+  check("the context carries the create right, and the Create vault button and the new-place option are drawn exactly with it", typeof v.canCreate === "boolean" && v.createVault === v.canCreate && v.newTarget === v.canCreate, { canCreate: v.canCreate, createVault: v.createVault, newTarget: v.newTarget });
+  note("create vault and a new place made", "not exercised: it makes world actors, and the world's permission settings are not edited");
+
+  section("manager 6: Add a place offers only actors the seat owns");
+  s = await shapeManager({ closedProvider: false, bProvider: false });
+  check("B and the closed place are not holding goods, and the closed place is None to the Player", s.agree && !s.shaped.providers.b && !s.shaped.providers.closed, s);
+  r = await run(player, P.managerDialog, { aId, action: "enableStorage" });
+  check("the dialog offers B, every option is an actor the seat owns, and the closed place is not among them", r.prompted && r.options.includes(uuid(bId)) && r.owned && !r.options.includes(uuid(closedId)), r);
+
+  section("manager 7: Reassign offers the characters the seat sees and not one it cannot");
+  s = await shapeManager({ stored: true });
+  check("A holds the hero's rope", s.agree, s);
+  const unseen = await run(player, P.providerState, { id: unseenId, rope: MANAGER_ROPE });
+  check("the Player holds no level on the unseen character", !unseen.isOwner, unseen);
+  r = await run(player, P.managerDialog, { aId, action: "reassign", pick: true });
+  check("the dialog offers the hero and the character the Player observes, and the unseen one is not offered", r.prompted && r.options.includes(uuid(heroId)) && r.options.includes(uuid(theirsId)) && !r.options.includes(uuid(unseenId)) && r.visible, r);
+
+  section("manager 8: Enable Storage Here and Disable Storage Here, from the Player seat");
+  s = await shapeManager({ bProvider: false });
+  check("B is not holding goods; the closed place holds goods and is None to the Player", s.agree && !s.shaped.providers.b && s.shaped.providers.closed, s);
+  const assign = async (actorId) => {
+    const set = await run(gm, P.setCharacter, { pid, actorId });
+    const seen = await run(player, P.seenCharacter, { actorId });
+    return { set, seen, ok: set.now === actorId && seen.id === actorId && !seen.isGM };
+  };
+  const before = await run(gm, P.setCharacter, { pid, actorId: closedId });
+  try {
+    let a = await assign(closedId);
+    check("the Player's assigned character is the closed place, which the Player does not own", a.ok && !(await run(player, P.providerState, { id: closedId, rope: MANAGER_ROPE })).isOwner, a);
+    r = await run(player, P.runMacro, { name: "Enable Storage Here" });
+    check("Enable Storage Here on an actor the Player does not own warns and changes nothing", r.found && r.controlled === 0 && r.warns.some((t) => t.startsWith("You do not own")), r);
+    r = await run(player, P.runMacro, { name: "Disable Storage Here" });
+    const stillOn = await run(player, P.providerState, { id: closedId, rope: MANAGER_ROPE });
+    check("Disable Storage Here on it warns too, and it still holds goods", r.found && r.warns.some((t) => t.startsWith("You do not own")) && stillOn.provider, { r, stillOn });
+    a = await assign(bId);
+    check("the Player's assigned character is place B, which the Player owns and which holds no goods", a.ok && (await run(player, P.providerState, { id: bId, rope: MANAGER_ROPE })).isOwner, a);
+    r = await run(player, P.runMacro, { name: "Enable Storage Here" });
+    let state = await run(player, P.providerState, { id: bId, rope: MANAGER_ROPE });
+    check("Enable Storage Here on B raises no refusal and turns storage on", r.found && r.warns.length === 0 && state.provider, { r, state });
+    r = await run(player, P.runMacro, { name: "Disable Storage Here" });
+    state = await run(player, P.providerState, { id: bId, rope: MANAGER_ROPE });
+    check("Disable Storage Here on B, which holds nothing, raises no refusal and turns it off", r.found && r.warns.length === 0 && !state.provider, { r, state });
+  } finally {
+    await run(gm, P.setCharacter, { pid, actorId: before.before });
+  }
+  r = await run(player, P.runMacro, { name: "Open Storage Manager" });
+  check("Open Storage Manager runs once from the Player seat with no refusal, and the window it leaves open is the manager", r.found && r.warns.length === 0 && r.manager, r);
+  await run(player, P.closeManager);
+
+  section("manager 9: the Judge's seat as control, which sees every place and may create");
+  s = await shapeManager({ closedProvider: true });
+  check("the closed place holds goods and is None to the Player", s.agree && s.shaped.providers.closed, s);
+  const judge = await run(gm, P.managerView, { how: "api", closedName: MANAGER_CLOSED });
+  check("the Judge's manager lists the closed place and offers a new place and Create vault", judge.rendered && judge.isGM && judge.listed.includes(uuid(closedId)) && judge.canCreate === true && judge.newTarget && judge.createVault, judge);
+  await run(gm, P.closeManager);
+
+  // Leave the fixtures at the shape the recipe starts from: no rope, A and B not holding goods.
+  await shapeManager({ aProvider: false, bProvider: false, closedProvider: false });
+}
+
 /** The groups this walk runs, in order. A later slice of the recipe appends its own. */
-const GROUPS = [groupSceneLink, groupStorage, groupOwnerAdmin];
+const GROUPS = [groupSceneLink, groupStorage, groupOwnerAdmin, groupStorageManager];
 
 /* ------------------------------------------------------------------ */
 /*  The walk                                                            */
@@ -1040,8 +1423,11 @@ try {
   const hero = await gm.fixture("location/owner-hero", "Actor", { name: "Owner Walk Hero", type: "character", ownership: own });
   const mine = await gm.fixture("location/owner-hire-mine", "Actor", { name: "Owner Walk Hire Mine", type: "character", ownership: own });
   const theirs = await gm.fixture("location/owner-hire-theirs", "Actor", { name: "Owner Walk Hire Theirs", type: "character", ownership: { default: LEVEL.NONE, [pc.userId]: LEVEL.OBSERVER } });
-  note("fixtures", { scene: scene.built, a: a.built, b: b.built, hero: hero.built, mine: mine.built, theirs: theirs.built });
-  const ctx = { gm, player, pid: pc.userId, ids: { sceneId: scene.id, aId: a.id, bId: b.id, heroId: hero.id, mineId: mine.id, theirsId: theirs.id } };
+  const vault = await gm.fixture("location/owner-vault", "Actor", { name: "Owner Walk Vault", type: LOCATION, ownership: own });
+  const closed = await gm.fixture("location/owner-closed", "Actor", { name: MANAGER_CLOSED, type: LOCATION, ownership: { default: LEVEL.NONE } });
+  const unseen = await gm.fixture("location/owner-unseen", "Actor", { name: "Owner Walk Unseen", type: "character", ownership: { default: LEVEL.NONE } });
+  note("fixtures", { scene: scene.built, a: a.built, b: b.built, hero: hero.built, mine: mine.built, theirs: theirs.built, vault: vault.built, closed: closed.built, unseen: unseen.built });
+  const ctx = { gm, player, pid: pc.userId, ids: { sceneId: scene.id, aId: a.id, bId: b.id, heroId: hero.id, mineId: mine.id, theirsId: theirs.id, vaultId: vault.id, closedId: closed.id, unseenId: unseen.id } };
 
   for (const group of GROUPS) await group(ctx);
   walkDone();

@@ -1,12 +1,14 @@
 /* global game, ui, foundry, Actor, Hooks, CONFIG */
 /**
- * The GM's storage manager: merge one place's holdings into another (existing
- * or newly made), reassign whose goods are whose, and turn storage on or off
- * for an actor.
+ * The storage manager: merge one place's holdings into another (existing or
+ * newly made), reassign whose goods are whose, and turn storage on or off for
+ * an actor. Every seat opens it and it works on the places the seat owns.
  *
- * Writes go direct, with no sockets; two GMs at once is last-write-wins on
+ * Writes go direct, with no sockets; two seats at once is last-write-wins on
  * distinct items.
- * See docs/location/DECISIONS.md, "The storage manager writes direct and is last-write-wins".
+ * See docs/location/DECISIONS.md, "The storage manager writes direct and is
+ * last-write-wins" and "The storage manager opens on any seat and works on what
+ * it owns".
  */
 import { makeLoc, libStorage as storage } from "../../lib/util.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "../constants.mjs";
@@ -20,10 +22,14 @@ const { DialogV2 } = foundry.applications.api;
 
 const loc = makeLoc(LANG_PREFIX);
 
+/** A character the seat can see: a character is offered as an owner only at LIMITED or better. */
+const seesCharacter = (a) => a.type === ACTOR_TYPE.character && a.testUserPermission(game.user, "LIMITED");
+
 /**
- * GM tool for goods held across every provider in the world: which actor holds
+ * Tool for goods held across the providers the seat owns: which actor holds
  * what, whose it is, and the reassign / release actions for attribution that has
- * gone stale (a deleted owner, goods stored with no owner).
+ * gone stale (a deleted owner, goods stored with no owner). A provider the seat
+ * does not own is never listed, named, counted or drawn.
  */
 export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(ApplicationV2)) {
   static DEFAULT_OPTIONS = {
@@ -59,15 +65,17 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
     this.#placeUuid = options.placeUuid ?? null;
   }
 
+  /** The place being managed, or null when it does not resolve or the seat does not own it. */
   get place() {
-    return storage().resolveActorSync(this.#placeUuid);
+    const place = storage().resolveActorSync(this.#placeUuid);
+    return place?.isOwner ? place : null;
   }
 
   /** @override */
   async _prepareContext() {
     const api = storage();
-    const all = api.providers();
-    if (!this.place && all.length) this.#placeUuid = all[0].uuid;
+    const all = api.providers().filter((p) => p.isOwner);
+    if (!this.place) this.#placeUuid = all[0]?.uuid ?? null;
     const place = this.place;
 
     // A selection can outlive the item it names (another client retrieved it).
@@ -122,7 +130,8 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
       groups,
       empty: !groups.length,
       targets: all.filter((p) => p.uuid !== this.#placeUuid).map((p) => ({ uuid: p.uuid, name: p.name })),
-      owners: game.actors.filter((a) => a.type === ACTOR_TYPE.character).map((a) => ({ uuid: a.uuid, name: a.name })),
+      owners: game.actors.filter(seesCharacter).map((a) => ({ uuid: a.uuid, name: a.name })),
+      canCreate: Actor.canUserCreate(game.user),
       selected: this.#selection.size,
     };
   }
@@ -189,13 +198,19 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
     this.render();
   }
 
-  /** Merge the picked goods into another place — attribution comes along. */
+  /**
+   * Merge the picked goods into another place — attribution comes along. The
+   * target is a place the seat owns, or a new one for a seat that may create an
+   * actor.
+   */
   static async #onMove() {
     const spec = this.#spec();
     if (!spec.length) {
       ui.notifications.warn(loc("manager.nothingPicked"));
       return;
     }
+    const source = this.place;
+    if (!source) return;
     const root = this.element;
     const choice = root.querySelector("select[data-pick=target]")?.value;
     if (!choice) {
@@ -205,6 +220,7 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
 
     let target;
     if (choice === "__new__") {
+      if (!Actor.canUserCreate(game.user)) return;
       const nameBox = root.querySelector("input[data-pick=newName]");
       const name = nameBox?.value?.trim();
       if (!name) {
@@ -220,11 +236,12 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
         flags: { [MODULE_ID]: { storage: { provider: true } } },
       });
     } else {
-      target = storage().resolveActorSync(choice);
+      const picked = storage().resolveActorSync(choice);
+      target = picked?.isOwner ? picked : null;
     }
     if (!target) return;
 
-    const result = await storage().moveStored(this.place, target, spec);
+    const result = await storage().moveStored(source, target, spec);
     if (result?.ok) {
       ui.notifications.info(loc("manager.moved", { count: result.manifest.length, place: target.name }));
       this.#selection.clear();
@@ -239,8 +256,9 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
       ui.notifications.warn(loc("manager.nothingPicked"));
       return;
     }
-    const owners = game.actors.filter((a) => a.type === ACTOR_TYPE.character);
-    if (!owners.length) return;
+    const place = this.place;
+    const owners = game.actors.filter(seesCharacter);
+    if (!place || !owners.length) return;
 
     const options = owners.map((a) => `<option value="${a.uuid}">${foundry.utils.escapeHTML(a.name)}</option>`).join("");
     const uuid = await DialogV2.prompt({
@@ -253,8 +271,8 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
     if (!uuid) return;
 
     const owner = storage().resolveActorSync(uuid);
-    if (!owner) return;
-    await this.place.updateEmbeddedDocuments(
+    if (!owner || !seesCharacter(owner)) return;
+    await place.updateEmbeddedDocuments(
       "Item",
       spec.map(({ id }) => ({
         _id: id,
@@ -262,7 +280,7 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
       })),
     );
     // Reassigning can leave the same character holding two rows of one coin.
-    await storage().consolidateMoney(this.place, owner.uuid);
+    await storage().consolidateMoney(place, owner.uuid);
     ui.notifications.info(loc("manager.reassigned", { count: spec.length, name: owner.name }));
     this.#selection.clear();
     this.render();
@@ -276,9 +294,11 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
       return;
     }
     const api = storage();
+    const place = this.place;
+    if (!place) return;
     const byOwner = new Map();
     for (const { id, quantity } of spec) {
-      const uuid = api.ownerOf(this.place.items.get(id))?.uuid;
+      const uuid = api.ownerOf(place.items.get(id))?.uuid;
       const owner = api.resolveActorSync(uuid);
       if (!owner) continue;
       if (!byOwner.has(uuid)) byOwner.set(uuid, { owner, spec: [] });
@@ -288,17 +308,20 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
       ui.notifications.warn(loc("manager.noLivingOwners"));
       return;
     }
-    for (const { owner, spec: theirs } of byOwner.values()) await api.retrieve(this.place, owner, theirs);
-    ui.notifications.info(loc("manager.returned", { count: byOwner.size }));
-    this.#selection.clear();
+    let returned = 0;
+    for (const { owner, spec: theirs } of byOwner.values()) if ((await api.retrieve(place, owner, theirs))?.ok) returned++;
+    if (returned) {
+      ui.notifications.info(loc("manager.returned", { count: returned }));
+      this.#selection.clear();
+    }
     this.render();
   }
 
-  /** Add a place: turn storage on for any actor that is not a character — a location, a wagon, a stronghold — and open it. */
+  /** Add a place: turn storage on for any actor the seat owns that is not a character — a location, a wagon, a stronghold — and open it. */
   static async #onEnableStorage() {
     const api = storage();
     const candidates = game.actors
-      .filter((a) => !api.isProvider(a) && a.type !== ACTOR_TYPE.character)
+      .filter((a) => a.isOwner && !api.isProvider(a) && a.type !== ACTOR_TYPE.character)
       .sort((a, b) => a.name.localeCompare(b.name));
     if (!candidates.length) {
       ui.notifications.warn(loc("manager.nothingToEnable"));
@@ -353,11 +376,13 @@ export class StorageManager extends PicksMixin(HandlebarsApplicationMixin(Applic
   }
 
   /**
-   * Give a character a personal vault. `#onEnableStorage` excludes characters
+   * Give a character the seat owns a personal vault, which makes an actor and so
+   * needs the seat's create right. `#onEnableStorage` excludes characters
    * and makes a shared place, which is not a vault bound to its owner.
    * See docs/location/DECISIONS.md, "A vault can be asked for, not only earned (2026-08-05)".
    */
   static async #onCreateVault() {
+    if (!Actor.canUserCreate(game.user)) return;
     const api = storage();
     const candidates = game.actors.filter((a) => a.type === ACTOR_TYPE.character && a.isOwner && !api.findVaultOf(a.uuid));
     if (!candidates.length) {
@@ -392,10 +417,6 @@ let instance = null;
 
 /** Open the manager, focused on a place if one is given. */
 export function openStorageManager(place = null) {
-  if (!game.user.isGM) {
-    ui.notifications.warn(loc("manager.gmOnly"));
-    return null;
-  }
   if (instance?.rendered) {
     if (place) {
       instance.close();

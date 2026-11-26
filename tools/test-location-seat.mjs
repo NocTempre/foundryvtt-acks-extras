@@ -237,8 +237,9 @@ ok("Hold goods, the role select and the note edit follow the editor; the hidden 
   assert.match(watcher, /Gate/, "the observer still reads the role as a tag");
 });
 
-ok("Open manager stays the Judge's until its own slice", () => {
-  assert.ok(!has(owner(), "openManager") && has(judgeFull(), "openManager"));
+ok("Open manager follows the editor: an owner and a Judge have it, an observer does not", () => {
+  assert.ok(has(owner(), "openManager") && has(judgeFull(), "openManager"));
+  assert.ok(!has(observer(), "openManager"), "a seat that cannot edit the place is not offered the manager");
 });
 
 ok("Detach is drawn on the rows the context marks, one place and not the other", () => {
@@ -496,6 +497,204 @@ ok("splitPlace refuses a seat that does not own the place", async () => {
   const { made, writes } = await split({ canCreate: true, creates: true, isOwner: false });
   assert.equal(made, null);
   assert.deepEqual(writes, []);
+});
+
+/* -------------------------------------------- */
+/*  The storage manager                          */
+/* -------------------------------------------- */
+
+// The window class is imported whole over a stand-in application base, and
+// `_prepareContext` runs against the real lib storage over invented actors.
+const prompts = [];
+const moves = [];
+const returns = { ok: true, calls: 0 };
+const dialogV2 = { prompt: async (options) => (prompts.push(options), null), confirm: async () => false };
+globalThis.foundry.applications = { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class { constructor(options) { this.options = options; } render() {} }, DialogV2: dialogV2 } };
+globalThis.foundry.utils.escapeHTML = (v) => String(v);
+const realStorage = await import("../scripts/lib/storage.mjs");
+globalThis.acksExtras.lib = { ...globalThis.acksExtras.lib, storage: { ...realStorage, moveStored: async (...args) => (moves.push(args), { ok: true, manifest: [] }), retrieve: async () => (returns.calls++, { ok: returns.ok }) } };
+const { StorageManager } = await import("../scripts/location/apps/storage-manager.mjs");
+
+const LEVELS = { NONE: 0, LIMITED: 1, OBSERVER: 2, OWNER: 3 };
+
+/**
+ * An invented actor and the seat's level on it. A provider carries the storage
+ * flag the lib reads; a vault names its character.
+ */
+function figure(id, { level = "OWNER", type = "acks-extras.location", provider = false, vaultOf = null, items = [] } = {}) {
+  return {
+    id,
+    uuid: `Actor.${id}`,
+    name: `Fig ${id}`,
+    img: "x.png",
+    type,
+    items: Object.assign([...items], { get: (id) => items.find((i) => i.id === id) }),
+    isOwner: LEVELS[level] >= LEVELS.OWNER,
+    testUserPermission: (_user, want) => LEVELS[level] >= LEVELS[want],
+    getFlag: (_scope, key) => (key === "storage" && provider ? { provider: true, vaultOf } : undefined),
+  };
+}
+
+const created = [];
+
+/** Put the world in place for one seat and return the manager's context. */
+async function managerContext(actors, opts = {}) {
+  return (await managerFor(actors, opts))._prepareContext({});
+}
+
+/** The manager window for one seat, over a world of invented actors. */
+async function managerFor(actors, { isGM = false, canCreate = false, placeUuid = null } = {}) {
+  globalThis.game = { user: { isGM, id: "u1" }, actors: Object.assign([...actors], { get: (id) => actors.find((a) => a.id === id) }), i18n: { localize: (k) => k, format: (k) => k } };
+  globalThis.Actor = { canUserCreate: () => canCreate, create: async (data) => (created.push(data), figure("made", { provider: true })) };
+  globalThis.ui = { notifications: { warn() {}, info() {} } };
+  return new StorageManager({ placeUuid });
+}
+
+const world = () => [
+  figure("mine", { provider: true }),
+  figure("vault", { provider: true, vaultOf: "Actor.hero" }),
+  figure("stamped", { provider: true, level: "NONE" }),
+  figure("watched", { provider: true, level: "OBSERVER" }),
+  figure("hero", { type: "character" }),
+  figure("friend", { type: "character", level: "LIMITED" }),
+  figure("stranger", { type: "character", level: "NONE" }),
+];
+
+ok("the manager lists the providers the seat owns and no other, by name or count", async () => {
+  const ctx = await managerContext(world());
+  assert.deepEqual(ctx.places.map((p) => p.uuid), ["Actor.mine", "Actor.vault"]);
+  assert.equal(ctx.places.find((p) => p.uuid === "Actor.vault").isVault, true);
+  assert.ok(!JSON.stringify(ctx).includes("Fig stamped") && !JSON.stringify(ctx).includes("Fig watched"), "an unowned place is named nowhere in the context");
+});
+
+ok("an unowned place handed to the manager is dropped for the first owned provider", async () => {
+  for (const unowned of ["Actor.stamped", "Actor.watched", "Actor.hero-gone"]) {
+    const ctx = await managerContext(world(), { placeUuid: unowned });
+    assert.equal(ctx.place.uuid, "Actor.mine", unowned);
+    assert.deepEqual(ctx.targets.map((t) => t.uuid), ["Actor.vault"], "the move targets are the owned providers but the current one");
+  }
+  const keep = await managerContext(world(), { placeUuid: "Actor.vault" });
+  assert.equal(keep.place.uuid, "Actor.vault", "an owned place stays");
+  assert.deepEqual(keep.targets.map((t) => t.uuid), ["Actor.mine"]);
+  const none = await managerContext([figure("stamped", { provider: true, level: "NONE" })], { placeUuid: "Actor.stamped" });
+  assert.equal(none.place, null, "a seat that owns none draws none");
+  assert.deepEqual([none.places, none.targets], [[], []]);
+});
+
+ok("the manager offers the characters the seat sees at LIMITED or better", async () => {
+  const ctx = await managerContext(world());
+  assert.deepEqual(ctx.owners.map((o) => o.uuid), ["Actor.hero", "Actor.friend"]);
+});
+
+ok("canCreate is the seat's own create right", async () => {
+  assert.equal((await managerContext(world(), { canCreate: false })).canCreate, false);
+  assert.equal((await managerContext(world(), { canCreate: true })).canCreate, true);
+});
+
+ok("a GM seat sees every provider and every character", async () => {
+  const actors = world().map((a) => ({ ...a, isOwner: true, testUserPermission: () => true }));
+  const ctx = await managerContext(actors, { isGM: true, canCreate: true });
+  assert.deepEqual(ctx.places.map((p) => p.uuid), ["Actor.mine", "Actor.vault", "Actor.stamped", "Actor.watched"]);
+  assert.deepEqual(ctx.owners.map((o) => o.uuid), ["Actor.hero", "Actor.friend", "Actor.stranger"]);
+  assert.equal(ctx.place.uuid, "Actor.mine");
+  assert.equal(ctx.canCreate, true);
+});
+
+ok("Create vault and the new-place target are drawn with the create right and not without it", () => {
+  const html = hb.compile(fs.readFileSync("templates/location/storage-manager.hbs", "utf8"));
+  const base = { place: { uuid: "p", name: "P" }, groups: [], places: [], targets: [{ uuid: "Actor.t", name: "T" }], owners: [] };
+  const lacking = html({ ...base, canCreate: false });
+  assert.ok(!has(lacking, "createVault") && !lacking.includes('value="__new__"') && !lacking.includes('data-pick="newName"'));
+  assert.ok(has(lacking, "enableStorage") && has(lacking, "move"), "the controls on owned places stay");
+  const allowed = html({ ...base, canCreate: true });
+  assert.ok(has(allowed, "createVault") && allowed.includes('value="__new__"') && allowed.includes('data-pick="newName"'));
+});
+
+/** Press the manager's Move with one row picked and the target select reading `choice`. */
+async function pressMove(choice, { canCreate, name = "" }) {
+  const stored = { id: "i1", _id: "i1", name: "Rope", img: "x.png", type: "item", system: {}, toObject() { return this; }, flags: { "acks-extras": { storage: { ownerUuid: "Actor.hero" } } } };
+  const manager = await managerFor([figure("mine", { provider: true, items: [stored] }), figure("vault", { provider: true }), figure("watched", { provider: true, level: "OBSERVER" })], { canCreate, placeUuid: "Actor.mine" });
+  await manager._prepareContext({});
+  const { actions } = StorageManager.DEFAULT_OPTIONS;
+  await actions.toggleAll.call(manager, null, { closest: () => ({ dataset: { ownerUuid: "Actor.hero" } }) });
+  const nameBox = { value: name };
+  manager.element = { querySelector: (selector) => (selector.includes("target") ? { value: choice } : selector.includes("newName") ? nameBox : null) };
+  moves.length = 0;
+  created.length = 0;
+  await actions.move.call(manager);
+}
+
+ok("Move reaches an owned place, and a new place only with the create right", async () => {
+  await pressMove("Actor.vault", { canCreate: false });
+  assert.deepEqual(moves.map(([from, to]) => [from.uuid, to.uuid]), [["Actor.mine", "Actor.vault"]], "between two owned places");
+  await pressMove("Actor.watched", { canCreate: true });
+  assert.deepEqual([moves.length, created.length], [0, 0], "a place the seat only observes is no target, whatever the create right");
+  await pressMove("__new__", { canCreate: false, name: "Annex" });
+  assert.deepEqual([moves.length, created.length], [0, 0], "no create right: no actor is made and nothing moves");
+  await pressMove("__new__", { canCreate: true, name: "Annex" });
+  assert.deepEqual([moves.length, created.length], [1, 1], "with the right a new place is made and filled");
+});
+
+ok("Reassign offers the characters the seat sees and no one it cannot", async () => {
+  const stored = { id: "i1", _id: "i1", name: "Rope", img: "x.png", type: "item", system: {}, toObject() { return this; }, flags: { "acks-extras": { storage: { ownerUuid: "Actor.gone" } } } };
+  const actors = [figure("mine", { provider: true, items: [stored] }), figure("hero", { type: "character" }), figure("friend", { type: "character", level: "LIMITED" }), figure("stranger", { type: "character", level: "NONE" })];
+  const manager = await managerFor(actors, { placeUuid: "Actor.mine" });
+  await manager._prepareContext({});
+  const { actions } = StorageManager.DEFAULT_OPTIONS;
+  await actions.toggleAll.call(manager, null, { closest: () => ({ dataset: { ownerUuid: "Actor.gone" } }) });
+  prompts.length = 0;
+  await actions.reassign.call(manager);
+  assert.equal(prompts.length, 1);
+  assert.match(prompts[0].content, /Fig hero/);
+  assert.match(prompts[0].content, /Fig friend/);
+  assert.doesNotMatch(prompts[0].content, /Fig stranger/, "a character the seat cannot see is never offered");
+});
+
+ok("Return to owners reports and clears only what the relay landed", async () => {
+  const stored = { id: "i1", _id: "i1", name: "Rope", img: "x.png", type: "item", system: {}, toObject() { return this; }, flags: { "acks-extras": { storage: { ownerUuid: "Actor.hero", ownerName: "Hero" } } } };
+  const press = async (ok) => {
+    const infos = [];
+    const manager = await managerFor([figure("mine", { provider: true, items: [stored] }), figure("hero", { type: "character" })], { placeUuid: "Actor.mine" });
+    await manager._prepareContext({});
+    const { actions } = StorageManager.DEFAULT_OPTIONS;
+    await actions.toggleAll.call(manager, null, { closest: () => ({ dataset: { ownerUuid: "Actor.hero" } }) });
+    globalThis.ui = { notifications: { warn() {}, info: (m) => infos.push(m) } };
+    returns.ok = ok;
+    returns.calls = 0;
+    await actions.returnToOwners.call(manager);
+    return { infos, calls: returns.calls };
+  };
+  assert.deepEqual(await press(true), { infos: ["ACKS-LOCATION.manager.returned"], calls: 1 });
+  assert.deepEqual(await press(false), { infos: [], calls: 1 }, "a refused retrieval is not announced as a return");
+});
+
+ok("Create vault does nothing without the create right, and lists only characters the seat owns with it", async () => {
+  const actors = () => [figure("hero", { type: "character" }), figure("friend", { type: "character", level: "LIMITED" })];
+  prompts.length = 0;
+  await StorageManager.DEFAULT_OPTIONS.actions.createVault.call(await managerFor(actors(), { canCreate: false }));
+  assert.equal(prompts.length, 0, "no prompt");
+  await StorageManager.DEFAULT_OPTIONS.actions.createVault.call(await managerFor(actors(), { canCreate: true }));
+  assert.equal(prompts.length, 1);
+  assert.match(prompts[0].content, /Fig hero/);
+  assert.doesNotMatch(prompts[0].content, /Fig friend/, "a character the seat only sees at LIMITED is not offered a vault");
+});
+
+ok("Add a place lists only actors the seat owns", async () => {
+  const actors = [figure("cart", { type: "acks-extras.vehicle" }), figure("keep", { type: "acks-extras.vehicle", level: "OBSERVER" }), figure("hero", { type: "character" })];
+  prompts.length = 0;
+  globalThis.CONFIG = { Actor: { typeLabels: {} } };
+  globalThis.game.i18n.localize = (k) => k;
+  await StorageManager.DEFAULT_OPTIONS.actions.enableStorage.call(await managerFor(actors));
+  assert.equal(prompts.length, 1);
+  assert.match(prompts[0].content, /Fig cart/);
+  assert.doesNotMatch(prompts[0].content, /Fig keep|Fig hero/);
+});
+
+ok("openStorageManager has no role refusal and the settings menu is open to every seat", () => {
+  const manager = fs.readFileSync("scripts/location/apps/storage-manager.mjs", "utf8");
+  assert.doesNotMatch(manager, /isGM/, "no role read in the manager");
+  const mod = fs.readFileSync("scripts/location/module.mjs", "utf8");
+  assert.match(mod, /type: StorageManagerMenu,\s*restricted: false,/);
 });
 
 await chain;

@@ -35,7 +35,12 @@ by hand.
   the same ownership, whose rope row on place A is its claimant fixture, and the
   administration group adds `location/owner-hire-mine` (same ownership) and
   `location/owner-hire-theirs` (`{default: 0, [playerId]: 2}`), the two actors a
-  special-hire drop offers.
+  special-hire drop offers. The storage-manager group adds `location/owner-vault`
+  (a location the Player owns, made the hero's vault by
+  `setProvider(vault, true, {vaultOf})`), `location/owner-closed` (a location
+  with `{default: 0}` and no entry for the Player, kept holding goods: the
+  level an importer-stamped place keeps), and `location/owner-unseen` (a
+  character with `{default: 0}`).
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -495,7 +500,7 @@ by hand.
     put back. Open its sheet on the GM seat and click the **Notes** tab's nav
     link. *Observable:* the nav reads Contents then Notes, under its label
     and not a raw key; the tab is active and holds both editors and both
-    texts; Contents holds no `system.notes` field and GM Settings no
+    texts; Contents holds no `system.notes` field and Settings no
     `system.gmNotes`. Set the shared editor's value and dispatch its
     `change`, as its save does. *Observable:* `system.notes` holds the new
     text and the Judge's notes are untouched. On the Player seat open the
@@ -544,7 +549,7 @@ by hand.
 
 27. **A market whose class is not known.** *Unwalked when written.* Fixture:
     a disposable location with a market added and no `marketClassOverride`
-    and no `urbanFamilies` (the GM Settings tab's Urban families and Market class override fields blank), with the
+    and no `urbanFamilies` (the Settings tab's Urban families and Market class override fields blank), with the
     `settlement` table layer present and again lifted. A character with coin
     stands at it.
     *Observable, location sheet:* the Market class badge in the header is
@@ -734,6 +739,56 @@ by hand.
       gate would stop the real drag first).
     - *Judge seat as control:* Settings with its slander section, the hidden
       toggle and the role select, and the GM View tab.
+    *The storage manager opens on every seat and works on what it owns* (the
+    `groupStorageManager` steps; fixtures `location/owner-vault`,
+    `location/owner-closed`, `location/owner-unseen`, plus A, B and the hero).
+    Each step starts by bringing the places to its shape from the Judge seat (the
+    Player's level on the closed place, which places hold goods, whether A holds
+    one rope stamped to the hero, tagged `flags.world.fixtureItem` and named, so
+    the next start clears it), and waits for the Player seat to hold it. The
+    manager is opened from a closed window each time
+    (`foundry.applications.instances.get("acks-location-storage-manager")`), and
+    read from its context (`await app._prepareContext({})`) and its DOM.
+    - *Open manager on the sheet:* the Player owns A. *Observable:* A's Storage
+      tab has Open manager, not disabled; pressing it opens the manager with
+      `app.place` on A.
+    - *Three routes:* `acksExtras.location.openStorageManager()`, the settings
+      menu (`game.settings.menus.get("acks-extras.storageManager")`: `restricted`
+      is false; `new menu.type().render({force: true})`), and the macros
+      compendium's Open Storage Manager, each from the Player seat.
+      *Observable:* the window renders; its rail and its context list A, B and
+      the hero's vault (marked a vault), every place listed is one the seat owns
+      (`isOwner`), and the closed place is not listed, is not a Move to target
+      and its name is nowhere in the window's text.
+    - *The closed place at OBSERVER:* the same: not listed, not a target, not
+      named. `openStorageManager(closed)` focuses the first owned place instead.
+    - *Move:* A holds the rope; open the manager on A, press Select all on the
+      hero's group, pick B under Move to and press Move. *Observable:* the rope
+      is on B and off A.
+    - *The create right:* read `canCreate` from `_prepareContext({})`.
+      *Observable:* the Create vault button and the new-place option under Move
+      to are drawn exactly when it is true. The walk neither creates a vault nor a
+      place, and does not edit the world's Permission Configuration; to see
+      both, run it on a world that grants the Player seat Create New Actors, and
+      to see neither, on one that does not.
+    - *Add a place:* with B and the closed place not holding goods, press it.
+      *Observable:* its dialog offers B, every option is an actor the seat owns,
+      and the closed place is not one. Close it unanswered.
+    - *Reassign:* with A holding the rope, Select all, press Reassign.
+      *Observable:* the dialog offers the hero and `location/owner-hire-theirs`
+      (OBSERVER) and not `location/owner-unseen`; every option is a character
+      the seat sees at LIMITED or better. Close it unanswered.
+    - *The macros:* the Judge seat points the Player user's `character` at an
+      actor, with no token controlled on the Player's page (a token the Player
+      does not own cannot be controlled, so `game.user.character` is the route a
+      macro's actor takes). On the closed place, Enable Storage Here and Disable
+      Storage Here each warn "You do not own <name>." and change nothing. On B,
+      which the Player owns and which holds nothing, Enable Storage Here turns
+      storage on and Disable Storage Here turns it off, with no refusal. The
+      walk restores the user's `character` afterwards. Open Storage Manager runs
+      once from the Player seat and opens the window.
+    - *Judge seat as control:* the manager lists the closed place and offers
+      Create vault and the new-place target.
     *Not walked live:* the Region functions, whose Player-seat picker is the
     formation feature's (`tools/live/formation-seat-heads.mjs`); they are pinned
     offline in `tools/test-scene-part.mjs`. A Region carries an ownership of
@@ -742,7 +797,7 @@ by hand.
     Player who owns the scene owns none of its Regions until each is granted;
     `linkRegion` needs that grant too.
     *Teardown:* none, the fixtures are kept; the walk ends by leaving them
-    unlinked with the Player at OWNER, storage off, no group rows. Offline:
+    unlinked with the Player at OWNER, storage off on A and B, no group rows. Offline:
     `tools/test-scene-part.mjs`, `tools/test-location-seat.mjs`.
 
 The repair tool's location checks (stale links, banked coin, storage whose

@@ -83,7 +83,7 @@ Retrieval stays ungated, and a Judge's own coin acts still pass.
 
 **Ruled.** Everything picked in the stash dialog moves in one transfer call, because a single move that fails halfway is far easier to reason about than twenty that each might. A container is flagged in the picker so nobody is surprised that its contents travel with it.
 
-## 2026-11-13 — The storage manager writes direct and is last-write-wins
+## 2026-11-13 — The storage manager writes direct and is last-write-wins — SUPERSEDED IN PART 2026-11-25
 
 **Ruled.** The manager is a GM tool, so its writes go direct with no sockets. Two GMs driving it at once is last-write-wins on distinct items, which is documented rather than defended against.
 **Rejected.** The socket-and-claim-token machinery: it exists for player-triggered flows, not for two people sharing one admin screen.
@@ -501,3 +501,53 @@ the display ever hid the rows. A new module setting or flag for who administers 
 **Cost.** Settings reaches a seat that never had it, so the market's configuration (urban
 families, rarity overrides, blocked classes) is open to every owner of a place. Where a Judge
 needs a place left alone, Configure Ownership is the whole of the override.
+
+## 2026-11-25 — The storage manager opens on any seat and works on what it owns
+
+**Authority** (owner, 2026-11-25, verbatim): "Tool permissions are hardcoded (e.g. summons)
+by server role instead of object ownership, only judge secrets are supposed to be an
+exception to this rule". With it (T-0793): "Spell owner can setup the spell as needed.
+Trusted players own their sheet and instances of items within. I guess regular Player only
+gets ownership of the sheet itself and not subitems they don't own? In either case the
+approach is follow foundry permissions, don't invent new ones." The standing line on
+automation stays: "players get blocks, judges get warnings". The release hub ruled that a
+hand-made place keeps OWNER as its default.
+
+**Ruled.** The storage manager opens on every seat, from the place sheet's Open manager, the
+settings menu, the macro and the exported function, and it works on the places the seat
+owns (`isOwner`), not on the seat's role. For example: Bran, a Player, owns a market town and
+his own vault. He opens the manager from the town's Storage tab, sees the two, and moves the
+hoard he stored at the town into his vault. A place he only observes, or has no level on,
+is not in the list, and nobody can tell from the window that it exists.
+
+- **Places**: the rail, the move targets and the current place are the providers the seat
+  owns. A place handed to the window that the seat does not own is dropped for the first
+  owned provider, or for none, so its goods are never drawn.
+- **Characters**: Reassign offers the characters the seat sees at LIMITED or better
+  (`testUserPermission`), the test the sheet's market gate already uses.
+- **Add a place** lists the actors the seat owns.
+- **Creating an actor** follows Foundry's own right (`Actor.canUserCreate`, the context's
+  `canCreate`): Create vault and the new-place move target are drawn and run only with it. A
+  seat that never had the right gains nothing, and none loses one. A relay that creates
+  actors for a seat without the right was rejected, since it would be a permission Foundry
+  does not grant.
+- **The settings menu** is `restricted: false`. Foundry's `restricted` keys a menu to the
+  SETTINGS_MODIFY permission, and this menu opens a document tool, not a setting.
+- **The macros**: Open Storage Manager has no role line; Enable Storage Here and Disable
+  Storage Here warn "You do not own <name>." on an actor the seat does not own.
+- **Writes** stay direct, so two seats at once are last-write-wins on distinct items, as
+  before. Each write is already owner-checked below the window: the place update,
+  `setProvider` and `retrieve`, and `transfer` refuses a character the seat does not own.
+
+**Supersedes in part** [The storage manager writes direct and is last-write-wins](#2026-11-13--the-storage-manager-writes-direct-and-is-last-write-wins--superseded-in-part-2026-11-25):
+its clause "The manager is a GM tool". The direct writes and last-write-wins stand. The entry
+was 12 days old. It also closes the "Open manager stays the Judge's" sentence of
+[A place's owner administers it](#2026-11-25--a-places-owner-administers-it).
+
+**Rejected.** A role test beside the ownership test, which invents a permission Foundry does
+not have. A vault-and-place create relay (above).
+
+**Cost.** Every player who owns a hand-made place can move its goods, reassign whose they
+are and turn its storage off, all of which only a Judge could. Under the default of OWNER on
+a hand-made place that is every player, and Configure Ownership on the place is the Judge's
+override.

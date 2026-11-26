@@ -110,7 +110,7 @@ Hooks.once("init", () => {
     hint: `${LANG_PREFIX}.manager.menuHint`,
     icon: "fas fa-warehouse",
     type: StorageManagerMenu,
-    restricted: true,
+    restricted: false,
   });
 
   installStorageTab();

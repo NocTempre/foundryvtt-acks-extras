@@ -1391,7 +1391,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       const canTakeGroup = isHouse ? this.isEditable : game.user.isGM || !!owner?.isOwner;
       groups.push({
         ownerUuid: bucket.ownerUuid,
-        // A deleted owner keeps their stored name; the GM's manager reassigns it.
+        // A deleted owner keeps their stored name; the storage manager reassigns it.
         name: isHouse ? loc("storage.house") : owner?.name || bucket.ownerName || loc("storage.unattributed"),
         dangling: !isHouse && !owner,
         isHouse,

@@ -275,7 +275,7 @@ your own character when nothing is selected.
 ## Common problems
 
 **"No market at this place."** Press **Add a market** in the location sheet's
-header, or on its GM Settings tab.
+header, or on its Settings tab.
 
 **Nobody arrived.** Time has not passed, or the month's pool was rolled and came
 up empty. Check the posting's roll detail.

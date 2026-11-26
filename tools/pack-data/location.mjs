@@ -43,9 +43,8 @@ export function buildMacros() {
     macro(
       "Open Storage Manager",
       "icons/svg/chest.svg",
-      `// Open the storage manager: every place that holds goods, and whose they are — GM only.
+      `// Open the storage manager: every place you own that holds goods, and whose they are.
 ${guard("Open Storage Manager", "location", "openStorageManager")}
-if (!game.user.isGM) return ui.notifications.warn("The storage manager is a GM tool.");
 api.openStorageManager();`,
     ),
     // Refuses a character, matching the storage manager's own Enable dialog.
@@ -53,11 +52,11 @@ api.openStorageManager();`,
     macro(
       "Enable Storage Here",
       "icons/svg/village.svg",
-      `// Let the selected place, cart or stronghold hold goods for people — GM only.
+      `// Let the selected place, cart or stronghold hold goods for people, if you own it.
 ${guard("Enable Storage Here", "lib", "storage")}
-if (!game.user.isGM) return ui.notifications.warn("Only a GM can turn storage on for an actor.");
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) return ui.notifications.warn("Select a token first (or assign yourself a character).");
+if (!actor.isOwner) return ui.notifications.warn("You do not own " + actor.name + ".");
 if (actor.isToken) return ui.notifications.warn("Link the token to its actor first — an unlinked token cannot hold goods.");
 if (actor.type === "character") return ui.notifications.warn(actor.name + " is a character, not a place. Use the storage manager's Create Vault for a personal vault, or select a cart, wagon or stronghold.");
 await api.storage.setProvider(actor, true);
@@ -66,11 +65,11 @@ ui.notifications.info(actor.name + " can now hold goods for people.");`,
     macro(
       "Disable Storage Here",
       "icons/svg/village.svg",
-      `// Stop the selected place holding goods, once it holds none — GM only.
+      `// Stop the selected place holding goods, once it holds none, if you own it.
 ${guard("Disable Storage Here", "lib", "storage")}
-if (!game.user.isGM) return ui.notifications.warn("Only a GM can turn storage off for an actor.");
 const actor = canvas.tokens.controlled[0]?.actor ?? game.user.character;
 if (!actor) return ui.notifications.warn("Select a token first (or assign yourself a character).");
+if (!actor.isOwner) return ui.notifications.warn("You do not own " + actor.name + ".");
 if (!api.storage.isProvider(actor)) return ui.notifications.warn(actor.name + " is not holding goods for anyone.");
 const held = api.storage.storedItems(actor).length;
 if (held) return ui.notifications.warn(actor.name + " still holds " + held + " stored item(s). Return them to their owners first — the storage manager has a button for it.");

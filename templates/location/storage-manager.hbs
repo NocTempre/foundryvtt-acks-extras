@@ -18,9 +18,11 @@
             data-tooltip="{{localize 'ACKS-LOCATION.manager.enableHint'}}">
       <i class="fas fa-plus"></i> {{localize "ACKS-LOCATION.manager.enable"}}
     </button>
-    <button type="button" class="acks-location-btn acks-location-btn--sm" data-action="createVault">
-      <i class="fas fa-vault"></i> {{localize "ACKS-LOCATION.manager.createVault"}}
-    </button>
+    {{#if canCreate}}
+      <button type="button" class="acks-location-btn acks-location-btn--sm" data-action="createVault">
+        <i class="fas fa-vault"></i> {{localize "ACKS-LOCATION.manager.createVault"}}
+      </button>
+    {{/if}}
   </aside>
 
   <section class="acks-location-manager-main">
@@ -85,11 +87,15 @@
               {{#each targets as |t|}}
                 <option value="{{t.uuid}}">{{t.name}}</option>
               {{/each}}
-              <option value="__new__">{{localize "ACKS-LOCATION.manager.newLocation"}}</option>
+              {{#if canCreate}}
+                <option value="__new__">{{localize "ACKS-LOCATION.manager.newLocation"}}</option>
+              {{/if}}
             </select>
           </label>
-          <input class="acks-location-manager-newname hidden" type="text" data-pick="newName"
-                 placeholder="{{localize 'ACKS-LOCATION.manager.newLocationName'}}" />
+          {{#if canCreate}}
+            <input class="acks-location-manager-newname hidden" type="text" data-pick="newName"
+                   placeholder="{{localize 'ACKS-LOCATION.manager.newLocationName'}}" />
+          {{/if}}
         </div>
         <div class="acks-location-manager-buttons">
           <span class="acks-location-manager-picked">

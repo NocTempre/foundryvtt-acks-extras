@@ -97,7 +97,7 @@ to drag the place out of the compendium into the Actors sidebar and roll there.
 ## Store goods there
 
 Drag an item onto the place's sheet, or press **Leave something here** — on the
-**Storage** tab of the place's sheet (the Judge's seat) or of your own
+**Storage** tab of the place's sheet (a seat with Observer or Owner on the place) or of your own
 character's sheet.
 
 **Drag it from a character's sheet, not from the Items sidebar.** Goods are
@@ -139,14 +139,14 @@ here** turns it on.*
 
 One of those piles is **the house** — what the place itself owns rather than
 what somebody left there. A player takes a row of the house only once the
-Judge releases it: on the location's sheet, **Storage** tab (Judge seat), press
-the lock beside the row (**Player-retrievable (Judge)**) and it opens. That
-holds for a spoil too, marked with a bone; the Judge releases it, and no throw
+place's owner releases it: on the location's sheet, **Storage** tab, press
+the lock beside the row (**Retrievable**) and it opens. That
+holds for a spoil too, marked with a bone; the owner releases it, and no throw
 claims it.
 
 ![](../releases/v4.0.0/location-house-pile.png)
 
-*A location's own coin and stock: the Judge's locks, and a spoil beside them.*
+*A location's own coin and stock: the owner's locks, and a spoil beside them.*
 
 Stored goods are real items on the location actor, so an item that has left a
 character genuinely stops weighing on them. Stowing is a **move, not a copy**:
@@ -259,14 +259,14 @@ place — a wagon, a stronghold, an inn — that anyone with access can reach.
 ## Add a market
 
 Most places have no market. **Add a market**, in the place sheet's header or on
-its **GM Settings** tab, creates one, and six extra tabs appear: **Recruitment**,
+its **Settings** tab, creates one, and six extra tabs appear: **Recruitment**,
 **Henchmen**, **Mercenaries**, **Specialists**, **Trade** and **Ventures**.
 
-**Remove the market**, on the same GM Settings tab, removes the data with it,
+**Remove the market**, on the same Settings tab, removes the data with it,
 not just the tabs.
 
-A market can disagree with the book about who is common here. On the **GM
-Settings** tab, **Class rarity here** takes a class and a tier, one row each: a
+A market can disagree with the book about who is common here. On the
+**Settings** tab, **Class rarity here** takes a class and a tier, one row each: a
 directed search for that class then rolls on the tier you picked, whatever the
 rarity table says. A university town where mages are easy to find is one row.
 
@@ -278,7 +278,7 @@ name yourself when placing a candidate as GM is still placed.
 
 ![](../releases/v11.14.2/location-blocked-classes.png)
 
-*A market's GM Settings with one class it never offers.*
+*A market's Settings tab with one class it never offers.*
 
 The cultures the people here come from are the place's **Demographics**. A
 candidate's culture is drawn from the listed cultures of their class's race,
@@ -293,10 +293,10 @@ Who holds the town can matter too: see
 The **ACKS Extras Macros** compendium (Compendium Packs sidebar tab) carries
 four storage macros.
 
-- **Open Storage Manager** opens the storage manager (GM only): every place
+- **Open Storage Manager** opens the storage manager: every place you own
   that holds goods, whose the goods are, and the controls to move them.
 - **Enable Storage Here** and **Disable Storage Here** turn storage on or off
-  for the selected place, cart or stronghold (GM only). Disabling refuses while
+  for the selected place, cart or stronghold, where you own it. Disabling refuses while
   the place still holds anyone's goods.
 - **My Stored Goods** opens your character's sheet on its Storage tab, which
   lists what you have in storage and where.
@@ -304,7 +304,7 @@ four storage macros.
 ## Common problems
 
 **The market tabs aren't there.** The place has no market. Press **Add a
-market** in the place sheet's header or on its GM Settings tab — they are opt-in
+market** in the place sheet's header or on its Settings tab — they are opt-in
 per place.
 
 **A roster row is struck through.** Its actor was deleted. The row stays so you
@@ -314,7 +314,7 @@ can act on it; remove it when you have.
 one in an unloaded compendium. The chain renders as far as it resolves.
 
 **Taking goods back isn't offered.** The goods are attributed to a character you
-do not own. A GM can reassign attribution in the **Storage manager** (Settings
+do not own. The place's owner can reassign attribution in the **Storage manager** (Settings
 tab → Game Settings → ACKS II — Extras → Storage manager → **Reassign owner**).
 
 **"Nothing was moved."** The stack you picked is empty. A balance in the system's

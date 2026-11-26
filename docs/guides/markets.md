@@ -28,7 +28,7 @@ cost, its availability and its buy and order controls.*
    overrides it, and a good you make yourself joins every roll and window.
 3. Give a location a market: **Add a market** in the place sheet's header
    ([Add a market](location.md#add-a-market)); its market class derives from
-   urban families, or set the override on the GM Settings tab. The location
+   urban families, or set the override on the place sheet's Settings tab. The location
    sheet grows a **Trade** tab for the shop and a **Ventures** tab for
    mercantile ventures.
 4. Optional: **Settings tab → Game Settings → ACKS II — Extras → Market
@@ -144,8 +144,8 @@ line states the refusal it set aside.*
 **Change coin** turns one denomination into another at face value: pick the
 stack, say how many, and pick what you want them as. It is a market's
 service rather than a party's, so it is refused where no market stands, and
-the Judge can set a market's exchange to derived, market or none on the location
-sheet's GM Settings tab. A player's exchange is carried out on the Judge's seat, so
+the place's owner can set a market's exchange to derived, market or none on the location
+sheet's Settings tab. A player's exchange is carried out on the Judge's seat, so
 coin moves only when both sides of it do.
 
 ## Magic items

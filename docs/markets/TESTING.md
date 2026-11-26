@@ -132,7 +132,7 @@ row, a `type: "item"` on A with `system.cost` and
    `goods.masterworkContact` / `goods.playersSeeDemand`. Player seat: the two
    buttons are absent; with demand shown the tab carries one chip per true
    modifier, with it hidden only the party's belief chips remain.
-3. GM seat, the sheet's GM Settings tab: the exchange select and the till
+3. GM seat, the sheet's Settings tab: the exchange select and the till
    target input land on `system.market.exchangeOverride` / `tillTargetGp`.
    With the exchange set to none, a player's Change coin answers `noChanger`
    and debits nothing.

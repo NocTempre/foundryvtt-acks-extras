@@ -199,7 +199,7 @@ Shut the world down and relaunch it, then check again.
     everyone (`acksExtras.factions.marketClassShift(location, employer)` is
     the shift on its own).
 11. **Add a rarity override** (class `mage`, tier `common`) on the location's
-    GM Settings and run a directed class search for a mage. *Observable:* the
+    Settings tab and run a directed class search for a mage. *Observable:* the
     pool rolls on the common expression, whatever the table variant says.
 12. **Set a rank marker** — an item named `Rank: 3 (Baron)` on the rolling
     character and `Rank: 1 (Knight)` on the target — and open Seduction.
