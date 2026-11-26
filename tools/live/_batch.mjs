@@ -78,12 +78,13 @@ export function batchOptions(argv, { attachDefault }) {
  * for the page's library to be loaded. Both are given by the runner.
  */
 export class SeatKeeper {
-  constructor({ seats, launch, settle = async () => {}, refreshEvery = 10, log = () => {} }) {
+  constructor({ seats, launch, settle = async () => {}, refreshEvery = 10, log = () => {}, bootLine = (boot) => JSON.stringify(boot) }) {
     this.defs = seats;
     this.launch = launch;
     this.settle = settle;
     this.refreshEvery = refreshEvery;
     this.log = log;
+    this.bootLine = bootLine;
     /** @type {Map<string, {def: object, handle: object, tree: string, uses: number, dirty: string|null}>} */
     this.kept = new Map();
   }
@@ -103,7 +104,8 @@ export class SeatKeeper {
     const loadErrors = handle.errors?.() ?? [];
     await this.settle(handle);
     this.kept.set(def.name, { def, handle, tree, uses: 0, dirty: null });
-    this.log(`seat ${def.name}: ${why}${loadErrors.length ? `; ${loadErrors.length} console error(s) while loading: ${loadErrors.slice(0, 3).map((e) => e.slice(0, 100)).join(" | ")}` : "; no console error while loading"}`);
+    const boot = (await handle.boot?.()) ?? null;
+    this.log(`seat ${def.name}: ${why}${boot ? ` [boot: ${this.bootLine(boot)}]` : ""}${loadErrors.length ? `; ${loadErrors.length} console error(s) while loading: ${loadErrors.slice(0, 3).map((e) => e.slice(0, 100)).join(" | ")}` : "; no console error while loading"}`);
   }
 
   async #reload(entry, tree, why) {
@@ -111,7 +113,8 @@ export class SeatKeeper {
     const loadErrors = entry.handle.errors?.() ?? [];
     await this.settle(entry.handle);
     Object.assign(entry, { tree, uses: 0, dirty: null });
-    this.log(`seat ${entry.def.name}: loaded again (${why})${loadErrors.length ? `; ${loadErrors.length} console error(s) while loading` : ""}`);
+    const boot = (await entry.handle.boot?.()) ?? null;
+    this.log(`seat ${entry.def.name}: loaded again (${why})${boot ? ` [boot: ${this.bootLine(boot)}]` : ""}${loadErrors.length ? `; ${loadErrors.length} console error(s) while loading` : ""}`);
   }
 
   /**

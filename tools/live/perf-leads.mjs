@@ -30,6 +30,8 @@
  *                          `performance.mark`s of the weapon rows and the class registry read after the redraw (when
  *                          each first publication began, when it landed, and the read between) and of the library's
  *                          warm (when it began loading whole shelves), in ms since navigation
+ *   firstCast              h. a spell cast, first in a freshly loaded page: the ms from `item.use()` to the cast
+ *                          window standing, the window cancelled (nothing is cast); with the same `rowsPublication`
  *
  * The seats come from `_env.mjs` (CAPTURE_BROWSER, CAPTURE_ORIGIN, SEAT_GM; the
  * Player seat is not driven). It takes the repository's landing lease as the
@@ -67,6 +69,8 @@ const ENABLED = process.env.PERF_LEADS === "1";
  *   glyphPassWithTokens    the glyph pass with tokens standing inside raised reaches
  */
 const FOLLOWUP = ENABLED && process.env.PERF_SET === "followup";
+/** `PERF_SET=cast`: only the first-cast lead runs, its result merged into the last output file. */
+const CAST_ONLY = ENABLED && process.env.PERF_SET === "cast";
 const FOLLOWUP_LEADS = new Set(["libraryLoad", "clockAdvanceKeys", "glyphPassWithTokens"]);
 if (ENABLED) process.env.SEAT_PLAYER ||= process.env.SEAT_GM ?? "";
 const OUT_FILE = path.join(ROOT, "aia-tmp", "20261126-perf-timings.json");
@@ -616,6 +620,26 @@ const P = {
   },
 
   /**
+   * What the recorder saw: every Item-shelf `getDocuments` that began before the library warm began (the narrow or whole kind, ids asked, documents
+   * returned, the shelf's index size, when each began and ended), and the calls from the warm's start on. The warm's own duration is read as
+   * the warm's start to the last of those calls' end, an approximation: the warm publishes no end mark.
+   */
+  getDocumentsLog: () => {
+    const calls = (globalThis.__acksGetDocs?.calls ?? []).filter((c) => c.doc === "Item").map((c) => ({ ...c, startMs: Math.round(c.startMs * 10) / 10, endMs: Math.round(c.endMs * 10) / 10 }));
+    const warm = performance.getEntriesByName("acks-extras:libraryWarm:started")[0]?.startTime ?? null;
+    const before = calls.filter((c) => warm === null || c.startMs < warm);
+    const after = calls.filter((c) => warm !== null && c.startMs >= warm);
+    const pick = (c) => ({ pack: c.pack, narrow: c.narrow, keys: c.keys, ids: c.ids, returned: c.returned, index: c.index, startMs: c.startMs, endMs: c.endMs });
+    const lastEnd = after.reduce((m, c) => Math.max(m, c.endMs), 0);
+    return {
+      recorded: !!globalThis.__acksGetDocs,
+      warmStartedMs: warm === null ? null : Math.round(warm * 10) / 10,
+      before: { count: before.length, narrow: before.filter((c) => c.narrow).length, whole: before.filter((c) => !c.narrow).length, returned: before.reduce((n, c) => n + c.returned, 0), calls: before.slice(0, 40).map(pick) },
+      after: { count: after.length, narrow: after.filter((c) => c.narrow).length, whole: after.filter((c) => !c.narrow).length, returned: after.reduce((n, c) => n + c.returned, 0), warmDurationMs: warm !== null && after.length ? Math.round((lastEnd - warm) * 10) / 10 : null },
+    };
+  },
+
+  /**
    * h. The first `documentOf` a magic deal's linked row asks (the `cookbook-items` service), in a freshly loaded page:
    * the Item shelves' first index read is timed apart from the ask, and the documents the shelves hold are counted
    * before and after, so a load of any shelf shows. The id is the first stamped, non-part row of the index and is
@@ -623,8 +647,12 @@ const P = {
    */
   documentOfOnce: async () => {
     const services = await import("/modules/acks-extras/scripts/lib/services.mjs");
-    const provider = services.get("cookbook-items");
-    if (typeof provider?.documentOf !== "function") return { skip: "no cookbook-items provider is registered" };
+    // The provider is registered when the importer finishes its own ready work; the wait is part of what is read.
+    let provider = services.get("cookbook-items");
+    const stopAt = performance.now() + 30000;
+    while (typeof provider?.documentOf !== "function" && performance.now() < stopAt) { await new Promise((r) => setTimeout(r, 100)); provider = services.get("cookbook-items"); }
+    const providerAtMs = Math.round(performance.now());
+    if (typeof provider?.documentOf !== "function") return { skip: "no cookbook-items provider is registered", providerWaitedMs: providerAtMs };
     const shelves = game.packs.filter((p) => p.documentName === "Item" && p.metadata.packageType === "world" && String(p.metadata.label ?? "").startsWith("ACKS Cookbook"));
     const held = () => shelves.reduce((n, p) => n + p.size, 0);
     const heldBefore = held();
@@ -645,7 +673,35 @@ const P = {
     const t2 = performance.now();
     await provider.documentOf(id);
     const secondMs = Math.round((performance.now() - t2) * 10) / 10;
-    return { shelves: shelves.length, indexMs, firstMs, secondMs, answered: typeof found?.uuid === "string", heldBefore, heldAfter: held() };
+    return { providerAtMs, shelves: shelves.length, indexMs, firstMs, secondMs, answered: typeof found?.uuid === "string", heldBefore, heldAfter: held() };
+  },
+
+  /** A spell used as a user does, first in a page: the ms until the cast window stands, then the window is cancelled. */
+  castOnce: async ({ casterId, spellId }) => {
+    const item = game.actors.get(casterId)?.items.get(spellId);
+    if (!item) return { skip: "the caster or its spell was not found" };
+    const t0 = performance.now();
+    item.use({ skipDialog: true });
+    let el = null;
+    const stop = performance.now() + 60000;
+    while (performance.now() < stop && !(el = document.querySelector(".application.acks-extras-cast"))) await new Promise((r) => setTimeout(r, 25));
+    const ms = Math.round((performance.now() - t0) * 10) / 10;
+    const notes = [...document.querySelectorAll("#notifications .notification.error, .notification.error")].map((n) => n.textContent.trim().slice(0, 120));
+    el?.querySelector("button[data-action=cancel]")?.click();
+    return { dialog: !!el, ms, errorNotices: notes.length };
+  },
+
+  /** The caster bound to the fixture class at a level, nothing spent. */
+  shapeCaster: async ({ casterId, classUuid }) => {
+    await game.actors.get(casterId).update({ "system.details.level": 5, "system.spells.enabled": true, "flags.acks-extras.classes.uuid": classUuid, "flags.acks-extras.classes.pools": { arcane: { s1: 0 } } });
+    return true;
+  },
+
+  /** The spell flag written onto a kept spell item, so a reused fixture carries the figure this run reads. */
+  flagSpell: async ({ casterId, itemId, flag }) => {
+    await game.actors.get(casterId).items.get(itemId).update({ "flags.acks-extras.-=spell": null });
+    await game.actors.get(casterId).items.get(itemId).update({ "flags.acks-extras.spell": flag });
+    return true;
   },
 
   /** h. A weapon's unequip, the call the sheet's toggle makes, first in a page that has done nothing else; drawn again after. */
@@ -739,7 +795,7 @@ for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => { letGo
 
 /** A lead runs on its own: a throw is `null` and a note, and the script goes on. */
 async function lead(name, fn) {
-  if (FOLLOWUP !== FOLLOWUP_LEADS.has(name)) return;
+  if (CAST_ONLY ? name !== "firstCast" : FOLLOWUP !== FOLLOWUP_LEADS.has(name)) return;
   try {
     const value = await fn();
     R[name] = value ?? null;
@@ -753,8 +809,36 @@ async function lead(name, fn) {
 let MACHINE = null;
 const marked = (marker) => (MACHINE?.own ? `${marker}@${MACHINE.own}` : marker);
 
-async function seatConnect() {
-  return connect({ browser: MACHINE.browser, origin: MACHINE.origin, user: MACHINE.gm, port: PORTS.gm, own: MACHINE.own });
+/**
+ * Added before the page's first script on a fresh page: it wraps the compendium collection's `getDocuments` the moment the class exists
+ * and records, per call, the pack, the start and end in ms since navigation, whether the query named ids, how many ids, how many documents
+ * came back and the pack's index size. `P.getDocumentsLog` reads it.
+ */
+const GET_DOCUMENTS_RECORDER = `(() => {
+  const log = globalThis.__acksGetDocs = { calls: [] };
+  const arm = () => {
+    const C = globalThis.foundry?.documents?.collections?.CompendiumCollection ?? globalThis.CompendiumCollection;
+    const proto = C?.prototype;
+    if (!proto?.getDocuments) return false;
+    if (proto.getDocuments.__acksWrapped) return true;
+    const original = proto.getDocuments;
+    const wrapped = async function (query = {}) {
+      const startMs = performance.now();
+      const out = await original.call(this, query);
+      const keys = Object.keys(query ?? {});
+      const ids = query?._id__in;
+      log.calls.push({ pack: this.collection, doc: this.documentName, startMs, endMs: performance.now(), keys, narrow: keys.some((k) => k.startsWith("_id")), ids: Array.isArray(ids) ? ids.length : (ids?.size ?? null), returned: out.length, index: this.index?.size ?? null });
+      return out;
+    };
+    wrapped.__acksWrapped = true;
+    proto.getDocuments = wrapped;
+    return true;
+  };
+  if (!arm()) { const t = setInterval(() => { if (arm()) clearInterval(t); }, 1); }
+})();`;
+
+async function seatConnect(preScript = null) {
+  return connect({ browser: MACHINE.browser, origin: MACHINE.origin, user: MACHINE.gm, port: PORTS.gm, own: MACHINE.own, preScript });
 }
 
 /** The first body (a kept fixture, a copy of a peer walk's, or a generated one) whose ability item holds an engaged row. */
@@ -894,12 +978,22 @@ async function prepareH(gm) {
     prep.actorId = actor.id;
     prep.itemId = weapon.id;
   } catch (err) { prep.unequipNote = firstLine(err); }
+  try {
+    const cls = await gm.fixture("perf/cast-class", "Item", { name: "Perf Cast Class", type: "acks-extras.class", system: { key: "perfcastclass", casting: [{ key: "arcane", label: "Arcane", kind: "vancian", slots: [{ atLevel: 1, s1: 9 }] }] } });
+    const caster = await gm.fixture("perf/cast-actor", "Actor", { name: "Perf Caster", type: "character", prototypeToken: { actorLink: true }, system: { hp: { value: 6, max: 6 }, spells: { enabled: true } } });
+    await run(gm, P.shapeCaster, { casterId: caster.id, classUuid: cls.uuid });
+    const flag = { lists: [{ source: "arcane", level: 1, classes: [], note: "" }], range: { shape: "unlimited" }, duration: { shape: "fixed", value: 2, unit: "hours" }, target: { model: "creature", count: null, filters: [], hdBelow: null }, save: { category: "spell", effect: "negates", kind: "", modifier: null }, effects: [{ key: "bewitch", type: "conditionGrant", appliesTo: "target", saveEffect: "negates", conditions: ["bewitched"], lasts: "duration" }], cite: "" };
+    const spell = await gm.fixture("perf/cast-spell", "Item", { name: "Perf Spell", type: "spell", system: { lvl: 1, cast: 0 }, flags: { "acks-extras": { spell: flag } } }, { parent: caster.uuid });
+    await run(gm, P.flagSpell, { casterId: caster.id, itemId: spell.uuid.split(".").pop(), flag });
+    prep.casterId = caster.id;
+    prep.spellId = spell.id;
+  } catch (err) { prep.castNote = firstLine(err); }
   return prep;
 }
 
 /** A page with nothing done in it, for a "first" measurement; closed after. */
 async function freshPage(fn) {
-  const page = await seatConnect();
+  const page = await seatConnect(GET_DOCUMENTS_RECORDER);
   try {
     const bare = await run(page, P.bare);
     return await fn(page, bare);
@@ -930,7 +1024,7 @@ try {
 
     open.gm = await seatConnect();
     const gm = open.gm;
-    if (FOLLOWUP) {
+    if (FOLLOWUP || CAST_ONLY) {
       Object.assign(R, JSON.parse(fs.readFileSync(OUT_FILE, "utf8")));
       R.followupAt = new Date().toISOString();
       R.followupMeta = await run(gm, P.install);
@@ -1108,7 +1202,16 @@ try {
       if (prep.unequipNote) throw new Error(prep.unequipNote);
       const out = await freshPage(async (page, bare) => {
         const step = await run(page, P.unequipOnce, { actorId: prep.actorId, itemId: prep.itemId });
-        return { freshPage: bare, ...step, rowsPublication: await run(page, P.rowsPublication) };
+        return { freshPage: bare, ...step, rowsPublication: await run(page, P.rowsPublication), getDocuments: await run(page, P.getDocumentsLog) };
+      });
+      if (out.skip) throw new Error(out.skip);
+      return out;
+    });
+    await lead("firstCast", async () => {
+      if (prep.castNote) throw new Error(prep.castNote);
+      const out = await freshPage(async (page, bare) => {
+        const step = await run(page, P.castOnce, { casterId: prep.casterId, spellId: prep.spellId });
+        return { freshPage: bare, ...step, rowsPublication: await run(page, P.rowsPublication), getDocuments: await run(page, P.getDocumentsLog) };
       });
       if (out.skip) throw new Error(out.skip);
       return out;

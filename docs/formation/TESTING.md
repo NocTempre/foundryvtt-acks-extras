@@ -6210,7 +6210,7 @@ an imported place.
 
 ## Casting a light spell from the Kit tab (added with T-0791)
 
-Walked by `tools/live/formation-kit-cast-light.mjs`; its ids K-c1 to K-c9 are
+Walked by `tools/live/formation-kit-cast-light.mjs`; its ids K-c1 to K-c12 are
 this section's step numbers. The Kit tab's **Cast a light spell** row (Party
 sheet → Kit tab → Light Sources) offers each light spell a seat can cast among
 the party's members, and Cast opens the caster's own cast window

@@ -48,6 +48,7 @@ function scripted({ refreshEvery = 3, alive = () => true } = {}) {
         join: async () => { world.joined.push(def.name); },
         alive: async () => alive(def.name),
         errors: () => world.errors[def.name]?.splice(0) ?? [],
+        boot: async () => world.boot?.[def.name] ?? null,
         cleanup: () => { world.ended.push(def.name); },
       };
     },
@@ -56,6 +57,19 @@ function scripted({ refreshEvery = 3, alive = () => true } = {}) {
 }
 
 const CASES = [
+  {
+    name: "the keeper logs the boot record of a launched and a reloaded seat, with each error by its phase",
+    async run(problems) {
+      const { keeper, world } = scripted();
+      world.boot = { gm: { phases: ["init", "setup"], errors: [{ phase: "setup", kind: "console", text: "a hook threw" }] } };
+      await keeper.prepare({ fresh: null, gm: true, player: false }, "t1");
+      same(problems, "the launch line carries the boot record, error and phase included", world.logs.some((l) => l.includes("[boot: ") && l.includes("a hook threw") && l.includes("setup")), true);
+      world.boot.gm = { phases: ["init", "setup", "ready"], errors: [] };
+      keeper.after({ passed: false });
+      await keeper.prepare({ fresh: null, gm: true, player: false }, "t1");
+      same(problems, "the reload line carries the new boot record", world.logs.some((l) => l.includes("loaded again") && l.includes("[boot: ") && l.includes("ready")), true);
+    },
+  },
   {
     name: "seatPlan reads the seats a walk names and a fresh-page declaration in its head",
     async run(problems) {

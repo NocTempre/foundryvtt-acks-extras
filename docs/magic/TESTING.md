@@ -399,7 +399,9 @@ one reading the cast's refusal takes. The relay itself is not exercised.
     mark from the Major Elemental's entry, and a Conjure Dybbuk copy, which reads
     it from Cacodemon Spawn's. Where Repair in place leaves a spell with no
     row, the walk reports it: the changelog tells Judges to repair, so the
-    repair must bring the row to a spell that has none.
+    repair must bring the row to a spell that has none. Walked by
+    `tools/live/magic-conjure-rows.mjs`, which reads the Judge's imported spells
+    and prints SKIP where one is absent.
 
 **Teardown.** Delete only what the run tracked: the tokens, the cards, the
 caster records, the fight, the walk's own token, the generated creature and

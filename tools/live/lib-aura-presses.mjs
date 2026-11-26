@@ -689,6 +689,17 @@ const P = {
     const run = H.run(fromUuidSync(uuid));
     return { ok: true, row: foundry.utils.deepClone(run?.rows?.[index] ?? null), activation: foundry.utils.deepClone(run?.activation ?? null) };
   },
+  /** The activation's `uses` as stored on the item, and the editor's "Each use spends one" box on an open editor (drawn only for a once-only item). */
+  usesStored: ({ uuid }) => {
+    const a = fromUuidSync(uuid)?.flags?.["acks-extras"]?.itemRun?.activation;
+    const u = a?.uses;
+    return { present: !!a && "uses" in a && u !== undefined && u !== null, type: u === null ? "null" : typeof u, empty: u && typeof u === "object" ? Object.keys(u).length === 0 : null, number: typeof u === "number" ? u : null };
+  },
+  usesBox: ({ uuid, index }) => {
+    const el = globalThis.__lap.editor(uuid, index)?.element;
+    const box = el?.querySelector("[data-acks-extras-item-uses]") ?? null;
+    return { open: !!el, drawn: !!box, checked: box?.checked ?? null, label: box?.getAttribute("aria-label") ?? null, tip: box?.closest(".form-group")?.dataset.tooltipText ?? "" };
+  },
   /** Write an item's raised state straight (the editor holds the use select while it reads raised), without raising a Region. */
   setRaisedFlag: async ({ uuid, active }) => {
     await fromUuidSync(uuid).update({ "flags.acks-extras.itemRun.activation.state.active": active });
@@ -1333,6 +1344,44 @@ try {
     const s1 = await set('[name="reach.side"]', { value: "foe" });
     check("W7 a pulse that is not the engaged one stays through an edit of another control", s1.row?.reach?.pulse === otherPulse, { kept: s1.row?.reach?.pulse === otherPulse });
     await plRun(P.closeEditors, { uuid: I.CT.uuid });
+  });
+
+  /* ---------------------------------------------------------------- */
+  await step("W7b", async () => {
+    section("W7b the editor's Each use spends one box on a once-only item (T-0882)");
+    await reset({ owners: { monster: 0, char: 3 } });
+    const label = await plRun(() => game.i18n.localize("ACKS-LIB.effectEditor.reach.usesLabel"));
+    // A toggle carries no such box.
+    await plRun(P.itemSheet, { uuid: I.CT.uuid });
+    await plRun(P.editRow, { uuid: I.CT.uuid, index: 0 });
+    const onToggle = await plRun(P.usesBox, { uuid: I.CT.uuid, index: 0 });
+    check("W7b a toggle item's editor draws no Each use spends one box", onToggle.open && onToggle.drawn === false, onToggle);
+    await plRun(P.closeEditors, { uuid: I.CT.uuid });
+    // The once item names its uses as the walk shaped it.
+    await plRun(P.itemSheet, { uuid: I.CO.uuid });
+    await plRun(P.editRow, { uuid: I.CO.uuid, index: 0 });
+    const shaped = await plRun(P.usesStored, { uuid: I.CO.uuid });
+    note("W7b the stored uses as the walk shaped it", shaped);
+    const first = await plRun(P.usesBox, { uuid: I.CO.uuid, index: 0 });
+    check("W7b the once item's editor draws the box, named by its lang string and carrying a tooltip", first.drawn === true && first.label === label && first.tip.length > 0, first);
+    const setBox = (checked) => plRun(P.editorSet, { uuid: I.CO.uuid, index: 0, selector: "[data-acks-extras-item-uses]", checked });
+    note("W7b the box as first read (a numeric count in the fixture reads unticked: the box is for the object a use-naming import stores)", { checked: first.checked, stored: shaped });
+    // Whatever the fixture held, a tick stores the object and an untick removes the key; the order is tick, untick, tick.
+    if (first.checked !== true) await setBox(true);
+    await setBox(false);
+    const off = await plRun(P.usesStored, { uuid: I.CO.uuid });
+    check("W7b unticked: the item names no uses (the key is removed)", off.present === false, off);
+    await plRun(P.editRow, { uuid: I.CO.uuid, index: 0 });
+    const offBox = await plRun(P.usesBox, { uuid: I.CO.uuid, index: 0 });
+    check("W7b unticked: the reopened editor reads the box unticked", offBox.drawn === true && offBox.checked === false, offBox);
+    await setBox(true);
+    const on = await plRun(P.usesStored, { uuid: I.CO.uuid });
+    note("W7b ticked: what Foundry keeps of the stored uses (the empty object, or nothing)", on);
+    check("W7b ticked: the item names its uses again, as an object", on.present === true && on.type === "object", on);
+    await plRun(P.editRow, { uuid: I.CO.uuid, index: 0 });
+    const onBox = await plRun(P.usesBox, { uuid: I.CO.uuid, index: 0 });
+    check("W7b ticked: the reopened editor reads the box ticked", onBox.drawn === true && onBox.checked === true, onBox);
+    await plRun(P.closeEditors, { uuid: I.CO.uuid });
   });
 
   /* ---------------------------------------------------------------- */

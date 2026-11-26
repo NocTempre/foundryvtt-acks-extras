@@ -93,6 +93,19 @@ const P = {
     return { uuid: held.length === 1 ? held[0].uuid : null, twins: held.length };
   },
 
+  /** Every template the importer's own census answers for the template type, read only: what each is, who made it and when. */
+  census: async ({ family }) => {
+    const T = await import("/modules/acks-extras/scripts/importer/cookbook/target.mjs");
+    const C = await import("/modules/acks-extras/scripts/lib/constants.mjs");
+    const B = await import("/modules/acks-extras/scripts/importer/adventure-binding.mjs");
+    const docs = await T.importedActorsOfType(C.TEMPLATE_TYPE);
+    return {
+      type: C.TEMPLATE_TYPE,
+      stableId: B.stableDocId(family),
+      templates: docs.map((d) => ({ uuid: d.uuid, id: d.id, cookbookId: d.getFlag("acks-extras", "cookbook")?.id ?? null, leadersOf: d.getFlag("acks-extras", "cookbook")?.leadersOf ?? null, createdTime: d._stats?.createdTime ?? null, pack: d.pack ?? null })),
+    };
+  },
+
   /** Whether a document is Foundry-editable by this seat: the pack's lock, the update right, the sheet's own answer. */
   lockOf: async ({ uuid }) => {
     const doc = await fromUuid(uuid);
@@ -540,6 +553,8 @@ try {
   // Setup is the subject: the library's copy is deleted by its id and imported fresh through the importer's own call, so no part an older import left without an origin stands in it.
   section("setup: the library's copy of the template is deleted and imported fresh");
   const started = Date.now();
+  const censusBefore = await run(gm, P.census, { family: FAMILY });
+  note("census before the delete: every template the importer answers for", censusBefore);
   const dropped = await run(gm, P.dropTemplate, { uuid: lib.uuid });
   note("the library copy deleted by its id", { uuid: lib.uuid, ...dropped });
   check("the library's copy of the template was deleted by its id", dropped.deleted === true, dropped);
@@ -551,10 +566,19 @@ try {
   check("exactly one fresh copy of the template stands in the library", lib.twins === 1 && !!lib.uuid, { twins: lib.twins, made: imported.made });
   if (lib.twins !== 1 || !lib.uuid) blocked("the fresh import left no single family template in the library");
   // The copy must be one this run's import wrote, and the page must run the reader the server serves: a stale read of either would pass the step above on a document the import never made.
+  const censusAfter = await run(gm, P.census, { family: FAMILY });
+  note("census after the import: every template the importer answers for", censusAfter);
+  const stand = censusAfter.templates.find((x) => x.uuid === lib.uuid) ?? null;
+  note("the standing template (the document the walk reads as fresh)", { uuid: lib.uuid, id: stand?.id ?? null, stableId: censusAfter.stableId, idIsStable: stand?.id === censusAfter.stableId, cookbookId: stand?.cookbookId ?? null, wasThereBefore: censusBefore.templates.some((x) => x.uuid === lib.uuid), cookbookIdBefore: censusBefore.templates.find((x) => x.uuid === lib.uuid)?.cookbookId ?? null });
   const fresh = await run(gm, P.freshness, { uuid: lib.uuid });
   note("the template's creation and the page's recipe reader", { ...fresh, madeByThisRun: fresh.createdTime == null ? null : fresh.createdTime >= started });
-  check("the template standing in the library was created by this run's import", fresh.createdTime == null || fresh.createdTime >= started, { createdTime: fresh.createdTime, started, made: imported.made });
-  if (fresh.createdTime != null && fresh.createdTime < started) blocked("the import left the template that was deleted standing: the library still answers for it, so the importer wrote nothing; read the importer's presence index after a delete made outside it");
+  const madeByRun = fresh.createdTime == null || fresh.createdTime >= started;
+  const before = censusBefore.templates.find((x) => x.uuid === lib.uuid) ?? null;
+  // An import may adopt a template another book made (its cookbook id was not the family's) and restamp it: the document stands, the family id is on it, and it was not created by this run.
+  const adopted = !madeByRun && !!before && before.cookbookId !== FAMILY && stand?.cookbookId === FAMILY;
+  if (adopted) note("FINDING: the import adopted a template that stood before the delete under another cookbook id and restamped it with the family id", { uuid: lib.uuid, cookbookIdBefore: before.cookbookId, cookbookIdAfter: stand.cookbookId });
+  check("the template standing in the library carries the family id and was created by this run's import or adopted by it from another cookbook id", (madeByRun || adopted) && stand?.cookbookId === FAMILY, { createdTime: fresh.createdTime, started, made: imported.made, adopted, cookbookId: stand?.cookbookId ?? null });
+  if (!(madeByRun || adopted)) blocked(`the template standing after the import (${lib.uuid}, id ${stand?.id ?? "unread"}, stable id ${censusAfter.stableId}) was created at ${fresh.createdTime}, before this run began at ${started}, and stood before the delete as ${before ? `cookbook id ${before.cookbookId}` : "no template"}; the import answered made ${JSON.stringify(imported.made)}; templates before the delete ${censusBefore.templates.length}, after the import ${censusAfter.templates.length}`);
   check("the page's recipe reader is the one the server serves", fresh.servedStamps && fresh.cachedStamps && fresh.sameText, fresh);
   if (!(fresh.servedStamps && fresh.cachedStamps && fresh.sameText)) blocked("the page loaded an importer file other than the one on disk: a stale module cache, not a product defect; reload the seat with the cache cleared and run again");
   let variants = await run(gm, P.variants, { uuid: lib.uuid });

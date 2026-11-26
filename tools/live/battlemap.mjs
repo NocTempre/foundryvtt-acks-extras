@@ -509,6 +509,8 @@ const P = {
   /** The Battlemap group's Country brush button as drawn on the viewed scene (T-0590): its state, its list item's tooltip, and what a pointer at its centre reaches. */
   brushButton: async () => {
     const H = globalThis.__rb;
+    // A window the walk left open can stand over the strip and take the pointer; the module's own two are closed first.
+    for (const id of ["acks-extras-battlemap", "acks-extras-terrain-palette"]) await foundry.applications.instances.get(id)?.close({ animate: false });
     await ui.controls.render({ force: true });
     await H.sleep(400);
     ui.controls.activate({ control: "acksBattlemap" });
@@ -525,6 +527,9 @@ const P = {
       found: true, disabled: btn.disabled === true, ariaDisabled: btn.getAttribute("aria-disabled"), off: btn.classList.contains("acks-extras-brush-off"),
       tipText: li?.dataset?.tooltipText ?? "", btnTipText: btn.dataset?.tooltipText ?? "",
       hitIsItem: !!hit && (hit === li || li?.contains(hit) === true), hitTag: hit?.tagName ?? null,
+      stack: document.elementsFromPoint(r.left + r.width / 2, r.top + r.height / 2).slice(0, 6).map((e) => `${e.tagName}${e.id ? `#${e.id}` : ""}.${String(e.className).slice(0, 40)}${e.closest?.(".application")?.id ? ` in ${e.closest(".application").id}` : ""}`),
+      pe: { btn: getComputedStyle(btn).pointerEvents, li: li ? getComputedStyle(li).pointerEvents : null },
+      rect: { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) },
       gridType: canvas.scene?.grid?.type ?? null, scene: canvas.scene?.id ?? null,
     };
   },
@@ -2167,7 +2172,7 @@ async function walkLayers(W) {
   // The Country brush's button on a scene with no hex grid (T-0590), and its return when the grid type becomes hex.
   const bbSquare = await page(gm, P.brushButton);
   check("L8 (T-0590): on the square scene the Country brush button is disabled, aria-disabled, carries acks-extras-brush-off, and its list item carries a tooltip text", bbSquare.found && bbSquare.disabled && bbSquare.ariaDisabled === "true" && bbSquare.off && bbSquare.tipText.length > 0, bbSquare);
-  check("L8 (T-0590): a pointer at the button's centre reaches its list item, so the tooltip manager shows the line", bbSquare.hitIsItem === true, { hit: bbSquare.hitTag });
+  check("L8 (T-0590): a pointer at the button's centre reaches its list item, so the tooltip manager shows the line", bbSquare.hitIsItem === true, { hit: bbSquare.hitTag, stack: bbSquare.stack, pe: bbSquare.pe, rect: bbSquare.rect });
   const squareType = bbSquare.gridType;
   try {
     await page(gm, P.setGridType, { sceneId: square.id, type: 2 });

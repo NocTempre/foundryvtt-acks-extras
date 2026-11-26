@@ -682,6 +682,37 @@ function makeEvaluate(cdp, sessionId) {
  * toasts cleared, no combat viewed and no token controlled. The page and its
  * browser stay; only the walk's own socket closes.
  */
+/**
+ * Added to every document a launched seat loads, before its first script: the
+ * phases of the page's boot reached (init, setup, ready) and every console error,
+ * uncaught error and rejection, each with the phase it landed in.
+ */
+const BOOT_RECORDER = `(() => {
+  const R = (globalThis.__acksBoot = { phase: "load", phases: [], errors: [] });
+  const push = (kind, text) => R.errors.push({ phase: R.phase, kind, text: String(text).slice(0, 300) });
+  const error = console.error.bind(console);
+  console.error = (...args) => { push("console", args.map((a) => a?.message ?? a).join(" ")); error(...args); };
+  addEventListener("error", (e) => push("error", e.message));
+  addEventListener("unhandledrejection", (e) => push("rejection", e.reason?.message ?? e.reason));
+  const arm = setInterval(() => {
+    if (!globalThis.Hooks?.once) return;
+    clearInterval(arm);
+    for (const phase of ["init", "setup", "ready"]) Hooks.once(phase, () => { R.phase = phase; R.phases.push(phase); });
+  }, 2);
+})()`;
+
+/**
+ * The boot report a seat's page holds as one line: which of init, setup and ready
+ * ran, and each error by the phase it landed in.
+ * @param {{phases: string[], errors: {phase: string, kind: string, text: string}[]}|null} boot
+ */
+export function bootLine(boot) {
+  if (!boot) return "no boot record on the page";
+  const missing = ["init", "setup", "ready"].filter((p) => !boot.phases.includes(p));
+  const errs = boot.errors.map((e) => `${e.phase}/${e.kind}: ${e.text.slice(0, 120)}`);
+  return `${boot.phases.join(", ") || "no phase"} reached${missing.length ? ` (not reached: ${missing.join(", ")})` : ""}; ${errs.length ? `${errs.length} error(s): ${errs.slice(0, 5).join(" | ")}` : "no error in init, setup or ready"}`;
+}
+
 const PAGE_RESET = `(() => { try { if (globalThis.ui?.combat) ui.combat.viewed = null; globalThis.canvas?.tokens?.releaseAll?.(); } catch {} return true; })()`;
 
 /**
@@ -778,9 +809,13 @@ function buildHandle({ cdp, sessionId, targetId, evaluate, cleanup, own }) {
  *                                        from the browser's own events, so the
  *                                        load itself is recorded from before
  *                                        the page is ready
+ *   boot()                               the boot record the page holds (`bootLine` prints it): the
+ *                                        phases init, setup and ready reached and
+ *                                        each error by the phase it landed in,
+ *                                        recorded from the first script on
  *   cleanup()                            ends the browser and removes its profile
  */
-export async function launchSeat({ browser, origin, user, port = 9333, width = 1600, height = 1000, readySeconds = 90 }) {
+export async function launchSeat({ browser, origin, user, port = 9333, width = 1600, height = 1000, readySeconds = 90, preScript = null }) {
   for (const [k, v] of Object.entries({ browser, origin, user })) {
     if (!v) throw new Error(`foundry-capture: missing required option "${k}"`);
   }
@@ -846,6 +881,8 @@ export async function launchSeat({ browser, origin, user, port = 9333, width = 1
     const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
     await cdp.send("Page.enable", {}, sessionId);
     await cdp.send("Runtime.enable", {}, sessionId);
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: BOOT_RECORDER }, sessionId);
+    if (preScript) await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: preScript }, sessionId);
     await sleep(2500);
 
     const evaluate = makeEvaluate(cdp, sessionId);
@@ -895,7 +932,8 @@ export async function launchSeat({ browser, origin, user, port = 9333, width = 1
       try { return (await evaluate(`typeof game !== "undefined" && game.ready === true && game.user?.name === ${JSON.stringify(user)} && location.pathname.endsWith("/game")`, PROBE_TIMEOUT_MS)) === true; } catch { return false; }
     };
     const errors = () => problems.splice(0);
-    return { cdp, sessionId, targetId, evaluate, wsUrl, cleanup, join, alive, errors };
+    const boot = async () => { try { return JSON.parse((await evaluate("JSON.stringify(globalThis.__acksBoot ?? null)", PROBE_TIMEOUT_MS)) ?? "null"); } catch { return null; } };
+    return { cdp, sessionId, targetId, evaluate, wsUrl, cleanup, join, alive, errors, boot };
   } catch (err) {
     cleanup();
     throw err;
@@ -949,7 +987,7 @@ export async function attachSeat({ spec, user, own = null, open = openWs }) {
  * fixture helpers build and look up under (`fixtureLedger`); without it they
  * use the recipe's markers.
  */
-export async function connect({ browser, origin, user, port = 9333, width = 1600, height = 1000, readySeconds = 90, own = null }) {
+export async function connect({ browser, origin, user, port = 9333, width = 1600, height = 1000, readySeconds = 90, own = null, preScript = null }) {
   for (const [k, v] of Object.entries({ browser, origin, user })) {
     if (!v) throw new Error(`foundry-capture: missing required option "${k}"`);
   }
@@ -957,7 +995,8 @@ export async function connect({ browser, origin, user, port = 9333, width = 1600
   if (kept[port]) return attachSeat({ spec: kept[port], user, own });
   const held = Object.entries(kept).find(([, s]) => s.user === user);
   if (held) throw new Error(`foundry-capture: the runner keeps "${user}" open on port ${held[0]}, and this walk asks for that user on port ${port}; declare the walk fresh-page`);
-  const seat = await launchSeat({ browser, origin, user, port, width, height, readySeconds });
+  const seat = await launchSeat({ browser, origin, user, port, width, height, readySeconds, preScript });
+  console.log(`boot ${user}: ${bootLine(await seat.boot())}`);
   try {
     return buildHandle({ ...seat, own });
   } catch (err) {

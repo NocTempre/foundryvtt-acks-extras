@@ -341,7 +341,7 @@ async function main(walks, { attach = false, refreshEvery = 10 } = {}) {
   let keeper = null;
   if (attach) {
     const { SeatKeeper, LIBRARY_READY } = await import("./_batch.mjs");
-    const { launchSeat } = await import("./_capture.mjs");
+    const { launchSeat, bootLine } = await import("./_capture.mjs");
     const { seats } = await import("./_env.mjs");
     let machine;
     try { machine = seats(); } catch (e) { console.error(e.message); process.exit(2); }
@@ -350,6 +350,7 @@ async function main(walks, { attach = false, refreshEvery = 10 } = {}) {
       launch: (def) => launchSeat({ browser: machine.browser, origin: machine.origin, user: def.user, port: def.port }),
       settle: (handle) => handle.evaluate(LIBRARY_READY, 150_000).catch(() => {}),
       refreshEvery,
+      bootLine,
       log: (line) => console.log(line),
     });
     live.keeper = keeper;

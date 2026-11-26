@@ -2,7 +2,7 @@
  * Live walk, formation-kit-cast-light: casting a light spell from the Party
  * sheet's Kit tab, from a real Player seat and the Judge's. Walks
  * docs/formation/TESTING.md "Casting a light spell from the Kit tab", whose
- * step numbers are this walk's ids (K-c1 to K-c10): the offer row (one option per
+ * step numbers are this walk's ids (K-c1 to K-c12): the offer row (one option per
  * spell the seat owns, its list and slots line and their tooltips); Cast opening
  * the caster's own cast window and the confirmed cast writing lib's three band
  * changes and the page flag on the caster's record, which the Kit lists as a
@@ -17,7 +17,7 @@
  * cast of K-c7 (a real cast, never bands typed by API: the typed-band steps stay
  * for the figure readers) is the party's light on the dark scene, read by the
  * model, the warnings and the header cell, uncounted while shuttered, and the
- * row's Set reach shown to the Judge's seat and not the Player's. Prints booleans and the
+ * row's Set reach shown to the Judge's seat and not the Player's. K-c11 reads the Judge's own imported illumination spells (never imported by the walk: a seat with none skips) and casts each from the Kit tab, the record's bands, cite and the Kit row read against the copy's own imported row; K-c12 reads the Light here line on both seats against a placed light (marker `formation/daylight-ambient`, far from the party's home square) whose Daylight radius flag is written by a document update, a lit token the Player may not observe, the scene's sky, a hidden token and a journey. Prints booleans and the
  * fixtures' invented labels. Machine values arrive through ./_env.mjs.
  *
  * Fixtures, kept and found by marker (the GM seat builds them; every name and
@@ -483,6 +483,91 @@ const P = {
     for (const app of [...(foundry.applications.instances?.values?.() ?? [])]) if (app.element?.classList?.contains("acks-extras-effect-editor")) await app.close({ animate: false });
     return true;
   },
+  /** The Judge's own illumination spells by cookbook id, read and never imported: the data a copy is made from, the spell's cite, and each light row's stored bands as numbers or null. A spell the shelf lacks is null. */
+  shelf: async ({ ids }) => {
+    const L = await import("/modules/acks-extras/scripts/lib/library.mjs");
+    const out = { rr: !!acksExtras.importer?.bookOpen?.("rr"), spells: {} };
+    for (const [slug, id] of Object.entries(ids)) {
+      const doc = L.byCookbookId("Item", id, { original: true });
+      if (!doc) { out.spells[slug] = null; continue; }
+      const data = doc.toObject();
+      for (const f of ["_id", "folder", "sort", "ownership"]) delete data[f];
+      out.spells[slug] = { payload: data };
+    }
+    return out;
+  },
+  /** One copy's flag rewritten whole from `payload` (the lists, rows, bands and cite as imported), its count 0; answers its cite, its duration shape and the non-reversed light row's bands. */
+  syncCopy: async ({ actorId, itemId, payload }) => {
+    const item = game.actors.get(actorId).items.get(itemId);
+    await item.update({ "flags.acks-extras.-=spell": null });
+    await item.update({ "system.cast": 0, "flags.acks-extras.spell": foundry.utils.deepClone(payload.flags?.["acks-extras"]?.spell ?? {}) });
+    const flag = item.getFlag("acks-extras", "spell") ?? {};
+    const rows = Array.isArray(flag.effects) ? flag.effects : Object.values(flag.effects ?? {});
+    const row = rows.find((r) => r.type === "light" && !r.reversed);
+    const band = (v) => (Number.isInteger(Number(v)) && Number(v) > 0 ? Number(v) : null);
+    return { cite: String(flag.cite ?? ""), hasRow: !!row, bands: row ? { daylight: band(row.lightBands?.daylight), bright: band(row.lightBands?.bright), dim: band(row.lightBands?.dim) } : null, perpetual: !flag.duration || flag.duration.shape !== "fixed" };
+  },
+  /** The Light here line on a seat's open Kit tab, read as drawn with no render forced: whether the Light Sources section is drawn, whether the line is, its stage, its words and its tooltip (null where it carries none). */
+  lightLine: async ({ partyId }) => {
+    const H = globalThis.__kc;
+    const root = H.root(game.actors.get(partyId).sheet);
+    const section = root?.querySelector('.tab[data-tab="kit"] section.lights') ?? null;
+    const line = root?.querySelector("[data-light-here]") ?? null;
+    const cell = line?.querySelector(".remaining") ?? null;
+    return { section: !!section, line: !!line, level: line?.dataset.lightHere ?? null, text: (cell?.textContent ?? "").replace(/\s+/g, " ").trim(), tip: cell?.getAttribute("data-tooltip-text") ?? null };
+  },
+  /** Move a token with no animation, as a hand-made update, and answer where it stands. */
+  moveToken: async ({ sceneId, tokenId, x, y, hidden }) => {
+    const scene = game.scenes.get(sceneId);
+    const patch = { _id: tokenId, ...(x != null ? { x, y } : {}), ...(hidden != null ? { hidden } : {}) };
+    await scene.updateEmbeddedDocuments("Token", [patch], { animate: false });
+    const t = scene.tokens.get(tokenId);
+    return { x: t.x, y: t.y, hidden: !!t.hidden };
+  },
+  /** The placed light written (dotted keys; a `-=` key unsets a flag) and read back: its stored daylight flag, its radii and its own name. */
+  ambient: async ({ sceneId, lightId, set }) => {
+    const scene = game.scenes.get(sceneId);
+    if (set) await scene.updateEmbeddedDocuments("AmbientLight", [{ _id: lightId, ...set }]);
+    const l = scene.lights.get(lightId);
+    return { daylight: l.getFlag("acks-extras", "daylight") ?? null, bright: l.config.bright, dim: l.config.dim, hidden: !!l.hidden, name: String(l.name ?? "") };
+  },
+  /** The scene's sky as it stands (global illumination and darkness), written where given; answers what it held before. */
+  env: async ({ sceneId, global, level }) => {
+    const scene = game.scenes.get(sceneId);
+    const was = { global: !!scene.environment?.globalLight?.enabled, level: scene.environment?.darknessLevel ?? 0 };
+    const patch = {};
+    if (global != null) patch["environment.globalLight.enabled"] = global;
+    if (level != null) patch["environment.darknessLevel"] = level;
+    if (Object.keys(patch).length) await scene.update(patch);
+    return was;
+  },
+  /** One hand-made effect carrying a daylight reach, as `magicLightChanges` writes it, on an actor the run made; answers the daylight lib reads off the actor. */
+  beaconEffect: async ({ actorId, feet }) => {
+    const H = globalThis.__kc;
+    const actor = game.actors.get(actorId);
+    await actor.createEmbeddedDocuments("ActiveEffect", [{ name: "QA Kit Beacon Light", changes: H.LT.magicLightChanges({ daylight: feet }), disabled: false }]);
+    return { daylight: H.LT.effectLight(actor).daylight };
+  },
+  /** An actor's ownership map replaced whole with `map` (a deletion key inside the map is not a user id on core 14); answers the stored map. */
+  ownership: async ({ uuid, map }) => {
+    const doc = await fromUuid(uuid);
+    await doc.update({ ownership: map }, { diff: false, recursive: false });
+    return { ...doc._source.ownership };
+  },
+  /** A token placed on a scene for the step; answers its uuid and id. */
+  placeBeacon: async ({ sceneId, actorId, x, y }) => {
+    const scene = game.scenes.get(sceneId);
+    const [t] = await scene.createEmbeddedDocuments("Token", [{ actorId, x, y, name: "QA Kit Beacon Token", actorLink: true, hidden: false, disposition: 0 }]);
+    return { uuid: t.uuid, id: t.id };
+  },
+  /** The party's travel mode as the record holds it, switched through the module's own writer where `mode` is given. */
+  travel: async ({ fid, mode, sceneId }) => {
+    const H = globalThis.__kc;
+    const was = H.FM.getFormation(fid).travel?.mode ?? null;
+    if (mode) await acksExtras.formation.travel.setJourneyMode(fid, mode, { sceneId });
+    await H.sleep(600);
+    return { was, now: H.FM.getFormation(fid).travel?.mode ?? null };
+  },
 };
 
 /* ------------------------------------------------------------------ */
@@ -807,6 +892,216 @@ try {
   const hint = await loc(gm, "ACKS-LIB.effectEditor.tip.lightBand");
   chk("K-c9", "the blank radius's tooltip is the page alone (the editor's own 'Page: {cite}' wording), and a typed radius's is the field hint, which does not name the page", !!ed.daylight && ed.daylight.tip === citeTip && ed.bright?.tip === hint && !ed.bright.tip.includes(CITE), { blankTip: ed.daylight?.tip, typedTip: ed.bright?.tip });
   await run(gm, P.closeSheets, { partyId: W.party, items: [{ actorId: W.caster, itemId: W.casterSpell }] });
+
+  // ------------------------------------------------------------ K-c11
+  section("K-c11. the imported reach (the Judge's own copy of RR; a seat with none skips)");
+  const k11Uuids = [];
+  try {
+    const shelf = await run(gm, P.shelf, { ids: { timed: "def.spell.illumination", perpetual: "def.spell.illuminationPerpetual" } });
+    const have = Object.entries(shelf.spells).filter(([, v]) => v);
+    for (const [slug, v] of Object.entries(shelf.spells)) if (!v) console.log(`SKIP  K-c11: the ${slug} illumination spell is not on this seat's Spells shelf  ${shelf.rr ? "RR is open but the entry is not imported: re-import it (Settings tab → Game Settings → ACKS II — Extras → Manage imports → (Re)import individual entries) and run again" : "this seat holds no copy of RR, so no imported figure can be read; none is invented"}`);
+    if (have.length) {
+      await shapeAll();
+      await run(gm, P.setPools, { actorId: W.caster, pools: null });
+      await clearOwnRecords();
+      const copies = {};
+      for (const [slug, v] of have) {
+        const made = await gm.create("Item", { ...v.payload, name: `QA Kit Illumination ${slug}` }, { parent: `Actor.${W.caster}` });
+        await ledger.track(made.uuid, "Item");
+        k11Uuids.push(made.uuid);
+        copies[slug] = { id: idOf(made), ...(await run(gm, P.syncCopy, { actorId: W.caster, itemId: idOf(made), payload: v.payload })) };
+      }
+      await run(gm, P.openKit, { partyId: W.party, fresh: true });
+      const offered = await waitKit(gm, (v) => Object.values(copies).every((c) => v.options.some((o) => o.value.startsWith(`${W.caster}|${c.id}|`))));
+      chk("K-c11", "the cast row's select offers each imported spell the shelf holds (the perpetual form carried no light row before the import gained one)", offered.ok, { options: offered.value.options.length, wanted: Object.keys(copies) });
+      for (const [slug, c] of Object.entries(copies)) {
+        const tag = `K-c11 ${slug}`;
+        chk("K-c11", `${slug}: the imported spell carries a non-reversed light row (the re-import brought it) and its cite names the page`, c.hasRow && c.cite.length > 0 && c.cite.includes(slug === "timed" ? "227" : "228"), { hasRow: c.hasRow, cite: c.cite.length > 0 });
+        if (!c.hasRow) continue;
+        const exp = ["daylight", "bright", "dim"].map((b) => (c.bands[b] ? String(c.bands[b]) : ""));
+        chk("K-c11", `${slug}: the row's bands were located by the import (at least one figure stands); the unread ones are ${["daylight", "bright", "dim"].filter((b) => !c.bands[b]).join(", ") || "none"}`, exp.some(Boolean), { bands: ["daylight", "bright", "dim"].map((b) => !!c.bands[b]) });
+        if (slug === "timed") chk("K-c11", "timed: the page prints no daylight band, so none is located", exp[0] === "", { daylight: exp[0] === "" });
+        await shapeAll();
+        await run(gm, P.setPools, { actorId: W.caster, pools: null });
+        await run(gm, P.openKit, { partyId: W.party, fresh: true });
+        await waitKit(gm, (v) => v.options.some((o) => o.value.startsWith(`${W.caster}|${c.id}|`)));
+        const option = (await kitOf(gm)).options.find((o) => o.value.startsWith(`${W.caster}|${c.id}|`));
+        await run(gm, P.pick, { partyId: W.party, value: option?.value ?? "" });
+        await run(gm, K.closeDialog);
+        const press = await run(gm, P.pressCast, { partyId: W.party });
+        const cast = await run(gm, P.confirmCast, { mode: "normal" });
+        await keep(cast);
+        chk("K-c11", `${slug}: the Judge's Cast opens the imported spell's window and the confirmed cast posts its card`, press.dialog && cast.card, { dialog: press.dialog, card: cast.card, verdicts: cast.verdicts });
+        if (!cast.card) continue;
+        const rec = await until(() => recordsOn(W.caster), (rs) => rs.some((r) => r.castId === cast.castId && r.bandKeys > 0));
+        const mine = rec.value.find((r) => r.castId === cast.castId && r.bandKeys > 0) ?? null;
+        if (mine) await ledger.track(mine.uuid, "ActiveEffect");
+        chk("K-c11", `${slug}: the record's three band changes read the imported figures in band order (a blank where the import read none), each of lib's type, and the cite flag is the spell's own cite`, mine?.bandKeys === 3 && JSON.stringify(mine.values) === JSON.stringify(exp) && mine.typesOk && mine.cite === c.cite, { values: mine?.values?.map((x) => x !== ""), cite: mine?.cite === c.cite });
+        if (slug === "perpetual") chk("K-c11", "perpetual: the record carries no start time and no duration", !!mine && mine.startTime === null && mine.duration === null, { startTime: mine?.startTime, duration: mine?.duration });
+        else chk("K-c11", "timed: the record is timed (a start and a duration)", !!mine && Number.isFinite(mine.startTime) && !!mine.duration, { startTime: mine?.startTime });
+        const parts = [];
+        if (c.bands.daylight) parts.push(await run(gm, P.format, { key: "ACKS-FORMATION.app.magicLightDaylight", data: { daylight: c.bands.daylight } }));
+        if (c.bands.bright || c.bands.dim) {
+          const key = c.bands.bright && c.bands.dim ? "magicLightReach" : c.bands.bright ? "magicLightBrightOnly" : "magicLightDimOnly";
+          parts.push(await run(gm, P.format, { key: "ACKS-" + "FORMATION.app." + key, data: { ...(c.bands.bright ? { bright: c.bands.bright } : {}), ...(c.bands.dim ? { dim: c.bands.dim } : {}) } }));
+        }
+        const row = await waitKit(gm, (v) => !!mine && !!rowFor(v, W.caster, mine.id));
+        const r = mine ? rowFor(row.value, W.caster, mine.id) : null;
+        chk("K-c11", `${slug}: the Kit row's reach cell is the imported reach in the tab's words, and the row is Shining`, row.ok && r.reachText === parts.join(" · ") && r.state === "shining", { reach: r?.reachText === parts.join(" · "), state: r?.state });
+        if (slug === "perpetual") {
+          await run(gm, P.clock, { advance: 2 * HOUR });
+          const after = await waitKit(gm, (v) => !!mine && !!rowFor(v, W.caster, mine.id));
+          chk("K-c11", "perpetual: two hours of the world clock later the record still stands and its row is still listed, with no countdown ever drawn for it", after.ok && (await recordsOn(W.caster)).some((x) => x.id === mine.id), { listed: after.ok });
+        }
+        const ed = await run(gm, P.openEditor, { actorId: W.caster, itemId: c.id });
+        const citeTip = await run(gm, P.format, { key: "ACKS-LIB.effectEditor.tip.cite", data: { cite: c.cite } });
+        chk("K-c11", `${slug}: the effect-row editor's three radius boxes hold the imported figures (blank where unread), and a blank one's tooltip is the page alone`, ed.editor === true && ["daylight", "bright", "dim"].every((b, i) => ed[b]?.value === exp[i] && (exp[i] !== "" || ed[b]?.tip === citeTip)), { editor: ed.editor, values: ["daylight", "bright", "dim"].map((b, i) => ed[b]?.value === exp[i]) });
+        await run(gm, P.closeSheets, { partyId: W.party, items: [{ actorId: W.caster, itemId: c.id }] });
+        if (mine) note(`${tag}: the cast's record swept by its own uuid`, await gm.sweepTracked({ only: [mine.uuid] }));
+      }
+      console.log("NOT WALKED  K-c11: a typed band surviving a second re-import as held, a re-import of a row left untouched, and the Judge's unread listing  these drive the importer's own window and are the recipe's and not this walk's");
+    }
+  } catch (err) {
+    console.error("WALK ERROR (K-c11):", err?.stack ?? err);
+    chk("K-c11", "the step ran to the end", false, String(err?.message ?? err).slice(0, 200));
+  } finally {
+    try { await run(gm, P.closeSheets, { partyId: W.party, items: [{ actorId: W.caster, itemId: W.casterSpell }] }); } catch { /* sheets only */ }
+    try { if (k11Uuids.length) note("K-c11: the imported spells' copies on the caster, swept by their own uuids", await gm.sweepTracked({ only: k11Uuids })); } catch (err) { console.error("K-c11 sweep:", err?.message ?? err); }
+    await shapeAll();
+    await run(gm, P.setPools, { actorId: W.other, pools: null });
+  }
+
+  // ------------------------------------------------------------ K-c12
+  section("K-c12. daylight from a placed light: the Light here line");
+  const k12 = { home: null, env: null, travel: null, lightId: null, tokenMoved: false };
+  const k12Uuids = [];
+  const lineOf = (seat, test) => until(() => run(seat, P.lightLine, { partyId: W.party }), test, { tries: 40, every: 300 });
+  try {
+    const A = { x: 750, y: 450 };
+    const C = { x: 990, y: 450 };
+    const levelWord = (l) => loc(gm, "ACKS-" + "LIB.light.level." + l);
+    await shapeAll();
+    await run(gm, P.setPools, { actorId: W.other, pools: null });
+    await clearOwnRecords();
+    await detach(W.caster, false);
+    k12.home = await run(gm, P.moveToken, { sceneId: W.scene, tokenId: pt.tokenId });
+    k12.env = await run(gm, P.env, { sceneId: W.scene, global: false, level: 0.8 });
+    k12.travel = (await run(gm, P.travel, { fid: W.fid, mode: null, sceneId: W.scene })).was;
+    if (k12.travel === "journey") await run(gm, P.travel, { fid: W.fid, mode: "delve", sceneId: W.scene });
+    await run(gm, P.moveToken, { sceneId: W.scene, tokenId: pt.tokenId, hidden: false });
+    const light = await gm.fixture("formation/daylight-ambient", "AmbientLight", { x: 800, y: 500, hidden: false, config: { bright: 10, dim: 20 } }, { parent: `Scene.${W.scene}` });
+    k12.lightId = idOf(light);
+    const shaped = await run(gm, P.ambient, { sceneId: W.scene, lightId: k12.lightId, set: { x: 800, y: 500, hidden: false, "config.bright": 10, "config.dim": 20, "flags.acks-extras.-=daylight": null } });
+    chk("K-c12", "the fixture light stands on the kit scene far from the party's home square, with its bright and dim radii typed and no daylight radius", shaped.daylight === null && shaped.bright === 10 && shaped.dim === 20 && shaped.hidden === false, { daylight: shaped.daylight, bright: shaped.bright, dim: shaped.dim });
+    const kindAmbient = await loc(gm, "ACKS-FORMATION.app.lightHereKindAmbient");
+    const kindToken = await loc(gm, "ACKS-FORMATION.app.lightHereKindToken");
+    const kindSky = await loc(gm, "ACKS-FORMATION.app.lightHereKindSky");
+    const named = (kind, name) => run(gm, P.format, { key: "ACKS-FORMATION.app.lightHereNamed", data: { kind, name } });
+    const ambientTip = shaped.name ? await named(kindAmbient, shaped.name) : kindAmbient;
+    await run(gm, P.openKit, { partyId: W.party, fresh: true });
+    await run(player, P.openKit, { partyId: W.party, fresh: true });
+    const both = async (test, label, expectTip) => {
+      const g = await lineOf(gm, test);
+      const p = await lineOf(player, test);
+      chk("K-c12", `${label}: both seats' open sheets read it with no reopen`, g.ok && p.ok, { gm: g.value.level, player: p.value.level });
+      if (expectTip) {
+        const tip = typeof expectTip === "function" ? await expectTip() : expectTip;
+        chk("K-c12", `${label}: the tooltip on both seats is the source and its page`, g.value.tip === tip.gm && p.value.tip === tip.player, { gm: g.value.tip === tip.gm, player: p.value.tip === tip.player });
+      }
+      return { g: g.value, p: p.value };
+    };
+    const same = (tip) => ({ gm: tip, player: tip });
+    const at = (spot) => run(gm, P.moveToken, { sceneId: W.scene, tokenId: pt.tokenId, ...spot });
+
+    // The stage the light's own radii give, before any daylight radius.
+    await at(A);
+    k12.tokenMoved = true;
+    const dim0 = await both((v) => v.line && v.level === "bright", "before the radius, the party token inside the light's bright radius reads Bright light", same(ambientTip));
+    chk("K-c12", "the line's words are the stage's name", dim0.g.text === (await levelWord("bright")), { text: dim0.g.text });
+
+    // The Daylight radius, written as the config window's submit would write the flag.
+    note("K-c12: the Daylight radius field itself (Scene controls → Lighting Controls → double-click the light → Basic Configuration → Light Placement) is the recipe's and lib's walk; here the flag is written by a document update", true);
+    await run(gm, P.ambient, { sceneId: W.scene, lightId: k12.lightId, set: { "flags.acks-extras.daylight": 8 } });
+    const day = await both((v) => v.level === "daylight", "with a Daylight radius over the token the line reads Daylight", async () => {
+      const tip = `${ambientTip} · RR p. 228`;
+      return same(tip);
+    });
+    chk("K-c12", "the daylight line's tooltip names a placed light and ends on the page reference", !!day.g.tip && day.g.tip.startsWith(ambientTip) && day.g.tip.endsWith("RR p. 228"), { startsOk: day.g.tip?.startsWith(ambientTip) });
+    await at(C);
+    await both((v) => v.level === "dim", "the token moved out of the daylight and bright radii reads Dim light by the light's own radii", same(ambientTip));
+    await at(k12.home);
+    const dark = await both((v) => v.level === "dark" && v.line, "the token moved out of every radius reads Dark");
+    chk("K-c12", "a Dark line carries no tooltip", dark.g.tip === null && dark.p.tip === null && dark.g.text === (await levelWord("dark")), { gm: dark.g.tip, player: dark.p.tip });
+    await at(A);
+    await run(gm, P.ambient, { sceneId: W.scene, lightId: k12.lightId, set: { "flags.acks-extras.-=daylight": null } });
+    await both((v) => v.level === "bright", "with the radius cleared and the token inside, the line falls back to Bright light", same(ambientTip));
+
+    // A lit token that decides the reading: named only to a seat holding Observer on its actor.
+    const beacon = await gm.create("Actor", { name: "QA Kit Beacon", type: "monster", prototypeToken: { actorLink: true }, ownership: { default: 0 } });
+    await ledger.track(beacon.uuid, "Actor");
+    k12Uuids.push(beacon.uuid);
+    const fx = await run(gm, P.beaconEffect, { actorId: idOf(beacon), feet: 6 });
+    if (fx.daylight !== 6) console.log(`SKIP  K-c12: a hand-made magic-light effect on the beacon actor reads daylight ${fx.daylight}, not the 6 ft it states, so the token-source cases are not walked`);
+    else {
+      const tk = await run(gm, P.placeBeacon, { sceneId: W.scene, actorId: idOf(beacon), x: A.x, y: A.y });
+      await ledger.track(tk.uuid, "Token");
+      k12Uuids.push(tk.uuid);
+      const tokenName = "QA Kit Beacon Token";
+      const gmTip = `${await named(kindToken, tokenName)} · RR p. 228`;
+      await both((v) => v.level === "daylight", "a lit token whose actor sheds daylight decides the reading: the Judge's seat names the token, a Player seat with no Observer on its actor is told the kind and the page alone", { gm: gmTip, player: `${kindToken} · RR p. 228` });
+      const grant = await run(gm, P.ownership, { uuid: beacon.uuid, map: { default: 0, [W.playerId]: 2 } });
+      await run(player, P.openKit, { partyId: W.party, fresh: true });
+      const named2 = await lineOf(player, (v) => v.tip === gmTip);
+      chk("K-c12", "once the Player holds Observer on the token's actor the Player's line names the token as the Judge's does", grant[W.playerId] === 2 && named2.ok, { stored: grant[W.playerId], tip: named2.value.tip === gmTip });
+      await run(gm, P.moveToken, { sceneId: W.scene, tokenId: tk.id, x: 100, y: 650 });
+      await both((v) => v.level === "bright", "moving the lit token away redraws the open sheets with no reopen: the line falls to the placed light's Bright light", same(ambientTip));
+    }
+
+    // The sky: the scene's darkness and environment redraw the open sheet.
+    await run(gm, P.env, { sceneId: W.scene, global: true, level: 0.1 });
+    const sky = await both((v) => v.level === "daylight" && !!v.tip && v.tip.startsWith(kindSky), "with the scene's sky lit (global illumination on, darkness 0.1) the line reads Daylight and its tooltip names the sky");
+    chk("K-c12", "the sky's tooltip carries a page reference after its kind", sky.g.tip?.split(" · ").length === 2 && sky.p.tip === sky.g.tip, { parts: sky.g.tip?.split(" · ").length });
+    await run(gm, P.env, { sceneId: W.scene, level: 0.8 });
+    await both((v) => v.level === "bright", "raising the darkness back to 0.8 redraws the line to the placed light's Bright light", same(ambientTip));
+    await run(gm, P.env, { sceneId: W.scene, global: false });
+
+    // No line: a hidden party token, a deployed party, a journey. The Light Sources section stays drawn, so an absent line is not an absent tab.
+    const hid = await at({ hidden: true });
+    const gone = await lineOf(gm, (v) => v.section && !v.line);
+    const goneP = await lineOf(player, (v) => v.section && !v.line);
+    chk("K-c12", "with the party's token hidden the Light Sources section is drawn and the line is not, on both seats", hid.hidden === true && gone.ok && goneP.ok, { hidden: hid.hidden, gm: gone.value, player: goneP.value.line });
+    await at({ hidden: false });
+    await both((v) => v.line && v.level === "bright", "unhiding the token brings the line back", same(ambientTip));
+    const dep = await detach(W.caster, true);
+    deployed = !!dep.deployed;
+    const hiddenNow = (await at({})).hidden;
+    if (!deployed) notWalked("K-c12", "the line while a member is deployed", `the Order tab's detach control was not reached (found ${dep.found}, deployed ${dep.deployed})`);
+    else {
+      const seen = await lineOf(gm, (v) => v.section && (hiddenNow ? !v.line : v.line));
+      chk("K-c12", `with a member deployed the line is absent exactly while the party's token is hidden (hidden: ${hiddenNow})`, seen.ok, { hidden: hiddenNow, line: seen.value.line });
+      await detach(W.caster, false);
+      deployed = false;
+    }
+    await at({ hidden: false });
+    const jm = await run(gm, P.travel, { fid: W.fid, mode: "journey", sceneId: W.scene });
+    const jgm = await lineOf(gm, (v) => v.section && !v.line);
+    const jpl = await lineOf(player, (v) => v.section && !v.line);
+    chk("K-c12", "on a journey the Light Sources section is drawn and the line is not, on both seats", jm.now === "journey" && jgm.ok && jpl.ok, { mode: jm.now, gm: jgm.value.line, player: jpl.value.line });
+    await run(gm, P.travel, { fid: W.fid, mode: k12.travel === "journey" ? "delve" : (k12.travel ?? "delve"), sceneId: W.scene });
+    await both((v) => v.line && v.level === "bright", "leaving the journey brings the line back", same(ambientTip));
+    console.log("NOT WALKED  K-c12: a party with no token on its scene (the kit party's token is a kept fixture, and its absence is a setup check of its own)");
+  } catch (err) {
+    console.error("WALK ERROR (K-c12):", err?.stack ?? err);
+    chk("K-c12", "the step ran to the end", false, String(err?.message ?? err).slice(0, 200));
+  } finally {
+    const tidy12 = async (label, fn) => { try { note(label, await fn()); } catch (err) { console.error(`${label}:`, err?.message ?? err); } };
+    if (k12.lightId) await tidy12("K-c12: the placed light's daylight flag cleared", () => run(gm, P.ambient, { sceneId: W.scene, lightId: k12.lightId, set: { "flags.acks-extras.-=daylight": null } }));
+    if (k12.home && k12.tokenMoved) await tidy12("K-c12: the party token put back and shown", () => run(gm, P.moveToken, { sceneId: W.scene, tokenId: pt.tokenId, x: k12.home.x, y: k12.home.y, hidden: k12.home.hidden }));
+    if (k12.env) await tidy12("K-c12: the scene's sky put back", () => run(gm, P.env, { sceneId: W.scene, global: k12.env.global, level: k12.env.level }));
+    if (k12.travel) await tidy12("K-c12: the party's travel mode put back", () => run(gm, P.travel, { fid: W.fid, mode: k12.travel, sceneId: W.scene }));
+    await tidy12("K-c12: the sheets closed", () => run(gm, P.closeSheets, { partyId: W.party, items: [{ actorId: W.caster, itemId: W.casterSpell }] }));
+    if (k12Uuids.length) await tidy12("K-c12: the beacon actor and its token, swept by their own uuids", () => gm.sweepTracked({ only: k12Uuids }));
+  }
 
   // ------------------------------------------------------------ end
   section("console");

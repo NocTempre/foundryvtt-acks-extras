@@ -281,13 +281,14 @@ try {
     noticeAfter("Begin", s);
 
     section(`${tag}: the rolls`);
-    const roll = async (label, press) => {
+    const roll = async (label, press, rowId = null) => {
+      const covered = (x) => (rowId ? typeof x.rows.find((r) => r.id === rowId)?.initiative === "number" : x.numbered);
       check(`${tag} ${label}: initiative blanked on every row`, await run(gm, P.blank, { combatId: made.id }));
       const pressed = await press();
       check(`${tag} ${label}: the button is there and pressed`, pressed.pressed, pressed);
-      const st = await settled((x) => x.numbered, 40);
-      check(`${tag} ${label}: every row the press covers carries a number`, st.numbered, st.rows);
-      if (!st.numbered) note(`${tag} ${label}: the system's rollAll called directly`, await run(gm, P.diagRoll, { combatId: made.id }));
+      const st = await settled(rowId ? (x) => x.rows.find((r) => r.id === rowId)?.initiative != null : (x) => x.numbered, 40);
+      check(`${tag} ${label}: every row the press covers carries a number${rowId ? " (the one row it rolls)" : ""}`, covered(st), st.rows);
+      if (!covered(st)) note(`${tag} ${label}: the system's rollAll called directly`, await run(gm, P.diagRoll, { combatId: made.id }));
       await sleep(1000);
       const after = await state();
       check(`${tag} ${label}: flags.acks.lock-turns reads false`, after.lock !== true, after.lock);
@@ -299,11 +300,13 @@ try {
       await roll(`the roll on row ${i + 1}${row.tokenless ? " (the tokenless one)" : ""}`, async () => {
         const first = await run(gm, P.press, { selector: `li.combatant[data-combatant-id="${row.id}"] [data-action="rollInitiative"]` });
         return first.pressed ? first : run(gm, P.press, { selector: `li.combatant[data-combatant-id="${row.id}"] [data-action*="roll" i]` });
-      });
+      }, row.id);
     }
 
     section(`${tag}: the group control, pressed twice`);
-    const before = (await state()).groups;
+    const beforeState = await state();
+    const before = beforeState.groups;
+    const rowsBefore = JSON.stringify(beforeState.rows.map((r) => r.initiative));
     for (const press of ["first", "second"]) {
       const group = await run(gm, P.group, { tokenIds: [token.id, token2.id] });
       note(`${tag} the group control, ${press} press`, group);
@@ -312,7 +315,7 @@ try {
       s = await state();
       check(`${tag} ${press} press: no group is stored, flags.acks.groups reads as it did`, s.groups === before, { before, after: s.groups });
       noticeAfter(`group control, ${press} press`, s);
-      check(`${tag} ${press} press: both rows still carry a number and flags.acks.lock-turns reads false`, s.numbered && s.lock !== true, { rows: s.rows, lock: s.lock });
+      check(`${tag} ${press} press: no initiative was changed by the press and flags.acks.lock-turns reads false`, JSON.stringify(s.rows.map((r) => r.initiative)) === rowsBefore && s.lock !== true, { before: rowsBefore, rows: s.rows, lock: s.lock });
     }
   };
 
