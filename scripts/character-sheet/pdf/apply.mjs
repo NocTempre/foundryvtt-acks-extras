@@ -33,7 +33,9 @@ import { ensureLanguage } from "../../classes/languages.mjs";
 import { buildGearData } from "../../classes/template-packages.mjs";
 import { HAND_PLACES, placeItem } from "../../equipment/placement.mjs";
 import { wearLocation } from "../../equipment/wear.mjs";
-import { isContainer, storeIn } from "../../equipment/containers.mjs";
+import { containedIn, isContainer, storeIn } from "../../equipment/containers.mjs";
+import { isInUse, isStackable } from "../../lib/storage-logic.mjs";
+import { oneAtATime } from "../../lib/item-model.mjs";
 import { rollsOf, targetOf } from "../../abilities/ability-rolls.mjs";
 import { enrollHenchman } from "../../henchmen/engine/hire.mjs";
 import { clampScore, moraleBounds } from "../../lib/score-bounds.mjs";
@@ -175,6 +177,25 @@ function containerFor(actor, place) {
 }
 
 /**
+ * The row a gear line places, read from the actor's live items so no row is
+ * placed by two lines. A line's item that is no stack (a copy with effects of
+ * its own) is its own row. A stack's row is, among the unplaced rows of its
+ * name: one already `there`, else the line's own row, else a row at rest.
+ * Null when every row of the stack is placed or in use elsewhere.
+ * @param {Actor} actor
+ * @param {Item} item the row that answered the line
+ * @param {Set<string>} used ids of the rows earlier lines placed
+ * @param {(row: Item) => boolean} there whether a row already stands where the line puts it
+ * @returns {Item|null}
+ */
+function unitFor(actor, item, used, there) {
+  if (!isStackable(item)) return item;
+  const key = slug(item.name);
+  const rows = actor.items.filter((i) => GEAR_TYPES.includes(i.type) && slug(i.name) === key && isStackable(i) && !used.has(i.id));
+  return rows.find(there) ?? rows.find((row) => row.id === item.id) ?? rows.find((row) => !isInUse(row)) ?? null;
+}
+
+/**
  * Land every gear line on the actor and put it where the sheet lists it. What
  * the actor already carries answers the lines (`answerGear`), so a second
  * import lands nothing twice. A stack is every row the actor carries under a
@@ -184,8 +205,34 @@ function containerFor(actor, place) {
  * placed. A name carried as separate copies is answered by one copy for each
  * unit a line lists, so two lines naming a dagger are two daggers. A count
  * that differs from the sheet's is reported, never changed.
+ *
+ * Every line places a unit of its own. A line naming a stack places the row it
+ * finds when it is placed, not the one that answered it, and no row is placed
+ * by two lines: the body's lines and then the containers' share one set of
+ * placed rows. A body place takes the row already worn there, else the line's
+ * own row, else a resting row of the stack (one in a hand is divided again by
+ * the equip path); a container takes the row already stored in it, else the
+ * line's own, else a resting one. A line with no unit left moves nothing and
+ * is reported, so a sheet listing more units than the actor holds is told so.
+ * The equip hook divides a stack after the write that asked for it returns,
+ * so each line reads the rows only once the actor's queued divides and folds
+ * have landed (`oneAtATime`).
+ * A name carried as separate copies places each line's own row.
+ *
+ * @param {Actor} actor
+ * @param {{name: string, qty: number, place: string}[]} gear the sheet's gear lines
+ * @param {object} report the import report the checks and notes are appended to
+ * @param {object} [deps] stand-ins for the writes (`placeItem`, `storeIn`,
+ *   `deliverItems`, `buildGearData`, `wearLocation`, `settle`), for the unit suite
  */
-async function landGear(actor, gear, report) {
+export async function landGear(actor, gear, report, deps = {}) {
+  const place = deps.placeItem ?? placeItem;
+  const store = deps.storeIn ?? storeIn;
+  const deliver = deps.deliverItems ?? deliverItems;
+  const build = deps.buildGearData ?? buildGearData;
+  const wearAt = deps.wearLocation ?? wearLocation;
+  const settle = deps.settle ?? ((holder) => oneAtATime(holder, async () => null));
+  const used = new Set();
   const answers = answerGear(gear, actor.items.filter((i) => GEAR_TYPES.includes(i.type)));
   const placed = [];
   for (const [at, line] of gear.entries()) {
@@ -193,8 +240,8 @@ async function landGear(actor, gear, report) {
     let { item } = answers[at];
     if (check) report.checks.push(check);
     if (owed > 0) {
-      const { data } = await buildGearData({ name: line.name, qty: 1 });
-      const { created, updated } = await deliverItems(actor, goodsForRow(data, owed));
+      const { data } = await build({ name: line.name, qty: 1 });
+      const { created, updated } = await deliver(actor, goodsForRow(data, owed));
       report.granted.push(owed > 1 ? `${data.name} ×${owed}` : data.name);
       item ??= created[0] ?? updated[0] ?? null;
     }
@@ -202,23 +249,38 @@ async function landGear(actor, gear, report) {
   }
   // Everything is put on the body before anything is packed, so a backpack
   // on the back is there to take the backpack's list.
-  for (const { line, item } of placed) {
-    const slot = line.place === "worn" ? (wearableSlots(item)[0] ?? PLACE_SLOT.worn) : PLACE_SLOT[line.place];
+  for (const { line, item: answered } of placed) {
+    const slot = line.place === "worn" ? (wearableSlots(answered)[0] ?? PLACE_SLOT.worn) : PLACE_SLOT[line.place];
     if (!slot) continue;
     // A weapon is drawn only into a hand; one listed elsewhere stays carried.
-    if (item.type === ITEM_TYPE.weapon && !HAND_PLACES.includes(slot)) continue;
+    if (answered.type === ITEM_TYPE.weapon && !HAND_PLACES.includes(slot)) continue;
+    await settle(actor);
+    const item = unitFor(actor, answered, used, (row) => wearAt(actor, row) === slot);
+    if (!item) {
+      report.checks.push({ label: answered.name, sheet: loc(`pdf.place.${line.place}`), inForce: loc("pdf.check.notWorn") });
+      continue;
+    }
+    used.add(item.id);
     // Already there: a wear that writes nothing answers false, which is not a refusal.
-    if (wearLocation(actor, item) === slot) continue;
-    if (!(await placeItem(actor, item, slot))) report.checks.push({ label: item.name, sheet: loc(`pdf.place.${line.place}`), inForce: loc("pdf.check.notWorn") });
+    if (wearAt(actor, item) === slot) continue;
+    if (!(await place(actor, item, slot))) report.checks.push({ label: item.name, sheet: loc(`pdf.place.${line.place}`), inForce: loc("pdf.check.notWorn") });
   }
-  for (const { line, item } of placed) {
+  for (const { line, item: answered } of placed) {
     if (!PLACE_CONTAINER[line.place]) continue;
     const box = containerFor(actor, line.place);
     if (!box) {
-      report.checks.push({ label: item.name, sheet: loc(`pdf.place.${line.place}`), inForce: loc("pdf.check.loose") });
+      report.checks.push({ label: answered.name, sheet: loc(`pdf.place.${line.place}`), inForce: loc("pdf.check.loose") });
       continue;
     }
-    if (box.id !== item.id) await storeIn(actor, item, box);
+    if (box.id === answered.id) continue;
+    await settle(actor);
+    const item = unitFor(actor, answered, used, (row) => containedIn(row) === box.id);
+    if (!item) {
+      report.checks.push({ label: answered.name, sheet: loc(`pdf.place.${line.place}`), inForce: loc("pdf.check.loose") });
+      continue;
+    }
+    used.add(item.id);
+    await store(actor, item, box);
   }
   const hidden = placed.filter((p) => p.line.place === "hidden").map((p) => p.item.name);
   if (hidden.length) report.notes.push({ label: loc("pdf.place.hidden"), text: hidden.join(", ") });

@@ -575,6 +575,140 @@ test("every line of a name a stack answers is counted against the stack, and a r
   assert.deepEqual(owed(answerGear([{ name: "Torch", qty: 3 }, { name: "Rope", qty: 1 }], [row("t", "Torch", 3)])), [0, 1], "a name no carried row answers still owes");
 });
 
+section("official sheet: one name on two lines places two units");
+/**
+ * A stand-in actor and the writes `landGear` makes. `placeItem` models the equip divert
+ * (a stack of two or more put in a hand leaves the placed row holding one and a resting
+ * row beside it for the rest), since the real path is core's and the live walk's.
+ */
+function gearBench(rows) {
+  const actor = { items: rows };
+  const calls = { placed: [], stored: [], delivered: 0 };
+  const holder = (row) => row.flags?.["acks-extras"]?.containedIn ?? null;
+  const deps = {
+    wearLocation: (_actor, row) => (holder(row) ? "stowed" : (row.slot ?? "carried")),
+    placeItem: async (_actor, row, slot) => {
+      calls.placed.push({ id: row.id, slot });
+      const count = row.system.quantity;
+      if (count > 1) {
+        row.system.quantity = 1;
+        rows.push({ ...row, id: `${row.id}-rest`, system: { ...row.system, quantity: count - 1, equipped: false }, slot: undefined });
+      }
+      row.system.equipped = true;
+      row.slot = slot;
+      return true;
+    },
+    storeIn: async (_actor, row, box) => {
+      calls.stored.push({ id: row.id, box: box.id });
+      row.flags = { "acks-extras": { containedIn: box.id } };
+    },
+    buildGearData: async ({ name }) => ({ data: { name, type: "weapon", system: { cost: 3, weight6: 1, quantity: 1 }, flags: {} } }),
+    // A delivery folds into the row the actor already holds under the name, as a stack does.
+    deliverItems: async (_actor, goods) => {
+      calls.delivered++;
+      const count = goods.reduce((sum, g) => sum + (g.qty ?? g.quantity ?? 1), 0);
+      const held = rows.find((r) => r.name === "Dagger");
+      if (held) {
+        held.system.quantity += count;
+        return { created: [], updated: [held] };
+      }
+      const row = { id: "fresh", name: "Dagger", type: "weapon", system: { cost: 3, weight6: 1, equipped: false, quantity: count }, flags: {} };
+      rows.push(row);
+      return { created: [row], updated: [] };
+    },
+  };
+  const report = { checks: [], notes: [], granted: [], unmatched: [], written: [] };
+  return { actor, calls, deps, report, land: (gear) => landGear(actor, gear, report, deps) };
+}
+const daggerRow = (id, quantity, extra = {}) => ({ id, name: "Dagger", type: "weapon", system: { cost: 3, weight6: 1, equipped: false, quantity }, flags: {}, ...extra });
+const backpack = { id: "pack", name: "Backpack", type: "item", system: { cost: 1, weight6: 1, quantity: 1 }, flags: { "acks-extras": { container: {} } } };
+const mainLine = { name: "Dagger", qty: 1, place: "mainHand" };
+const offLine = { name: "Dagger", qty: 1, place: "offHand" };
+let landGear;
+test("two hand lines naming a stack of two place two different rows, and the second moves nothing the first placed", async () => {
+  // The module graph under apply.mjs reads these at load; nothing here calls them.
+  class Stub {}
+  Object.assign(globalThis, {
+    ui: { notifications: {} },
+    Hooks: { on() {}, once() {}, off() {}, call() {}, callAll() {} },
+    foundry: {
+      abstract: { DataModel: Stub, TypeDataModel: Stub },
+      data: { regionBehaviors: { RegionBehaviorType: Stub }, fields: {} },
+      utils: { escapeHTML: (v) => v, deepClone: (v) => v, flattenObject: (o) => o },
+      applications: { api: { ApplicationV2: Stub, HandlebarsApplicationMixin: (B) => B, DialogV2: Stub }, handlebars: {} },
+    },
+  });
+  ({ landGear } = await import("../scripts/character-sheet/pdf/apply.mjs"));
+  const bench = gearBench([daggerRow("d", 2)]);
+  await bench.land([mainLine, offLine]);
+  assert.equal(bench.calls.placed.length, 2);
+  assert.notEqual(bench.calls.placed[0].id, bench.calls.placed[1].id, "the off hand takes the resting row, not the one in the main hand");
+  assert.deepEqual(bench.calls.placed.map((c) => c.slot), ["mainHand", "offHand"]);
+  assert.deepEqual(bench.report.checks, [], "two lines of one against two carried is no mismatch");
+});
+test("a hand line and a backpack line naming one stack store a row other than the one drawn", async () => {
+  const bench = gearBench([daggerRow("d", 2), backpack]);
+  await bench.land([mainLine, { name: "Dagger", qty: 1, place: "backpack" }]);
+  assert.deepEqual(bench.calls.placed.map((c) => c.id), ["d"]);
+  assert.equal(bench.calls.stored.length, 1);
+  assert.notEqual(bench.calls.stored[0].id, "d", "the pack takes the resting row, the drawn one stays in hand");
+  assert.equal(bench.calls.stored[0].box, "pack");
+  assert.deepEqual(bench.report.checks, []);
+});
+test("a second import over the placed rows moves nothing and lands nothing", async () => {
+  const bench = gearBench([daggerRow("d", 2)]);
+  await bench.land([mainLine, offLine]);
+  const first = bench.calls.placed.length;
+  await bench.land([mainLine, offLine]);
+  assert.equal(bench.calls.placed.length, first, "every row already stands where its line puts it");
+  assert.equal(bench.calls.delivered, 0);
+  assert.deepEqual([bench.report.checks, bench.report.granted], [[], []]);
+});
+test("a divide the equip hook queues after its write returns has landed before the next line reads the rows", async () => {
+  // Core's equip write resolves before the divert's divide lands (enforce.mjs
+  // queues `takeOneToEquip` through `oneAtATime` and returns), so the stand-in
+  // queues its divide the same way and returns at once.
+  const { oneAtATime } = await import("../scripts/lib/item-model.mjs");
+  const bench = gearBench([daggerRow("d", 2)]);
+  const divide = bench.deps.placeItem;
+  bench.deps.placeItem = async (actor, row, slot) => {
+    oneAtATime(actor, async () => {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await divide(actor, row, slot);
+    });
+    return true;
+  };
+  await bench.land([mainLine, offLine]);
+  await oneAtATime(bench.actor, async () => null);
+  assert.deepEqual(bench.calls.placed.map((c) => c.id), ["d", "d-rest"], "the off hand waits for the main hand's divide and takes its resting row");
+  assert.deepEqual(bench.report.checks, []);
+});
+test("a stack of one on two body lines is placed once, and the second line is reported", async () => {
+  const bench = gearBench([daggerRow("d", 1)]);
+  await bench.land([mainLine, offLine]);
+  assert.deepEqual(bench.calls.placed, [{ id: "d", slot: "mainHand" }], "the second line does not move the row the first placed");
+  assert.ok(bench.report.checks.some((c) => String(c.inForce).includes("notWorn")), "the line with no unit left is reported");
+});
+test("a stack of one on a hand line and a pack line stores nothing and reports the pack line", async () => {
+  const bench = gearBench([daggerRow("d", 1), backpack]);
+  await bench.land([mainLine, { name: "Dagger", qty: 1, place: "backpack" }]);
+  assert.deepEqual(bench.calls.stored, []);
+  assert.ok(bench.report.checks.some((c) => String(c.inForce).includes("loose")));
+});
+test("a fresh import of two lines of one name lands both into one row, then places two units of it", async () => {
+  const bench = gearBench([]);
+  await bench.land([mainLine, offLine]);
+  assert.equal(bench.calls.delivered, 2);
+  assert.equal(bench.actor.items.length, 2, "one row of two, divided by the first placement");
+  assert.equal(bench.calls.placed.length, 2);
+  assert.notEqual(bench.calls.placed[0].id, bench.calls.placed[1].id);
+});
+test("a name carried as separate copies places each line's own copy", async () => {
+  const bench = gearBench([daggerRow("a", 1, { effects: [{ id: "e" }] }), daggerRow("b", 1, { effects: [{ id: "e" }] })]);
+  await bench.land([mainLine, offLine]);
+  assert.deepEqual(bench.calls.placed, [{ id: "a", slot: "mainHand" }, { id: "b", slot: "offHand" }]);
+});
+
 for (const [name, fn] of tests) {
   if (name === null) {
     console.log(fn);
