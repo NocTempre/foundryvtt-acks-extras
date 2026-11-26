@@ -313,9 +313,9 @@ await t("a consume item is used up when its own count is 0 or below, whatever it
   assert.equal(logic.itemRunUsedUp(consume(2)), false);
   assert.equal(logic.itemRunUsedUp(consume(null)), false, "uncounted and no quantity is not used up");
   assert.equal(logic.itemRunUsedUp(consume(0, { quantity: 5 })), true, "a count spent to 0 outranks a full quantity");
-  assert.equal(logic.itemRunUsedUp(consume(2, { quantity: { value: 0 } })), true, "the quantity rule stands");
-  assert.equal(logic.itemRunUsedUp(consume(null, { quantity: { value: 0 } })), true);
-  assert.equal(logic.itemRunUsedUp(consume(3, { quantity: { value: 2 } })), false);
+  assert.equal(logic.itemRunUsedUp(consume(2, { quantity: 0 })), true, "the quantity rule stands");
+  assert.equal(logic.itemRunUsedUp(consume(null, { quantity: 0 })), true);
+  assert.equal(logic.itemRunUsedUp(consume(3, { quantity: 2 })), false);
   const once = { type: "item", flags: { "acks-extras": { itemRun: { activation: { kind: "once", left: 0 } } } } };
   assert.equal(logic.itemRunUsedUp(once), false, "only a consume item reads left");
 });
