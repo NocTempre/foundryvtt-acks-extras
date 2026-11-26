@@ -53,6 +53,7 @@ import { quantityOf } from "./storage-logic.mjs";
 import { admittedWithCount, freshKey, patchCountIn, patchEngagedClose, patchEngagedReopen, patchOut, ownsEveryBearer, safeKey, standingCardAct } from "./item-run-card-logic.mjs";
 import { addItemUseClaimant } from "./patches/item-use.mjs";
 import { managedDelete } from "./managed-effects.mjs";
+import { deleteRecords } from "./record-delete.mjs";
 import { statusEffectData } from "./held-condition.mjs";
 import { recordImmunity } from "./roll-mods.mjs";
 import { saveSpec, saveThrow } from "./saves.mjs";
@@ -482,7 +483,7 @@ async function pressHere(payload) {
         }
       }
       const earlier = records.map((r) => r._id).filter((id) => actor.effects?.get?.(id));
-      if (earlier.length) await actor.deleteEmbeddedDocuments("ActiveEffect", earlier, managedDelete());
+      if (earlier.length) await deleteRecords(actor, earlier, managedDelete());
     } else if (!verdict.saved) {
       const lifeFor = lifeOf(subjectToken);
       life = lifeFor.turnLife ? "turn" : "mark";
@@ -622,7 +623,7 @@ export async function undoEntry({ subject, entry, entryKey }) {
   const plan = undoPlan(entry, [...present.keys()]);
   if (!actor && !plan.hp.length) return { ok: false, removed: [] };
   const ids = !actor ? [] : entryKey === undefined ? plan.ids : undoGuard(plan.ids, (id) => present.get(id), entryKey);
-  if (ids.length) await actor.deleteEmbeddedDocuments("ActiveEffect", ids, managedDelete());
+  if (ids.length) await deleteRecords(actor, ids, managedDelete());
   if (!plan.hp.length) return { ok: true, removed: ids };
   const restored = await giveBackHp(plan.hp);
   return { ok: restored.every((r) => r.ok), removed: ids, restored };
@@ -1145,7 +1146,7 @@ export async function releaseStanding({ item, row, subject, region }) {
     await holdStanding({ ...still[0], subject });
     return { released: false, retargeted: true };
   }
-  await subject.actor.deleteEmbeddedDocuments("ActiveEffect", [id], managedDelete());
+  await deleteRecords(subject.actor, [id], managedDelete());
   return { released: true };
 }
 
@@ -1209,7 +1210,7 @@ export async function liftActivation({ config }) {
       if (next) await effect.update({ origin: next.item.uuid, [`flags.${MODULE_ID}.${FLAG_ITEM_RUN}`]: { source: next.item.uuid, activationId: next.config.activationId, rowKey: next.config.rowKey } }, managedDelete());
       else going.push(id);
     }
-    if (going.length) await actor.deleteEmbeddedDocuments("ActiveEffect", going, managedDelete());
+    if (going.length) await deleteRecords(actor, going, managedDelete());
     lifted.push(actor);
   }
   for (const actor of lifted) {
@@ -1266,7 +1267,7 @@ export async function liftFuses(combat, combatantId, kind, deps = { burst: burst
         await effect.setFlag(MODULE_ID, FLAG_FUSE, { ...raw, clock: { ...raw.clock, seen: step.seen } });
         continue;
       }
-      await actor.deleteEmbeddedDocuments("ActiveEffect", [effect.id]);
+      await deleteRecords(actor, [effect.id]);
       await deps.burst({ actor, record: step.record });
       burst.push(step.record);
     } catch (err) {
@@ -1300,7 +1301,7 @@ export async function liftDueRecords(actors, worldTime) {
   for (const actor of actors ?? []) {
     const ids = dueRecordIds([...(actor?.effects ?? [])], worldTime);
     if (!ids.length) continue;
-    await actor.deleteEmbeddedDocuments("ActiveEffect", ids, managedDelete());
+    await deleteRecords(actor, ids, managedDelete());
     lifted.push(...ids);
   }
   return lifted;
@@ -1312,7 +1313,7 @@ export async function liftWorldFuses(actors, worldTime, deps = { burst: burster 
   const burst = [];
   for (const { actor, effect, raw } of fuseEffects(actors)) {
     if (!fuseDue(raw, worldTime)) continue;
-    await actor.deleteEmbeddedDocuments("ActiveEffect", [effect.id]);
+    await deleteRecords(actor, [effect.id]);
     await deps.burst({ actor, record: readFuse(raw) });
     burst.push(readFuse(raw));
   }
@@ -1932,7 +1933,7 @@ async function setOffHere({ activationId, requestUserId = null }) {
   if (!found) return { ok: false, reason: "gone" };
   if (!found.actor.testUserPermission?.(requesterOf(requestUserId), "OWNER")) return { ok: false, reason: "notOwner" };
   const record = readFuse(found.raw);
-  await found.actor.deleteEmbeddedDocuments("ActiveEffect", [found.effect.id]);
+  await deleteRecords(found.actor, [found.effect.id]);
   return { ok: true, burst: await burstFuse({ actor: found.actor, record }) };
 }
 
@@ -1979,7 +1980,7 @@ async function dropDeletedBearerFuses(token) {
   for (const { effect, raw } of fuseEffects([holder])) {
     const record = readFuse(raw);
     if (!record) continue;
-    if (linked) await actor.deleteEmbeddedDocuments("ActiveEffect", [effect.id]);
+    if (linked) await deleteRecords(actor, [effect.id]);
     const item = fromUuidSync(record.source);
     await presenter?.({ ok: false, ...fuseFacts({ actor: holder, record, itemName: item?.name ?? effect.name }), reason: "noBearer" });
   }
