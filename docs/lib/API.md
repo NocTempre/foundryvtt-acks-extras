@@ -1,4 +1,4 @@
-# lib API (apiVersion 95)
+# lib API (apiVersion 96)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 95,
+  apiVersion: 96,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -78,6 +78,7 @@ acksExtras.lib = {
   // 91: groups.registerCarryResolver; groups.deploy takes `extraDelta`; a group roster record carries `carries` (docs/lib/GROUPS.md, "A body sent out carrying its item"); itemRun.logic.{itemRunUsedUp, SPENDING_KINDS} (below, "`itemUse`, `itemRun` and `auraReach`")
   // 94: groups.{deployAnchor, registerStackRowControl, stackRowControls, pressStackRowControl}; groups.deploy takes `carrying` (docs/lib/GROUPS.md, "A body sent out carrying its item"); actorRead.kindKeys (below, "`itemUse`, `itemRun` and `auraReach`")
   // 95: itemRun.{postOutcomeCard, swigHeal, swigAskSave}; a `consume` activation is run (Swig); itemRun.logic.readItemRun answers a consume activation's `left` and `bearerUuid`; itemRun.logic.itemRunUsedUp counts a consume item with no swigs left (below, "apiVersion 95, the consume item")
+  // 96: templateLogic.chooseAxes and generateFromTemplate take `noRoll`, axis keys left unchosen rather than rolled (below, "`acks-extras.template` — the generator actor")
 }
 ```
 
