@@ -67,7 +67,7 @@ questions, ruled"): 2 and 4a before 1b.
   Build tab prices a custom spell, and extemporaneous spellsinging (3d) reuses
   the engine at the table.
 - **3a — Magic types.** The `acks-extras.magicType` Item sub-type and its
-  sheet, in the class sheet's shape, with JJ ch. 15's ten steps as a builder
+  sheet, in the class sheet's shape, with JJ ch. 15's design steps as a builder
   tab. Its fields: key and label, source factors per spell type, base XP,
   progression (family, tier, delayed), the value ladder the class builder
   prices from, repertoire and casting kinds, saves-as and progenitor, the code
@@ -103,7 +103,7 @@ questions, ruled"): 2 and 4a before 1b.
   - the invocation throw wired into the procedure seam (a `gnosis` procedure,
     with its lang and recipe), and after it the invocations' effect rows, which
     no cast executes until the throw exists (their per-level row matrix is on
-    the rules shelf, LOCAL-ONLY; one invocation summons, and a `summon` row
+    the rules shelf, LOCAL-ONLY; for an invocation that summons, a `summon` row
     would hand its cast to `castSummon`, which has no By This Axe creatures);
   - the surfaces, which await `/design` approval: a pace choice and a
     situational modifier in the cast window (D1); the throw section on the card,
