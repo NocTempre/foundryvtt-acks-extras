@@ -28,7 +28,7 @@
 import {
   MODULE_ID, LANG_PREFIX, DOMAIN_TYPE, CLASSIFICATIONS, EXPENSE_LINES, HOLDING_ROLES, REVENUE_LINES,
 } from "../constants.mjs";
-import { ROW_LISTS, hexCountOf, keepCandidates, keepPaintedRow, rowsOf } from "../domain-logic.mjs";
+import { ROW_LISTS, hexCountOf, keepCandidates, keepHiddenRows, keepPaintedRow, rowsOf } from "../domain-logic.mjs";
 import { DOMAIN_FLAG, territoryOf } from "../domain-map.mjs";
 import { buildDomainFrame, shownFigure } from "../domain-frame.mjs";
 import {
@@ -338,11 +338,13 @@ export class DomainSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /**
    * @override — every list is written whole: a row's unrendered fields keep
    * their stored values, and each submitted list is turned back into rows and
-   * normalised before the model cleans it.
+   * normalised before the model cleans it. A seat that is not the Judge's is
+   * never shown a hidden holding, so the stored hidden rows are put back first.
    */
   _processFormData(event, form, formData) {
     const data = keepUnrenderedFields(super._processFormData(event, form, formData), this.actor._source);
     if (data.system) {
+      if ("holdings" in data.system && !game.user.isGM) data.system.holdings = keepHiddenRows(data.system.holdings, this.actor._source.system?.holdings);
       for (const [key, normalize] of Object.entries(ROW_LISTS)) {
         if (key in data.system) data.system[key] = rowsOf(data.system[key]).map((row) => normalize(row));
       }

@@ -336,7 +336,7 @@
             <td>{{feesTotal}} gp</td>
             <td>{{statusLabel}}</td>
             <td class="row-actions">
-              {{#if @root.isGM}}
+              {{#if isMine}}
               <a data-action="togglePlayerDetails" data-tooltip="{{localize 'ACKS-HENCHMEN.posting.toggleDetails'}}"><i class="fas {{#if playersSeeDetails}}fa-eye{{else}}fa-eye-slash{{/if}}"></i></a>
               {{/if}}
               {{#if isActive}}{{#if isMine}}

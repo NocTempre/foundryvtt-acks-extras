@@ -529,4 +529,35 @@ delete globalThis.Actor;
   assert.deepEqual(stored[0].map, null, "the stored rows passed in are not mutated");
 }
 
+/* ------------------- a non-GM submit never drops a hidden holding ------------------- */
+// The sheet's path for `holdings` is keepHiddenRows (a non-GM seat only), then
+// rowsOf and the row normaliser; `submit` composes the same three. The old path
+// was the last two alone, which dropped a hidden row and shifted what followed.
+{
+  const { keepHiddenRows } = logic;
+  const stored = [
+    { name: "A", role: "settlement", families: 10, hidden: false },
+    { name: "H", role: "settlement", families: 99, hidden: true },
+    { name: "B", role: "settlement", families: 20, hidden: false },
+  ];
+  const submit = (sent, isGM) => rowsOf(isGM ? sent : keepHiddenRows(sent, stored)).map((row) => normalizeHolding(row));
+  const sent = () => ({ 0: { name: "A2", role: "settlement", families: 11 }, 2: { name: "B2", role: "settlement", families: 21 } });
+  const oldPath = rowsOf(sent()).map((row) => normalizeHolding(row));
+  assert.deepEqual(oldPath.map((r) => r.name), ["A2", "B2"], "without the helper a non-GM submit loses the hidden row");
+
+  assert.deepEqual(submit(sent(), false).map((r) => [r.name, r.families, r.hidden]), [["A2", 11, false], ["H", 99, true], ["B2", 21, false]],
+    "a non-GM submit of the rows it was shown keeps the hidden row at its index");
+  const forged = { ...sent(), 1: { name: "forged", role: "settlement", families: 1, hidden: false } };
+  assert.deepEqual(submit(forged, false).map((r) => r.name), ["A2", "H", "B2"], "a value sent at a hidden row's index is replaced by the stored row");
+  assert.deepEqual(submit(sent(), true).map((r) => r.name), ["A2", "B2"], "a GM's submit is the list as sent");
+  assert.deepEqual(keepHiddenRows({ 0: { name: "A2" } }, [{ toObject: () => ({ name: "H", hidden: true }) }]), { 0: { name: "H", hidden: true } },
+    "a stored row that is a model instance is read through toObject");
+  assert.deepEqual(keepHiddenRows({ 0: { name: "A2" } }, [{ hidden: false }, { name: "H", hidden: true }]), { 0: { name: "A2" }, 1: { name: "H", hidden: true } },
+    "a hidden row after the last submitted one is put back");
+  assert.deepEqual(keepHiddenRows({ 0: { name: "A2" } }, []), { 0: { name: "A2" } }, "no stored rows, nothing to put back");
+  const input = sent();
+  keepHiddenRows(input, stored);
+  assert.deepEqual(Object.keys(input), ["0", "2"], "the submitted object is not mutated");
+}
+
 console.log("test-domains: all checks passed");

@@ -1,4 +1,4 @@
-/* global game, Hooks, fromUuidSync */
+/* global game, Hooks, fromUuidSync, ui */
 /**
  * A seal on a door as the live world has it (`cast-seal.mjs` is the model). A
  * GM's seat writes the wall directly; a Player's seat asks the GM's client
@@ -61,7 +61,7 @@ async function spellHasSealRow(spell) {
  * The range is the cast's own, passed by the asking seat; a blank is not measured.
  *
  * @param {{requestUserId?: string|null, casterUuid: string, spellUuid: string, castId: string, sceneId: string, wallId: string, rangeFeet?: number|null}} payload
- * @returns {Promise<{ok: boolean, reason?: string, was?: number}>}
+ * @returns {Promise<{ok: boolean, reason?: string, was?: number, warn?: "outOfRange"}>}
  */
 export async function sealHandler(payload = {}) {
   const caster = payload.casterUuid ? fromUuidSync(payload.casterUuid) : null;
@@ -89,7 +89,7 @@ export async function sealHandler(payload = {}) {
   if (!verdict.ok) return verdict;
   const written = sealWrite(readStamp(wall.flags?.[MODULE_ID]?.[FLAG_SEALED_BY]), payload.castId, wall.ds);
   await wall.update({ ds: written.ds, [STAMP_PATH]: written.stamp });
-  return { ok: true, was: written.stamp.was };
+  return verdict.warn ? { ok: true, was: written.stamp.was, warn: verdict.warn } : { ok: true, was: written.stamp.was };
 }
 
 /**
@@ -97,10 +97,14 @@ export async function sealHandler(payload = {}) {
  * GM's client. A request nobody answered is `{ok: false, reason: "noGm"}`.
  *
  * @param {object} request  `sealHandler`'s payload
- * @returns {Promise<{ok: boolean, reason?: string, was?: number}>}
+ * @returns {Promise<{ok: boolean, reason?: string, was?: number, warn?: "outOfRange"}>}
  */
 export async function writeSeal(request) {
-  if (game.user.isGM) return sealHandler(request);
+  if (game.user.isGM) {
+    const result = await sealHandler(request);
+    if (result.warn === "outOfRange") ui.notifications.warn(game.i18n.localize("ACKS-MAGIC.castSeal.pick.far"));
+    return result;
+  }
   if (!game.users.activeGM) return { ok: false, reason: "noGm" };
   return (await executeAsGM(SEAL_HANDLER, request)) ?? { ok: false, reason: "noGm" };
 }

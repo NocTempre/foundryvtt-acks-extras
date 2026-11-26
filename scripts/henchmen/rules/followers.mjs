@@ -40,6 +40,22 @@ export function followerTablesImported() {
   );
 }
 
+/**
+ * What stands between a seat and the follower roll. A Player is blocked by an
+ * unmet arrival level or a missing stronghold and hears the first; a Judge
+ * hears every one that applies and proceeds.
+ *
+ * @param {{isGM: boolean, level: number, arrival: number, hasStronghold: boolean}} facts
+ * @returns {{block: boolean, warn: Array<"levelGate"|"strongholdMissing">}} `warn`: the notice keys to raise, in order
+ */
+export function followerGate({ isGM, level, arrival, hasStronghold }) {
+  const warn = [];
+  if (level < arrival) warn.push("levelGate");
+  if (!hasStronghold) warn.push("strongholdMissing");
+  if (isGM) return { block: false, warn };
+  return { block: warn.length > 0, warn: warn.slice(0, 1) };
+}
+
 /** A level a table printed: a whole number of zero or more, else null. */
 export function knownLevel(level) {
   return Number.isInteger(level) && level >= 0 ? level : null;

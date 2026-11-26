@@ -903,3 +903,8 @@ followers tables have no producer"). A grant whose table printed no level is
 shown without one: `knownLevel` answers null for anything but a whole number of
 zero or more, the troop line then reads without a level, and a companion line
 lists only the levels that were printed.
+
+With the tables present, `rules/followers.mjs` `followerGate` decides what stands
+between a seat and the class prompt. Below the arrival level, or with no
+stronghold found, a Player is warned (the level first) and stopped before the
+prompt; a Judge hears every notice that applies and the prompt opens.

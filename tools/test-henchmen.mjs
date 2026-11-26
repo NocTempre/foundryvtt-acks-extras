@@ -1706,10 +1706,10 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   let totals = {};
   const seen = { warn: [], info: [], chat: [], prompt: 0, rolled: [] };
   const actorAt = (level) => ({ name: "Hero", system: { details: { class: "alder", level } }, items: [], getFlag: () => null });
-  const run = async (docs, level, cite) => {
+  const run = async (docs, level, cite, isGM = true) => {
     Object.assign(seen, { warn: [], info: [], chat: [], prompt: 0, rolled: [] });
     globalThis.acksExtras = { lib: lib(docs, cite) };
-    globalThis.game = { i18n: { format: (k, d) => `${k}|${JSON.stringify(d)}`, localize: (k) => k }, modules: new Map(), user: { isGM: true }, users: [{ id: "gm", isGM: true }] };
+    globalThis.game = { i18n: { format: (k, d) => `${k}|${JSON.stringify(d)}`, localize: (k) => k }, modules: new Map(), user: { isGM }, users: [{ id: "gm", isGM: true }] };
     globalThis.ui = { notifications: { warn: (m) => seen.warn.push(m), info: (m) => seen.info.push(m) } };
     globalThis.foundry = { applications: { api: { DialogV2: { prompt: async () => { seen.prompt++; return "alder"; } } } } };
     globalThis.Roll = class { constructor(f) { this.f = f; } async evaluate() { seen.rolled.push(this.f); return { total: totals[this.f] ?? 1 }; } };
@@ -1737,10 +1737,14 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
       silent(`an arrival level of ${JSON.stringify(bad)}`);
     }
 
-    await run({ followers: { ...FOUR, ...arrival } }, 3);
-    assert.strictEqual(seen.warn.length, 1, "below the imported level the roll warns once");
+    await run({ followers: { ...FOUR, ...arrival } }, 3, "TEST 1", false);
+    assert.strictEqual(seen.warn.length, 1, "below the imported level a Player's roll warns once");
     assert.match(seen.warn[0], /"level":3,"arrival":4,"cite":" \(TEST 1\)"/, "the warning carries the actor's level, the imported level and its page");
     assert.deepStrictEqual([seen.chat, seen.prompt], [[], 0], "and opens nothing");
+    await run({ followers: { ...FOUR, ...arrival } }, 3);
+    assert.match(seen.warn[0], /levelGate\|\{"name":"Hero","level":3,"arrival":4/, "a Judge below the imported level hears the same warning");
+    assert.strictEqual(seen.prompt, 1, "and goes on to the class prompt");
+    assert.strictEqual(seen.chat.length, 1, "and the card posts");
     await run({ followers: { ...FOUR, ...arrival } }, 3, null);
     assert.match(seen.warn[0], /"cite":""/, "a Judge's override has no page to name");
     assert.strictEqual(arrivalLevel(), 4, "the reader answers the imported level");

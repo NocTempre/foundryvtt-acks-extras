@@ -1103,6 +1103,31 @@ export async function reloadMarket() {
  * close it.
  */
 export async function closePosting(location, postingId, { requestUserId = null } = {}) {
+  return changePosting(location, postingId, requestUserId, (posting) => {
+    posting.status = "closed";
+  });
+}
+
+/**
+ * Show or hide a posting's candidate details from players. A posting's details
+ * are the employer's to flip, so the sender is held to `closePosting`'s check:
+ * a GM or an owner of the employer. A Player's seat reaches the write through
+ * the "setPostingDetails" relay, which re-reads the attested sender here.
+ *
+ * @param {Actor} location
+ * @param {string} postingId
+ * @param {boolean} value  whether players see the details
+ * @param {{requestUserId?: string|null}} [options]  null is the GM's own seat, checked by nothing
+ * @returns {Promise<{posting: object}|{error: "no-posting"|"not-yours"}>}
+ */
+export async function setPostingDetails(location, postingId, value, { requestUserId = null } = {}) {
+  return changePosting(location, postingId, requestUserId, (posting) => {
+    posting.playersSeeDetails = !!value;
+  });
+}
+
+/** Apply `change` to one posting of a place and write the list, for a sender who is a GM or owns the posting's employer (`requestUserId` null is the GM's own seat). */
+async function changePosting(location, postingId, requestUserId, change) {
   const postings = (location.system.postings ?? []).map((p) => p.toObject?.() ?? foundry.utils.deepClone(p));
   const posting = postings.find((p) => p.id === postingId);
   if (!posting) return { error: "no-posting" };
@@ -1113,7 +1138,7 @@ export async function closePosting(location, postingId, { requestUserId = null }
     const allowed = user?.isGM || (employerActor && employerActor.testUserPermission(user, "OWNER"));
     if (!allowed) return { error: "not-yours" };
   }
-  posting.status = "closed";
+  change(posting);
   await location.update({ "system.market.postings": postings });
   return { posting };
 }
@@ -1122,6 +1147,26 @@ registerHandler("closePosting", async ({ locationUuid, postingId, requestUserId 
   const location = await fromUuid(locationUuid);
   if (location) await closePosting(location.actor ?? location, postingId, { requestUserId });
 });
+
+registerHandler("setPostingDetails", async ({ locationUuid, postingId, value, requestUserId }) => {
+  const location = await fromUuid(locationUuid);
+  if (location) await setPostingDetails(location.actor ?? location, postingId, value, { requestUserId });
+});
+
+/**
+ * Whether a candidate's identity is hidden from a viewer: a non-GM sees a
+ * masked segment's candidates unnamed, unless one of the viewer's own active
+ * postings covers that segment (`coveredSegments`, or `coversAllHenchmen` for a
+ * henchman segment), which is how an employer keeps seeing what they posted for.
+ *
+ * @param {{isGM: boolean, segment: string, maskedSegments: Set<string>, coveredSegments: Set<string>, coversAllHenchmen: boolean}} facts
+ * @returns {boolean}
+ */
+export function candidateMasked({ isGM, segment, maskedSegments, coveredSegments, coversAllHenchmen }) {
+  if (isGM || !segment || !maskedSegments.has(segment)) return false;
+  if (coveredSegments.has(segment)) return false;
+  return !(String(segment).startsWith("henchman:") && coversAllHenchmen);
+}
 
 /** Player posting creation relays through the GM (players cannot write the
  *  location actor); employer ownership + criteria are enforced in

@@ -41,6 +41,27 @@ export function rowsOf(value) {
   return Object.keys(value).filter(isIndex).sort((a, b) => Number(a) - Number(b)).map((k) => value[k]);
 }
 
+/**
+ * A submitted holdings list with every stored hidden row put back at its stored
+ * index. A seat that is not shown a hidden row cannot send it, and a list
+ * written whole from what it sent would drop that row and shift the rows after
+ * it; a value sent at a hidden row's index is replaced by the stored row. The
+ * submitted object is not mutated.
+ *
+ * @param {object|Array} sent  the submitted rows, index-keyed as a form sends them
+ * @param {Array} stored  the stored rows, in stored order (model instances are read through `toObject`)
+ * @returns {object} the index-keyed rows to write
+ */
+export function keepHiddenRows(sent, stored) {
+  const out = {};
+  for (const [key, row] of Object.entries(sent ?? {})) out[key] = row;
+  rowsOf(stored).forEach((raw, index) => {
+    const row = raw?.toObject?.() ?? raw;
+    if (isRecord(row) && row.hidden) out[index] = { ...row };
+  });
+  return out;
+}
+
 /** Hex labels as a list of non-blank strings, from a list or from text split on commas, semicolons and spaces. */
 export function labelsOf(value) {
   const raw = Array.isArray(value) || isRecord(value) ? rowsOf(value) : String(value ?? "").split(/[,;\s]+/);

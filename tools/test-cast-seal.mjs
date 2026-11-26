@@ -81,6 +81,15 @@ t("a door past the range is refused; at the range it passes; a gap that cannot b
   assert.equal(check({ gapFeet: Number.NaN }).reason, SEAL_REFUSED.outOfRange);
 });
 
+t("a Judge's request past a stated range, or with a gap that cannot be measured, passes with a warning; a Player's stays refused", () => {
+  const warned = { ok: true, warn: "outOfRange" };
+  assert.deepEqual(check({ fromJudge: true, rangeFeet: 30, gapFeet: 60 }), warned);
+  assert.deepEqual(check({ fromJudge: true, gapFeet: null }), warned);
+  assert.deepEqual(check({ fromJudge: true, gapFeet: 30 }), { ok: true }, "within range: no warning");
+  assert.equal(check({ fromJudge: false, rangeFeet: 30, gapFeet: 60 }).reason, SEAL_REFUSED.outOfRange);
+  assert.equal(check({ fromJudge: true, wall: { door: K.NONE }, gapFeet: 60 }).reason, SEAL_REFUSED.notADoor, "a Judge's other refusals stand");
+});
+
 t("a blank range is not measured: any gap passes, measured or not", () => {
   for (const rangeFeet of [null, undefined, "", "far", -5]) {
     assert.deepEqual(check({ rangeFeet, gapFeet: 9999 }), { ok: true }, JSON.stringify(rangeFeet));

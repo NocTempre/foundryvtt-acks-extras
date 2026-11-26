@@ -79,7 +79,9 @@ a step it does not name is walked by hand.
   `hirelingObedience`, `liberationLoyalty`.
 - **Followers are gated twice.** Without the arrival level and the four
   followers tables imported the dialog does nothing and shows no message; with
-  them present it refuses below the imported arrival level with a notification.
+  them present a Player is refused below the imported arrival level, or with no
+  stronghold, with a notification; a Judge gets the same notification and the
+  prompt opens.
   No recipe reads the four tables yet, so only a hand-registered layer lifts the
   first gate (step 31); a silent no-op with every table present means the level
   gate broke.
@@ -1198,7 +1200,8 @@ walked in docs/lib/TESTING.md, "The repair tool".
     with the page and report the match, never the figure. With the stand-in
     tables registered, `acksExtras.henchmen.openFollowersDialog(employer)` on a
     character one level below the arrival level posts a warning naming the
-    character, their level, the arrival level and the page, and opens nothing; at
+    character, their level, the arrival level and the page, and on a Player seat
+    opens nothing (a Judge seat's prompt opens after the same warning); at
     the arrival level the dialog opens. *Blank.* With `arrivalLevel` unread (no
     import, or an empty priority-30 `followers.arrivalLevel` layer) the same call
     returns at once: no dialog, no notification, no chat card, nothing in the

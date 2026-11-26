@@ -80,4 +80,49 @@ assert.deepStrictEqual(await post({ kind: "henchmanByClass", classKey: "" }, own
 assert.deepStrictEqual(await post({ kind: "henchmanByClassProficiency", classKey: "", proficiencyName: "x" }, owned, USERS.player.id), { error: "criteria-required" }, "a by-class-and-proficiency search with no class is refused");
 assert.deepStrictEqual(await post({ kind: "henchmanByProficiency", proficiencyName: "  " }, owned, USERS.player.id), { error: "criteria-required" }, "a by-proficiency search with a blank proficiency is refused");
 
-console.log("test-posting-roles: OK (level-only block, GM pass-through, employer ownership, directed criteria)");
+// ---- flipping "players see details": the employer's owner or a GM, written for them ----
+// The owner's seat reaches the write by the GM relay, which re-reads the sender here.
+{
+  const { setPostingDetails, candidateMasked } = await import("../scripts/henchmen/engine/recruitment.mjs");
+  const USER_GM = { id: "g1", isGM: true };
+  USERS.gm = USER_GM;
+  USERS.other = { id: "p2", isGM: false };
+  globalThis.fromUuid = async (uuid) => (uuid === owned.uuid ? owned : uuid === foreign.uuid ? foreign : null);
+  const placeOf = (employerUuid) => {
+    const writes = [];
+    return {
+      writes,
+      system: { postings: [{ toObject: () => ({ id: "p-1", status: "active", segment: "henchman:2", employerUuid, playersSeeDetails: true }) }] },
+      update: async (data) => void writes.push(data),
+    };
+  };
+  const owner = placeOf(owned.uuid);
+  const done = await setPostingDetails(owner, "p-1", false, { requestUserId: USERS.player.id });
+  assert.strictEqual(done.error, undefined, "the employer's owner flips the posting's details");
+  assert.strictEqual(owner.writes[0]["system.market.postings"][0].playersSeeDetails, false, "and the flip is written");
+  assert.strictEqual(owner.writes[0]["system.market.postings"][0].status, "active", "without touching the rest of the posting");
+  const byGm = placeOf(foreign.uuid);
+  assert.strictEqual((await setPostingDetails(byGm, "p-1", false, { requestUserId: USER_GM.id })).error, undefined, "a GM seat flips any posting's details");
+  const local = placeOf(foreign.uuid);
+  assert.strictEqual((await setPostingDetails(local, "p-1", false)).error, undefined, "a local call with no sender is the GM's own");
+  const mine = placeOf(owned.uuid);
+  assert.deepStrictEqual(await setPostingDetails(mine, "p-1", false, { requestUserId: USERS.other.id }), { error: "not-yours" }, "a non-owner is refused");
+  assert.strictEqual(mine.writes.length, 0, "and nothing is written");
+  const theirs = placeOf(foreign.uuid);
+  assert.deepStrictEqual(await setPostingDetails(theirs, "p-1", false, { requestUserId: USERS.player.id }), { error: "not-yours" }, "a player flipping a posting for an employer they do not own is refused");
+  assert.deepStrictEqual(await setPostingDetails(owner, "p-9", false, { requestUserId: USERS.player.id }), { error: "no-posting" }, "a posting that is not there is named");
+
+  // ---- masking: an employer sees their own candidates in a segment their posting hides from others ----
+  const masked = new Set(["henchman:2"]);
+  const view = (over) => candidateMasked({ isGM: false, segment: "henchman:2", maskedSegments: masked, coveredSegments: new Set(), coversAllHenchmen: false, ...over });
+  assert.strictEqual(view({}), true, "another player's view of a masked segment stays masked");
+  assert.strictEqual(view({ coveredSegments: new Set(["henchman:2"]) }), false, "the employer whose own active posting covers the segment is not masked");
+  assert.strictEqual(view({ coversAllHenchmen: true }), false, "nor is the holder of the general henchman posting, for a henchman segment");
+  assert.strictEqual(view({ segment: "specialist:x", maskedSegments: new Set(["specialist:x"]), coversAllHenchmen: true }), true, "the general henchman posting covers no other kind");
+  assert.strictEqual(view({ coveredSegments: new Set(["henchman:3"]) }), true, "a posting in another segment does not unmask this one");
+  assert.strictEqual(view({ isGM: true }), false, "a GM is never masked");
+  assert.strictEqual(view({ segment: "" }), false, "a candidate in no shared segment is never masked");
+  assert.strictEqual(view({ segment: "henchman:4" }), false, "a segment no posting hides is not masked");
+}
+
+console.log("test-posting-roles: OK (level-only block, GM pass-through, employer ownership, directed criteria, details flip, masking)");

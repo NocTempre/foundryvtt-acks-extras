@@ -12,7 +12,7 @@
  * ("Stronghold: Castle", cost = value) → GM confirm.
  */
 import { bracketRow, getTable } from "../rules/tables.mjs";
-import { arrivalLevel, arrivalLevelCite, followerTablesImported, knownLevel, platoonCount, platoonSizeCite } from "../rules/followers.mjs";
+import { arrivalLevel, arrivalLevelCite, followerGate, followerTablesImported, knownLevel, platoonCount, platoonSizeCite } from "../rules/followers.mjs";
 import { getStronghold } from "../facts.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { gmIds } from "../acks-adapter.mjs";
@@ -33,30 +33,38 @@ async function rollTroopType(tableId) {
   return { die, type: row?.type ?? "?" };
 }
 
-/** Rolls the follower grants for `actor` and posts them as a GM-visible chat card; does nothing where the arrival level or tables are not imported. */
+/**
+ * Rolls the follower grants for `actor` and posts them as a GM-visible chat card; does nothing where the arrival level or tables are not imported.
+ * A Player is blocked, a Judge warned and let through, where the level is unmet or no stronghold is found (`followerGate`).
+ */
 export async function openFollowersDialog(actor) {
   const arrival = arrivalLevel();
   if (arrival == null || !followerTablesImported()) return;
 
   const level = adapter.getLevel(actor);
-  if (level < arrival) {
-    const cite = arrivalLevelCite();
-    ui.notifications.warn(
-      game.i18n.format("ACKS-HENCHMEN.followers.levelGate", {
-        name: actor.name,
-        level,
-        arrival,
-        cite: cite ? ` (${cite})` : "",
-      })
-    );
-    return;
+  const stronghold = getStronghold(actor);
+  const gate = followerGate({ isGM: game.user.isGM, level, arrival, hasStronghold: Boolean(stronghold) });
+  for (const key of gate.warn) {
+    if (key === "levelGate") {
+      const cite = arrivalLevelCite();
+      ui.notifications.warn(
+        game.i18n.format("ACKS-HENCHMEN.followers.levelGate", {
+          name: actor.name,
+          level,
+          arrival,
+          cite: cite ? ` (${cite})` : "",
+        })
+      );
+    } else {
+      ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.followers.strongholdMissing"));
+    }
   }
+  if (gate.block) return;
 
   const rows = getTable("followers", "followersByClass").rows;
   const className = String(actor.system?.details?.class ?? "").toLowerCase();
   const autoRow = rows.find((r) => className.includes(r.class)) ?? null;
 
-  const stronghold = getStronghold(actor);
   const options = rows
     .map(
       (r) =>
@@ -82,10 +90,6 @@ export async function openFollowersDialog(actor) {
   if (!classKey) return;
   const row = rows.find((r) => r.class === classKey);
   if (!row) return;
-
-  if (!stronghold && !game.user.isGM) {
-    ui.notifications.warn(game.i18n.localize("ACKS-HENCHMEN.followers.strongholdMissing"));
-  }
 
   const companionLevels = getTable("followers", "companionLevel");
   const results = [];

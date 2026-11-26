@@ -91,7 +91,9 @@ export function nearestOnWall(c, p) {
  * @param {string[]} facts.casterSceneIds  the scenes the caster has a token on
  * @param {number|string|null} [facts.rangeFeet]  the range of the cast; blank is not measured
  * @param {number|null} [facts.gapFeet]  the measured distance from the caster token to the wall, null where it cannot be
- * @returns {{ok: true}|{ok: false, reason: string}}
+ * @returns {{ok: true, warn?: "outOfRange"}|{ok: false, reason: string}}
+ *   `warn`: a Judge's request past a stated range, or with a gap that cannot be measured, goes
+ *   ahead and carries the warning; a Player's is refused `outOfRange`.
  */
 export function checkSealRequest({ fromJudge, owns, hasSealRow, wall, sceneId, casterSceneIds, rangeFeet = null, gapFeet = null }) {
   const refuse = (reason) => ({ ok: false, reason });
@@ -103,7 +105,9 @@ export function checkSealRequest({ fromJudge, owns, hasSealRow, wall, sceneId, c
   if (door !== k.DOOR && door !== k.SECRET) return refuse(SEAL_REFUSED.notADoor);
   if (door === k.SECRET && !fromJudge) return refuse(SEAL_REFUSED.secretDoor);
   if (!sceneId || !(casterSceneIds ?? []).includes(sceneId)) return refuse(SEAL_REFUSED.otherScene);
-  if (hasRange(rangeFeet) && !(Number.isFinite(gapFeet) && gapFeet <= Number(rangeFeet))) return refuse(SEAL_REFUSED.outOfRange);
+  if (hasRange(rangeFeet) && !(Number.isFinite(gapFeet) && gapFeet <= Number(rangeFeet))) {
+    return fromJudge ? { ok: true, warn: SEAL_REFUSED.outOfRange } : refuse(SEAL_REFUSED.outOfRange);
+  }
   return { ok: true };
 }
 

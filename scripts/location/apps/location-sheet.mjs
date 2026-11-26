@@ -31,7 +31,7 @@ import { openStashDialog } from "./stash-dialog.mjs";
 import { coinParts } from "../pay-house-logic.mjs";
 import { getTable, optTable } from "../../henchmen/rules/tables.mjs";
 import { offerableClasses } from "../../henchmen/rules/availability.mjs";
-import { processLocation, closePosting, reloadMarket } from "../../henchmen/engine/recruitment.mjs";
+import { processLocation, closePosting, setPostingDetails, candidateMasked, reloadMarket } from "../../henchmen/engine/recruitment.mjs";
 import { executeAsGM } from "../../lib/sockets.mjs";
 import { addSpecialHire, updateSpecialHire } from "../../henchmen/engine/hire.mjs";
 import { openPostingDialog } from "../../henchmen/apps/posting-dialog.mjs";
@@ -644,7 +644,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       .filter(playerVisible)
       .filter((c) => game.user.isGM || c.status !== "withdrawn")
       .map((c) => {
-        const masked = !game.user.isGM && c.segment && maskedSegments.has(c.segment);
+        const masked = candidateMasked({ isGM: game.user.isGM, segment: c.segment, maskedSegments, coveredSegments, coversAllHenchmen });
         const isHench = henchKinds.includes(c.kind);
         let identityLine = "";
         if (!masked) {
@@ -838,14 +838,6 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     return (this.actor.system.candidates ?? []).find((c) => c.id === id);
   }
 
-  async #updatePosting(id, changes) {
-    const postings = (this.actor.system.postings ?? []).map((p) => {
-      const obj = p.toObject?.() ?? foundry.utils.deepClone(p);
-      return obj.id === id ? { ...obj, ...changes } : obj;
-    });
-    await this.actor.update({ "system.market.postings": postings });
-  }
-
   static async #onCreatePosting() {
     openPostingDialog(this.actor);
   }
@@ -898,9 +890,21 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     }
   }
 
+  /** Show or hide a posting's candidate details from players. Like closing, a seat without the location write relays through the GM, who re-reads the sender's ownership of the employer. */
   static async #onTogglePlayerDetails(_event, target) {
     const posting = this.#posting(target);
-    if (posting) await this.#updatePosting(posting.id, { playersSeeDetails: !posting.playersSeeDetails });
+    if (!posting) return;
+    const value = !posting.playersSeeDetails;
+    if (game.user.isGM || this.actor.testUserPermission(game.user, "OWNER")) {
+      await setPostingDetails(this.actor, posting.id, value, { requestUserId: game.user.isGM ? null : game.user.id });
+    } else {
+      await executeAsGM("setPostingDetails", {
+        locationUuid: this.actor.uuid,
+        postingId: posting.id,
+        value,
+        requestUserId: game.user.id,
+      });
+    }
   }
 
   static async #onRecruit(_event, target) {
