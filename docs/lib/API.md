@@ -1,4 +1,4 @@
-# lib API (apiVersion 90)
+# lib API (apiVersion 91)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 90,
+  apiVersion: 91,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -75,6 +75,7 @@ acksExtras.lib = {
   // 87: light.{MAGIC_LIGHT_CITE_FLAG, magicLightChanges, magicLightRecord, magicLightCite}; light.magicLights entries carry `cite`; fields.effectField carries `lightBands` (docs/lib/MODEL.md, "Perception: senses, light, and the token")
   // 88: a group roster record carries `tokenSize`, the size a hand gave its body token, kept across a gather; the token flags `FLAG_FOOTPRINT_LOCK` and `FLAG_SIZE_STAMP` live in lib/constants.mjs (docs/lib/GROUPS.md, "A size a hand gave a body")
   // 89: summons.dismissSummons refuses a non-GM only a creature whose control ended hostile; a bare summon reads Foundry's Create Tokens grant; the party-roster contract's v5 `amendSummons` (below, "`summons`" and "Contract `party-roster` v5")
+  // 91: groups.registerCarryResolver; groups.deploy takes `extraDelta`; a group roster record carries `carries` (docs/lib/GROUPS.md, "A body sent out carrying its item"); itemRun.logic.{itemRunUsedUp, SPENDING_KINDS} (below, "`itemUse`, `itemRun` and `auraReach`")
 }
 ```
 
@@ -2366,3 +2367,4 @@ Rows on the lib api from `apiVersion` 76.
 - apiVersion 85, the strip: `itemRun.reachStrip(actor)` answers the "In reach of" strip's model for a body's sheet (null where absent: a seat that owns neither the body nor a token of it, no token on the viewed scene, no reach over it); `itemRun.untickBearer({itemUuid, rowKey, messageId})` counts the bearer out again (the item's `filter.self` back to `no`, an item owner's press, relayed to the GM's window); `itemRun.tickSubject({messageId, subject})` counts a body a once-only use's filter could not settle in for that use, an item owner's press. `distance-units.mjs` gains `tokenEdgeGapFeet(a, b)` (internal), the gap between two tokens' nearest edges, and `selfCountUpdate(item, rowKey, counted)` takes a third argument.
 - apiVersion 85, the exports: the `itemRun` block carries `undoCardEntry` and `tickBearer`, which the cards line names and the block lacked, beside `untickBearer` and `tickSubject`; all four are the card's presses, callable from any seat and run on the GM's window, which checks the relayed seat's ownership again. `itemRun.tickSubject` also takes a raised item's card: it counts a body the filter left undetermined in for that raise (listed as in reach, its standing part held, a turn start prompting it) until the item is lowered. `item-run-card-logic.mjs` gains `isCountedIn`, `admittedWithCount`, `patchCountIn`, `patchUncount`, `countSubjectAction` and `unsettledRows` (internal), and a card's stored state gains `counted`. `renderRollCard` rows take `outcomeTooltip`, the Result's hover text as text; a standing reach's raised card draws every listed body as held, with no Save, and `standingCardAct`, `patchForget`, `signedFigure` and `standingPartTip` join `item-run-card-logic.mjs` (internal).
 - apiVersion 90, the engaged reach (T10): `auraReach.logic` gains `engagedActivationId(random)` and `isEngagedActivation(id)` (the `engaged:` activation id an always-on reach's Region carries), `engagementHolds(bearer, subject, {conditionsOf})` (false where either side is hidden or the bearer is helpless), `groupVerdict(admissions)` (true where any bearer admits, else null where any is unsettled, else false) and `namesFigure(ref)` (a figure reference that names one); `pulseAct` takes `onTurn`, and `readReach` answers `engaged`. `itemRun.logic` gains `alwaysOn(item)`, `lastsRecordId(kindKey, status?, index?)` and `immuneRecordId(kindKey)` (the fixed ids of a timed row's condition and immunity window, one per item kind), and `undoGuard(ids, byId, entryKey)`; `recordFlags`, `conditionRecordData` and `immunityRecordData` take `cardId` and `entryKey`, and the last two an `id`. `item-run-card-logic.mjs` gains the engaged card's store and model (`engagedCardKey`, `newEngagedCard`, `engagedEntry`, `patchEngagedPrompt`, `patchEngagedClose`, `patchEngagedReopen`, `openEngagedOf`, `ownsEveryBearer`, `engagedCardModel`) and the strip's lookups `openEngagedEntryFor` and `cardSubjectUuids` (internal). The `itemRun` block carries no Not engaged call: the card's press runs `item-run.mjs` `notEngaged`, internal.
+- apiVersion 91, the presses (S8b-2): `itemRun.logic` gains `itemRunUsedUp(item)` (a run item whose activation spends a count and whose count is none; never a raised one) and `SPENDING_KINDS`. Internal, indexed in `scripts/lib/README.md`: the sheet rows' model and view (`item-run-row.mjs`, `item-run-row-view.mjs`), the Token HUD's controls (`item-run-hud.mjs`), the reach glyph (`reach-glyph-logic.mjs`, `reach-glyph.mjs`), a carried item's effect rows on its sheet (`gear-effect-rows.mjs` `gearEffectStore`, `gear-effect-sheet.mjs`), the item-sheet host finder (`item-sheet-host.mjs`), `item-run.mjs` `hasActivationRunner(kind)`, `aura-reach.mjs` `engagedStateOf(token, item, row)`, `item-run-strip.mjs` `reachRowsOn`, `reachLineOf` and `radiusFigure`, `vocab.GEAR_DOMAIN`, and `constants.MINTED_ITEM_IMG`.

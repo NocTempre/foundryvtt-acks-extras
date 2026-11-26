@@ -166,6 +166,28 @@ hand, fold it in through the one reading (`foldOf` in `group.mjs`, deciding in
 The constants are `FLAG_FOOTPRINT_LOCK` and `FLAG_SIZE_STAMP` in
 `scripts/lib/constants.mjs`. The ruling is `DECISIONS.md` (2026-11-25).
 
+### A body sent out carrying its item
+
+A generated stack's `gen.carry` is `{[equipmentRowKey]: share}`: how many of its
+bodies carry that row's item. `deploy` lays two things on the delta of whichever
+body goes, resting or new, on its token and in its record, so a gather (which
+folds the token's delta back) keeps them: the caller's `extraDelta`, merged as
+`mergeObject` merges with `items` joined to the body's own list by `_id`; and the
+items `gen.carry` gives it.
+
+- **lib names no item.** `registerCarryResolver(fn)` is the one slot;
+  `fn(group, stackKey, rowKey)` answers an Item source, an array of them, or null.
+  monsters fills it (`carriedGearItems` in `scripts/monsters/organisation.mjs`,
+  which mints a row's item as a generated leader's gear is minted). A null, a
+  throw or no resolver sends the body out plain and spends nothing.
+- **The share is counted on the records.** A record's `carries` lists the rows
+  its body was given. Every record stamped with a row, in any state, counts
+  against that row's share, so a slot once spent stays spent; a body going out
+  unstamped is given the row's items and stamped only while the count is below
+  the share, and a stamped body is never given a second copy.
+- The group sheet's send-out reaches this through `deploy` itself, so a body sent
+  out with no press carries its item.
+
 ### A group inside a group
 
 `unit.parentGroupUuid` names the group this one stands inside, blank for none: a gang
