@@ -144,14 +144,30 @@ const P = {
       return { width: Math.round(r.width), height: Math.round(r.height) };
     };
     /**
+     * Whether a closed disclosure folds the control away. A closed `<details>`
+     * keeps its content out of the render, yet an element in it still answers a
+     * rect query with the box it would have, and no scroll brings that box in.
+     * Only the disclosure's own summary is drawn while it is closed.
+     */
+    H.folded = (el) => {
+      for (let d = el.closest("details"); d; d = d.parentElement?.closest("details")) {
+        if (!d.open && !el.closest("summary")?.parentElement?.isSameNode(d)) return true;
+      }
+      return false;
+    };
+    /**
      * Every visible control, brought into view the way a wheel would, must land
      * inside the frame: whole, or for one taller than the view, enough to use.
+     * A control folded into a closed disclosure is not drawn, so it is counted
+     * only once the disclosure is opened (`shorten` opens every one by default).
+     * That a folded control reports a rect and ignores `scrollIntoView` is the
+     * browser's behaviour, not a spec guarantee.
      */
     H.reach = (app) => {
       const root = app.element;
       const inside = "button, input, select, textarea, a[data-action], [data-action][role=button]";
       const controls = [...root.querySelectorAll(".window-content")].flatMap((c) => [...c.querySelectorAll(inside)]);
-      const live = controls.filter((el) => el.type !== "hidden" && H.visible(el));
+      const live = controls.filter((el) => el.type !== "hidden" && H.visible(el) && !H.folded(el));
       const lost = [];
       for (const el of live) {
         el.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -379,9 +395,10 @@ const P = {
   sizeNow: async () => globalThis.__wc.size(globalThis.__wc.current),
 
   /** Short enough that a window of any length has to scroll, or keep its controls some other way. */
-  shorten: async ({ height }) => {
+  shorten: async ({ height, expand = true }) => {
     const H = globalThis.__wc;
     const app = H.current;
+    if (expand) for (const d of app.element.querySelectorAll("details:not([open])")) d.open = true;
     app.setPosition({ height });
     await H.sleep(120);
     return { size: H.size(app), scroller: H.scroller(app), ...H.reach(app) };
@@ -483,7 +500,7 @@ async function seat(key) {
 }
 
 /** The whole contract on the window just opened. */
-async function walkWindow(gm, input, label, opened, { drag = true, short = 150 } = {}) {
+async function walkWindow(gm, input, label, opened, { drag = true, short = 150, expand = true } = {}) {
   note(`${label}: opened`, { cls: opened.cls, option: opened.option, size: opened.size, why: opened.why });
   check(`${label}: the window opens`, opened.opened === true, opened.why);
   if (!opened.opened) return;
@@ -494,7 +511,7 @@ async function walkWindow(gm, input, label, opened, { drag = true, short = 150 }
     const after = await run(gm, P.sizeNow);
     check(`${label}: a real pointer on the corner resizes it`, after.width !== opened.size.width || after.height !== opened.size.height, { from: opened.size, to: after });
   }
-  const shortened = await run(gm, P.shorten, { height: short });
+  const shortened = await run(gm, P.shorten, { height: short, expand });
   check(`${label}: every control is reachable in a short window`, shortened.lost.length === 0, shortened);
   await run(gm, P.closeCurrent);
 }
