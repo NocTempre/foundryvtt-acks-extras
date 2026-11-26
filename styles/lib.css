@@ -1764,12 +1764,12 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
    scroll frame. Type rides the ramp; the row wraps so every control stays
    reachable in a narrow window. */
 .acks-extras-reach-strip {
-  margin: 0 0 var(--acks-space-2, 0.5em);
+  margin: 0 0 var(--acks-sp-4);
 }
 
 .acks-extras-reach-strip__head {
   font-size: var(--acks-fs-body);
-  margin: 0 0 var(--acks-space-1, 0.25em);
+  margin: 0 0 var(--acks-sp-2);
 }
 
 .acks-extras-reach-strip__head small {
@@ -1784,7 +1784,7 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
   gap: 0.4em 0.6em;
   padding: 0.3em 0.5em;
   font-size: var(--acks-fs-body);
-  border-bottom: var(--acks-rule-thin, 1px) solid var(--acks-rule-color);
+  border-bottom: var(--acks-rule-hair) solid var(--acks-rule-color);
 }
 
 .acks-extras-reach-strip__icon {
@@ -1799,8 +1799,13 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
 }
 
 .acks-extras-reach-strip__cite,
-.acks-extras-reach-strip__blank {
+.acks-extras-reach-strip__blank,
+.acks-extras-reach-strip__more {
   color: var(--acks-ink-soft);
+}
+
+.acks-extras-reach-strip__more {
+  font-size: var(--acks-fs-fine);
 }
 
 /* An item the carrier runs, on its row of a sheet: the state tag, the line naming

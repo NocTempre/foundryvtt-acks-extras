@@ -778,9 +778,11 @@ export function turnsLeft(dueAt, now, secondsPerTurn) {
  * (`owed`, `waiting`, `failed`, `always` or `immune`), the source token's name,
  * the distance and the reach, each figure with its tooltip, and the figures the
  * tag carries (the save's target and its press, a standing part, the turns an
- * immunity has left). A body no reach meets has no rows, and the strip is absent.
+ * immunity has left). A row that stands for several bearers of one kind carries
+ * `more` and `moreNames`, the others' count and names. A body no reach meets has
+ * no rows, and the strip is absent.
  *
- * @param {Array<{key: string, name: string, tag: string, source: string, feet?: number|null, feetTip?: string, radius?: number|null, radiusTip?: string, cite?: string, target?: number|null, targetTip?: string|null, left?: number|null, leftTip?: string, part?: {value: number, tip: string}|null, press?: object|null}>} reaches
+ * @param {Array<{key: string, name: string, tag: string, source: string, feet?: number|null, feetTip?: string, radius?: number|null, radiusTip?: string, cite?: string, target?: number|null, targetTip?: string|null, left?: number|null, leftTip?: string, part?: {value: number, tip: string}|null, press?: object|null, more?: number, moreNames?: string[]}>} reaches
  */
 export function stripModel(reaches) {
   const list = (reaches ?? []).filter((r) => STRIP_ORDER.includes(r?.tag));
@@ -803,6 +805,7 @@ export function stripModel(reaches) {
       part: r.part ?? null,
       press: r.press ?? null,
       ...(r.timed === true ? { timed: true } : {}),
+      ...(r.more > 0 ? { more: r.more, moreNames: r.moreNames ?? [] } : {}),
     }))
     .sort((a, b) => STRIP_ORDER.indexOf(a.tag) - STRIP_ORDER.indexOf(b.tag) || a.at - b.at)
     .map(({ at: _at, ...row }) => row);

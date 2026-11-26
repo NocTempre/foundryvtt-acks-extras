@@ -17,8 +17,9 @@
       {{#if cite}}<span class="acks-extras-reach-strip__cite">{{cite}}</span>{{/if}}
       {{#if part}}· <span class="acks-nums" data-tooltip-text="{{part.tip}}">{{part.rolls}} {{part.value}}</span>{{/if}}
     </span>
+    {{#if moreLabel}}<span class="acks-extras-reach-strip__more" data-tooltip-text="{{moreTip}}">{{moreLabel}}</span>{{/if}}
     {{#if press}}
-    <button type="button" class="acks-btn acks-btn--primary acks-btn--sm" data-action="reachStripSave" data-item-uuid="{{press.itemUuid}}" data-row-key="{{press.rowKey}}" data-activation-id="{{press.activationId}}" data-subject="{{press.subject}}" data-message-id="{{press.messageId}}" data-entry-key="{{press.entryKey}}" data-tooltip-text="{{targetTip}}" aria-label="{{@root.reachStrip.saveTip}}"><i class="fa-solid fa-shield-halved" inert></i> {{@root.reachStrip.saveLabel}}{{#if hasTarget}} <span class="acks-nums">{{target}}+</span>{{/if}}</button>
+    <button type="button" class="acks-btn acks-btn--sm" data-action="reachStripSave" data-item-uuid="{{press.itemUuid}}" data-row-key="{{press.rowKey}}" data-activation-id="{{press.activationId}}" data-subject="{{press.subject}}" data-message-id="{{press.messageId}}" data-entry-key="{{press.entryKey}}" data-tooltip-text="{{targetTip}}" aria-label="{{@root.reachStrip.saveTip}}"><i class="fa-solid fa-shield-halved" inert></i> {{@root.reachStrip.saveLabel}}{{#if hasTarget}} <span class="acks-nums">{{target}}+</span>{{/if}}</button>
     {{/if}}
   </div>
   {{/each}}

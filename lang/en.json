@@ -695,6 +695,7 @@
   "ACKS-LIB.itemRun.strip.left": "{turns} turns left",
   "ACKS-LIB.itemRun.strip.reach": "reach",
   "ACKS-LIB.itemRun.strip.away": "away",
+  "ACKS-LIB.itemRun.strip.more": "and {n} more",
   "ACKS-LIB.itemRun.strip.blank": "Not imported",
   "ACKS-LIB.itemRun.strip.inReachOf": "In reach of",
   "ACKS-LIB.itemRun.strip.tag.owed": "Save owed",

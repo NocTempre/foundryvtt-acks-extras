@@ -6,7 +6,9 @@
  * the item, its state (a save owed, one waiting for the body's moment, a
  * failed one, always on, or immune with the turns left), the source token's
  * name as core shows it to the viewer, the distance between the two tokens'
- * nearest edges, the reach, and the save's press. The strip is absent where
+ * nearest edges, the reach, and the save's press; an engaged row also reads
+ * "and n more" where other bearers of its kind cover the body, the tooltip
+ * naming them as the viewer is shown them. The strip is absent where
  * nothing reaches the body, and for a seat that does not own the body.
  *
  * - `reachStripFor(actor)` is the sheet's context entry; the template is
@@ -15,7 +17,8 @@
  *   entry the engaged card holds for this body and kind (owed, with the Save
  *   press on that card's entry), else the failed save's `lasts` record on the
  *   body (failed, with the turns left), else the immunity window (immune), else
- *   waits. Bearers of one kind collapse to one row, the nearest bearer's.
+ *   waits. Bearers of one kind collapse to one row, the nearest bearer's, with
+ *   the count of the others (`more`); only engaged reaches collapse.
  * - A Save press is offered by ownership of the body's token (Foundry's own
  *   test, no role read), writes through the carrier's `pressRoll` onto the same
  *   moment-keyed entry the cards write, and is checked again by the primary
@@ -87,7 +90,7 @@ function readReachOn({ behavior, region }, token, actor) {
   const feet = gap === null ? null : Math.round(gap);
   const { radius, tip: radiusTip } = radiusFigure(reach, item);
   const cite = itemCite(item);
-  const out = { key: `${config.activationId}:${row.key}`, engagedKind: engaged ? kindKey : "", name: item.name, tag: "waiting", source, feet, radius, radiusTip, cite, feetTip: feet === null ? "" : loc("itemRun.card.tip.distance", { feet, name: source }) };
+  const out = { key: `${config.activationId}:${row.key}`, engagedKind: engaged ? kindKey : "", bearerId: bearerToken.id, name: item.name, tag: "waiting", source, feet, radius, radiusTip, cite, feetTip: feet === null ? "" : loc("itemRun.card.tip.distance", { feet, name: source }) };
 
   const windowTip = (left) => (left === null ? "" : [item.name, loc("itemRun.strip.tip.window", { turns: left }), cite].filter(Boolean).join(" · "));
   const immune = immunityOf(actor, kindKey);
@@ -132,15 +135,32 @@ function readReachOn({ behavior, region }, token, actor) {
   };
 }
 
-/** Each bearer of an engaged kind holds a Region of its own over the body, but the body is asked once per kind: those rows collapse to the nearest bearer's, and every other row stands. */
+/**
+ * One engaged kind's rows as the single row the body reads: the nearest bearer's
+ * (the first on a tie), carrying `more` and `moreNames` where other bearers of
+ * the kind cover the body too. A bearer counts once however many Regions or items
+ * of the kind it holds, and the nearest bearer is never counted among the rest.
+ */
+function collapsedKind(group) {
+  const nearest = group.reduce((best, r) => ((r.feet ?? Infinity) < (best.feet ?? Infinity) ? r : best));
+  const others = new Map();
+  for (const r of [...group].sort((a, b) => (a.feet ?? Infinity) - (b.feet ?? Infinity))) {
+    if (r.bearerId !== nearest.bearerId && !others.has(r.bearerId)) others.set(r.bearerId, r.source);
+  }
+  return others.size ? { ...nearest, more: others.size, moreNames: [...others.values()] } : nearest;
+}
+
+/** Each bearer of an engaged kind holds a Region of its own over the body, but the body is asked once per kind: those rows collapse to the nearest bearer's, and every other row stands (a raised or standing reach is one row per reach, never collapsed). */
 function oneRowPerEngagedKind(rows) {
-  const at = new Map();
+  const groups = new Map();
+  for (const r of rows) if (r.engagedKind) groups.set(r.engagedKind, [...(groups.get(r.engagedKind) ?? []), r]);
   const out = [];
+  const placed = new Set();
   for (const r of rows) {
     if (!r.engagedKind) { out.push(r); continue; }
-    if (!at.has(r.engagedKind)) { at.set(r.engagedKind, out.length); out.push(r); continue; }
-    const i = at.get(r.engagedKind);
-    if ((r.feet ?? Infinity) < (out[i].feet ?? Infinity)) out[i] = r;
+    if (placed.has(r.engagedKind)) continue;
+    placed.add(r.engagedKind);
+    out.push(collapsedKind(groups.get(r.engagedKind)));
   }
   return out;
 }
@@ -180,6 +200,7 @@ export function reachLineOf(row, { withTag = false } = {}) {
     row.radius === null ? "" : `${loc("itemRun.strip.reach")} ${row.radius}′`,
     row.cite,
     row.part ? `${row.part.rolls} ${row.part.value}` : "",
+    row.more > 0 ? loc("itemRun.strip.more", { n: row.more }) : "",
   ];
   return pieces.filter(Boolean).join(" · ");
 }
@@ -207,6 +228,7 @@ export function reachStripFor(actor) {
     rows: strip.rows.map((r) => ({
       ...r, tagLabel: loc(`itemRun.strip.tag.${r.tag}`), tagVariant: TAGS[r.tag], tagTip: loc(`itemRun.strip.tagTip.${r.timed ? "failedTimed" : r.tag}`),
       leftLabel: r.left === null ? "" : loc("itemRun.strip.left", { turns: r.left }), hasFeet: r.feet !== null, hasRadius: r.radius !== null, hasTarget: r.target !== null,
+      ...(r.more > 0 ? { moreLabel: loc("itemRun.strip.more", { n: r.more }), moreTip: r.moreNames.join(", ") } : {}),
     })),
   };
 }

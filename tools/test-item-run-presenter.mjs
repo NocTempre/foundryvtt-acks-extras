@@ -874,6 +874,36 @@ await t("T10: the strip reads an engaged reach from the engaged card and the sub
   assert.equal(rowsFor("pe")[0].tag, "owed", "reopened, it is owed again");
   assert.equal(rowsFor("pn")[0].press, null, "a seat that owns the actor and not the token has the row and no press");
 
+  // "and n more": one row per engaged kind, naming the nearest bearer, counting the other bearers the seat is shown.
+  const { reachRowsOn, reachLineOf } = await import("../scripts/lib/item-run-strip.mjs");
+  const r3 = regionOf("eb3", "engaged:r3");
+  r3.parent = scene;
+  t10.tokens["E.b3"] = { id: "eb3", uuid: "E.b3", name: "Champion 3", actor: {}, testUserPermission: ownedBy("pall"), parent: scene, x: 500, y: 0, width: 1, height: 1, displayName: 50 };
+  const r1b = regionOf("eb1", "engaged:r1b");
+  r1b.parent = scene;
+  scene.regions.push(r3, r1b);
+  const standIn = (...regions) => { subject.regions = new Set(regions); return rowsFor("pe"); };
+  rows = standIn(r1);
+  assert.deepEqual([rows.length, rows[0].more, rows[0].moreLabel], [1, undefined, undefined], "one bearer reads no more line");
+  rows = standIn(r1, r2);
+  assert.deepEqual([rows.length, rows[0].source, rows[0].more, rows[0].moreLabel, rows[0].moreTip], [1, "Champion 1", 1, "ACKS-LIB.itemRun.strip.more", "Champion 2"], "two bearers of a kind are one row, the nearest named and one more, the other named in the tooltip");
+  rows = standIn(r1, r2, r3);
+  assert.deepEqual([rows.length, rows[0].source, rows[0].more, rows[0].moreTip], [1, "Champion 1", 2, "Champion 2, Champion 3"], "three bearers are one row and two more, nearest first");
+  rows = standIn(r3, r2, r1);
+  assert.deepEqual([rows[0].source, rows[0].more, rows[0].moreTip], ["Champion 1", 2, "Champion 2, Champion 3"], "the order the Regions are met in changes neither the nearest nor the count");
+  rows = standIn(r1, r1b);
+  assert.deepEqual([rows.length, rows[0].more], [1, undefined], "one bearer holding two Regions of the kind is not more than one");
+  subject.regions = new Set([r1, r2, r3]);
+  const seen = (...hidden) => reachRowsOn(subject, subject.actor, (found) => found.filter((p) => !hidden.includes(p.region)));
+  assert.equal(seen(r3)[0].more, 1, "a bearer the seat is not shown is not counted");
+  assert.equal(seen(r2, r3)[0].more, undefined, "with every other bearer out of sight there is no more line");
+  assert.deepEqual([seen(r1)[0].source, seen(r1)[0].more], ["Champion 2", 1], "and the nearest bearer is the nearest of those shown");
+  assert.match(reachLineOf(seen()[0]), /ACKS-LIB\.itemRun\.strip\.more/, "the canvas readout's line carries the count");
+  assert.doesNotMatch(reachLineOf(seen(r2, r3)[0]), /strip\.more/, "and not where there is none");
+  delete t10.tokens["E.b3"];
+  scene.regions.length = 2;
+  subject.regions = new Set([r1, r2]);
+
   // The refresh hook: an engaged card names a subject, not a list of subjects.
   const hooked = {};
   const priorOn = globalThis.Hooks.on;
