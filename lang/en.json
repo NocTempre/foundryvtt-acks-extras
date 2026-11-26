@@ -791,6 +791,8 @@
   "ACKS-LIB.itemRun.row.leftTipHand": "Typed on this row; each swig takes one.",
   "ACKS-LIB.itemRun.row.leftTipBlank": "Rolled from the item's imported dice when it reaches another actor, or typed here. ({cite})",
   "ACKS-LIB.itemRun.refused.spent": "Nothing is left in it.",
+  "ACKS-LIB.itemRun.refused.noSpare": "Every one of these is already lit.",
+  "ACKS-LIB.itemRun.warn.noSpare": "Every {item} is already lit; this lights another anyway.",
   "ACKS-LIB.itemRun.refused.immune": "This body holds an immunity to the item.",
   "ACKS-LIB.itemRun.refused.waiting": "This body's moment has not come.",
   "ACKS-LIB.itemRun.refused.struck": "This prompt is no longer open.",

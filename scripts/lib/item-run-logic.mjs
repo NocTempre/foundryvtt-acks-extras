@@ -625,6 +625,23 @@ export function litCountOf(effects, itemUuid) {
   return [...(effects ?? [])].filter((effect) => readFuse(effect?.flags?.[MODULE_ID]?.[FLAG_FUSE])?.source === itemUuid).length;
 }
 
+/**
+ * What a light does to an item whose every unit already burns: "light" where
+ * the stack holds a spare (fewer lit than held; an item with no count holds
+ * one), else "warn" for the Judge's own seat, which lights another anyway, and
+ * "refuse" for any other seat. Each light writes its own fuse record against the
+ * item and a burst uses up one, so a light past the stack would leave a record
+ * with nothing to burst.
+ *
+ * @param {{lit: number, held: number|null, judge: boolean}} p
+ * @returns {"light"|"warn"|"refuse"}
+ */
+export function secondLight({ lit = 0, held = null, judge = false } = {}) {
+  const units = Number.isFinite(held) ? held : 1;
+  if (!(lit > 0) || units > lit) return "light";
+  return judge ? "warn" : "refuse";
+}
+
 /* -------------------------------------------- */
 /*  The light and the burst                      */
 /* -------------------------------------------- */

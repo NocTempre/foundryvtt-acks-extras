@@ -2,7 +2,8 @@
  * Live walk, lib/aura-fuse: the fuse item (a beastman's E2 shape) through its use,
  * its cards and its burst, on the GM seat and a real Player seat together.
  * Walks docs/lib/TESTING.md, "S9a: E2, the fuse item", steps 1 to 13, and "S9c: Light and Lit,
- * Swigs left, the Judge's call", step 6b (the bearer's sheet row and the Token HUD).
+ * Swigs left, the Judge's call", step 6b (the bearer's sheet row and the Token HUD), and "S9d:
+ * the second light, the second GM seat", step 6c (Item#use on a burning stack of one).
  * Machine values arrive through ./_env.mjs.
  *
  * WRITTEN FROM THE CODE AND NOT YET RUN. Every assertion below follows
@@ -285,6 +286,16 @@ const P = {
   },
 
   rig: ({ value }) => { const H = globalThis.__laf; if (value === null) H.unrig(); else H.rig(value); return true; },
+
+  /** Item#use as a hotbar macro calls it, rigged or not, on this seat: the notices this window showed while it ran. */
+  useBare: async ({ itemUuid, die }) => {
+    const H = globalThis.__laf;
+    const from = H.said.length;
+    if (die !== null) H.rig(die);
+    try { await fromUuidSync(itemUuid).use(); } finally { if (die !== null) H.unrig(); }
+    await H.sleep(300);
+    return { said: H.said.slice(from) };
+  },
 
   /** Use an item, rigged or not, and wait for its card to settle: the message that names the item and its stored state. */
   use: async ({ itemUuid, die }) => {
@@ -716,6 +727,36 @@ try {
     const h2 = await hud();
     check("6b the HUD's Light control for the item is back", hasHud(h2), { want: wantHud, controls: h2.controls, ok: h2.ok });
     await gmRun(P.closeSheet, { uuid: A.B.uuid });
+    await reset();
+  });
+
+  await step("6c", async () => {
+    section("6c The second light: a stack of one already burning, from the Player's item.use() and from the Judge's");
+    await reset({ own: ["B"], quantity: 1 });
+    const fmt = (key, data) => gmRun((a) => globalThis.__laf.fmt(a.key, a.data), { key, data });
+    const fuses = () => gmRun(P.fuses, { uuid: A.B.uuid });
+    const refusedWord = await fmt("ACKS-LIB.itemRun.refused.noSpare", {});
+    const warnWord = await fmt("ACKS-LIB.itemRun.warn.noSpare", { item: ITEM_NAME });
+    const r = await useItem(I.item, DIE.top);
+    const card = await gmRun(P.card, { id: r.messageId });
+    const lit0 = await fuses();
+    check("6c the first light took: one fuse record on the bearer", card.outcome === "lit" && lit0.length === 1, { outcome: card.outcome, fuses: lit0.length });
+
+    // The Player that owns the bearer, through item.use() as a hotbar macro calls it.
+    const pu = await plRun(P.useBare, { itemUuid: I.item.uuid, die: null });
+    check("6c the Player's item.use() is refused on the Player's own window with the noSpare notice", pu.said.includes(`warn: ${refusedWord}`), { said: pu.said, want: refusedWord });
+    await sleep(1500);
+    const lit1 = await fuses();
+    check("6c nothing was lit or written for the Player: the bearer still holds one fuse record", lit1.length === 1, { fuses: lit1.length });
+    // The GM's window that ran the relayed use tells its own seat with an error toast; that one is the runner's notice, not a fault, and leaves the close's error record.
+    const gmToast = await gmRun((w) => { const H = globalThis.__laf; const n = H.errors.length; H.errors = H.errors.filter((e) => e !== `toast: ${w}`.slice(0, 300)); return n - H.errors.length; }, refusedWord);
+    check("6c the GM's window told its own seat of the relayed refusal, once", gmToast === 1, { gmToast });
+
+    // The Judge's own: warned, and the light goes on.
+    const gu = await gmRun(P.useBare, { itemUuid: I.item.uuid, die: DIE.top });
+    check("6c the Judge's item.use() is warned with the noSpare warning naming the item", gu.said.includes(`warn: ${warnWord}`), { said: gu.said, want: warnWord });
+    const lit2 = await until(async () => { const f = await fuses(); return f.length === 2 ? f : null; }, 8000, 400);
+    check("6c the Judge's light went on: a second fuse record on the bearer", lit2?.length === 2, { fuses: lit2?.length ?? (await fuses()).length });
     await reset();
   });
 

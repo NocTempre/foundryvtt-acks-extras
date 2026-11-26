@@ -11,6 +11,9 @@
  *   SEAT_GM, SEAT_PLAYER  the user name of each seat
  *   CAPTURE_PORT_GM, CAPTURE_PORT_PLAYER  each seat's CDP port; default
  *                       9483 and 9484
+ *   CAPTURE_PORT_GM2    the CDP port of a walk's second GM seat, default 9485;
+ *                       that seat is the world's Assistant Gamemaster user,
+ *                       found by its role on the GM seat, so no name is set
  *   ACKS_CAPTURE_DRIVER   the capture driver, when it is not
  *                         tools/live/_capture.mjs
  *   ACKS_TEST_BOOKS     a JSON map of book id to the path the Books tab
@@ -48,11 +51,12 @@ export function seats() {
 
 /**
  * The CDP port the driver opens for each seat: CAPTURE_PORT_GM and
- * CAPTURE_PORT_PLAYER, else 9483 and 9484. One browser per seat is why two
+ * CAPTURE_PORT_PLAYER, else 9483 and 9484, and CAPTURE_PORT_GM2 for a second
+ * GM seat, else 9485. One browser per seat is why two
  * walks on the same ports never run at once; a run given another seat pair
  * (SEAT_GM, SEAT_PLAYER) and its own ports runs beside them.
  */
-export const PORTS = { gm: port("CAPTURE_PORT_GM", 9483), player: port("CAPTURE_PORT_PLAYER", 9484) };
+export const PORTS = { gm: port("CAPTURE_PORT_GM", 9483), player: port("CAPTURE_PORT_PLAYER", 9484), gm2: port("CAPTURE_PORT_GM2", 9485) };
 
 function port(name, fallback) {
   const raw = process.env[name];

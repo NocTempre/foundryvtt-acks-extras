@@ -40,8 +40,9 @@ import { behaviorsUnder } from "./regions.mjs";
 import {
   actionPartRecordData, activationRecordIds, alwaysOn, blastOf, burstAmount, checkApplyRequest, checkPressRequest, chooseBearerToken, claimsItemUse, conditionRecordData, entryStateOf, fuseDue, fuseFlag, fuseLight, fuseRecordData, fuseSpot, fuseStep, fuseToWorld, fuseWorldFlag,
   dueAtAfter, dueRecordIds, immuneRecordId, immunityRecordData, itemCite, kindKeyOf, itemRunOf, itemRunRowsOf, lastsRecordId, mayUndoEntry, promptCardModel, reachFigures, reachParts, readFuse, selfCountUpdate, standingPartDiffers,
-  standingPartId, standingPartRecordData, undoGuard, undoPlan,
+  standingPartId, standingPartRecordData, undoGuard, undoPlan, litCountOf, secondLight,
 } from "./item-run-logic.mjs";
+import { stackCountOf } from "./item-model.mjs";
 import { creatureKinds } from "./actor-read.mjs";
 import { DRINKER_KIND, drinkerKindOf, swigOutcome, swigStampPlan } from "./swig-logic.mjs";
 import { adjustHp, resolveTargets } from "./hp.mjs";
@@ -55,7 +56,7 @@ import { managedDelete } from "./managed-effects.mjs";
 import { statusEffectData } from "./held-condition.mjs";
 import { recordImmunity } from "./roll-mods.mjs";
 import { saveSpec, saveThrow } from "./saves.mjs";
-import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
+import { executeAsGM, executeAsUser, judgeDeclares, registerHandler } from "./sockets.mjs";
 import { roundSeconds, turnSeconds } from "./time-unit.mjs";
 import { isPrimaryGM, makeLoc, plainRoll, unset } from "./util.mjs";
 import { onWorldTimeAdvanced } from "./world-time.mjs";
@@ -64,7 +65,7 @@ import { isMarkerActor } from "./place.mjs";
 const loc = makeLoc(LANG_PREFIX);
 
 /** The refusals the Judge and the Player have a line for; any other reason reads as a plain refusal. */
-const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down", "spent", "judgeOnly"]);
+const REFUSALS = new Set(["gone", "notOwner", "noRunner", "noToken", "manyTokens", "noRow", "noRange", "noFigure", "snapshot", "unsupported", "notCarried", "down", "spent", "judgeOnly", "noSpare"]);
 
 /** The socket handlers a Player's seat relays a use and a press through. */
 const HANDLER = Object.freeze({
@@ -313,14 +314,18 @@ export async function runUse({ itemUuid, tokenUuid = "", requestUserId = null })
 
 /**
  * Take an item's use: run it here on the GM's window, or relay it from a
- * Player's seat. The request carries the uuid of the bearer's token as this
+ * Player's seat, whose window then tells the Player a refusal the GM's window
+ * answered. The request carries the uuid of the bearer's token as this
  * window resolves it, so the GM's window, which may view another scene, runs
  * against the token the seat sees.
  */
 export async function useItem(item) {
   const tokenUuid = canvasTokenOf(item.actor)?.uuid ?? "";
   if (game.user.isGM) return runUse({ itemUuid: item.uuid, tokenUuid });
-  return (await executeAsGM(HANDLER.use, { itemUuid: item.uuid, tokenUuid })) ?? { ok: false, reason: "relay" };
+  const result = (await executeAsGM(HANDLER.use, { itemUuid: item.uuid, tokenUuid })) ?? { ok: false, reason: "relay" };
+  // The GM's window that ran the use told its own seat; the Player's seat is told here.
+  if (result.ok === false && REFUSALS.has(result.reason)) ui.notifications?.warn?.(loc(`itemRun.refused.${result.reason}`));
+  return result;
 }
 
 /* -------------------------------------------- */
@@ -492,7 +497,7 @@ async function pressHere(payload) {
     }
     const made = !records.length ? [] : timed ? await actor.createEmbeddedDocuments("ActiveEffect", records, { keepId: true }) : await actor.createEmbeddedDocuments("ActiveEffect", records);
     const prior = card?.entries?.[key] ?? {};
-    const entry = { ...prior, subject: subjectUuid, state, saved: verdict.saved, ...(verdict.declared ? { declared: true } : { total: verdict.total, target: verdict.target }), recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? game.user?.id ?? "", ...(hp ? { hp } : {}), ...(amount !== null ? { amount } : {}), ...(why ? { why } : {}), ...(immune !== null ? { immune } : {}), ...(verdict.early ? { early: true } : {}) };
+    const entry = { ...prior, subject: subjectUuid, state, saved: verdict.saved, ...(verdict.declared ? { declared: true } : { total: verdict.total, target: verdict.target }), recordIds: made.map((e) => e.id), names, life, presser: requestUserId ?? (payload.presser || game.user?.id) ?? "", ...(hp ? { hp } : {}), ...(amount !== null ? { amount } : {}), ...(why ? { why } : {}), ...(immune !== null ? { immune } : {}), ...(verdict.early ? { early: true } : {}) };
     if (prior.momentKey) releaseReachMoment(prior.momentKey);
     if (message && card) {
       const patch = { [`entries.${key}`]: entry };
@@ -543,11 +548,12 @@ function fightNow() {
 /**
  * A press on a prompt card's row, from the presser's seat: roll the subject's
  * save here and relay the ids and the total, never a verdict, a window or an
- * entry state; the GM reads those from the card and the item and writes. A
- * Judge's press runs here. A press carrying `declared` (a boolean) is the Judge's
- * call on an outcome card that names no save: nothing is thrown, a seat that is not
- * the Judge's is refused `judgeOnly` and a card that names a save `figure`, and
- * the verdict goes to the writer as the declared one.
+ * entry state; the primary GM's window reads those from the card and the item
+ * and writes (`pressOnPrimary`), a second GM's press relayed to it. A press
+ * carrying `declared` (a boolean) is the Judge's call on an outcome card that
+ * names no save: nothing is thrown, a seat that is not the Judge's is refused
+ * `judgeOnly` and a card that names a save `figure`, and the verdict goes to the
+ * writer as the declared one.
  *
  * @param {{itemUuid: string, rowKey: string, activationId: string, subject: string, messageId?: string, entryKey?: string, declared?: boolean}} p
  * @returns {Promise<{ok: boolean, entry?: object, reason?: string}>}
@@ -561,7 +567,7 @@ export async function pressRoll(p) {
     if (!judgeDeclares()) return { ok: false, reason: "judgeOnly" };
     if (!actor || !stored || stored.saveName) return { ok: false, reason: stored ? "figure" : "noFigure" };
     const declaredPayload = { itemUuid: p.itemUuid, rowKey: p.rowKey, activationId: p.activationId, subject: p.subject, messageId: p.messageId ?? "", entryKey: p.entryKey ?? "", declared: p.declared };
-    return pressHere(declaredPayload);
+    return pressOnPrimary(declaredPayload);
   }
   const name = stored ? String(stored.saveName ?? "") : saveNameOf(row);
   if (!actor || !name) return { ok: false, reason: "noFigure" };
@@ -570,8 +576,22 @@ export async function pressRoll(p) {
   const thrown = await saveThrow(actor, name, cardSaveOptions(stored));
   if (thrown.target === null) return { ok: false, reason: "noFigure" };
   const payload = { itemUuid: p.itemUuid, rowKey: p.rowKey, activationId: p.activationId, subject: p.subject, messageId: p.messageId ?? "", entryKey: p.entryKey ?? "", total: thrown.total, target: thrown.target };
-  if (game.user.isGM) return pressHere(payload);
-  return (await executeAsGM(HANDLER.press, payload)) ?? { ok: false, reason: "relay" };
+  return pressOnPrimary(payload);
+}
+
+/**
+ * A press's write, on the primary GM's window, where the card's press listener
+ * answers it (the whisper marked answered, an early press told to the Judges):
+ * here on that window, relayed to the active GM from a second GM's window
+ * (`runRelayed` stamps a GM sender as the Judge's own, so the pressing Judge's
+ * id rides as `presser`, which `pressHere` reads only where no Player's id was
+ * stamped), and through `executeAsGM` from a Player's.
+ */
+async function pressOnPrimary(payload) {
+  if (isPrimaryGM()) return pressHere(payload);
+  const primary = game.user.isGM ? game.users.activeGM : null;
+  const relay = primary && !primary.isSelf ? executeAsUser(HANDLER.press, primary.id, { ...payload, presser: game.user.id }) : executeAsGM(HANDLER.press, payload);
+  return (await relay) ?? { ok: false, reason: "relay" };
 }
 
 /**
@@ -1336,6 +1356,9 @@ function spotAt(token) {
  * proficiency's standing modifiers (`proficiencyBonus`), and `fuseLight` reads the
  * unmodified die against the item's `fumble` figure. A blank `fumble` or `fuseDice`
  * is the Judge's: nothing is rolled for a blank `fumble`, and nothing is written.
+ * An item whose every unit already burns (`secondLight`) is refused `noSpare`
+ * for a Player's seat before anything is rolled; the Judge's own seat is warned
+ * and the light goes on.
  *
  * Answers `{ok: true, kind: "fuse", outcome, light, activationId, itemUuid,
  * tokenUuid, roll, fuse, blank, [recordId], [burst], [presented]}`:
@@ -1356,7 +1379,10 @@ function spotAt(token) {
  * - `fuse` is `{count, combat, dueAt?, spot}` for a lit fuse (`combat` true on the
  *   bearer's combat clock, else `dueAt` the world-clock moment it is due), else null.
  */
-async function runFuse({ item, run, actor, token }) {
+async function runFuse({ item, run, actor, token, judge = false }) {
+  const second = secondLight({ lit: litCountOf(actor?.effects, item.uuid), held: stackCountOf(item), judge });
+  if (second === "refuse") return { ok: false, reason: "noSpare" };
+  if (second === "warn") ui.notifications?.warn?.(loc("itemRun.warn.noSpare", { item: item.name }));
   const a = run.activation;
   const result = { ok: true, kind: "fuse", outcome: null, light: null, activationId: foundry.utils.randomID(), itemUuid: item.uuid, tokenUuid: token.uuid, roll: null, fuse: null, blank: [] };
   const target = figureNumber(a.throw);

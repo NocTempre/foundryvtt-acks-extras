@@ -3,7 +3,8 @@
  * on-hit ammunition, and the grog's breakage, on the GM seat and a real Player
  * seat together. Walks docs/lib/TESTING.md, "S9b-2: E5 the swig, E8 on-hit, E5
  * breakage", steps 1 to 8, and "S9c: Light and Lit, Swigs left, the Judge's call", steps 9
- * and 10 and the leftFrom checks in step 6. Machine values arrive through ./_env.mjs.
+ * and 10 and the leftFrom checks in step 6, and "S9d: the second light, the second
+ * GM seat", step 10b (the world's Assistant Gamemaster user, seated by role). Machine values arrive through ./_env.mjs.
  *
  * WRITTEN FROM THE CODE AND NOT YET RUN. Every assertion below follows
  * scripts/lib/item-run.mjs (`runConsume`, `swigOutcomeWriter`, `swigHeal`,
@@ -187,6 +188,11 @@ async function reloadRecorded(api, port) {
 /* ------------------------------------------------------------------ */
 const P = {
   userId: (name) => game.users.find((u) => u.name === name)?.id ?? null,
+  /** The world's Assistant Gamemaster user, found by role: its name, id and whether a client holds it. */
+  assistant: () => {
+    const u = game.users.find((x) => x.role === CONST.USER_ROLES.ASSISTANT);
+    return u ? { name: u.name, id: u.id, active: u.active } : null;
+  },
 
   /** The status id a failed swig's condition is written as: the first of a short list the catalogue holds, else any ordinary one. */
   pickCondition: () => {
@@ -590,8 +596,11 @@ const P = {
 /* ------------------------------------------------------------------ */
 let gm = null;
 let pl = null;
+/** Step 10b's second GM seat, opened only for that step. */
+let gm2 = null;
 const gmRun = (fn, arg) => gm.eval(`(${fn.toString()})(${JSON.stringify(arg ?? null)})`);
 const plRun = (fn, arg) => pl.eval(`(${fn.toString()})(${JSON.stringify(arg ?? null)})`);
+const g2Run = (fn, arg) => gm2.eval(`(${fn.toString()})(${JSON.stringify(arg ?? null)})`);
 async function until(fn, ms = 10000, step = 500) {
   const t0 = Date.now();
   let last = null;
@@ -674,6 +683,7 @@ setTimeout(() => {
   console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seats`);
   try { gm?.close(); } catch {}
   try { pl?.close(); } catch {}
+  try { gm2?.close(); } catch {}
   process.exit(1);
 }, WALL_MS).unref();
 
@@ -1165,6 +1175,39 @@ try {
     await reset({ left: {} });
   });
 
+  await step("10b", async () => {
+    begin("10b", "The Judge's call from a second GM seat");
+    const asst = await gmRun(P.assistant);
+    if (!asst) return skip("10b", "this world has no Assistant Gamemaster user to seat as a second GM");
+    if (asst.active) return skip("10b", "the Assistant Gamemaster user is already seated by another client, and this walk drives no peer's seat");
+    gm2 = await connect({ browser, origin, user: asst.name, port: PORTS.gm2, own: MACHINE.own });
+    const g2 = await g2Run(P.install, { doc: DOC, table: TABLE, figures: FIGURES });
+    const gmPrimary = await gmRun(() => !!game.users.activeGM?.isSelf);
+    check("the second seat is a GM and not the primary one, and the GM seat is still the primary", g2.isGM === true && g2.activeGMIsSelf === false && gmPrimary, { isGM: g2.isGM, second: g2.activeGMIsSelf, primary: gmPrimary });
+    if (!(g2.isGM && !g2.activeGMIsSelf && gmPrimary)) return;
+    const entryKey = keyOf(T.H.uuid);
+    await reset({ left: { human: 5 } });
+    await gmRun(P.setDrink, { uuid: I.human.uuid, drink: { ...drinkOf(false), saveKind: null } });
+    const r = await useItem(I.human, null);
+    const id = r.messageId;
+    await cardWhen(id, (c) => c.kind === "swig");
+    const d2 = await read(g2Run, id);
+    const declares = (d2?.buttons ?? []).filter((b) => b.action === "itemRun.declare");
+    check("the second GM seat is drawn Passed and Failed on the drinker's row, as the GM seat is", declares.length === 2 && declares.some((b) => b.data.declared === "true") && declares.some((b) => b.data.declared === "false"), { buttons: d2?.buttons.map((b) => [b.action, b.data.declared]) });
+    const fail = await press(g2Run, { id, action: "itemRun.declare", match: { declared: "false" } }, { until: (c) => entryOf(c, "H")?.state === "applied" });
+    const ef = entryOf(fail.card, "H");
+    const held = (await effectsOf("H")).filter((e) => e.statuses.includes(COND));
+    check("the second GM's Failed wrote the entry as the Judge's call, pressed by the second GM's user: applied, saved false, declared true, no total and no target", fail.found && ef?.state === "applied" && ef.saved === false && ef.declared === true && ef.total === null && ef.target === null && ef.presser === asst.id, ef);
+    check("the failure wrote the condition once", held.length === 1, { held });
+    const after = await read(g2Run, id);
+    check("the row reads Failed with the Judge's call after it on the second GM seat, which is offered Undo", !!after && after.text.includes(W.failed) && after.text.includes(`(${W.declared})`) && hasBtn(after.buttons, "itemRun.undo") && !hasBtn(after.buttons, "itemRun.declare"), { text: after?.text, actions: after?.buttons.map((b) => b.action) });
+    const undo = await press(g2Run, { id, action: "itemRun.undo", match: { entryKey } }, { until: (c) => entryOf(c, "H")?.state === "undone" });
+    check("the second GM's Undo took the call back and the condition record is gone", undo.found && entryOf(undo.card, "H")?.state === "undone" && (await effectsOf("H")).filter((e) => e.statuses.includes(COND)).length === 0, entryOf(undo.card, "H"));
+    const c2 = await g2Run(P.caught);
+    check("the second GM seat logged no console error", c2.errors.length === 0, { errors: c2.errors });
+    await reset({ left: {} });
+  });
+
   const late = await gmRun(P.caught);
   const lateP = await plRun(P.caught);
   note("errors this walk's seats recorded after ready", { gm: late.errors, player: lateP.errors });
@@ -1188,6 +1231,8 @@ try {
   } catch (err) { console.error("sweep:", err?.message ?? err); }
   try { if (gm) await gmRun(() => globalThis.__las?.disarm?.()); } catch {}
   try { if (pl) await plRun(() => globalThis.__las?.disarm?.()); } catch {}
+  try { if (gm2) await g2Run(() => globalThis.__las?.disarm?.()); } catch {}
+  try { if (gm2) await gm2.close(); } catch {}
   try { if (pl) await pl.close(); } catch {}
   try { if (gm) await gm.close(); } catch {}
   section("summary");
