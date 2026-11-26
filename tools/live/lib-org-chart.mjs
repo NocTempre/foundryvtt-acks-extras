@@ -21,10 +21,25 @@
  * made group, the delete path's two groups and its faction.
  * The one write outside the ledger is the service fixtures' own wiring, undone at the end.
  *
+ * Step 12 (T-0777) is the one step that connects the Player seat: a seat whose role
+ * may not create actors presses Send out on an empty chart row and picks an owned
+ * place. Its fixtures, kept and found again by marker, are `lib/org-player-faction`
+ * and `lib/org-player-place`, both owned by the Player seat and shaped at the start
+ * of the step (one empty row on the faction, an empty roster and a Judge's note on
+ * the place, which keeps it out of the empty-location prune). The step reads the
+ * world's core permission setting and the seat's own `can` first and prints SKIP,
+ * without writing a permission, where this seat may create actors. The card draws
+ * no Send out button on an empty row (the foot offers it only beside a held group),
+ * so the step makes two presses and says which: the API call `org.sendOut` on the
+ * seat, and the card's own press handler (`ORG_ACTIONS.orgSendOut`) called on the
+ * rendered empty card, which opens the place dialog and raises the notice. No
+ * created actor is read from a world count: a `createActor` hook on the seat,
+ * filtered to its own user id, records the creates this seat made.
+ *
  * Not driven: step 10's standing row hidden from a player's reaction roll, which
  * wants a player seat and the influence dialog.
  */
-import { connect } from "./_driver.mjs";
+import { connect, sleep } from "./_driver.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
 import { walkDone, blocked } from "./_walk.mjs";
 
@@ -41,6 +56,8 @@ const check = (label, ok, detail) => {
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail === undefined ? "" : "  " + (typeof detail === "string" ? detail : JSON.stringify(detail))}`);
 };
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+/** A step that cannot be built prints its reason; a SKIP is no check and is counted by nothing. */
+const skip = (step, reason) => console.log(`SKIP  ${step}: ${reason}`);
 
 /* Page side: each function is stringified and run in the GM seat's page. */
 const P = {
@@ -218,12 +235,124 @@ const P = {
     await game.actors.get(a.unitId).update({ "system.unit.employerUuid": "", "system.unit.officerUuid": "" });
     return employer.system.henchmenList.length;
   },
+
+  /** The Player seat's side of step 12: who it is and whether the world lets its role create actors, read from the world's own permission setting and from the seat's `can`. */
+  playerCan: async () => {
+    const roles = game.settings.get("core", "permissions")?.ACTOR_CREATE ?? [];
+    const key = "ACKS-LIB.org.refused.noCreate";
+    return { userId: game.user.id, role: game.user.role, isGM: game.user.isGM, rolesWithCreate: roles, byRole: roles.includes(game.user.role), can: !!game.user.can("ACTOR_CREATE"), notice: game.i18n.localize(key), noticeResolves: game.i18n.has(key) && game.i18n.localize(key) !== key };
+  },
+
+  /** GM: the step's two fixtures at their shape: owned by the Player seat alone, one empty row on the faction, an empty roster and a Judge's note on the place. */
+  playerShape: async ({ factionId, placeId, userId }) => {
+    const faction = game.actors.get(factionId);
+    const place = game.actors.get(placeId);
+    const own = { default: 0, [userId]: 3 };
+    await faction.update({ ownership: own, "system.units": [], "system.members": [] });
+    await place.update({ ownership: own, "system.roster": [], "system.gmNotes": "<p>Walk place</p>" });
+    const added = await acksExtras.lib.org.addRow(faction, "", { label: "Player row" });
+    return { ok: added.ok, key: added.key ?? null, rows: faction.system.toObject().units.length, holderBlank: !faction.system.toObject().units[0]?.holderUuid, roster: place.system.roster.length };
+  },
+
+  /** The seat's view of the two fixtures: whether it owns them, the row's holder, the place's roster, and the creates its own user made since the step armed. */
+  playerRead: async ({ factionId, placeId, rowKey }) => {
+    const H = globalThis.__orgp;
+    const faction = game.actors.get(factionId);
+    const place = game.actors.get(placeId);
+    const row = faction?.system.toObject().units.find((r) => r.key === rowKey) ?? null;
+    return { seen: !!faction && !!place, ownsFaction: !!faction?.isOwner, ownsPlace: !!place?.isOwner, rowThere: !!row, holder: row?.holderUuid ?? null, roster: place?.system.roster.length ?? null, made: H?.made.slice() ?? [] };
+  },
+
+  /** The seat's recorders armed: its notices, and the actors its own user creates. */
+  playerArm: async () => {
+    const H = (globalThis.__orgp = globalThis.__orgp ?? { notes: [], made: [], opened: [], armed: false });
+    if (H.armed) return true;
+    H.armed = true;
+    H.warn = ui.notifications.warn;
+    H.info = ui.notifications.info;
+    for (const level of ["warn", "info"]) {
+      const fn = ui.notifications[level];
+      ui.notifications[level] = function (msg, ...rest) {
+        H.notes.push({ level, text: String(msg) });
+        return fn.call(this, msg, ...rest);
+      };
+    }
+    H.hook = Hooks.on("createActor", (actor, _options, userId) => { if (userId === game.user.id) H.made.push(actor.uuid); });
+    return true;
+  },
+
+  /** Press 1: the API call, as the seat that may not create actors makes it. */
+  playerApiPress: async ({ factionId, rowKey, placeUuid }) => {
+    const r = await acksExtras.lib.org.sendOut(game.actors.get(factionId), rowKey, placeUuid);
+    return { ok: r.ok, reason: r.reason ?? null, made: r.made ?? null };
+  },
+
+  /**
+   * Press 2: the faction's sheet opened on its Org chart tab, the empty row's card found, and the card's own
+   * press handler called on it with the place dialog answered as a user answers it. Answers whether the card
+   * draws a Send out button, whether the handler and the card's host were reachable, whether the place
+   * dialog opened and offered the place, and the notices raised from the call on.
+   */
+  playerUiPress: async ({ factionId, rowKey, placeUuid }) => {
+    const H = globalThis.__orgp;
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const poll = async (fn, tries = 60, every = 200) => {
+      for (let n = 0; n < tries; n++) {
+        const v = await fn();
+        if (v) return v;
+        await sleep(every);
+      }
+      return null;
+    };
+    const app = game.actors.get(factionId).sheet;
+    H.opened.push(app);
+    await app.render(true);
+    const root = () => (app.element?.nodeType === 1 ? app.element : app.element?.[0]) ?? null;
+    await poll(() => root()?.isConnected);
+    app.changeTab("orgChart", "primary");
+    const card = await poll(() => root()?.querySelector(`li[data-key="${rowKey}"]`));
+    if (!card) return { reached: false, why: "the empty row's card is not drawn on the Org chart tab" };
+    const drawn = !!card.querySelector('[data-action="orgSendOut"]');
+    const hostEl = card.closest("[data-org-host]");
+    const mod = await import("/modules/acks-extras/scripts/lib/org-chart-ui.mjs");
+    const handler = mod.ORG_ACTIONS?.orgSendOut;
+    if (!hostEl || typeof handler !== "function") return { reached: false, drawn, why: `the card's host marker ${!!hostEl}, the press handler ${typeof handler}` };
+    const markNotes = H.notes.length;
+    const markMade = H.made.length;
+    const pressed = handler.call(app, new Event("click"), card);
+    const select = await poll(() => document.querySelector('select[name="place"]'), 60, 150);
+    if (!select) return { reached: true, drawn, dialog: false, notes: H.notes.slice(markNotes) };
+    const offered = [...select.options].some((o) => o.value === placeUuid);
+    select.value = placeUuid;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    select.closest("dialog, .application")?.querySelector('button[data-action="ok"]')?.click();
+    await Promise.race([pressed, sleep(10000)]);
+    await sleep(500);
+    return { reached: true, drawn, dialog: true, offered, notes: H.notes.slice(markNotes), made: H.made.slice(markMade) };
+  },
+
+  /** The seat's recorders and windows put back. */
+  playerRestore: async () => {
+    const H = globalThis.__orgp;
+    if (!H) return false;
+    for (const app of H.opened) { try { await app.close({ force: true }); } catch (_e) { /* closed */ } }
+    H.opened = [];
+    document.querySelectorAll('select[name="place"]').forEach((s) => s.closest("dialog, .application")?.querySelector('button[data-action="cancel"], button[data-action="close"]')?.click());
+    if (H.armed) {
+      ui.notifications.warn = H.warn;
+      ui.notifications.info = H.info;
+      Hooks.off("createActor", H.hook);
+      H.armed = false;
+    }
+    return true;
+  },
 };
 
 const run = (api, fn, arg) => api.eval(`(${fn.toString()})(${JSON.stringify(arg ?? null)})`);
 
 const open = {};
 const swept = [];
+let player = null;
 let shapeArgs = null;
 let serviceArgs = null;
 
@@ -401,6 +530,51 @@ try {
   check("the Followers tab draws a card for each hireling, the officer's among them, and none for the unit", [hA.id, hB.id, officer.id].every((id) => tree.cards.includes(id)) && !tree.cards.includes(unit.id), tree.cards.length);
   check("the cards but a unit's officer are the employer's non-unit nodes, in order", same(cards, hirelings), { cards: cards.length, nodes: hirelings.length });
 
+  section("12. a seat that may not create actors presses Send out on an empty row (T-0777)");
+  try {
+    player = await connect({ browser, origin, user: MACHINE.player, port: PORTS.player, own: MACHINE.own });
+  } catch (err) {
+    skip("12: the Player seat did not connect, so no press was made", String(err?.message ?? err).slice(0, 200));
+  }
+  if (player) {
+    const can = await run(player, P.playerCan);
+    note("player seat", { role: can.role, isGM: can.isGM, rolesWithCreate: can.rolesWithCreate, byRole: can.byRole, can: can.can });
+    check("12: the seat is a Player and the lang key of the notice resolves to a sentence", !can.isGM && can.role < 3 && can.noticeResolves, { role: can.role, resolves: can.noticeResolves });
+    if (can.can || can.byRole) {
+      skip("12: this world lets the Player seat's role create actors", `the permission setting lists the role ${can.role} (${can.byRole}) and the seat's own test answers ${can.can}; the walk writes no permission, so the refusal cannot be reached`);
+    } else {
+      check("12: the world's permission setting and the seat's own test agree the seat may not create actors", can.byRole === false && can.can === false, { byRole: can.byRole, can: can.can });
+      const pFaction = await gm.fixture("lib/org-player-faction", "Actor", { name: named("player village"), type: "acks-extras.faction", items: [] });
+      const pPlace = await gm.fixture("lib/org-player-place", "Actor", { name: named("player place"), type: "acks-extras.location", items: [], system: { gmNotes: "<p>Walk place</p>" } });
+      const shaped12 = await run(gm, P.playerShape, { factionId: pFaction.id, placeId: pPlace.id, userId: can.userId });
+      check("12: the fixtures stand at their shape: one empty row on the faction, an empty roster on the place", shaped12.ok === true && !!shaped12.key && shaped12.rows === 1 && shaped12.holderBlank === true && shaped12.roster === 0, shaped12);
+      const arg = { factionId: pFaction.id, placeId: pPlace.id, rowKey: shaped12.key, placeUuid: pPlace.uuid };
+      await run(player, P.playerArm);
+      let seen = null;
+      for (let n = 0; n < 40 && !(seen?.rowThere && seen.ownsFaction && seen.ownsPlace); n++) { seen = await run(player, P.playerRead, arg); if (!(seen.rowThere && seen.ownsFaction && seen.ownsPlace)) await sleep(250); }
+      check("12: the Player seat sees the row and owns both the faction and the place", !!seen?.rowThere && !!seen.ownsFaction && !!seen.ownsPlace, seen);
+      if (seen?.rowThere && seen.ownsFaction && seen.ownsPlace) {
+        const api = await run(player, P.playerApiPress, arg);
+        check("12: org.sendOut on the empty row answers noCreate and made nothing", api.ok === false && api.reason === "noCreate" && !api.made, api);
+        let after = await run(player, P.playerRead, arg);
+        check("12: after the API press the row is still empty", after.holder === "" || after.holder === null, { holder: after.holder });
+        check("12: after the API press the place's roster is empty and this user created no actor", after.roster === 0 && after.made.length === 0, { roster: after.roster, made: after.made });
+        const ui12 = await run(player, P.playerUiPress, arg);
+        note("the card's press", { reached: ui12.reached, drawn: ui12.drawn, dialog: ui12.dialog, offered: ui12.offered, why: ui12.why ?? null });
+        if (!ui12.reached) {
+          skip("12: the card's own press handler was not reachable on the rendered empty card", ui12.why);
+        } else {
+          check("12: the empty card draws no Send out button of its own (the finding this step records), so the handler is called on the card", ui12.drawn === false, { drawn: ui12.drawn });
+          check("12: the handler opened the place dialog and it offered the owned place", ui12.dialog === true && ui12.offered === true, { dialog: ui12.dialog, offered: ui12.offered });
+          const warned = (ui12.notes ?? []).filter((x) => x.level === "warn" && x.text === can.notice);
+          check("12: the notice told is the lang text of the noCreate refusal, once", warned.length === 1, { told: (ui12.notes ?? []).map((x) => ({ level: x.level, text: x.text })), want: can.notice });
+          after = await run(player, P.playerRead, arg);
+          check("12: after the card's press no actor was created by this user, the row is still empty and the roster is empty", (after.holder === "" || after.holder === null) && after.roster === 0 && after.made.length === 0 && (ui12.made ?? []).length === 0, { holder: after.holder, roster: after.roster, made: after.made.length });
+        }
+      }
+    }
+  }
+
   walkDone();
 } catch (err) {
   console.log(`WALK ERROR: ${err?.message ?? err}`);
@@ -410,6 +584,8 @@ try {
   section("teardown");
   const gm = open.gm;
   try { if (gm) await run(gm, P.closeAll); } catch (err) { console.error("close:", err?.message ?? err); }
+  try { if (player) await run(player, P.playerRestore); } catch (err) { console.error("player restore:", err?.message ?? err); }
+  try { if (player) player.close(); } catch (_e) { /* closed */ }
   try { if (gm && swept.length) note("swept", await gm.sweepTracked({ only: swept })); } catch (err) { console.error("sweep:", err?.message ?? err); }
   try { if (gm && shapeArgs) note("shape at the end", (await run(gm, P.shape, shapeArgs)).rebuilt); } catch (err) { console.error("shape:", err?.message ?? err); }
   try { if (gm && serviceArgs) note("unwired, the employer's list now holds", await run(gm, P.serviceRelease, serviceArgs)); } catch (err) { console.error("unwire:", err?.message ?? err); }

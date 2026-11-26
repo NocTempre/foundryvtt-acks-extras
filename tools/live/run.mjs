@@ -104,7 +104,8 @@ const portBusy = (port) => new Promise((resolve) => {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const all = fs.readdirSync(here)
-  .filter((f) => f.endsWith(".mjs") && !f.startsWith("_") && f !== "run.mjs")
+  // perf-leads is a timing script (PERF_LEADS=1), not a gating walk: it is never listed or run here.
+  .filter((f) => f.endsWith(".mjs") && !f.startsWith("_") && f !== "run.mjs" && f !== "perf-leads.mjs")
   .map((f) => f.slice(0, -4))
   .sort();
 

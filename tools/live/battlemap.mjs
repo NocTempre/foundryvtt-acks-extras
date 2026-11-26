@@ -9,7 +9,8 @@
  *   docs/formation/TESTING.md  "The country" 1-9, then on the same fixtures the changed
  *                              steps 5-7 of battlemap "Terrain painting" and step 12
  *                              of battlemap "Roads"                               (part "country")
- *   docs/battlemap/TESTING.md  steps 14, 14a and 14b (part "hex")
+ *   docs/battlemap/TESTING.md  steps 14, 14a, 14b and 14d (part "hex"; 14d only where
+ *                              BATTLEMAP_HEX_MAPS carries `rowsWide` / `colsWide`)
  * and, under SHOTS=1, the release's snapshots for those entries (the "hex" part takes none).
  *
  * Machine values arrive through ./_env.mjs; nothing here names a port, a world or
@@ -55,6 +56,14 @@
  *               "bar": [x1, y1, x2, y2] image px along one hex row },
  *     "cols": { "src": ..., "scene": [w, h], "boxes": [[x, y, w, h], ...] five over five columns } }
  * Absent, the part is blocked and names the variable.
+ * Step 14d (hexes the scene stretches) reads two optional entries of the same object, and prints SKIP naming
+ * each one that is absent or malformed; the scenes are `battlemap/hex-rows-wide` and `battlemap/hex-cols-wide`,
+ * rebuilt every run like the others, and each entry's `scene` is a size NOT in the image's proportions:
+ *   "rowsWide": { "src": ..., "scene": [w, h], "boxes": [[x, y, w, h], ...] exactly four, image px, each tight around
+ *                 one hex: two side by side in one row, then two further along that row },
+ *   "colsWide": { "src": ..., "scene": [w, h], "boxes": [[x, y, w, h], ...] exactly two, image px, each tight around
+ *                 one hex, the second a few hexes from the first }
+ * Not asserted: that the red outlines lie on the drawn hexes (a shot), which prints SKIP.
  *
  * WALK_PLAN names an optional plan file:
  *   { "parts": ["layers", "modes", "country", "hex"], "retrack": ["<uuid>", ...] }
@@ -97,6 +106,7 @@ const check = (label, ok, detail) => {
   checks.push([label, !!ok]);
   console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail === undefined ? "" : "  " + (typeof detail === "string" ? detail : JSON.stringify(detail))}`);
 };
+const skip = (label, detail) => console.log(`SKIP  ${label}${detail === undefined ? "" : "  " + (typeof detail === "string" ? detail : JSON.stringify(detail))}`);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const shots = [];
 
@@ -1565,6 +1575,24 @@ const P = {
     return S.samples.squares.length;
   },
 
+  /** Every box out of the session's samples, as the footer's delete buttons would leave it; answers the count left. */
+  hexClearBoxes: async () => {
+    const S = globalThis.__rb.m.session.session;
+    S.samples.squares.splice(0);
+    S.onSamplesChanged();
+    return S.samples.squares.length;
+  },
+
+  /** The window's family-select label and the two family lines as lang renders them, to be matched against the warning lines. */
+  hexWideLines: async () => {
+    const family = game.i18n.localize("ACKS-BATTLEMAP.setup.family");
+    return {
+      family,
+      mismatch: game.i18n.format("ACKS-BATTLEMAP.warn.familyMismatch", { family }),
+      ambiguous: game.i18n.format("ACKS-BATTLEMAP.warn.familyAmbiguous", { family }),
+    };
+  },
+
   /** A scale bar into the session's samples, image px. */
   hexPushBar: async ({ bar }) => {
     const S = globalThis.__rb.m.session.session;
@@ -2863,6 +2891,97 @@ async function walkHex(W) {
   note("closed", await page(gm, P.closeAll));
 }
 
+/** A `rowsWide` or `colsWide` entry of BATTLEMAP_HEX_MAPS: the shape of the others, with `count` boxes exactly. */
+const wideEntryOk = (x, count) => typeof x?.src === "string" && Array.isArray(x.scene) && x.scene.length === 2 && Array.isArray(x.boxes) && x.boxes.length === count && x.boxes.every((b) => Array.isArray(b) && b.length === 4);
+
+/** The fit's family verdicts among a read's warnings, and whether the window's lines for them are showing. */
+const familyLines = (s, lines) => ({
+  ids: (s.fit?.warnings ?? []).filter((id) => id === "familyMismatch" || id === "familyAmbiguous"),
+  mismatchLine: s.warns.includes(lines.mismatch),
+  ambiguousLine: s.warns.includes(lines.ambiguous),
+});
+
+/**
+ * Step 14d, hexes the scene stretches: two scenes whose background is drawn at the scene's size, not the image's
+ * proportions, so a hex is not a regular hexagon in scene px. Optional (`rowsWide`, `colsWide` of BATTLEMAP_HEX_MAPS,
+ * the header gives their shape): an absent or malformed entry prints SKIP naming it, and its steps do not run.
+ */
+async function walkHexWide(W) {
+  const { gm } = W;
+  const wide = JSON.parse(HEX_MAPS_RAW);
+  const haveRows = wideEntryOk(wide.rowsWide, 4);
+  const haveCols = wideEntryOk(wide.colsWide, 2);
+  if (!haveRows) skip("14d rows: BATTLEMAP_HEX_MAPS carries no `rowsWide` entry of four boxes (the walk's header gives its shape), so the stretched-rows steps did not run", wide.rowsWide === undefined ? "absent" : "malformed");
+  if (!haveCols) skip("14d columns: BATTLEMAP_HEX_MAPS carries no `colsWide` entry of two boxes (the walk's header gives its shape), so the stretched-columns steps did not run", wide.colsWide === undefined ? "absent" : "malformed");
+  const lines = haveRows || haveCols ? await page(gm, P.hexWideLines) : null;
+  const noVerdict = (tag, s, lines) => {
+    const v = familyLines(s, lines);
+    check(`${tag}: the fit reads no other family and cannot-tell line`, v.ids.length === 0 && !v.mismatchLine && !v.ambiguousLine, { ids: v.ids, warns: s.warns.length });
+  };
+
+  if (haveRows) {
+    const rw = wide.rowsWide;
+    const built = await hexMap(gm, "battlemap/hex-rows-wide", "QA Hex rows wide", rw);
+    const e = await page(gm, P.hexEnter, { sceneId: built.scene.id });
+    check("H9: the rows-wide scene's window opened once, resting on the off tool", e.tool === "off" && e.mode === null && e.windows === 1, { tool: e.tool, mode: e.mode, windows: e.windows });
+    section("battlemap step 14d, rows: two boxes in one row, then four");
+    note("family", await page(gm, P.hexSet, { family: "hexRows" }));
+    note("two boxes pushed", await page(gm, P.hexPushBoxes, { boxes: rw.boxes.slice(0, 2) }));
+    let s = await page(gm, P.hexRead);
+    noVerdict("H9 two boxes", s, lines);
+    check("H9 two boxes: the fit reads both boxes' hexes", !!s.fit?.ok && s.fit.used === 2 && s.fit.boxes.every((b) => !b.unreachable && !b.notOneHex), { ok: s.fit?.ok, used: s.fit?.used, boxes: s.fit?.boxes });
+    note("two more pushed", await page(gm, P.hexPushBoxes, { boxes: rw.boxes.slice(2) }));
+    s = await page(gm, P.hexRead);
+    noVerdict("H9 four boxes", s, lines);
+    check("H9 four boxes: the fit reads all four boxes' hexes", !!s.fit?.ok && s.fit.used === 4 && s.fit.boxes.every((b) => !b.unreachable && !b.notOneHex), { ok: s.fit?.ok, used: s.fit?.used, boxes: s.fit?.boxes });
+
+    section("battlemap step 14d, rows: the same two boxes read as columns");
+    note("boxes cleared", await page(gm, P.hexClearBoxes));
+    note("two boxes pushed", await page(gm, P.hexPushBoxes, { boxes: rw.boxes.slice(0, 2) }));
+    note("family", await page(gm, P.hexSet, { family: "hexCols" }));
+    s = await page(gm, P.hexRead);
+    const v = familyLines(s, lines);
+    check("H10: the other-family line is showing and names the family select", v.ids.includes("familyMismatch") && v.mismatchLine && s.warns.some((w) => w.includes(lines.family)), { ids: v.ids, mismatchLine: v.mismatchLine, ambiguousLine: v.ambiguousLine });
+    note("closed", await page(gm, P.closeAll));
+  }
+
+  if (haveCols) {
+    const cw = wide.colsWide;
+    const built = await hexMap(gm, "battlemap/hex-cols-wide", "QA Hex cols wide", cw);
+    const e = await page(gm, P.hexEnter, { sceneId: built.scene.id });
+    check("H11: the columns-wide scene's window opened once, resting on the off tool", e.tool === "off" && e.mode === null && e.windows === 1, { tool: e.tool, mode: e.mode, windows: e.windows });
+    const start = await page(gm, P.hexPlaced, { sceneId: built.scene.id });
+    const imageRatio = built.tex.width / built.tex.height;
+    const sceneRatio = start.dims.w / start.dims.h;
+    const stretched = Math.abs(sceneRatio / imageRatio - 1) > 0.01;
+    if (!stretched) skip("14d columns: the scene is already in the image's proportions, so the apply's rescale proves nothing and its proportion check is not run; give `colsWide.scene` a stretched size", { sceneRatio: Number(sceneRatio.toFixed(4)), imageRatio: Number(imageRatio.toFixed(4)) });
+    section("battlemap step 14d, columns: one box, then a second a few hexes away");
+    note("family and units", await page(gm, P.hexSet, { family: "hexCols", units: "mi" }));
+    note("one box pushed", await page(gm, P.hexPushBoxes, { boxes: cw.boxes.slice(0, 1) }));
+    let s = await page(gm, P.hexRead);
+    check("H11 one box: one box already fits, and its row does not say it is not one hex", !!s.fit?.ok && s.fit.boxes.length === 1 && s.fit.boxes.every((b) => !b.notOneHex && !b.unreachable), { fit: s.fit ? { ok: s.fit.ok, boxes: s.fit.boxes, warnings: s.fit.warnings } : null });
+    note("second box pushed", await page(gm, P.hexPushBoxes, { boxes: cw.boxes.slice(1) }));
+    s = await page(gm, P.hexRead);
+    noVerdict("H11 two boxes", s, lines);
+    check("H11 two boxes: both boxes are read", !!s.fit?.ok && s.fit.used === 2 && s.fit.boxes.every((b) => !b.notOneHex && !b.unreachable), { ok: s.fit?.ok, used: s.fit?.used, boxes: s.fit?.boxes });
+    skip("14d columns: that the red outlines lie on the drawn hexes is read from a shot, not asserted here; the applied centres below are the numeric check");
+    note("cell worth typed", await page(gm, P.hexType, { name: "mapCellFeet", value: 6 }));
+    s = await page(gm, P.hexRead);
+    check("H11: with a worth typed Apply is enabled and nothing is asked for", !s.applyDisabled && s.needs.length === 0, { applyDisabled: s.applyDisabled, needs: s.needs });
+    const applied = await page(gm, P.hexApply);
+    note("apply", { pressed: applied.pressed, dialog: applied.dialog, notice: applied.notice, noticeKind: applied.noticeKind });
+    const after = await page(gm, P.hexPlaced, { sceneId: built.scene.id });
+    check("H11: grid.type is 4", after.grid.type === 4, after.grid);
+    const ratio = after.dims.w / after.dims.h;
+    if (stretched) check("H11: the scene's width and height come out in the image's own proportions (within 1%)", Math.abs(ratio / imageRatio - 1) <= 0.01, { sceneBefore: start.dims.w + "x" + start.dims.h, sceneAfter: after.dims.w + "x" + after.dims.h, image: built.tex.width + "x" + built.tex.height });
+    const centres = await page(gm, P.hexCentres, { boxes: cw.boxes });
+    note("box centres", centres);
+    const via = centres.viaSprite ?? centres.viaDims;
+    check(`H11: every drawn hex's centre lies within ${HEX_CENTRE_PX} px of a Foundry hex centre`, via.length === cw.boxes.length && Math.max(...via) <= HEX_CENTRE_PX, { source: centres.viaSprite ? "sprite" : "dims", viaSprite: centres.viaSprite, viaDims: centres.viaDims });
+    note("closed", await page(gm, P.closeAll));
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /*  The run                                                             */
 /* ------------------------------------------------------------------ */
@@ -2927,6 +3046,7 @@ try {
   if (PARTS.has("hex")) {
     section("PART: hex setup");
     await walkHex(W);
+    await walkHexWide(W);
   }
   walkDone();
 } catch (err) {

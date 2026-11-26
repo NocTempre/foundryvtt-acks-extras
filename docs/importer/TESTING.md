@@ -3539,9 +3539,9 @@ becomes a whole number, and weapons and armour gain one), so a play stamp
 recorded under 14.1.0 no longer matches a character nobody played. No
 migration answers it: a repair import does. This recipe checks that each
 answer leaves a character the next repair reads as matching. Offline:
-`tools/importer/test-import-kinds.mjs` (the stamp). Live: unwalked;
-`tools/live/importer-forced-places.mjs`'s `P.repair` drives a repair and its
-`choose`.
+`tools/importer/test-import-kinds.mjs` (the stamp). Live:
+`tools/live/importer-repair-pregen.mjs` (its `P.repair` is
+`tools/live/importer-forced-places.mjs`'s, copied).
 
 ### Fixtures
 

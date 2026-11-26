@@ -10,7 +10,11 @@ by hand. Its part `hex` walks steps 14, 14a and 14b through the Map setup
 window on two scenes it rebuilds every run (`battlemap/hex-walk-rows`,
 `battlemap/hex-walk-cols`); their images and box geometry are machine facts,
 read from `BATTLEMAP_HEX_MAPS` (the walk's header gives its shape), and the
-part is blocked without it.
+part is blocked without it. Step 14d runs in the same part on two more scenes
+rebuilt every run (`battlemap/hex-rows-wide`, `battlemap/hex-cols-wide`), from
+the optional `rowsWide` and `colsWide` entries of that variable; an absent entry
+prints SKIP and its steps do not run. The walk does not assert 14d's red
+outlines (a shot).
 
 ## Fixtures
 
