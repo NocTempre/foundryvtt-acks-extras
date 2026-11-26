@@ -490,8 +490,10 @@ const P = {
   inventory: async ({ actorId, itemIds }) => {
     const H = globalThis.__s11;
     const actor = game.actors.get(actorId);
-    const sheet = actor.sheet;
-    if (!sheet.rendered) await sheet.render({ force: true });
+    // A monster opens on the Follower Card by default; its Inventory tab belongs to the Full Monster sheet, opened by class as the monsters walks do.
+    const Full = Object.values(CONFIG.Actor.sheetClasses.monster ?? {}).map((e) => e.cls).find((c) => c.name === "FullMonsterSheet");
+    const sheet = Full ? new Full({ document: actor }) : actor.sheet;
+    await sheet.render({ force: true });
     H.opened.push(sheet);
     await H.poll(() => sheet.rendered && H.root(sheet));
     try { sheet.changeTab("inventory", "primary"); } catch { /* not offered: the rows read empty */ }
