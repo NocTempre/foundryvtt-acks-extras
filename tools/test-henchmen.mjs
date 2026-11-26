@@ -1251,31 +1251,23 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
     {
       // A transfer hands the hireling to the new employer's owners and takes it from the old one's.
       const owned = (...ids) => ({ ownership: { default: 0, ...Object.fromEntries(ids.map((id) => [id, 3])) } });
-      const apply = (current, diff) => {
-        const out = { ...current };
-        for (const [k, v] of Object.entries(diff)) {
-          if (v instanceof foundry.data.operators.ForcedDeletion) delete out[k];
-          else out[k] = v;
-        }
-        return out;
-      };
-      const dropped = (diff) => Object.keys(diff).filter((k) => diff[k] instanceof foundry.data.operators.ForcedDeletion);
+      // Core's ownership field takes levels only: every value of the map a transfer writes is one.
+      const levelsOnly = (map) => Object.values(map).every((v) => Number.isInteger(v) && v >= 0 && v <= 3);
       const held = { default: 0, playerA: 3, gm: 3 };
-      let diff = hire.transferOwnership(held, owned("playerA", "gm"), owned("playerB", "gm"));
-      let after = apply(held, diff);
-      assert.deepStrictEqual(dropped(diff), ["playerA"], "the old employer's player is dropped by a forced deletion");
-      assert.strictEqual(after.playerB, 3, "a transfer gives the new employer's owner Owner on the hireling");
-      assert.ok(!("playerA" in after), "and takes the old employer's player's grant away");
-      assert.strictEqual(after.default, 0, "the default level is left as it was");
-      assert.strictEqual(after.gm, 3, "a user who owns both employers keeps the hireling");
-      diff = hire.transferOwnership({ default: 0, playerA: 3 }, owned("playerA"), owned("playerA"));
-      assert.deepStrictEqual(apply({ default: 0, playerA: 3 }, diff), { default: 0, playerA: 3 }, "a transfer between one player's two characters changes nothing");
-      assert.deepStrictEqual(dropped(diff), [], "and drops no one");
-      diff = hire.transferOwnership({ default: 0, playerA: 3 }, owned("playerA"), owned("gm"));
-      assert.deepStrictEqual(apply({ default: 0, playerA: 3 }, diff), { default: 0, gm: 3 }, "an employer only a Judge owns leaves no player grant");
-      diff = hire.transferOwnership({ default: 0, playerA: 2 }, owned("playerA"), owned("playerB"));
-      assert.deepStrictEqual(dropped(diff), [], "a level the old hire did not grant is left as set");
-      assert.deepStrictEqual(hire.transferOwnership(undefined, { ownership: {} }, { ownership: {} }), {}, "two employers with no owners write nothing");
+      let after = hire.transferOwnership(held, owned("playerA", "gm"), owned("playerB", "gm"));
+      assert.deepStrictEqual(after, { default: 0, gm: 3, playerB: 3 }, "a transfer answers the whole map: the new owner in, the old employer's player out, the rest as it was");
+      assert.ok(levelsOnly(after), "and the map holds levels alone, with no deletion operator on a key");
+      assert.deepStrictEqual(held, { default: 0, playerA: 3, gm: 3 }, "the ownership it was given is not changed in place");
+      after = hire.transferOwnership({ default: 0, playerA: 3 }, owned("playerA"), owned("playerA"));
+      assert.deepStrictEqual(after, { default: 0, playerA: 3 }, "a transfer between one player's two characters changes nothing");
+      assert.ok(hire.sameOwnership({ default: 0, playerA: 3 }, after), "which the caller reads as no write owed");
+      after = hire.transferOwnership({ default: 0, playerA: 3 }, owned("playerA"), owned("gm"));
+      assert.deepStrictEqual(after, { default: 0, gm: 3 }, "an employer only a Judge owns leaves no player grant");
+      after = hire.transferOwnership({ default: 0, playerA: 2 }, owned("playerA"), owned("playerB"));
+      assert.deepStrictEqual(after, { default: 0, playerA: 2, playerB: 3 }, "a level the old hire did not grant is left as set");
+      assert.deepStrictEqual(hire.transferOwnership(undefined, { ownership: {} }, { ownership: {} }), {}, "two employers with no owners answer an empty map");
+      assert.ok(!hire.sameOwnership({ default: 0, playerA: 3 }, { default: 0, playerB: 3 }), "two maps with different keys differ");
+      assert.ok(!hire.sameOwnership({ default: 0, playerA: 3 }, { default: 0, playerA: 3, gm: 3 }), "and so do two of different size");
     }
     const employer =makeActor("emp", { name: "Employer", type: "character", system: { details: { level: 3 }, scores: { cha: { mod: 0 } }, retainer: {} } });
     employer.addHenchman = async () => {};

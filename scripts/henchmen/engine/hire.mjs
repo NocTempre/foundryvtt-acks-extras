@@ -34,7 +34,6 @@ import * as adapter from "../acks-adapter.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
 import { now, secondsPerMonth } from "../time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
-import { unset } from "../../lib/util.mjs";
 import { hirelingBuckets } from "./service-tree.mjs";
 import { appendMarketLog } from "../../location/data/market-log.mjs";
 import { gpText } from "../../lib/money-logic.mjs";
@@ -158,20 +157,32 @@ export function employerOwnership(employer) {
 }
 
 /**
- * The ownership diff a transfer writes to a hireling: the new employer's grant
- * (`employerOwnership`), plus a deletion for every user the old employer's hire
- * granted Owner who is not among the new employer's owners. A user outside the
- * old grant, or holding less than Owner on the hireling, is left as set.
+ * A hireling's whole ownership after a transfer: what it holds now, without
+ * the key of every user the old employer's hire granted Owner who is not among
+ * the new employer's owners, and with the new employer's grant
+ * (`employerOwnership`). A user outside the old grant, or holding less than
+ * Owner on the hireling, is left as set.
+ *
+ * It is the whole map and never a diff: core's ownership field takes levels
+ * only, so a deletion operator on one of its keys fails the field's validation
+ * and the write is dropped. The caller writes this map as a replacement.
  * @param {Object<string, number>} current the hireling's ownership now
  * @param {Actor} from the employer the hireling leaves
  * @param {Actor} to the employer it joins
- * @returns {Object<string, number|ForcedDeletion>} an update diff, not a whole ownership: a user dropped carries `unset()`
+ * @returns {Object<string, number>} every key the hireling's ownership holds after the transfer
  */
 export function transferOwnership(current, from, to) {
   const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS?.OWNER ?? 3;
   const granted = employerOwnership(to);
-  const dropped = Object.keys(employerOwnership(from)).filter((id) => !(id in granted) && (current?.[id] ?? 0) >= OWNER);
-  return { ...granted, ...Object.fromEntries(dropped.map((id) => [id, unset()])) };
+  const dropped = new Set(Object.keys(employerOwnership(from)).filter((id) => !(id in granted) && (current?.[id] ?? 0) >= OWNER));
+  const kept = Object.fromEntries(Object.entries(current ?? {}).filter(([id]) => !dropped.has(id)));
+  return { ...kept, ...granted };
+}
+
+/** Whether two ownership maps hold the same keys at the same levels. */
+export function sameOwnership(a, b) {
+  const left = Object.entries(a ?? {});
+  return left.length === Object.keys(b ?? {}).length && left.every(([id, level]) => b?.[id] === level);
 }
 
 /** The employer level the candidate was shown (RR 168 presented level). */
