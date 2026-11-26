@@ -327,6 +327,9 @@
 
 .acks-extras-org-chip--inner { background: var(--acks-tint); }
 
+/* A lord's follower chip (service mode): its Send out and Recall are compact, as a card foot's are. */
+.acks-extras-org-chip__act { width: auto; height: auto; line-height: 1.4; padding: 0.1rem 0.5rem; }
+
 .acks-extras-org-chip.is-covered {
   opacity: 0.7;
 }

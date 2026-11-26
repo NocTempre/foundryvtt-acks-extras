@@ -11,14 +11,17 @@
  *
  * Both sheets spread `ORG_ACTIONS` into their `actions` (each handler finds its host
  * from the markup it was pressed in, so one set serves both), and read
- * `chartContext` / `locationsContext` in `_prepareContext`.
+ * `chartContext` / `locationsContext` in `_prepareContext`. A character's Followers tab draws
+ * the same partials in service mode, over a lord's service nodes, through `serviceChartContext`
+ * / `serviceLocationsContext`; its Send out and Recall are keyed by the follower's uuid
+ * (`org.sendOutHolder`, `org.recallHolder`), the markup's `data-org-service` choosing them.
  */
 import { MODULE_ID, ORG_LANG_PREFIX } from "./constants.mjs";
 import { renderFollowerCard } from "./follower-card.mjs";
 import * as services from "./services.mjs";
-import { bodyCount, isGroupActor, worldGroups } from "./group-logic.mjs";
+import { bodyCount, groupNodes, isGroupActor, worldGroups } from "./group-logic.mjs";
 import * as org from "./org.mjs";
-import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, countDieOf, dieChangeOf, dieFloorOf, emptyKeys, formDraftsOf, familyOfRows, hostLeaderState, isPartRow, officerCreatureTypes, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, readAfterIndex, removalRows, restorableDrafts, roleOf, slotPosition, subtreeView, templateOf, thrownOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
+import { CONFIRM_REMOVE_SETTING, asksBeforeRemoving, branchKeys, byHandOf, chartCards, countDieOf, dieChangeOf, dieFloorOf, emptyKeys, formDraftsOf, familyOfRows, hostLeaderState, isPartRow, officerCreatureTypes, leaderRoleOf, liftedBy, nextLevelKind, officerActorData, officerChangeOf, officerControls, officerDropVerdict, officerLineRole, officerLineShown, officerSourceOf, officerStateOf, readAfterIndex, removalRows, restorableDrafts, roleOf, serviceFlags, serviceRowFlags, serviceRows, serviceSummary, serviceTotal, slotPosition, subtreeView, templateOf, thrownOf, unlistedView, withRecall, windowNames } from "./org-chart-ui-logic.mjs";
 import { DELETE_LINKED_SETTING, WARN_DELETE_SETTING, deleteOffered, linkedToDelete, makeUndoMemory, undoOffered, undoView, warningModel } from "./org-delete-logic.mjs";
 import { isLocation, packIdOf } from "./place.mjs";
 import { outputActorType } from "./template-generate.mjs";
@@ -71,6 +74,27 @@ export function hostFor(actor) {
 function citesOf(holder) {
   const cites = (holder?.system?.stacks ?? []).map((s) => s.gen?.cite).filter(Boolean);
   return [...new Set(cites)].join(" · ");
+}
+
+/**
+ * What a card's bodies line draws and its tooltips say, from the group that holds it: the
+ * stacks, their page references, whether the count was set by hand, and the two tooltips
+ * assembled from them. A holder that is no group has no stacks.
+ * @param {Actor|null} holder
+ * @param {string} name the card's name
+ */
+function countLineOf(holder, name) {
+  const stacks = isGroupActor(holder) ? (holder.system.stacks ?? []) : [];
+  const cites = citesOf(holder);
+  const hand = byHandOf(stacks);
+  const thrown = stacks.map(thrownOf).find(Boolean) ?? null;
+  return {
+    stacks,
+    cites,
+    byHand: !!hand,
+    handTip: hand ? loc("card.handTip", { n: hand.now, rolled: hand.rolled, cites }) : "",
+    countTip: thrown ? loc("edit.thrownTip", { ...thrown, cites }) : loc("card.countTip", { name, cites }),
+  };
 }
 
 /** The troop choice of a stack's prototype and its options, through the generator's service; null where it has none. */
@@ -204,13 +228,21 @@ async function officerLineOf(card, { holder, editable, rows, hostGen = null }) {
   };
 }
 
+/**
+ * An actor's Follower Card as a card's head: the card in the wrapper the Show control finds its
+ * actor from. `frame` is a role frame with its badges, or none.
+ */
+async function followerHead(actor, frame = null) {
+  const html = await renderFollowerCard(actor, { editable: false, controls: false, ...(frame ? { frame } : {}) });
+  return `<div class="acks-extras-org-card__leader" data-uuid="${escape(actor.uuid)}">${html}</div>`;
+}
+
 /** One card's leader as the chart draws it: the follower card in a role frame with its badges, or null where the row has none. */
 async function leaderHtml(card) {
   const actor = card.officer ? docOf(card.officer.uuid) : null;
   if (!actor) return "";
   const badges = (services.get("org-chart")?.badges?.({ actor, row: card }) ?? []).map((b) => ({ corner: b.corner, label: b.label, tip: b.tip, icon: b.icon, byHand: b.byHand }));
-  const html = await renderFollowerCard(actor, { editable: false, controls: false, frame: { role: card.role.key, word: card.role.word, label: card.role.label, tip: card.role.tip, badges } });
-  return `<div class="acks-extras-org-card__leader" data-uuid="${escape(actor.uuid)}">${html}</div>`;
+  return followerHead(actor, { role: card.role.key, word: card.role.word, label: card.role.label, tip: card.role.tip, badges });
 }
 
 /**
@@ -241,10 +273,7 @@ export async function chartContext(actor, app, { isGM }) {
   const editing = editsOf(app);
   const decorate = async (list) => Promise.all(list.map(async (c) => {
     const holder = docOf(c.holderUuid);
-    const stacks = isGroupActor(holder) ? (holder.system.stacks ?? []) : [];
-    const cites = citesOf(holder);
-    const hand = byHandOf(stacks);
-    const thrown = stacks.map(thrownOf).find(Boolean) ?? null;
+    const { stacks, cites, byHand, handTip, countTip } = countLineOf(holder, c.name);
     const inEdit = editable && editing.has(c.key);
     const officerLine = c.empty ? null : await officerLineOf(c, { holder, editable, rows, hostGen });
     const officerGone = !!officerLine?.gone;
@@ -257,9 +286,9 @@ export async function chartContext(actor, app, { isGM }) {
       groupGone,
       canRoll: c.canRoll && (!groupGone || !!game.user?.can?.("ACTOR_CREATE")),
       cites,
-      countTip: thrown ? loc("edit.thrownTip", { ...thrown, cites }) : loc("card.countTip", { name: c.name, cites }),
-      byHand: !!hand,
-      handTip: hand ? loc("card.handTip", { n: hand.now, rolled: hand.rolled, cites }) : "",
+      countTip,
+      byHand,
+      handTip,
       role,
       leader: await leaderHtml({ ...c, role }),
       editing: inEdit,
@@ -288,6 +317,73 @@ export async function chartContext(actor, app, { isGM }) {
       expand: view.rows.length > 0,
       recipe: editable && typeof monsters?.openRecipeEditor === "function" && !!top,
     },
+  };
+}
+
+/** The service view each open window last drew, by window: Collapse all reads its branches, since a folded card's own children are already emptied. */
+const serviceViews = new WeakMap();
+
+/**
+ * What the Organisation partial draws for a lord's service tree (a character's Followers tab):
+ * the same shape `chartContext` answers, with `service: true`, over `serviceNodes`' nodes the
+ * tab passes in (lib imports no feature's reader). The employer is the root card, name and art
+ * with a count of its direct followers; every other card's head is its own Follower Card, or
+ * for a hired unit its officer's, in no role frame, over the unit's bodies line. There is no
+ * form, die, plate or Undo here and the only tool is Expand all and Collapse all: a service row
+ * stores nothing the chart could write through, so Open is the follower's own sheet. Send out
+ * and Recall follow the seat's ownership of the employer.
+ * @param {Actor} employer the actor whose followers they are
+ * @param {{key: string, parentKey: string, label: string, holderUuid: string, kind: string}[]} nodes `serviceNodes(employer)`
+ * @param {object} app the sheet, for its folds
+ * @param {{isGM: boolean}} options
+ * @returns {Promise<object>}
+ */
+export async function serviceChartContext(employer, nodes, app, { isGM }) {
+  const rootKey = employer.uuid;
+  const owns = !!employer.isOwner;
+  const groups = groupNodes();
+  const view = org.orgChartView(nodes, (uuid) => org.readHolder(uuid, groups), [], { isGM });
+  serviceViews.set(app, view);
+  const outAt = {};
+  for (const r of view.rows) {
+    if (!r.holderUuid || r.key === rootKey) continue;
+    const names = org.rostersHolding(r.holderUuid).map((u) => docOf(u)?.name).filter(Boolean);
+    if (names.length) outAt[r.holderUuid] = names;
+  }
+  const cards = chartCards(view.roots, { collapsed: foldOf(app), outAt, canRoll: () => false, canEdit: false });
+  const summary = serviceSummary(view.rows.find((r) => r.key === rootKey)?.children, (uuid) => isGroupActor(docOf(uuid)));
+  const decorate = (list) => Promise.all(list.map(async (c) => {
+    const isRoot = c.key === rootKey;
+    const holder = docOf(c.holderUuid);
+    const group = isGroupActor(holder);
+    const head = isRoot ? null : group ? (c.officer ? docOf(c.officer.uuid) : null) : holder;
+    const { cites, byHand, handTip, countTip } = countLineOf(holder, c.name);
+    return {
+      ...c,
+      ...serviceFlags(c, { isGroup: group, isRoot, owns }),
+      cites,
+      countTip,
+      byHand,
+      handTip,
+      ...(isRoot ? { summary: loc("service.summary", summary), summaryTip: loc("service.summaryTip", { name: c.name }) } : {}),
+      leader: head ? await followerHead(head) : "",
+      children: await decorate(c.children),
+    };
+  }));
+  return {
+    hostUuid: employer.uuid,
+    rootKey: "",
+    editable: false,
+    isGM,
+    empty: nodes.length <= 1,
+    service: true,
+    cards: await decorate(cards),
+    total: serviceTotal(view, rootKey),
+    emptyCards: 0,
+    plate: "",
+    unlisted: null,
+    undo: null,
+    tools: { roll: false, design: false, warband: false, expand: view.rows.length > 1, recipe: false },
   };
 }
 
@@ -338,6 +434,50 @@ export function locationsContext(host, { isGM }) {
     }))
     .filter((p) => p.groups.length);
   return { hostUuid: host.uuid, editable, places, unplaced: view.unplaced.filter(mine), isEmpty: !places.length && !view.unplaced.filter(mine).length };
+}
+
+/**
+ * What the Locations partial draws for a lord's service tree: each place with the followers
+ * on its roster, the chips beneath each, and the followers on no place, who stand with their
+ * employer (`unplacedLabel`). `chartContext`'s `locationsContext`, over `serviceNodes`' nodes
+ * minus the root, reading the places through `org.placesOf` so a hidden roster row stays a
+ * Judge's. A chip's Send out follows the seat's ownership of the employer, and its Recall
+ * is drawn for a follower standing directly on a roster.
+ * @param {Actor} employer
+ * @param {{key: string, parentKey: string, label: string, holderUuid: string, kind: string}[]} nodes `serviceNodes(employer)`
+ * @param {{isGM: boolean}} options
+ */
+export function serviceLocationsContext(employer, nodes, { isGM }) {
+  const owns = !!employer.isOwner;
+  const groups = groupNodes();
+  const view = org.locationsView({
+    places: org.placesOf({ isGM }),
+    rows: serviceRows(nodes, employer.uuid, employer.uuid),
+    read: (uuid) => org.readHolder(uuid, groups),
+  });
+  const places = view.places
+    .map((p) => ({
+      uuid: p.uuid,
+      name: p.name,
+      total: p.total,
+      groups: p.groups
+        .map((g) => {
+          const rows = g.rows.map((r) => ({ ...serviceRowFlags(r, owns), countTip: loc("locations.countTip", { name: r.label, place: p.name, cites: citesOf(docOf(r.holderUuid)) }) }));
+          return { ...g, rows, holds: rows.some((r) => r.inside), countTip: loc("locations.countTip", { name: g.name, place: p.name, cites: citesOf(docOf(g.uuid)) }) };
+        })
+        .filter((g) => g.rows.length),
+    }))
+    .filter((p) => p.groups.length);
+  const unplaced = view.unplaced.map((r) => ({ ...r, service: true, canSend: owns, canRecall: false }));
+  return {
+    hostUuid: employer.uuid,
+    editable: owns,
+    service: true,
+    places,
+    unplaced,
+    unplacedLabel: loc("service.with", { name: employer.name ?? "" }),
+    isEmpty: !places.length && !unplaced.length,
+  };
 }
 
 /** The groups standing directly inside this group: what "Groups in this group" lists. */
@@ -1120,7 +1260,8 @@ async function onSendOut(_event, target) {
     rejectClose: false,
   });
   if (!picked) return;
-  const result = await org.sendOut(host, key, picked);
+  // A lord's service tree names its follower by uuid, which is the card's key there; a chart row's key is the row's.
+  const result = target.closest("[data-org-service]") ? await org.sendOutHolder(host, key, picked) : await org.sendOut(host, key, picked);
   if (!result.ok) refuse(result);
   render(this);
 }
@@ -1129,7 +1270,7 @@ async function onSendOut(_event, target) {
 async function onRecall(_event, target) {
   const { host, key } = await targetOf(target);
   if (!host) return;
-  const result = await org.recall(host, key);
+  const result = target.closest("[data-org-service]") ? await org.recallHolder(host, key) : await org.recall(host, key);
   if (!result.ok) refuse(result, "recallRefused");
   render(this);
 }
@@ -1368,6 +1509,10 @@ function onExpandAll() {
 
 /** Collapse all: every branch with rows beneath it folded. */
 async function onCollapseAll(_event, target) {
+  if (target.closest("[data-org-service]")) {
+    for (const k of branchKeys(serviceViews.get(this))) foldOf(this).add(k);
+    return render(this);
+  }
   const { host, root } = await targetOf(target);
   if (!host) return;
   const view = org.orgChart(host, { isGM: true });

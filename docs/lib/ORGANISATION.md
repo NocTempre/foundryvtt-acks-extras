@@ -174,6 +174,41 @@ a character's Followers tab. Pure functions over plain data in
   A row whose holder stands on no place is listed in `unplaced`. A roster row
   marked hidden is a Judge's alone.
 
+### The Followers tab's service mode
+
+A lord's followers are a chart of their own kind: who serves whom is stored as child
+pointers on the followers (henchmen's `serviceNodes`, [henchmen/MODEL.md](../henchmen/MODEL.md),
+"Who serves whom"), so there are no rows to write through. The tab hands those nodes in and lib
+draws them through the same two partials, never a second tree or a second card:
+
+- **`serviceChartContext(employer, nodes, app, {isGM})`** is `orgChartView` and `chartCards`
+  over the nodes, answering `chartContext`'s shape with `service: true`, `editable: false` and
+  the tools of Expand all and Collapse all alone (no Roll, Design, Add, recipe, plate or Undo).
+  The partials switch on the flag, stamped on the context and on every card, since a template's
+  loops leave the root's behind, and the section carries `data-org-service` and the employer as
+  `data-org-host`; the faction's and the group's sheets render as they did. The employer is the
+  root card: its name and art and "{henchmen} henchmen · {units} units", the lone actors and the
+  groups directly under it, with a tooltip saying where they are read from. Every other card's
+  head is its own Follower Card, or for a hired unit its officer's, in no role frame (the frame
+  is the village's) and with no role word, officer line, form or die. A hired unit keeps its
+  bodies line; a lone actor, which is one body, has none. The foot is Open, Recall and Send out.
+  **Open is the edit:** a service row stores nothing the card could write through, so the pen
+  opens the follower's own sheet (a unit's group sheet). Show is the Follower Card's own control.
+- **`serviceLocationsContext(employer, nodes, {isGM})`** is `locationsView` over the nodes without
+  the root, each naming the employer as its host, the places read through `org.placesOf` (the one
+  reader, so a hidden roster row stays a Judge's). A follower on no roster stands with its
+  employer, so the unplaced row reads "With {employer}". A chip has Send out, and Recall where
+  the follower stands directly on a roster.
+- **Send out and Recall** are `org.sendOutHolder(employer, holderUuid, placeUuid)` and
+  `org.recallHolder(employer, holderUuid)`: the card's `data-key`, which is the node key, is the
+  follower's uuid, so the press needs no row. Both follow Foundry ownership only: the seat must
+  own the employer (`notOwner`), and the place's owner check is `carryOut`'s; no test reads
+  `isGM`. Send out is `planSendOut`; Recall is `planRecallFollower`, which takes the follower
+  off every roster that holds it and nothing else
+  ([DECISIONS](DECISIONS.md), 2026-11-25, "A follower's Recall takes it off every roster").
+  Collapse all folds the stored view's branches (`serviceViews`), since the cards of a folded
+  branch have already lost their children.
+
 ## Leader and morale
 
 A unit's leader is one actor, named by its group's `unit.officerUuid`
@@ -421,22 +456,25 @@ feature's `rollOrganisation`, and writes at once: there is nothing to save, no r
 - **Locations** lists each place with the groups of the host's rows on its roster, a chip per
   row, and the rows whose group stands on no place; a chip's Recall brings its group back, and is drawn only where `recall` can succeed (`recallOffered`: not a top row, and a parent row that holds a group). A parent that holds a lone actor, or a cut chart's root whose parent is out of view, can still refuse and says why.
 
-`readHolder`, `orgChartView` and `locationsView` are on the lib api (`org`) for the
-Followers tab's views.
+`readHolder`, `orgChartView` and `locationsView` are on the lib api (`org`), with
+`placesOf`, `sendOutHolder` and `recallHolder`; the two service contexts are exports of
+`org-chart-ui.mjs`, imported as `chartContext` is.
 
 ## What is not here
 
-Design by selection (the per-slot panel of board 1b) and a card's troop-type pick. A
-character's service tree reaches the same nodes through henchmen's `serviceNodes`
-([henchmen/MODEL.md](../henchmen/MODEL.md), "Who serves whom").
+Design by selection (the per-slot panel of board 1b) and a card's troop-type pick. Who serves
+whom is not read here: a character's service tree is henchmen's `serviceNodes`
+([henchmen/MODEL.md](../henchmen/MODEL.md), "Who serves whom"), passed in to the service
+contexts above, and lib imports no feature's reader.
 
 ## Verification
 
 Offline: `tools/test-org-tree.mjs` (the node, the plans, the views, the morale walk
 and the affiliation list), `tools/test-org.mjs` (the index and its deletes, the
-writes over mocked documents and their order, the twin a stopped join leaves),
+writes over mocked documents and their order, a follower sent out and recalled by uuid, the twin a stopped join leaves),
 `tools/test-org-run.mjs` (the executor and Delete), `tools/test-group-command.mjs` (command morale through the real getter) and
 `tools/test-factions.mjs` (the affiliation readers), `tools/test-org-write.mjs` (the
-Roll, Add and Edit plans) and `tools/test-group-faction.mjs` (the faction line and its
-presses). Live: docs/lib/TESTING.md, "The organisation chart through the API" and
+Roll, Add and Edit plans), `tools/test-group-faction.mjs` (the faction line and its
+presses) and `tools/test-org-service.mjs` (a lord's service tree through the chart's and
+the Locations rows' adapters). Live: docs/lib/TESTING.md, "The organisation chart through the API" and
 "Join, leave and make its own".

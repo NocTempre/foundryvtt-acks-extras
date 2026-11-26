@@ -196,6 +196,82 @@ export function subtreeView(view, key) {
 }
 
 /**
+ * What a lord's root card counts: its direct followers, the lone actors (hirelings) apart
+ * from the groups (hired units). Read from the view's own children, so a folded root still
+ * counts what it hides.
+ * @param {{holderUuid?: string}[]} children the root's children in `orgChartView`
+ * @param {(holderUuid: string) => boolean} isGroup whether a holder is a group actor
+ * @returns {{henchmen: number, units: number}}
+ */
+export function serviceSummary(children, isGroup) {
+  let units = 0;
+  for (const c of children ?? []) if (isGroup(c?.holderUuid)) units++;
+  return { henchmen: (children ?? []).length - units, units };
+}
+
+/**
+ * The bodies a lord's chart totals: every card but the root, a card inside another's
+ * group counted once. The root is the sheet's own actor and is not one of its followers.
+ * @param {{rows: {key: string, count: number, covered?: boolean}[]}} view `orgChartView`'s answer
+ * @param {string} rootKey
+ * @returns {number}
+ */
+export function serviceTotal(view, rootKey) {
+  return (view?.rows ?? []).reduce((sum, r) => sum + (r.key === rootKey || r.covered ? 0 : r.count), 0);
+}
+
+/**
+ * The service-mode marks of one card (the Followers tab draws a lord's service tree through the
+ * chart partials): no role frame, no form, no die, and a foot of Open, Send out and Recall. A
+ * lone actor and the root draw no bodies line (a lone actor is one); the root draws no foot controls
+ * (it is the sheet's own actor). Send out and Recall follow the seat's ownership of the employer, and
+ * Recall is drawn only for a follower standing on a roster.
+ * @param {{isOut?: boolean}} card a `chartCards` card
+ * @param {{isGroup: boolean, isRoot: boolean, owns: boolean}} facts
+ * @returns {object} the fields laid over the card
+ */
+export function serviceFlags(card, { isGroup, isRoot, owns }) {
+  const mayMove = !!owns && !isRoot;
+  return {
+    service: true,
+    root: !!isRoot,
+    lone: !!isRoot || !isGroup,
+    role: null,
+    canEdit: false,
+    canRoll: false,
+    editing: false,
+    groupGone: false,
+    canSend: mayMove,
+    canRecall: mayMove && !!card?.isOut,
+  };
+}
+
+/**
+ * The Locations rows of a lord's service tree: every node but the root, each naming the
+ * employer as its host, in the shape `locationsView` takes.
+ * @param {{key: string, parentKey: string, label: string, holderUuid: string, kind: string}[]} nodes `serviceNodes`' answer
+ * @param {string} rootKey the employer's key
+ * @param {string} hostUuid the employer
+ * @returns {object[]}
+ */
+export function serviceRows(nodes, rootKey, hostUuid) {
+  return (nodes ?? []).filter((n) => n.key !== rootKey).map((n) => ({ ...n, hostUuid }));
+}
+
+/**
+ * A Locations chip's service marks (`service` on the chip itself, since a template's loops leave the
+ * root's flag behind): Send out wherever the seat owns the employer, Recall
+ * only for a follower standing directly on a roster (one inside a group on the roster
+ * stands on none itself, so there is nothing to take it off).
+ * @param {{inside?: boolean}} row a `locationsView` row
+ * @param {boolean} owns whether the seat owns the employer
+ * @returns {object}
+ */
+export function serviceRowFlags(row, owns) {
+  return { ...row, service: true, canSend: !!owns, canRecall: !!owns && !row?.inside };
+}
+
+/**
  * The unit word a chart already uses one level below its top, for a hand-added
  * warband-level row: where the rows beneath the top share a kind, a new row takes it;
  * otherwise it takes none and is named only by its label.

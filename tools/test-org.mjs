@@ -334,6 +334,101 @@ t("recall under a group that would close a loop is refused by the group's own gu
 });
 
 /* -------------------------------------------- */
+/*  A follower sent out and recalled, by uuid     */
+/* -------------------------------------------- */
+
+t("a follower is sent out by its own uuid: the place first, then the group leaves its parent, and no row is read", async () => {
+  reset();
+  const lord = makeActor("character", "Lord", {});
+  const war = group("Warband", { bodies: 4 });
+  const gang = group("Gang", { bodies: 3, parent: war.uuid });
+  const ford = place("Ford");
+  writes = [];
+  const sent = await org.sendOutHolder(lord, gang.uuid, ford.uuid);
+  assert.equal(sent.ok, true);
+  assert.deepEqual(writes, ["Ford:system.roster", "Gang:system.unit.parentGroupUuid"], "target first, then source");
+  assert.deepEqual(ford.system.roster.map((r) => r.uuid), [gang.uuid]);
+  assert.equal(gang.system.unit.parentGroupUuid, "");
+});
+
+t("a lone follower is sent out too, and a roster that held it lets it go", async () => {
+  reset();
+  const lord = makeActor("character", "Lord", {});
+  const hench = makeActor("character", "Retainer", {});
+  const camp = place("Camp", [{ uuid: hench.uuid, name: "Retainer", kind: "actor", quantity: 1, hidden: false }]);
+  const ford = place("Ford");
+  assert.equal((await org.sendOutHolder(lord, hench.uuid, ford.uuid)).ok, true);
+  assert.deepEqual(org.rostersHolding(hench.uuid), [ford.uuid]);
+  assert.deepEqual(camp.system.roster, []);
+});
+
+t("sending a follower out is refused, before any write, for a seat that does not own the employer, a follower that is not there, a place with no roster and a place the seat cannot write", async () => {
+  reset();
+  const gang = group("Gang");
+  const ford = place("Ford");
+  const shut = place("Shut", [], { isOwner: false });
+  const theirs = makeActor("character", "Theirs", {}, { isOwner: false });
+  const lord = makeActor("character", "Lord", {});
+  writes = [];
+  const notMine = await org.sendOutHolder(theirs, gang.uuid, ford.uuid);
+  assert.deepEqual([notMine.ok, notMine.reason, notMine.name], [false, "notOwner", "Theirs"], "the refusal names the employer");
+  assert.equal((await org.sendOutHolder(lord, "Actor.gone", ford.uuid)).reason, "noHolder");
+  assert.equal((await org.sendOutHolder(lord, "", ford.uuid)).reason, "noHolder");
+  assert.equal((await org.sendOutHolder(lord, gang.uuid, group("Not a place").uuid)).reason, "noPlace");
+  assert.equal((await org.sendOutHolder(lord, gang.uuid, "")).reason, "noPlace");
+  assert.equal((await org.sendOutHolder(lord, gang.uuid, shut.uuid)).reason, "notOwner");
+  assert.deepEqual(writes, [], "nothing was written");
+  assert.deepEqual(ford.system.roster, []);
+});
+
+t("a follower's Recall takes it off every roster that holds it, writes no parent group, and is refused where none does", async () => {
+  reset();
+  const lord = makeActor("character", "Lord", {});
+  const war = group("Warband", { bodies: 4 });
+  const gang = group("Gang", { bodies: 3 });
+  const ford = place("Ford", [rosterRow(gang)]);
+  const camp = place("Camp", [rosterRow(gang)]);
+  const other = place("Other", [rosterRow(war)]);
+  writes = [];
+  const result = await org.recallHolder(lord, gang.uuid);
+  assert.equal(result.ok, true);
+  assert.deepEqual(writes.sort(), ["Camp:system.roster", "Ford:system.roster"], "only the two rosters; no group is touched");
+  assert.deepEqual([ford.system.roster, camp.system.roster], [[], []]);
+  assert.deepEqual(other.system.roster.map((r) => r.uuid), [war.uuid], "another group's roster stands");
+  assert.equal(gang.system.unit.parentGroupUuid, "");
+  assert.equal((await org.recallHolder(lord, gang.uuid)).reason, "notOut", "on no roster now, so nothing to take it off");
+});
+
+t("recalling a follower is refused for a seat that does not own the employer and a follower that is not there, and writes nothing", async () => {
+  reset();
+  const gang = group("Gang");
+  const ford = place("Ford", [rosterRow(gang)]);
+  const theirs = makeActor("character", "Theirs", {}, { isOwner: false });
+  const lord = makeActor("character", "Lord", {});
+  writes = [];
+  const notMine = await org.recallHolder(theirs, gang.uuid);
+  assert.deepEqual([notMine.ok, notMine.reason, notMine.name], [false, "notOwner", "Theirs"]);
+  assert.equal((await org.recallHolder(lord, "Actor.gone")).reason, "noHolder");
+  const shut = place("Shut", [rosterRow(gang)], { isOwner: false });
+  assert.equal((await org.recallHolder(lord, gang.uuid)).reason, "notOwner", "a place the seat cannot write refuses the whole plan");
+  assert.deepEqual(writes, []);
+  assert.equal(ford.system.roster.length, 1);
+  assert.equal(shut.system.roster.length, 1);
+});
+
+t("placesOf is the one reader of the places: a roster row marked hidden is a Judge's alone, and a place with none left drops out", () => {
+  reset();
+  const gang = group("Gang");
+  const spy = group("Scout");
+  place("Ford", [rosterRow(gang), { ...rosterRow(spy), hidden: true }]);
+  place("Cellar", [{ ...rosterRow(spy), hidden: true }]);
+  place("Empty");
+  assert.deepEqual(org.placesOf({ isGM: true }).map((p) => [p.name, p.roster.length]), [["Ford", 2], ["Cellar", 1]]);
+  assert.deepEqual(org.placesOf({ isGM: false }).map((p) => [p.name, p.roster.length]), [["Ford", 1]]);
+  assert.deepEqual(org.locations({ isGM: false }).places.map((p) => p.name), ["Ford"], "the faction's Locations view reads through it");
+});
+
+/* -------------------------------------------- */
 /*  Join and leave                               */
 /* -------------------------------------------- */
 

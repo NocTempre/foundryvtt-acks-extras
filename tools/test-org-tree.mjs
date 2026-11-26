@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import {
   affiliationRows, blankRow, isEmptyRow, isOfficerUp, locationsView, moraleFromAbove, nodesOf, orgChartView, planAdd,
-  planJoin, planLeave, planRecall, planSendOut, preferredHost, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys,
+  planJoin, planLeave, planRecall, planRecallFollower, planSendOut, preferredHost, rowAncestors, rowDescendants, rowRoots, subtreeKeys, twinKeys,
   withHolder, chartToJoin, factionLine, readableChartRows, readableUnits, underOptions,
 } from "../scripts/lib/org-tree-logic.mjs";
 
@@ -418,6 +418,23 @@ t("the Under choices are the top, then the rows in reading order, each indented 
   const reader = underOptions(view(false), "At the top");
   assert.deepEqual(reader.map((o) => o.key), ["", "v", "w1", "g1", "g2", "w2"], "a hidden row and the row beneath it are not offered");
   assert.deepEqual(underOptions(null, "At the top").map((o) => o.key), [""], "a faction with no rows offers the top alone");
+});
+
+t("a follower's Recall takes it off every roster that holds it and writes no parent, since its employer is no group", () => {
+  const plan = planRecallFollower({ holderUuid: "G.f", holdings: ["P.1", "P.2"] });
+  assert.equal(plan.ok, true);
+  assert.deepEqual(plan.ops, [
+    { op: "removeOccupant", place: "P.1", actor: "G.f" },
+    { op: "removeOccupant", place: "P.2", actor: "G.f" },
+  ]);
+  assert.ok(plan.ops.every((o) => o.op === "removeOccupant"), "no parent op");
+  assert.deepEqual(planRecallFollower({ holderUuid: "G.f", holdings: ["P.1", "P.1"] }).ops.length, 1, "a place listed twice is left once");
+});
+
+t("a follower's Recall says why it cannot: no holder, and no roster holding it", () => {
+  assert.deepEqual(planRecallFollower({ holderUuid: "", holdings: ["P.1"] }), { ok: false, reason: "noHolder", ops: [] });
+  assert.deepEqual(planRecallFollower({ holderUuid: "G.f", holdings: [] }), { ok: false, reason: "notOut", ops: [] });
+  assert.deepEqual(planRecallFollower({ holderUuid: "G.f" }), { ok: false, reason: "notOut", ops: [] });
 });
 
 let failures = 0;

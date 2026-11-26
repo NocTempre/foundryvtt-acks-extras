@@ -294,9 +294,9 @@ const localImpl = Object.freeze({
   /**
    * The organisation chart (org.mjs, org-host.mjs, org-tree-logic.mjs): the rows a
    * faction or a group hosts in `units`, `orgHostOf` (which host and row a holder
-   * stands on), `addRow`, `setHolder`, `sendOut`, `recall`, `join`, `leave`, `deleteRow` and the plan runner
+   * stands on), `addRow`, `setHolder`, `sendOut`, `recall`, `sendOutHolder` and `recallHolder` (a follower sent out and recalled by its own uuid), `join`, `leave`, `deleteRow` and the plan runner
    * `runPlan`, a group's own gestures (`joinFaction`, `makeFaction`, `leaveFaction`, `factionLineOf`, `worldFactions`), the Foundry-free plans, the
-   * two views `orgChart` and `locations`, and the morale part a group takes from
+   * two views `orgChart` and `locations` (the places they read are `placesOf`), and the morale part a group takes from
    * the units above it. docs/lib/ORGANISATION.md.
    */
   org,

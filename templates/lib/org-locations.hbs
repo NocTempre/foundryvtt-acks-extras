@@ -1,6 +1,6 @@
 {{!-- The Locations rows (docs/lib/ORGANISATION.md): a row per place, a chip for each chart
-      row of this faction standing there. A row wraps; nothing scrolls sideways. --}}
-<section class="acks-extras-org" data-org-host="{{hostUuid}}">
+      row of this faction standing there (in service mode, one for each follower of a lord). A row wraps; nothing scrolls sideways. --}}
+<section class="acks-extras-org" data-org-host="{{hostUuid}}"{{#if service}} data-org-service="1"{{/if}}>
   {{#if isEmpty}}
     <p class="acks-empty">{{localize "ACKS-LIB.org.locations.none"}}</p>
   {{/if}}
@@ -18,7 +18,7 @@
             {{#each rows}}
               {{#unless inside}}
                 <span class="acks-extras-org-chip__row" data-key="{{key}}">{{label}}
-                  {{#if canRecall}}<button type="button" data-action="orgRecall" data-tooltip="ACKS-LIB.org.card.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>{{/if}}
+                  {{#if service}}{{#if canRecall}}<button type="button" class="acks-extras-org-chip__act" data-action="orgRecall" data-tooltip="ACKS-LIB.org.service.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>{{/if}}{{#if canSend}}<button type="button" class="acks-extras-org-chip__act" data-action="orgSendOut" data-tooltip="ACKS-LIB.org.service.sendTip" aria-label="{{localize 'ACKS-LIB.org.card.send'}}"><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></button>{{/if}}{{else if canRecall}}<button type="button" data-action="orgRecall" data-tooltip="ACKS-LIB.org.card.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>{{/if}}
                 </span>
               {{/unless}}
             {{/each}}
@@ -27,7 +27,7 @@
                 {{#each rows}}{{#if inside}}
                   <li class="acks-extras-org-chip acks-extras-org-chip--inner" data-key="{{key}}">
                     <a data-action="orgOpen" data-uuid="{{holderUuid}}">{{label}}</a>
-                    <span class="acks-extras-org-chip__count" data-tooltip-text="{{countTip}}">{{count}}</span>
+                    <span class="acks-extras-org-chip__count" data-tooltip-text="{{countTip}}">{{count}}</span>{{#if canSend}}<button type="button" class="acks-extras-org-chip__act" data-action="orgSendOut" data-tooltip="ACKS-LIB.org.service.sendTip" aria-label="{{localize 'ACKS-LIB.org.card.send'}}"><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></button>{{/if}}
                   </li>
                 {{/if}}{{/each}}
               </ul>
@@ -39,9 +39,9 @@
   {{/each}}
   {{#if unplaced.length}}
     <div class="acks-extras-org-place">
-      <div class="acks-extras-org-place__head"><span>{{localize "ACKS-LIB.org.locations.unplaced"}}</span></div>
+      <div class="acks-extras-org-place__head"><span>{{#if unplacedLabel}}{{unplacedLabel}}{{else}}{{localize "ACKS-LIB.org.locations.unplaced"}}{{/if}}</span></div>
       <ul class="acks-extras-org-place__groups">
-        {{#each unplaced}}<li class="acks-extras-org-chip" data-key="{{key}}"><a data-action="orgOpen" data-uuid="{{holderUuid}}">{{label}}</a></li>{{/each}}
+        {{#each unplaced}}<li class="acks-extras-org-chip" data-key="{{key}}"><a data-action="orgOpen" data-uuid="{{holderUuid}}">{{label}}</a>{{#if canSend}}<button type="button" class="acks-extras-org-chip__act" data-action="orgSendOut" data-tooltip="ACKS-LIB.org.service.sendTip" aria-label="{{localize 'ACKS-LIB.org.card.send'}}"><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></button>{{/if}}</li>{{/each}}
       </ul>
     </div>
   {{/if}}

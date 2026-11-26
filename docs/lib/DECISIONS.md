@@ -3046,3 +3046,26 @@ declared press stays refused `judgeOnly` on its own side.
 Rejected: leaving the write on the pressing window (the listener's half is
 lost); recording the primary GM as the presser of a second GM's press (the
 entry would name a Judge who pressed nothing).
+
+## 2026-11-25 — A follower's Recall takes it off every roster
+
+A character's Followers tab draws its service tree through lib's chart and
+Locations views, and each follower's card has Send out and Recall. Send out is
+the shipped plan (`planSendOut`) keyed by the follower's own uuid. Recall
+(`recallHolder`, `planRecallFollower`) takes the follower off every roster that
+holds it and nothing else: it stands with its employer again, who is not a
+place. No parent group is written, since service is not nesting. A follower on
+no roster is refused `notOut`, and a follower that does not resolve `noHolder`.
+Both presses follow Foundry ownership (the seat owns the employer; the place's
+own check is the executor's) and read no `isGM`.
+
+Rejected: putting a recalled follower under a group, as a village's Recall does
+(`planRecall`). A village's units are rows under rows and a unit goes back under
+the group its parent row holds; a lord is no group, a hireling's employer may be
+a lone character, and a group written as a lord's parent would invent a nesting
+the service tree does not have.
+
+Cost: a follower sent out of a group (Send out clears its parent group, as it
+does for a row) is not put back under that group by Recall, so the press that
+undoes a Send out is not its inverse for a group that was nested. The unit's
+nesting is the group sheet's to restore.

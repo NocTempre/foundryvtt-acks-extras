@@ -1,12 +1,15 @@
 {{!-- One card of the chart and, beneath it, its unfolded cards (board 1f). A card with
       nothing in it offers Roll and a pen; a filled card a pen and Send out, and no Roll.
       A leader's card is the Follower Card, drawn in the role frame of its rank (board 1l).
+      In service mode (a lord's Followers tab) a card draws no role frame, form or die: its head is the
+      follower's own Follower Card, a lone actor has no bodies line, the root is the lord's name and art
+      with a count of its followers, and the foot is Open, Recall and Send out.
       A card in edit draws its own form (troop, bodies and, beside them, the count die where the stack recorded dice, the officer line, Remove, Done); a card whose
       officer was deleted draws the officer line outside edit too. Recursive. --}}
 <li role="treeitem"{{#if role}} aria-label="{{rank}} · {{role.word}}"{{/if}} {{#if hasKids}}aria-expanded="{{#if folded}}false{{else}}true{{/if}}"{{/if}} data-key="{{key}}">
   <div class="acks-extras-org-card{{#if leader}} is-leader{{/if}}{{#if empty}} is-empty{{/if}}{{#if groupGone}} is-gone{{/if}}{{#if hidden}} is-hidden{{/if}}{{#if twin}} is-twin{{/if}}{{#if byHand}} is-hand{{/if}}{{#if editing}} is-on{{/if}}">
     <div class="acks-extras-org-card__head">
-      {{#unless leader}}{{#if role}}<span class="acks-extras-pf acks-extras-pf--{{role.key}}{{#if role.gone}} is-gone{{/if}}" role="group" aria-label="{{role.label}}">{{#if role.gone}}{{else if officer.img}}<img class="acks-extras-org-card__art" src="{{officer.img}}" alt="" />{{else if img}}<img class="acks-extras-org-card__art" src="{{img}}" alt="" />{{/if}}</span><span class="acks-extras-pf__word" data-tooltip-text="{{role.tip}}">{{role.word}}{{#if role.gone}} · <span class="acks-extras-pf__gone">{{localize "ACKS-LIB.org.officer.goneTag"}}</span>{{/if}}</span>{{/if}}{{/unless}}
+      {{#unless leader}}{{#if role}}<span class="acks-extras-pf acks-extras-pf--{{role.key}}{{#if role.gone}} is-gone{{/if}}" role="group" aria-label="{{role.label}}">{{#if role.gone}}{{else if officer.img}}<img class="acks-extras-org-card__art" src="{{officer.img}}" alt="" />{{else if img}}<img class="acks-extras-org-card__art" src="{{img}}" alt="" />{{/if}}</span><span class="acks-extras-pf__word" data-tooltip-text="{{role.tip}}">{{role.word}}{{#if role.gone}} · <span class="acks-extras-pf__gone">{{localize "ACKS-LIB.org.officer.goneTag"}}</span>{{/if}}</span>{{/if}}{{/unless}}{{#if root}}{{#if img}}<img class="acks-extras-org-card__art" src="{{img}}" alt="" />{{/if}}{{/if}}
       <span class="acks-extras-org-card__rank">{{rank}}{{#if editing}} · {{localize "ACKS-LIB.org.card.inEdit"}}{{/if}}</span>
       {{#if hasKids}}
         <button type="button" class="acks-extras-org-card__fold" data-action="orgToggle" aria-expanded="{{#if folded}}false{{else}}true{{/if}}" aria-label="{{localize 'ACKS-LIB.org.card.fold' name=rank}}" data-tooltip="ACKS-LIB.org.card.foldTip"><i class="fas {{#if folded}}fa-chevron-right{{else}}fa-chevron-down{{/if}}" aria-hidden="true"></i></button>
@@ -16,12 +19,12 @@
       <div class="acks-extras-org-card__more">{{#if groupGone}}<span class="acks-extras-org-card__finding" data-tooltip="ACKS-LIB.org.card.groupGoneTip">{{localize "ACKS-LIB.org.card.groupGone"}}</span>{{else}}{{localize "ACKS-LIB.org.card.empty"}}{{/if}}</div>
     {{else}}
       {{#if leader}}{{{leader}}}{{/if}}
-      <div class="acks-extras-org-card__body">
+      {{#unless lone}}<div class="acks-extras-org-card__body">
         <span class="acks-extras-org-card__count{{#if byHand}} is-hand{{/if}}" data-tooltip-text="{{#if byHand}}{{handTip}}{{else}}{{countTip}}{{/if}}">{{localize "ACKS-LIB.org.card.bodies" n=count}}</span>
         {{#if byHand}}<span class="cite">{{localize "ACKS-LIB.org.card.byHand"}}</span>{{/if}}
         {{#if hidden}}<span class="acks-tag" data-tooltip="ACKS-LIB.org.card.hiddenTip">{{localize "ACKS-LIB.org.card.hidden"}}</span>{{/if}}
         {{#if twin}}<span class="acks-tag" data-tooltip="ACKS-LIB.org.card.twinTip">{{localize "ACKS-LIB.org.card.twin"}}</span>{{/if}}
-      </div>
+      </div>{{/unless}}
       {{#if officerGone}}{{#unless editing}}{{> "modules/acks-extras/templates/lib/org-officer-line.hbs" officerLine}}{{/unless}}{{/if}}
       {{#if editing}}
         <div class="acks-extras-org-card__form">
@@ -50,6 +53,19 @@
       {{#if canEdit}}
         {{#if canRoll}}<button type="button" data-action="orgRoll" data-tooltip="ACKS-LIB.org.card.rollTip"><i class="fas fa-dice" aria-hidden="true"></i> {{localize "ACKS-LIB.org.card.roll"}}</button>{{/if}}
         <button type="button" data-action="orgRemove" data-tooltip="ACKS-LIB.org.edit.removeTip" aria-label="{{localize 'ACKS-LIB.org.edit.remove'}}"><i class="fa-solid fa-xmark" aria-hidden="true"></i> {{localize "ACKS-LIB.org.edit.remove"}}</button>
+      {{/if}}
+    </div>
+    {{else if service}}
+    <div class="acks-extras-org-card__foot">
+      {{#if root}}
+        <span class="cite" data-tooltip-text="{{summaryTip}}">{{summary}}</span>
+      {{else}}
+        {{#if isOut}}<span class="acks-extras-org-card__out" data-tooltip="ACKS-LIB.org.service.outTip">{{localize "ACKS-LIB.org.card.out" place=out.[0]}}</span>{{/if}}
+        {{#if holderUuid}}<button type="button" data-action="orgOpen" data-uuid="{{holderUuid}}" data-tooltip="ACKS-LIB.org.service.openTip">{{localize "ACKS-LIB.org.card.open"}}</button>{{/if}}
+        {{#if canSend}}
+          {{#if canRecall}}<button type="button" data-action="orgRecall" data-tooltip="ACKS-LIB.org.service.recallTip" aria-label="{{localize 'ACKS-LIB.org.card.recall'}}"><i class="fas fa-rotate-left" aria-hidden="true"></i></button>{{/if}}
+          <button type="button" data-action="orgSendOut" data-tooltip="ACKS-LIB.org.service.sendTip" aria-label="{{localize 'ACKS-LIB.org.card.send'}}"><i class="fas fa-arrow-up-right-from-square" aria-hidden="true"></i></button>
+        {{/if}}
       {{/if}}
     </div>
     {{else}}

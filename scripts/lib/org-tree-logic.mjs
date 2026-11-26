@@ -269,6 +269,24 @@ export function planRecall({ holderUuid, holderIsGroup, parentRowKey, parentHold
   return { ok: true, ops };
 }
 
+/**
+ * Recall a follower: it comes off every roster that holds it and nothing else, so it
+ * stands with its employer again. The employer is no place and no group, so no parent
+ * group is written (service is not nesting). A holder on no roster has nothing to
+ * come off, and the press says so.
+ *
+ * @param {object} facts
+ * @param {string} facts.holderUuid the follower: a lone actor, or a hired unit's group
+ * @param {string[]} facts.holdings the places whose roster holds it now
+ * @returns {{ok: boolean, reason?: "noHolder"|"notOut", ops: object[]}}
+ */
+export function planRecallFollower({ holderUuid, holdings }) {
+  if (!holderUuid) return REFUSED("noHolder");
+  const places = [...new Set(holdings ?? [])];
+  if (!places.length) return REFUSED("notOut");
+  return { ok: true, ops: places.map((place) => ({ op: "removeOccupant", place, actor: holderUuid })) };
+}
+
 /* -------------------------------------------- */
 /*  Which host answers                           */
 /* -------------------------------------------- */

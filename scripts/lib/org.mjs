@@ -21,7 +21,7 @@ import { GROUP_ACTOR_TYPE, bodyCount, groupAncestors, groupDescendants, groupNod
 import { setParentGroup } from "./group.mjs";
 import { chartRows, orgHostOf, orgHosts, unitsOf } from "./org-host.mjs";
 import {
-  chartToJoin, factionLine, locationsView, nodesOf, orgChartView, planAdd, planJoin, planLeave, planRecall, planSendOut, readableChartRows,
+  chartToJoin, factionLine, locationsView, nodesOf, orgChartView, planAdd, planJoin, planLeave, planRecall, planRecallFollower, planSendOut, readableChartRows,
   rowAncestors, rowDescendants, twinKeys, withHolder,
 } from "./org-tree-logic.mjs";
 import { planUndo } from "./org-delete-logic.mjs";
@@ -444,6 +444,51 @@ export async function recall(host, key) {
   return carryOut(plan);
 }
 
+/**
+ * Send a follower out to a place, keyed by the follower itself and not by a chart row: a
+ * character's service tree has no rows to write through, so its follower (a lone actor or
+ * a hired unit's group) is named by uuid and the seat's right to move it is its employer's
+ * ownership. The shipped plan (`planSendOut`) and executor (`carryOut`) are `sendOut`'s,
+ * so the place's roster is written first, every other roster lets the follower go, and a
+ * group leaves the group it stood inside; the place's own ownership is checked before any
+ * write. The employer's service does not change by where its follower stands.
+ *
+ * @param {Actor} employer the actor whose follower it is
+ * @param {string} holderUuid the follower
+ * @param {string} placeUuid a place with a stored roster
+ * @returns {Promise<{ok: boolean, reason?: string, name?: string}>}
+ */
+export async function sendOutHolder(employer, holderUuid, placeUuid) {
+  if (!employer?.isOwner) return { ...refused("notOwner"), name: employer?.name ?? "" };
+  const holder = holderUuid ? docOf(holderUuid) : null;
+  if (!holder) return refused("noHolder");
+  const place = placeUuid ? docOf(placeUuid) : null;
+  if (!hasRoster(place)) return refused("noPlace");
+  return carryOut(planSendOut({
+    holderUuid: holder.uuid,
+    holderIsGroup: isGroupActor(holder),
+    parentGroupUuid: holder.system?.unit?.parentGroupUuid ?? "",
+    holdings: rostersHolding(holder.uuid),
+    placeUuid: place.uuid,
+  }));
+}
+
+/**
+ * Recall a follower: it comes off every roster that holds it and stands with its employer
+ * again (`planRecallFollower`). No group is written, since an employer is no group; a
+ * follower on no roster is refused `notOut`. Keyed and gated as `sendOutHolder` is.
+ *
+ * @param {Actor} employer the actor whose follower it is
+ * @param {string} holderUuid the follower
+ * @returns {Promise<{ok: boolean, reason?: string, name?: string}>}
+ */
+export async function recallHolder(employer, holderUuid) {
+  if (!employer?.isOwner) return { ...refused("notOwner"), name: employer?.name ?? "" };
+  const holder = holderUuid ? docOf(holderUuid) : null;
+  if (!holder) return refused("noHolder");
+  return carryOut(planRecallFollower({ holderUuid: holder.uuid, holdings: rostersHolding(holder.uuid) }));
+}
+
 /* -------------------------------------------- */
 /*  Join and leave                               */
 /* -------------------------------------------- */
@@ -651,6 +696,24 @@ export function orgChart(host, { isGM = !!game.user?.isGM } = {}) {
 }
 
 /**
+ * The places a Locations view reads: the world's locations that hold a roster, each with
+ * the roster rows this reader may see (a row the roster marks hidden is a Judge's alone).
+ * One reader for every view of the places, so none re-implements the hidden filter.
+ * @param {{isGM?: boolean}} [options]
+ * @returns {{uuid: string, name: string, roster: object[]}[]}
+ */
+export function placesOf({ isGM = !!game.user?.isGM } = {}) {
+  return [...(game.actors ?? [])]
+    .filter(isLocation)
+    .map((place) => ({
+      uuid: place.uuid,
+      name: place.name ?? "",
+      roster: (place.system?.roster ?? []).map((r) => r?.toObject?.() ?? r).filter((r) => isGM || !r.hidden),
+    }))
+    .filter((place) => place.roster.length);
+}
+
+/**
  * The locations view: every place's outermost groups with the chart rows they hold,
  * and the rows whose holder stands on no place. Places are the world's locations and
  * their stored rosters; a row the roster marks hidden is a Judge's alone.
@@ -659,15 +722,7 @@ export function orgChart(host, { isGM = !!game.user?.isGM } = {}) {
  */
 export function locations({ isGM = !!game.user?.isGM } = {}) {
   const nodes = groupNodes();
-  const places = [...(game.actors ?? [])]
-    .filter(isLocation)
-    .map((place) => ({
-      uuid: place.uuid,
-      name: place.name ?? "",
-      roster: (place.system?.roster ?? []).map((r) => r?.toObject?.() ?? r).filter((r) => isGM || !r.hidden),
-    }))
-    .filter((place) => place.roster.length);
-  return locationsView({ places, rows: readableChartRows(chartRows(), isGM), read: (uuid) => readHolder(uuid, nodes) });
+  return locationsView({ places: placesOf({ isGM }), rows: readableChartRows(chartRows(), isGM), read: (uuid) => readHolder(uuid, nodes) });
 }
 
 /**
