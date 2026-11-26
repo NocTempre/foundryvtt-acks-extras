@@ -207,8 +207,11 @@ function keyFor(text, keys) {
 
 /**
  * Flatten the registry into browser entries. occupationSubTables expands
- * into one entry per category (each category IS one d100 list).
- * @returns {{docId,tableId,subId,key,label,rollable}[]}
+ * into one entry per category (each category IS one d100 list). An entry is
+ * `readOnly` when the importer's page read of a document names it (nothing the
+ * engine reads comes from an override of it), and `readBy` then lists the
+ * tables the engine reads instead.
+ * @returns {{docId,tableId,subId,key,label,rollable,absent,readOnly,readBy}[]}
  */
 export function listEntries() {
   const t = lib()?.tables;
@@ -282,7 +285,63 @@ export function listEntries() {
     }
   }
 
+  const pageReads = new Map();
+  const readsOf = (docId) => {
+    if (!pageReads.has(docId)) pageReads.set(docId, globalThis.acksExtras?.importer?.rawTablesOf?.(docId) ?? {});
+    return pageReads.get(docId);
+  };
+  for (const entry of out) {
+    const readBy = readsOf(entry.docId)[entry.tableId];
+    entry.readOnly = !entry.absent && Array.isArray(readBy) && readBy.length > 0;
+    entry.readBy = entry.readOnly ? [...readBy] : [];
+  }
+
   return out.sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/**
+ * The reader-facing name of a table id, derived from the id at render
+ * ("typeClassic" → "Type Classic"); no printed name is stored.
+ * @param {string} tableId
+ */
+export const tableLabel = (tableId) => humanize(tableId);
+
+/**
+ * The browser's groups: one per document, headed by the document's id made
+ * readable, with the id kept as the hint. A group lists the tables the engine
+ * reads (`entries`) apart from the importer's page reads (`reads`, each
+ * `readOnly`), and counts the overridden tables: a table split into columns
+ * is one override, whatever its column count.
+ *
+ * @param {Array<object>} rows `listEntries`' entries, each with `overridden`
+ * @returns {Array<{docId: string, label: string, entries: object[], reads: object[], overriddenCount: number}>}
+ */
+export function groupEntries(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    if (!groups.has(row.docId)) groups.set(row.docId, { docId: row.docId, label: humanize(row.docId), entries: [], reads: [], overriddenCount: 0, overriddenTables: new Set() });
+    const group = groups.get(row.docId);
+    (row.readOnly ? group.reads : group.entries).push(row);
+    if (row.overridden) group.overriddenTables.add(row.tableId);
+  }
+  return [...groups.values()].map(({ overriddenTables, ...group }) => ({ ...group, overriddenCount: overriddenTables.size }));
+}
+
+/**
+ * Which groups open and where the window scrolls for a focus: the named
+ * groups open and the rest collapse, and the first named group the window holds
+ * is scrolled to. Without a focus, or when no group answers to one, every group
+ * stays open, so a focus never leaves the window showing nothing.
+ *
+ * @param {Array<{docId: string}>} groups
+ * @param {string[]} [focus] document ids, most wanted first
+ * @returns {{open: Record<string, boolean>, scrollTo: string|null}}
+ */
+export function focusPlan(groups, focus) {
+  const held = new Set(groups.map((g) => g.docId));
+  const named = (Array.isArray(focus) ? focus : []).filter((id) => held.has(id));
+  if (!named.length) return { open: Object.fromEntries(groups.map((g) => [g.docId, true])), scrollTo: null };
+  return { open: Object.fromEntries(groups.map((g) => [g.docId, named.includes(g.docId)])), scrollTo: named[0] };
 }
 
 const OCCUPANT_COLUMNS = ["smallCot", "mediumCot", "mediumTownhouse", "largeTownhouse", "generalStreet"];

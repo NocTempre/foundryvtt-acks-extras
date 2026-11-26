@@ -638,3 +638,58 @@ or the cookbook documents a real import writes.
      must not widen the rail.
 
 **Teardown:** the run's pots are tracked and swept; the kept fixtures stay.
+
+## Treasure tables home (Judge seat)
+
+Offline coverage is `tools/test-table-docs.mjs` (the page reads marked read-only,
+the declared tables listed as not supplied, `focusPlan`, the group heading and
+override count), `tools/test-treasure-deal.mjs` (`dealOptionsView`, the button's
+permission, the partial on the real Handlebars, an override reaching the deal) and
+`tools/importer/test-treasure-binding.mjs` (`rawTablesOf`). Nothing offline
+renders the browser window, loads the partial in Foundry or reads a seat's
+permissions.
+
+**Fixtures** (found by marker, built through `api.fixture`):
+
+- `treasure/monster-lettered` (above), and the world's imported `treasure`
+  registry.
+- A pot, not kept: made by the step through Scene controls → Token controls → New
+  treasure pot, marked `flags.world.fixture = "treasure/pot-tables"`, swept by the
+  run's ledger.
+- The override this step writes is world-setting data, not a document: the step
+  removes it itself (drop override, or `clearOverride("treasure", "typeClassic")`)
+  and reads `hasOverride` to assert it is gone.
+
+**Steps:**
+
+1. **The button and the focus.** On the Judge seat open the staged pot. Observable:
+   a **Treasure tables** button under the Table style group, its tooltip "Imported
+   treasure tables (JJ ch. 4)". Press it. Observable: the Ruledata Browser opens
+   with the Treasure and Magic Item Tables groups open, every other group
+   collapsed, and the window scrolled to Treasure; pressing the button again with
+   the browser open brings it forward and opens no second window.
+2. **Page reads.** In the Treasure group the tables the deal reads lead; **Page
+   reads (n)** is collapsed (its summary holds no button). Open it. Observables: each
+   row has View and Export and no Edit; each carries "Read at import; the deal reads
+   <tables>"; dropping a RollTable on one writes nothing
+   (`hasOverride("treasure", <the row's table>)` stays false). A row the deal reads
+   still takes a drop and shows Edit.
+3. **An override reaches the deal.** Edit the Type Classic row: change one coin
+   cell of the lettered monster's letter to a figure no other letter shows, Save
+   override. Observables: the group's heading reads "1 overridden" and the row's
+   badge says override; deal that letter at the Classic style (Deal). The coin
+   card, and the deal's audit row for that column, carry the edited figure. Drop
+   the override from the row and deal again: the card carries the imported figure.
+4. **Nothing imported.** In a world with no `treasure` import (walked only where
+   one is at hand, offline otherwise) the Treasure group lists Type Classic, Type
+   Heroic, Type Gritty, the value lists and the special lists as "not supplied", and
+   the rail's Deal reports not imported.
+5. **A seat without the permission.** Read `core.permissions`, remove
+   `SETTINGS_MODIFY` from the Assistant Gamemaster role, join as that seat, open a
+   staged pot: no Treasure tables button is drawn and the rest of the rail is as
+   before. Restore the setting to the value read. (INFERRED: a Gamemaster-role seat
+   always holds the permission, so only the Assistant role can lack it; the step
+   settles it.)
+
+**Teardown:** the pot is swept by the ledger; the override is removed by step 3;
+the permissions setting is restored by step 5.

@@ -581,6 +581,15 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   let ctx = await contextOf(potWith([typed, named, masked, plain], { armsSetting: "s2" }));
   eq([ctx.deal.arms.off, ctx.deal.arms.options.map((o) => [o.key, o.label, o.selected]), ctx.deal.arms.tip], [false, [["", "(none)", false], ["s1", "Alpha setting", false], ["s2", "Beta setting", true]], "Beta setting (INV p. 9)"], "the Judge's panel lists (none) and the imported columns with the pot's own selected, and the tooltip names it and the page the import recorded");
   eq(ctx.deal.styles.length > 0 && Object.keys(ctx.deal).indexOf("arms") === Object.keys(ctx.deal).indexOf("styles") + 1, true, "the field follows the table style in the panel's context");
+  // The Treasure tables button on the real sheet follows the permission Foundry asks of a world-setting write, and a GM flag alone grants it nothing.
+  const hadCan = game.user.can;
+  game.user.can = (permission) => permission === "SETTINGS_MODIFY";
+  ctx = await contextOf(potWith([plain]));
+  eq([ctx.deal.tablesButton?.label, ctx.deal.tablesButton?.tip], ["Treasure tables", "Imported treasure tables (JJ ch. 4)"], "a seat with SETTINGS_MODIFY is drawn the button, its tooltip the page reference");
+  game.user.can = () => false;
+  ctx = await contextOf(potWith([plain]));
+  eq([game.user.isGM, ctx.deal.tablesButton], [true, null], "a GM whose world withholds SETTINGS_MODIFY is drawn none");
+  game.user.can = hadCan;
   ctx = await contextOf(potWith([plain]));
   eq([ctx.deal.arms.options.find((o) => o.selected).key, ctx.deal.arms.tip], ["", "INV p. 9"], "a new pot has none picked, and its tooltip is the page alone");
   eq(armsSource().cite, "INV p. 9", "the page is the one the import recorded");

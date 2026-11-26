@@ -63,37 +63,7 @@
               </div>
             {{/if}}
           </div>
-          <fieldset class="acks-extras-treasure__field">
-            <legend class="acks-extras-caption">{{localize "ACKS-TREASURE.deal.styleTitle"}}</legend>
-            <div class="acks-btn-group">
-              {{#each deal.styles}}
-                <button type="button" class="acks-btn acks-btn--sm{{#unless pressed}} acks-btn--secondary{{/unless}}" data-action="dealStyle" data-style="{{key}}" aria-pressed="{{pressed}}" data-tooltip-text="{{tip}}">{{label}}</button>
-              {{/each}}
-            </div>
-          </fieldset>
-          <div class="acks-extras-treasure__field">
-            <label class="acks-extras-caption" for="{{@root.partId}}-arms">{{localize "ACKS-TREASURE.deal.armsTitle"}}</label>
-            <div class="acks-extras-treasure__select" data-tooltip-text="{{deal.arms.tip}}">
-              <select class="acks-input" id="{{@root.partId}}-arms" data-deal-arms aria-describedby="{{@root.partId}}-arms-hint"{{#if deal.arms.off}} disabled{{/if}}>
-                {{#each deal.arms.options}}
-                  <option value="{{key}}"{{#if selected}} selected{{/if}}>{{label}}</option>
-                {{/each}}
-              </select>
-            </div>
-            <span class="acks-extras-treasure__hint" id="{{@root.partId}}-arms-hint">{{localize "ACKS-TREASURE.deal.armsHint"}}</span>
-          </div>
-          <div class="acks-extras-treasure__field">
-            <button type="button" class="acks-extras-treasure__toggle" data-action="dealSpecial" aria-pressed="{{deal.special}}">
-              <span class="acks-extras-treasure__toggle-mark" aria-hidden="true"></span>
-              <span class="acks-extras-treasure__toggle-label">{{localize "ACKS-TREASURE.deal.special"}}</span>
-            </button>
-            <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.deal.specialHint"}}</span>
-            <button type="button" class="acks-extras-treasure__toggle" data-action="dealLair" aria-pressed="{{deal.lair}}" data-tooltip-text="{{deal.lairTip}}">
-              <span class="acks-extras-treasure__toggle-mark" aria-hidden="true"></span>
-              <span class="acks-extras-treasure__toggle-label">{{localize "ACKS-TREASURE.deal.lair"}}</span>
-            </button>
-            <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.deal.lairHint"}}</span>
-          </div>
+          {{> "modules/acks-extras/templates/treasure/deal-options.hbs" deal}}
           <hr class="acks-rule--ornament">
         {{/if}}
         <div class="acks-extras-treasure__field" role="group" aria-labelledby="{{@root.partId}}-mode">

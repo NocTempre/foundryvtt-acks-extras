@@ -4,8 +4,13 @@
   <p class="hint">{{localize "ACKS-LOCATION.browser.empty"}}</p>
   {{/if}}
   {{#each docs}}
-  <details class="section" open>
-    <summary><strong>{{docId}}</strong> ({{entries.length}})</summary>
+  <details class="section" data-group="{{docId}}"{{#if open}} open{{/if}}>
+    <summary>
+      <strong>{{label}}</strong>
+      <span class="hint" data-tooltip="{{localize 'ACKS-LOCATION.browser.groupIdHint'}}">{{docId}}</span>
+      <span data-tooltip-text="{{entriesTip}}">({{entries.length}})</span>
+      {{#if overriddenCount}}<span class="override-badge" data-tooltip-text="{{overriddenTip}}">{{overriddenText}}</span>{{/if}}
+    </summary>
     <table class="ruledata-table">
       <thead>
         <tr>
@@ -46,6 +51,42 @@
         {{/each}}
       </tbody>
     </table>
+    {{#if reads.length}}
+    <details class="page-reads" data-reads="{{docId}}"{{#if readsOpen}} open{{/if}}>
+      <summary><span data-tooltip-text="{{readsTip}}">{{readsText}}</span></summary>
+      <p class="hint">{{localize "ACKS-LOCATION.browser.readsHint"}}</p>
+      <table class="ruledata-table">
+        <tbody>
+          {{#each reads}}
+          <tr data-entry-key="{{key}}" data-read-only class="{{#if overridden}}overridden{{/if}}">
+            <td>
+              {{label}}
+              {{#if cite}}
+              <span class="cite hint" data-tooltip="{{localize 'ACKS-LOCATION.browser.citeHint'}}">{{cite}}</span>
+              {{/if}}
+              <span class="hint read-by">{{readByText}}</span>
+            </td>
+            <td>{{kindLabel}}</td>
+            <td>
+              {{#if overridden}}
+              <span class="override-badge" data-tooltip="{{sourceName}}">{{localize "ACKS-LOCATION.browser.overriddenBadge"}}</span>
+              {{else}}
+              <span class="hint">{{localize "ACKS-LOCATION.browser.importedBadge"}}</span>
+              {{/if}}
+            </td>
+            <td class="row-actions">
+              <a data-action="viewEntry" data-tooltip="{{localize 'ACKS-LOCATION.browser.view'}}"><i class="fas fa-magnifying-glass"></i></a>
+              <a data-action="exportEntry" data-tooltip="{{localize 'ACKS-LOCATION.browser.export'}}"><i class="fas fa-file-export"></i></a>
+              {{#if overridden}}
+              <a data-action="revertEntry" data-tooltip="{{localize 'ACKS-LOCATION.browser.revert'}}"><i class="fas fa-rotate-left"></i></a>
+              {{/if}}
+            </td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </details>
+    {{/if}}
   </details>
   {{/each}}
 </div>

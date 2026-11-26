@@ -50,6 +50,7 @@ import { createDocFor } from "./poc.mjs";
 import { importTables, tableRecipeBooks, tableRecipeCount } from "./tables-binding.mjs";
 import { progressBar } from "./progress.mjs";
 import { assembleReadTables, applyReadTables } from "./tables-phases.mjs";
+import { rawTablesOf } from "./raw-tables.mjs";
 import {
   initCookbook, loadCookbook, cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities,
   cookbookFillCompanions, cookbookPruneAbilities, registerAbilityDirectoryButtons, importAbility, cookbookDebug,
@@ -2720,6 +2721,8 @@ Hooks.once("ready", async () => {
     readBookText,
     /** Opens the Books tab with the first-run walkthrough open. */
     gettingStarted: () => openBooksDialog({ firstRun: true }),
+    /** The importer's page reads of one imported document, `{rawTable: [engineTable, …]}`: what the Ruledata Browser sets apart and will not edit. */
+    rawTablesOf,
     RECIPES, BOOKS,
   };
   acksExtras.importer = api;

@@ -558,6 +558,33 @@ magic column that prints none) that is not part of a stored truth; the letter
 deal rolls it ("Magic cards are rolled", below). Dice are `CONFIG.Dice.randomUniform` through
 `rollerFrom`, or a roller the caller passes.
 
+## Where the tables are stored and seen
+
+The deal reads two registry documents, `treasure` (`TREASURE_DOC_ID`) and
+`magicItemTables` (`MAGIC_ITEM_DOC_ID`). Both are world data: the importer writes
+them into the world setting `acks-extras.importedTables`
+(`location/table-store.mjs`; world scope, not drawn in the settings window) at
+`PRIORITY.WORLD`, and a Judge's override of one table goes into the same setting
+at `PRIORITY.OVERRIDE` (`setOverride`, which asks the permission Foundry asks of a
+world-setting write, `SETTINGS_MODIFY`). Each document holds the importer's page
+reads (`typeClassicRaw`, `specialCpRaw`, …) beside the tables assembled from them
+(`typeClassic`, `special`, …, `importer/treasure-binding.mjs` `PRODUCES`). The deal
+reads `getDoc`, which layers per table: an override of a table the deal reads is
+what it deals from, and an override of a page read changes nothing the deal reads
+(a re-import rereads the world layer and never the override).
+
+They are seen in one place, the Ruledata Browser (`Settings tab → Game Settings →
+ACKS II — Extras → Imported Rules Tables → Open Ruledata Browser`), whose
+`treasure` and `magicItemTables` groups list the tables the deal reads first and
+the page reads under **Page reads**, read-only (docs/location/MODEL.md, the
+browser). `expected.mjs` declares the treasure document's tables
+(`declareTreasureTables`, at `init`), so a world with nothing imported lists them as
+not supplied, and the Judge's Export of one is a blank page to author into. The
+pot's rail carries a **Treasure tables** button under Table style, drawn for a seat
+that holds `SETTINGS_MODIFY` (`canBrowseTables`), which opens the browser focused on
+those two documents (`TREASURE_TABLE_DOCS`) through
+`acksExtras.location.openRuledataBrowser`.
+
 ## Dealing letters
 
 Source: `deal-logic.mjs` (pure), `deal.mjs` (the Foundry side), and the
@@ -640,6 +667,20 @@ treasure.
 letter once, in order, through `dealHoard` with the pot's deal toggles, and
 stages every truth in one `addTruths` call. It refuses a player
 (`notAllowed`), an open pot (`phase`) and a list with no letter (`empty`).
+
+**The rail's choices are one partial.** Table style, Arms and armor column,
+Special treasure and Met in their lair, with the Treasure tables button, are
+`templates/treasure/deal-options.hbs` (loaded at `init`, `DEAL_OPTIONS_TEMPLATE`),
+whose context is `deal-logic.mjs` `dealOptionsView({deal, styleKeys, styleCite,
+arms, loc, canBrowse, locked, reason})`. It answers `{styles: [{key, label,
+pressed, tip, off}], arms: {off, options, tip}, special, lair, lairTip,
+tablesButton: {label, tip}|null, locked, reason: {text, tip}|null}`, and the rail
+spreads it into its `deal` context and hands the partial `deal`. The controls carry
+`data-action` (`dealStyle`, `dealSpecial`, `dealLair`, `dealTables`) and
+`data-deal-arms`; the caller binds them. `locked` disables every control and
+`reason` is a visible line under them, its tooltip on a wrapper; the rail sets
+neither. Ids read `@root.partId`, so a caller outside a window part puts `partId`
+in its root context.
 
 **The lair warning reads one stored toggle.** `pot.deal.metInLair` is the
 Judge's "Met in their lair" state, set in staging with `setDealMetInLair`

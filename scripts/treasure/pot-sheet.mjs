@@ -16,13 +16,13 @@ import { listsGoods } from "../lib/bundles.mjs";
 import { providers } from "../lib/storage.mjs";
 import { executeAsGM } from "../lib/sockets.mjs";
 import { writeOnChange } from "../lib/press-safe-change.mjs";
-import { BAND_COUNT, BUCKET, LANG, MODE, MODULE_ID, PHASE, POOL, POT_HANDLER, REFUSAL } from "./constants.mjs";
+import { BAND_COUNT, BUCKET, LANG, MODE, MODULE_ID, PHASE, POOL, POT_HANDLER, REFUSAL, TREASURE_TABLE_DOCS } from "./constants.mjs";
 import { DEAL_LIST, DEAL_STYLE, DEAL_TOGGLE, apparentName, bucketCards, cardInPot, cardView, dealOf, haulOf, normalizeTruth, potCards, seatCards, turnedOf, withBands } from "./pot-logic.mjs";
 import { slowestSpeed, speedOfRank } from "./grab-pot.mjs";
 import { TEXTURE, backArt, backDress, faceArt, faceDress, textureArt } from "./card-art.mjs";
-import { dealLines, dealMessages, lairWarning, monsterRows } from "./deal-logic.mjs";
+import { canBrowseTables, dealLines, dealMessages, dealOptionsView, lairWarning, monsterRows } from "./deal-logic.mjs";
 import { armsSource, dealLettersIntoPot } from "./deal.mjs";
-import { armsBandParts, armsField } from "./magic-deal-logic.mjs";
+import { armsBandParts } from "./magic-deal-logic.mjs";
 import { hoardTypes, styleCite } from "./hoard.mjs";
 import {
   addDealHand, addDealMonster, addTruths, closePot, mayGrab, openPot, partyFigures, potOf, removeDealRow, removeStaged, setDealMetInLair, setDealOption, setDealToggle, setMode, stepDealRow, truthsFromItem, viewOf,
@@ -87,6 +87,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       dealStyle: PotSheet.#onDealStyle,
       dealSpecial: PotSheet.#onDealSpecial,
       dealLair: PotSheet.#onDealLair,
+      dealTables: PotSheet.#onDealTables,
       dealRun: PotSheet.#onDealRun,
       dealConfirm: PotSheet.#onDealConfirm,
       dealCancel: PotSheet.#onDealCancel,
@@ -248,14 +249,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     const types = hoardTypes(deal.style);
     const listed = new Set(deal.hand.map((h) => h.letter));
     const pickCite = styleCite(deal.style) ?? cite;
-    const styles = DEAL_STYLE.map((key) => {
-      const label = loc(`deal.style.${key}`);
-      const page = styleCite(key);
-      // No page is named while the table is not imported: the module ships no citation for a style.
-      return { key, label, pressed: deal.style === key, tip: page ? loc("deal.tip.style", { style: label, cite: page }) : loc("deal.tip.styleBare", { style: label }) };
-    });
-    const { columns, cite: armsCite } = armsSource();
-    const arms = armsField({ columns, chosen: deal.armsSetting, cite: armsCite ?? loc("cite.arms"), loc });
+    const options = dealOptionsView({ deal, styleKeys: DEAL_STYLE, styleCite, arms: armsSource(), loc, canBrowse: canBrowseTables(game.user) });
     const standing = this.#warned && !!lairWarning({ letters: lines, metInLair: deal.metInLair });
     return {
       rows,
@@ -266,11 +260,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       canAdd: types.length > 0,
       addTip: types.length ? "" : cite,
       runText: lines.length ? loc(lines.length === 1 ? "deal.runOne" : "deal.runN", { n: lines.length }) : loc("deal.run"),
-      styles,
-      arms,
-      special: deal.special,
-      lair: deal.metInLair,
-      lairTip: cite,
+      ...options,
       dealTip: loc("deal.tip.deal"),
       warning: standing ? { body: loc("deal.warn.body", { toggle: loc("deal.lair") }), tip: cite } : null,
     };
@@ -605,6 +595,12 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     this.#warned = false;
     await setDealMetInLair(this.document, target.getAttribute("aria-pressed") !== "true");
     this.render();
+  }
+
+  /** Judge with the permission to modify world settings: open the Ruledata Browser on the treasure tables the deal reads. */
+  static async #onDealTables() {
+    if (!canBrowseTables(game.user)) return;
+    await globalThis.acksExtras?.location?.openRuledataBrowser?.({ focus: [...TREASURE_TABLE_DOCS] });
   }
 
   /** Judge: Deal. While the lair warning stands it is shown instead of dealing. */

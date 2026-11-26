@@ -87,6 +87,27 @@ sibling features (henchmen today; domains later) read through lib.
     (an occupation category, a grid column, a list); any other sub-entry
     shows its whole table, because a saved slice would stand in for all
     of it.
+  - The browser lists a document as one group, headed by the document's id made
+    readable (derived at render) with the id kept beside it as a hint, and a count
+    of the group's overridden tables (a table split into columns counts once).
+    Within a group the tables the engine reads come first. The importer's page
+    reads of a document, `acksExtras.importer.rawTablesOf(docId)`
+    (`importer/raw-tables.mjs`, read from each binding's `PRODUCES`; the
+    `treasure` and `magicItemTables` bindings answer today), sit under a
+    collapsed **Page reads** list with View and Export only, each naming the tables
+    the engine reads instead. Nothing reads an override of a page read, so it takes
+    no drop, no Edit and no new override; an override already stored on one keeps
+    its revert. With no importer answering, no row is a page read.
+  - A feature declares the tables it reads through `expectTables`, and the
+    browser lists each one nothing has supplied as "not supplied", so a world with
+    nothing imported still has the group to work from (the treasure deal's are
+    `treasure/expected.mjs`).
+  - `acksExtras.location.openRuledataBrowser({focus})` takes document ids: the
+    named groups open, the window scrolls to the first and the rest collapse
+    (`table-docs.mjs` `focusPlan`; a focus no group answers to collapses
+    nothing). The focus applies to one render; after it the groups a Judge opens
+    or closes stay as they left them through the window's re-renders. A second call
+    brings the open window forward.
   - A dropped RollTable's result reads as the words its sheet shows: the
     description with its markup stripped (Foundry's result form saves every
     edit as a paragraph), else the name of the document the result links.

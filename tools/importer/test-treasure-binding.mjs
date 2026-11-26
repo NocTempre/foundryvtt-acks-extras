@@ -12,6 +12,7 @@ import assert from "node:assert";
 import { extractTable } from "../../scripts/importer/table-extract.mjs";
 import { citeIsFrom, readPlainTable, recipeLocates, tableRecipeBooks } from "../../scripts/importer/tables-binding.mjs";
 import { recipeCite } from "../../scripts/importer/produces.mjs";
+import { rawTablesFrom, rawTablesOf } from "../../scripts/importer/raw-tables.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { TREASURE_RECIPES, TYPE_LETTERS, bandGrid, typeGrid } from "../../scripts/importer/table-recipes-treasure.mjs";
 import {
@@ -251,5 +252,13 @@ const whole = extractTable(ttPage, jjRecipe.over);
 const jjTail = extractTable([run("Qq jj title", 40, 60), run("3", 20, 100), run("jj tail", 46, 100)], jjRecipe);
 check("the Tome's whole list beside a Journal tail overlaps, and the binding refuses it", assembleBands([whole, jjTail], read) === null);
 check("beside an emptied tail it assembles", assembleBands([whole, {}], read)?.length === 1);
+
+// The page reads the browser sets apart: every table a recipe reads, and no table the engine reads.
+const pageReads = rawTablesOf(TREASURE_DOC_ID);
+check("every raw table the treasure recipes read is a page read", Object.keys(TREASURE_RECIPES.tables).every((id) => id in pageReads) && Object.keys(pageReads).length === Object.keys(TREASURE_RECIPES.tables).length);
+check("no table the engine reads is a page read", Object.keys(PRODUCES[TREASURE_DOC_ID]).every((id) => !(id in pageReads)));
+check("a page read names every engine table it feeds", JSON.stringify([pageReads.typeClassicRaw, pageReads.specialCpRaw, pageReads.specialCpMoreRaw, pageReads.typeGrittyUnitsRaw]) === JSON.stringify([["typeClassic"], ["special", "specialPer"], ["special"], ["typeUnits"]]));
+check("an arms grid's page read is a magic-item page read, and another document has none", rawTablesOf("magicItemTables").armorTypeRaw?.[0] === "armsArmor" && Object.keys(rawTablesOf("encounters")).length === 0);
+check("a null source names no page read, and an engine table is never one", Object.keys(rawTablesFrom({ d: { a: null, b: "a", c: ["x", "b"] } }, "d")).join() === "x");
 
 console.log(`test-treasure-binding: ${pass} checks passed.`);

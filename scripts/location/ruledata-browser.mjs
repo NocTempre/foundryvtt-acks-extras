@@ -10,9 +10,16 @@
  *    (registry priority 30; the world import stays underneath, revert
  *    falls back to it).
  *  - EDIT opens the JSON directly for cross-cutting grids.
+ *
+ * A document's group lists the tables the engine reads first. The importer's
+ * page reads of it (`acksExtras.importer.rawTablesOf`) sit under a collapsed
+ * "Page reads" list with View and Export only, since nothing reads an override
+ * of one; each says which table the engine reads instead. `openRuledataBrowser
+ * ({focus})` opens the named documents' groups, scrolls to the first and
+ * collapses the rest.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { listEntries, entryCite, entryData, editableData, reshapeJson, exportEntry, parseDrop } from "./table-docs.mjs";
+import { listEntries, entryCite, entryData, editableData, reshapeJson, exportEntry, parseDrop, groupEntries, focusPlan, tableLabel } from "./table-docs.mjs";
 import { setOverride, clearOverride, hasOverride, overrideMeta } from "./table-store.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
@@ -34,32 +41,66 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
       editEntry: RuledataBrowser.#onEdit,
       viewEntry: RuledataBrowser.#onView,
     },
-    // Every table row is an override-by-drop target (see the file header).
-    dragDrop: [{ dropSelector: "[data-entry-key]" }],
+    // Every row the engine reads is an override-by-drop target (see the file header); a page read is not.
+    dragDrop: [{ dropSelector: "[data-entry-key]:not([data-read-only])" }],
   };
 
   static PARTS = {
     body: { template: `modules/${MODULE_ID}/templates/location/ruledata-browser.hbs` },
   };
 
+  /** The document ids a focus asked to open; spent by the next render, so a later render keeps what the Judge opened or closed. */
+  #focus = null;
+
+  /** Which groups are open, by document id; a group never toggled is open. */
+  #open = new Map();
+
+  /** The documents whose "Page reads" list is open. */
+  #readsOpen = new Set();
+
+  /** The document the next render scrolls to, once. */
+  #scrollTo = null;
+
+  /** Elements the toggle listener is bound on; a window's element persists across its renders. */
+  #bound = new WeakSet();
+
+  /** Ask the next render to open only these documents' groups and scroll to the first. */
+  focusOn(focus) {
+    this.#focus = Array.isArray(focus) && focus.length ? focus : null;
+  }
+
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    const docs = new Map();
-    for (const entry of listEntries()) {
+    const rows = listEntries().map((entry) => {
       const tableKey = entry.tableId; // overrides live per registry table
       const overridden = hasOverride(entry.docId, tableKey);
       const meta = overridden ? overrideMeta(entry.docId, tableKey) : null;
-      const row = {
+      return {
         ...entry,
         overridden,
         sourceName: meta?.sourceName ?? "",
         cite: entryCite(entry),
         kindLabel: game.i18n.localize(entry.rollable ? "ACKS-LOCATION.browser.rolltable" : "ACKS-LOCATION.browser.journal"),
+        readByText: entry.readOnly ? game.i18n.format("ACKS-LOCATION.browser.readBy", { tables: entry.readBy.map(tableLabel).join(", ") }) : "",
       };
-      if (!docs.has(entry.docId)) docs.set(entry.docId, { docId: entry.docId, entries: [] });
-      docs.get(entry.docId).entries.push(row);
+    });
+    const groups = groupEntries(rows);
+    if (this.#focus) {
+      const plan = focusPlan(groups, this.#focus);
+      this.#open = new Map(Object.entries(plan.open));
+      this.#scrollTo = plan.scrollTo;
+      this.#focus = null;
     }
-    context.docs = [...docs.values()];
+    context.docs = groups.map((group) => ({
+      ...group,
+      open: this.#open.get(group.docId) ?? true,
+      readsOpen: this.#readsOpen.has(group.docId),
+      entriesTip: game.i18n.format("ACKS-LOCATION.browser.entriesTip", { n: group.entries.length }),
+      readsText: game.i18n.format("ACKS-LOCATION.browser.readsSummary", { n: group.reads.length }),
+      readsTip: game.i18n.format("ACKS-LOCATION.browser.readsTip", { n: group.reads.length }),
+      overriddenText: game.i18n.format("ACKS-LOCATION.browser.overriddenCount", { n: group.overriddenCount }),
+      overriddenTip: game.i18n.localize("ACKS-LOCATION.browser.overriddenCountTip"),
+    }));
     context.empty = !context.docs.length;
     return context;
   }
@@ -77,6 +118,28 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
         })
     );
     for (const dragDrop of this.#dragDrop) dragDrop.bind(this.element);
+    // `toggle` does not bubble, so it is heard in the capture phase; what a Judge opened stays open through a re-render.
+    if (!this.#bound.has(this.element)) {
+      this.#bound.add(this.element);
+      this.element.addEventListener(
+        "toggle",
+        (ev) => {
+          const details = ev.target;
+          if (details?.nodeType !== 1) return;
+          if (details.matches("details[data-group]")) this.#open.set(details.dataset.group, details.open);
+          else if (details.matches("details[data-reads]")) {
+            if (details.open) this.#readsOpen.add(details.dataset.reads);
+            else this.#readsOpen.delete(details.dataset.reads);
+          }
+        },
+        true,
+      );
+    }
+    if (this.#scrollTo) {
+      const group = [...this.element.querySelectorAll("details[data-group]")].find((el) => el.dataset.group === this.#scrollTo);
+      this.#scrollTo = null;
+      group?.scrollIntoView?.({ block: "start" });
+    }
   }
 
   #entry(key) {
@@ -85,7 +148,7 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async #onDrop(event, key) {
     const entry = this.#entry(key);
-    if (!entry || !game.user.isGM) return;
+    if (!entry || entry.readOnly || !game.user.isGM) return;
     const dropData = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
     try {
       const { data, sourceUuid, sourceName } = await parseDrop(entry, dropData);
@@ -134,7 +197,7 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static async #onEdit(_event, target) {
     const entry = this.#entry(target.closest("[data-entry-key]")?.dataset.entryKey);
-    if (!entry || !game.user.isGM) return;
+    if (!entry || entry.readOnly || !game.user.isGM) return;
     const current = JSON.stringify(editableData(entry), null, 2);
     await foundry.applications.api.DialogV2.prompt({
       classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "acks-location-ruledata-edit"],
@@ -160,7 +223,18 @@ export class RuledataBrowser extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 }
 
-/** Opens the Ruledata Browser window. */
-export function openRuledataBrowser() {
-  new RuledataBrowser().render(true);
+/**
+ * Opens the Ruledata Browser window, or brings the open one forward. With a
+ * `focus` (document ids, most wanted first) the named groups open and the
+ * window scrolls to the first; the rest collapse.
+ * @param {{focus?: string[]}} [options]
+ */
+export function openRuledataBrowser({ focus = null } = {}) {
+  const open = foundry.applications.instances?.get(RuledataBrowser.DEFAULT_OPTIONS.id);
+  const app = typeof open?.focusOn === "function" ? open : new RuledataBrowser();
+  app.focusOn(focus);
+  return app.render({ force: true }).then((rendered) => {
+    rendered.bringToFront?.();
+    return rendered;
+  });
 }

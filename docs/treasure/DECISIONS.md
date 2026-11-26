@@ -751,3 +751,9 @@ Close with the owner's bare core delete as the player's route, which leaves the
 doorway card a live doorway to a pot that no longer exists. A seat that is not a
 Judge closes an open pot only: staging stays the Judge's surface until its own
 role-check batch rules on it (T-STAGE, held by the release hub).
+
+## 2026-11-26 — The treasure tables live in the Ruledata Browser, and a page read is not editable there
+
+The owner, 2026-11-20: "Treasure tables aren t improting?" and 2026-11-26: "where are they stored? no hidden surfaces. also no way to select on treasure deal card". The import worked; the tables were stored in the world setting `acks-extras.importedTables` and seen only through the Ruledata Browser, which listed the importer's page reads beside the tables the deal reads and offered Edit and drop on both. An override of a page read is inert, since the deal reads the assembled tables and a re-import rereads the world layer. The browser is the one home (no second window): its group for each treasure document leads with the tables the deal reads, sets the page reads apart under a collapsed list with View and Export only, and names the table the deal reads instead. Treasure declares its tables through `expectTables`, so an empty world lists them as not supplied, and the pot's rail opens the browser on them with a button drawn for a seat holding `SETTINGS_MODIFY`.
+
+**Cost:** a page read is not editable in the browser, so a Judge who wants to change what was read from a page changes the assembled table beside it. An override already stored on a page read keeps its revert, the one control left on those rows. **Rejected:** a treasure window of the module's own (a second surface for one setting); hiding the page reads (nothing buried, and Export of one is how a Judge audits the read); drawing the button for any Judge (the override it leads to asks `SETTINGS_MODIFY`, and the module invents no permission of its own).

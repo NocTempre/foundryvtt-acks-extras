@@ -211,7 +211,7 @@ function folderDoc(data, pack = null) {
  * `expected` is what consumers want but no import provided. The world starts
  * with no shelves: the first pass that needs one creates it, as live.
  */
-function world({ registry = {}, expected = [] } = {}) {
+function world({ registry = {}, expected = [], rawTables = null } = {}) {
   calls = [];
   globalThis.game = {
     tables: new Coll(),
@@ -301,6 +301,8 @@ function world({ registry = {}, expected = [] } = {}) {
         bandDie,
       },
     },
+    // The importer's answer to "which tables are page reads", where a test asks for one.
+    ...(rawTables ? { importer: { rawTablesOf: rawTables } } : {}),
   };
 }
 
@@ -323,6 +325,8 @@ const {
   countMaterializedDocs,
   reshapeJson,
   editableData,
+  groupEntries,
+  focusPlan,
 } = await import("../scripts/location/table-docs.mjs");
 
 /** Write calls only — the folder/journal lookups are reads. */
@@ -1126,6 +1130,75 @@ await test("a value list whose dice are a legend carries the legend in its descr
   const made = tableNamed(entryAt("treasure.gemValue.bands").label);
   assert.match(made.description, /9d9 Qq \(avg\. 5\) · d9\+9 Zz \(avg\. 6\)/);
   assert.equal(made.formula, "1d60", "the formula is still the list's own furthest band");
+});
+
+/* -------------------------------------------- */
+/*  The treasure tables' home: page reads, engine tables, focus  */
+/* -------------------------------------------- */
+
+/** A treasure document as an import leaves it: the page reads (`*Raw`) beside the tables the deal reads; every value is this file's own. */
+const homeRegistry = () => ({
+  treasure: {
+    typeClassicRaw: { A: { name: "Zz" } },
+    specialCpRaw: { r1: {} },
+    specialCpMoreRaw: { r1: {} },
+    typeClassic: { A: { category: "Qq", cp: "1" } },
+    special: { cp: [{ min: 1, max: 1, result: "Zz" }], sp: [{ min: 1, max: 1, result: "Qq" }] },
+  },
+});
+
+await test("a page read is listed read-only with the tables the deal reads instead; an engine table is not", async () => {
+  const { rawTablesOf } = await import("../scripts/importer/raw-tables.mjs");
+  world({ registry: homeRegistry(), rawTables: rawTablesOf });
+  const byKey = Object.fromEntries(listEntries().map((e) => [e.key, e]));
+  assert.equal(byKey["treasure.typeClassicRaw"].readOnly, true, "the page read is marked read-only");
+  assert.deepEqual(byKey["treasure.typeClassicRaw"].readBy, ["typeClassic"]);
+  assert.deepEqual(byKey["treasure.specialCpRaw"].readBy, ["special", "specialPer"], "one page read can feed two tables");
+  assert.deepEqual(byKey["treasure.specialCpMoreRaw"].readBy, ["special"]);
+  assert.equal(byKey["treasure.typeClassic"].readOnly, false, "the table the deal reads stays editable");
+  for (const column of ["cp", "sp"]) assert.equal(byKey[`treasure.special.${column}`].readOnly, false, "and so does each column of a list");
+});
+
+await test("with no importer answering, no row is read-only", () => {
+  world({ registry: homeRegistry() });
+  assert.deepEqual([...new Set(listEntries().map((e) => e.readOnly))], [false]);
+});
+
+await test("treasure declares the tables its deal reads, so a world with nothing imported lists them as not supplied", async () => {
+  const { expectedTables, resetTables } = await import("../scripts/lib/tables.mjs");
+  const { declareTreasureTables, EXPECTED_TABLES } = await import("../scripts/treasure/expected.mjs");
+  const { PRODUCES, TREASURE_DOC_ID } = await import("../scripts/importer/treasure-binding.mjs");
+  resetTables();
+  declareTreasureTables();
+  assert.deepEqual([...EXPECTED_TABLES].sort(), Object.keys(PRODUCES[TREASURE_DOC_ID]).sort(), "every table the importer assembles is one the deal reads, and the reverse");
+  world({ registry: {}, expected: expectedTables() });
+  const absent = listEntries().filter((e) => e.absent).map((e) => e.key);
+  for (const id of ["typeClassic", "typeHeroic", "typeGritty", "gemValue", "jewelryValue", "special"]) assert.ok(absent.includes(`treasure.${id}`), `${id} is listed, not supplied`);
+  resetTables();
+});
+
+await test("a group is headed by its readable name with the id as a hint, the engine's tables first and the page reads apart, and counts overrides by table", async () => {
+  const { rawTablesOf } = await import("../scripts/importer/raw-tables.mjs");
+  world({ registry: homeRegistry(), rawTables: rawTablesOf });
+  const rows = listEntries().map((e) => ({ ...e, overridden: e.tableId === "special" }));
+  const groups = groupEntries(rows);
+  assert.equal(groups.length, 1);
+  const [g] = groups;
+  assert.deepEqual([g.docId, g.label], ["treasure", "Treasure"], "the id is kept for the hint, the heading is derived from it");
+  assert.deepEqual(g.entries.map((e) => e.key), ["treasure.special.cp", "treasure.special.sp", "treasure.typeClassic"]);
+  assert.deepEqual(g.reads.map((e) => e.key), ["treasure.specialCpMoreRaw", "treasure.specialCpRaw", "treasure.typeClassicRaw"]);
+  assert.equal(g.overriddenCount, 1, "two columns of one overridden table are one override");
+});
+
+await test("a focus opens only the named groups and scrolls to the first; no focus, or none present, leaves every group open", () => {
+  const groups = [{ docId: "magicItemTables" }, { docId: "people" }, { docId: "treasure" }];
+  assert.deepEqual(focusPlan(groups, ["treasure", "magicItemTables"]), { open: { magicItemTables: true, people: false, treasure: true }, scrollTo: "treasure" });
+  assert.deepEqual(focusPlan(groups, ["treasure"]), { open: { magicItemTables: false, people: false, treasure: true }, scrollTo: "treasure" });
+  assert.deepEqual(focusPlan(groups, ["gone", "magicItemTables"]), { open: { magicItemTables: true, people: false, treasure: false }, scrollTo: "magicItemTables" }, "a name no group answers to is passed over");
+  const all = { open: { magicItemTables: true, people: true, treasure: true }, scrollTo: null };
+  assert.deepEqual(focusPlan(groups, []), all);
+  assert.deepEqual(focusPlan(groups, undefined), all);
+  assert.deepEqual(focusPlan(groups, ["gone"]), all, "a focus that matches nothing collapses nothing");
 });
 
 console.log(`test-table-docs: ${passed} tests passed`);

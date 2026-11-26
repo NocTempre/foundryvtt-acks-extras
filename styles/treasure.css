@@ -499,6 +499,11 @@
   border: 0;
 }
 
+/* The Treasure tables button sits under the style group at its own width, not stretched across the rail. */
+.acks-extras-treasure .acks-extras-treasure__tables {
+  align-self: flex-start;
+}
+
 .acks-extras-treasure .acks-extras-treasure__side .acks-btn-group {
   display: flex;
 }

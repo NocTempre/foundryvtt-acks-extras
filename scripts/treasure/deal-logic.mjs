@@ -10,7 +10,7 @@
  * is the lair's hoard, and a lair is not multiplied by the bodies in it. `deal.mjs` is the Foundry side.
  */
 import { PHASE, REFUSAL } from "./constants.mjs";
-import { MAGIC_ERROR } from "./magic-deal-logic.mjs";
+import { MAGIC_ERROR, armsField } from "./magic-deal-logic.mjs";
 import { letterOf } from "./search-logic.mjs";
 
 /** Reasons a letter deal refuses, beside `REFUSAL`'s: the lair was neither met nor confirmed. */
@@ -197,4 +197,54 @@ export function dealMessages(outcome) {
   if (cards) messages.push({ level: "info", key: "deal.done", args: { n: cards, letters: (outcome.dealt ?? []).filter((d) => d.cards).map((d) => d.letter).join(", ") } });
   else if (!messages.length) messages.push({ level: "warn", key: "deal.nothing", args: {} });
   return messages;
+}
+
+/**
+ * Whether a seat is drawn the Treasure tables button: the permission Foundry
+ * itself asks of a world-setting write, which is what overriding a table
+ * writes, and never a GM flag.
+ * @param {{can?: (permission: string) => boolean}|null|undefined} user
+ */
+export const canBrowseTables = (user) => user?.can?.("SETTINGS_MODIFY") === true;
+
+/**
+ * The deal's choices as `templates/treasure/deal-options.hbs` reads them: the
+ * table style (a pressed button each, its tooltip the page the imported table
+ * was read from, or the bare name with none), the arms and armor column field,
+ * the special-treasure and lair toggles, and the Treasure tables button. The
+ * pot's rail spreads this into its deal context; a card that offers the same
+ * choices hands it to the partial whole.
+ *
+ * `locked` disables every control and `reason` is the visible line saying why
+ * (`{text, tip}`, the tooltip going on its wrapper); the rail sets neither.
+ *
+ * @param {object} args
+ * @param {{style: string, special: boolean, metInLair: boolean, armsSetting: string}} args.deal the choices as a pot stores them
+ * @param {string[]} args.styleKeys the table styles, in the order they are offered
+ * @param {(style: string) => string|null} args.styleCite the page a style's imported table was read from, null while it is not imported
+ * @param {{columns: Array<{key: string, label: string}>, cite: string|null}} args.arms `deal.mjs` `armsSource()`
+ * @param {(key: string, data?: object) => string} args.loc the treasure lang formatter
+ * @param {boolean} [args.canBrowse] `canBrowseTables` for the seat drawing it
+ * @param {boolean} [args.locked]
+ * @param {{text: string, tip: string}|null} [args.reason]
+ */
+export function dealOptionsView({ deal, styleKeys, styleCite, arms, loc, canBrowse = false, locked = false, reason = null }) {
+  const cite = loc("cite.deal");
+  const styles = styleKeys.map((key) => {
+    const label = loc(`deal.style.${key}`);
+    const page = styleCite(key);
+    // No page is named while the table is not imported: the module ships no citation for a style.
+    return { key, label, pressed: deal.style === key, tip: page ? loc("deal.tip.style", { style: label, cite: page }) : loc("deal.tip.styleBare", { style: label }), off: locked };
+  });
+  const field = armsField({ columns: arms.columns, chosen: deal.armsSetting, cite: arms.cite ?? loc("cite.arms"), loc });
+  return {
+    styles,
+    arms: locked ? { ...field, off: true } : field,
+    special: deal.special,
+    lair: deal.metInLair,
+    lairTip: cite,
+    tablesButton: canBrowse ? { label: loc("deal.tables"), tip: loc("deal.tip.tables", { cite }) } : null,
+    locked,
+    reason,
+  };
 }

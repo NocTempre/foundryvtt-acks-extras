@@ -50,7 +50,7 @@ globalThis.foundry = {};
 
 const { PHASE, MODULE_ID, POT_FLAG } = await import("../scripts/treasure/constants.mjs");
 const { addHand, addMonster, normalizePot, removeRow, setDealChoice, setMetInLair, setMonsters, setToggle, stepRow, DEAL_LIST, DEAL_STYLE, DEAL_TOGGLE } = await import("../scripts/treasure/pot-logic.mjs");
-const { DEAL_ERROR_CODES, DEAL_REFUSAL, dealLines, dealMessages, groupMonsters, lairWarning, monsterRows, runLetterDeal } = await import("../scripts/treasure/deal-logic.mjs");
+const { DEAL_ERROR_CODES, DEAL_REFUSAL, canBrowseTables, dealLines, dealMessages, dealOptionsView, groupMonsters, lairWarning, monsterRows, runLetterDeal } = await import("../scripts/treasure/deal-logic.mjs");
 const { STYLE_TABLE } = await import("../scripts/treasure/hoard-map.mjs");
 const { readFileSync } = await import("node:fs");
 const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
@@ -461,6 +461,119 @@ const plain = () => {
   globalThis.game.user.isGM = true;
   globalThis.canvas = undefined;
   eq(selectedMonsterGroups(), [], "no canvas, no rows");
+}
+
+/* --- the deal options the rail and the card share --- */
+{
+  const format = (key, data = {}) => (lang[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => data[k] ?? "");
+  const loc = (key, data) => format(`ACKS-TREASURE.${key}`, data);
+  const { armsField } = await import("../scripts/treasure/magic-deal-logic.mjs");
+  const styleKeys = DEAL_STYLE;
+  const pages = { classic: "INV p. 1", gritty: "INV p. 3" };
+  const styleCite = (key) => pages[key] ?? null;
+  const columns = [{ key: "s1", label: "Alpha setting" }, { key: "s2", label: "Beta setting" }];
+  const deal = { style: "heroic", special: true, metInLair: false, armsSetting: "s2" };
+  const view = (extra = {}) => dealOptionsView({ deal, styleKeys, styleCite, arms: { columns, cite: "INV p. 9" }, loc, ...extra });
+
+  // What the rail's own code computed before the view was shared: the styles, the arms field, the two toggles and the lair tooltip.
+  const railBefore = ({ deal: d, arms: { columns: cols, cite: armsCite } }) => ({
+    styles: styleKeys.map((key) => {
+      const label = loc(`deal.style.${key}`);
+      const page = styleCite(key);
+      return { key, label, pressed: d.style === key, tip: page ? loc("deal.tip.style", { style: label, cite: page }) : loc("deal.tip.styleBare", { style: label }) };
+    }),
+    arms: armsField({ columns: cols, chosen: d.armsSetting, cite: armsCite ?? loc("cite.arms"), loc }),
+    special: d.special,
+    lair: d.metInLair,
+    lairTip: loc("cite.deal"),
+  });
+  const stripped = (v) => ({ styles: v.styles.map(({ off, ...rest }) => rest), arms: v.arms, special: v.special, lair: v.lair, lairTip: v.lairTip });
+  for (const [label, args] of [
+    ["a heroic pot with an arms column and special treasure", { deal, arms: { columns, cite: "INV p. 9" } }],
+    ["a new pot with nothing imported", { deal: { style: "classic", special: false, metInLair: true, armsSetting: "" }, arms: { columns: [], cite: null } }],
+  ]) {
+    eq(stripped(dealOptionsView({ ...args, styleKeys, styleCite, loc })), railBefore(args), `the options are today's rail: ${label}`);
+  }
+  eq(Object.keys(view()).indexOf("arms") === Object.keys(view()).indexOf("styles") + 1, true, "the arms field follows the table style, as the rail's context has it");
+  eq([view().locked, view().reason, view().styles.map((s) => s.off)], [false, null, [false, false, false]], "an unlocked view locks nothing and says nothing");
+
+  // The Treasure tables button follows Foundry's own permission.
+  const asked = [];
+  const user = (grant) => ({ can: (permission) => (asked.push(permission), grant) });
+  eq([canBrowseTables(user(true)), canBrowseTables(user(false)), asked], [true, false, ["SETTINGS_MODIFY", "SETTINGS_MODIFY"]], "the button's test is the permission to modify world settings");
+  eq([canBrowseTables({ isGM: true }), canBrowseTables(null)], [false, false], "a GM flag alone grants nothing, and no user is no button");
+  eq(view({ canBrowse: false }).tablesButton, null, "a seat without the permission is drawn no button");
+  eq(view().tablesButton, null, "and none is drawn unless asked for");
+  eq(view({ canBrowse: true }).tablesButton, { label: "Treasure tables", tip: "Imported treasure tables (JJ ch. 4)" }, "a seat with it is drawn the button, its tooltip the page reference");
+
+  // A card that cannot take a choice locks every control and says why, in a line that is visible.
+  const locked = view({ locked: true, reason: { text: "A reason line", tip: "Its tooltip" } });
+  eq([locked.locked, locked.styles.every((s) => s.off), locked.arms.off, locked.reason], [true, true, true, { text: "A reason line", tip: "Its tooltip" }], "a locked view disables the styles and the arms select");
+
+  // The partial itself, on the real Handlebars.
+  const Handlebars = (await import("handlebars")).default;
+  const hb = Handlebars.create();
+  hb.registerHelper("localize", (key) => lang[key] ?? key);
+  const partial = readFileSync(new URL("../templates/treasure/deal-options.hbs", import.meta.url), "utf8");
+  const render = (v, root = {}) => hb.compile(partial)(v, { data: { root: { partId: "seed", ...root } } });
+  const html = render(view({ canBrowse: true }));
+  eq((html.match(/data-action="dealStyle"/g) ?? []).length, 3, "one button per table style");
+  ok(/data-style="heroic" aria-pressed="true"/.test(html) && /data-style="classic" aria-pressed="false"/.test(html), "the chosen style is the pressed one");
+  ok(/<select class="acks-input" id="seed-arms" data-deal-arms[^>]*>/.test(html) && /<option value="s2" selected>/.test(html), "the arms select carries the per-window id and the chosen column");
+  ok(/data-action="dealSpecial" aria-pressed="true"/.test(html) && /data-action="dealLair" aria-pressed="false"/.test(html), "the two toggles carry their state");
+  ok(/data-action="dealTables"/.test(html), "the Treasure tables button is drawn when the view asks for it");
+  ok(!/data-action="dealTables"/.test(render(view())), "and not otherwise");
+  ok(!/\btitle=|<summary/.test(html) && [...html.matchAll(/\sid="([^"]*)"/g)].every((m) => m[1].startsWith("seed-")), "no title attribute, no summary, no id that is not the window's own");
+  const lockedHtml = render(locked);
+  ok(/A reason line/.test(lockedHtml) && !/A reason line/.test(html), "a locked view shows its reason line, and an unlocked one none");
+  ok(!/<select[^>]*\sdisabled/.test(html) && /<select[^>]*\sdisabled/.test(lockedHtml), "a locked view disables the select");
+  eq((lockedHtml.match(/<button[^>]*data-action="dealStyle"[^>]*\sdisabled/g) ?? []).length, 3, "and every style button");
+  const rail = readFileSync(new URL("../templates/treasure/pot.hbs", import.meta.url), "utf8");
+  ok(rail.includes('{{> "modules/acks-extras/templates/treasure/deal-options.hbs" deal}}') && !/data-action="dealStyle"|data-deal-arms|data-action="dealLair"/.test(rail), "the rail draws the partial and holds none of its controls itself");
+  const { DEAL_OPTIONS_TEMPLATE, TREASURE_TABLE_DOCS } = await import("../scripts/treasure/constants.mjs");
+  eq(DEAL_OPTIONS_TEMPLATE, "modules/acks-extras/templates/treasure/deal-options.hbs", "the loaded template is the one the rail names");
+  const { TREASURE_DOC_ID } = await import("../scripts/importer/treasure-binding.mjs");
+  const { MAGIC_ITEM_DOC_ID } = await import("../scripts/importer/magic-item-binding.mjs");
+  eq([...TREASURE_TABLE_DOCS], [TREASURE_DOC_ID, MAGIC_ITEM_DOC_ID], "the button opens the browser on the importer's two treasure documents");
+  const keys = [...partial.matchAll(/ACKS-TREASURE\.[A-Za-z.]+/g)].map((m) => m[0]);
+  ok(keys.length > 5 && keys.every((k) => k in lang), "every string the partial names is in the lang file");
+}
+
+/* --- an override of an engine table reaches the deal; an override of a page read does not --- */
+{
+  const tables = await import("../scripts/lib/tables.mjs");
+  const { mapHoardArgs } = await import("../scripts/treasure/hoard-map.mjs");
+  const { setOverride, clearOverride } = await import("../scripts/location/table-store.mjs");
+  const keep = { game: globalThis.game, foundry: globalThis.foundry, acksExtras: globalThis.acksExtras };
+  let store = {};
+  const user = { isGM: true, can: (p) => p === "SETTINGS_MODIFY" };
+  globalThis.foundry = { utils: { deepClone: (o) => JSON.parse(JSON.stringify(o)) } };
+  globalThis.acksExtras = { lib: { tables } };
+  globalThis.game = {
+    user,
+    settings: {
+      get: () => store,
+      // The store's own onChange mirrors every layer into the registry; the mock does the same.
+      set: async (_m, _k, value) => {
+        store = value;
+        for (const entry of Object.values(value)) tables.registerTable(entry.doc, { priority: entry.priority });
+        for (const layer of tables.docInfo()) if (layer.priority === tables.PRIORITY.OVERRIDE && !(`${layer.id}:${layer.priority}` in value)) tables.unregisterTable(layer.id, { priority: layer.priority });
+      },
+    },
+  };
+  const row = (cp) => ({ category: "Odds", avgValue: null, cp, sp: null, ep: null, gp: null, pp: null, gems: null, jewelry: null, magic: null });
+  tables.resetTables();
+  tables.registerTable({ id: "treasure", tables: { typeClassicRaw: { Z: { cp: "2d4" } }, typeClassic: { Z: row("2d4") } } }, { priority: tables.PRIORITY.WORLD });
+  const dealt = () => mapHoardArgs({ tables: tables.getDoc("treasure").tables, letter: "Z", style: "classic" }).args.tables.type.rows.Z.cp;
+  eq(dealt(), "2d4", "the deal reads the import");
+  await setOverride("treasure", "typeClassic", { Z: row("9d9") }, { sourceName: "test" });
+  eq(dealt(), "9d9", "an override of the table the deal reads is what the deal reads");
+  await clearOverride("treasure", "typeClassic");
+  eq(dealt(), "2d4", "dropping the override brings the import back");
+  await setOverride("treasure", "typeClassicRaw", { Z: { cp: "9d9" } }, { sourceName: "test" });
+  eq(dealt(), "2d4", "an override of the page read changes nothing the deal reads");
+  tables.resetTables();
+  Object.assign(globalThis, keep);
 }
 
 console.log(`treasure deal: ${checks} checks passed`);

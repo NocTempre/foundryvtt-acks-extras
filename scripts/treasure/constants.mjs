@@ -19,6 +19,12 @@ export const CARD_FLAG = "card";
 /** Flag key, under the module's scope on the Judge's user, of the arms column last chosen on a pot: the default a new pot opens with. */
 export const ARMS_LAST_FLAG = "treasureArms";
 
+/** The shared deal-options partial (Table style, Arms and armor column, Special treasure, Met in their lair, the Treasure tables button), drawn by the pot's rail and by any card that asks for the same choices. */
+export const DEAL_OPTIONS_TEMPLATE = `modules/${MODULE_ID}/templates/treasure/deal-options.hbs`;
+
+/** The registry documents the Treasure tables button opens the Ruledata Browser on (`treasure` and `magicItemTables`; `tools/test-treasure-deal.mjs` pins them to the importer's ids). */
+export const TREASURE_TABLE_DOCS = Object.freeze(["treasure", "magicItemTables"]);
+
 /** The id a pot's sheet is registered and chosen under (`flags.core.sheetClass`). */
 export const POT_SHEET_KEY = `${MODULE_ID}.PotSheet`;
 

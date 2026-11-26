@@ -50,6 +50,19 @@
 .acks-extras.ruledata-browser [data-entry-key]:hover {
   background: var(--acks-tint-2);
 }
+/* A page read takes no drop, so it takes no hover tint either (the tint says
+   "drop here"); the line naming the table the engine reads instead sits under
+   its name like the citation does. */
+.acks-extras.ruledata-browser [data-read-only]:hover {
+  background: none;
+}
+.acks-extras.ruledata-browser .ruledata-table .read-by {
+  display: block;
+  font-size: 0.85em;
+}
+.acks-extras.ruledata-browser details.page-reads {
+  margin-top: 0.5rem;
+}
 /* The one drop rendering used across this module: focus keyline plus the tint-2
    ground, with no ring and no dashed outline behind it. The keyline is declared
    whole rather than as a bare `border-color`, because the row itself carries no
