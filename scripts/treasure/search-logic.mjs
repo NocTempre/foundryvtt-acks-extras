@@ -128,10 +128,26 @@ const lotsOf = (list) =>
     .map((l) => ({ key: text(l.key), thing: text(l.thing), layer: text(l.layer) || null }));
 
 /**
+ * The deal choices a card records (`{style, special, metInLair, armsSetting}`),
+ * or null where it records none (a card posted before the choices were kept, or
+ * a record built by hand). The values are the shapes a pot's `deal` stores, so
+ * the pot the card opens reads them as written; a style or column the pot does
+ * not list is dropped there, not here.
+ * @param {*} raw the card's `deal` as the flag holds it
+ * @returns {{style: string, special: boolean, metInLair: boolean, armsSetting: string}|null}
+ */
+export function dealChoicesOf(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  return { style: text(raw.style), special: raw.special === true, metInLair: raw.metInLair === true, armsSetting: text(raw.armsSetting) };
+}
+
+/**
  * A record read back from a flag, every key present. `opened` is set once a
  * scene search has been opened from the card, so one card deals once; with it
  * the card keeps what that first opening made (`potUuid`, `placeUuid`, `lots`),
- * which a Judge's later press reattaches without dealing again.
+ * which a Judge's later press reattaches without dealing again. `deal` is the
+ * choices the opening will deal on (`dealChoicesOf`), null for a card that
+ * records none.
  */
 export function normalizeRecord(flag) {
   const f = flag && typeof flag === "object" ? flag : {};
@@ -144,13 +160,16 @@ export function normalizeRecord(flag) {
     potUuid: text(f.potUuid) || null,
     placeUuid: text(f.placeUuid) || null,
     lots: lotsOf(f.lots),
+    deal: dealChoicesOf(f.deal),
   };
 }
 
 /**
  * What the card shows: a row per fallen creature, with how many items it
  * carried, its letter and whether a table is linked, and its combatant id,
- * which the open-sheet control carries to name the body it opens.
+ * which the open-sheet control carries to name the body it opens, and its
+ * linked table's uuid, which the Table control carries to name the table it
+ * opens.
  */
 export function cardRows(record) {
   const r = normalizeRecord(record);
@@ -160,7 +179,37 @@ export function cardRows(record) {
     items: Array.isArray(e.goods) ? e.goods.length : 0,
     letter: letterOf(e.letter),
     hasTable: !!e.tableUuid,
+    tableUuid: text(e.tableUuid),
   }));
+}
+
+/**
+ * Whether a linked table's uuid still names a table to open, for a control
+ * drawn disabled where it does not. The uuid has to end in a RollTable and the
+ * resolver has to find something under it: a table in a compendium resolves
+ * synchronously to its index entry, which is no document and says what it is
+ * only by its uuid. A throwing resolver names nothing.
+ * @param {string|null} uuid the fallen's linked table uuid
+ * @param {(uuid: string) => object|null} resolve a synchronous resolver, `fromUuidSync` in the world
+ */
+export function tableExists(uuid, resolve) {
+  if (typeof uuid !== "string" || !/(^|\.)RollTable\.[^.]+$/.test(uuid)) return false;
+  try {
+    return !!resolve(uuid);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Disable the Table buttons of a fight-over card whose table no longer
+ * resolves. The button's `data-table` carries the uuid the record held when the
+ * card was posted.
+ * @param {Array<{dataset?: {table?: string}, disabled?: boolean}>} buttons
+ * @param {(uuid: string) => object|null} resolve a synchronous resolver, `fromUuidSync` in the world
+ */
+export function settleTableButtons(buttons, resolve) {
+  for (const button of buttons) button.disabled = !tableExists(button.dataset?.table, resolve);
 }
 
 /**

@@ -22,6 +22,9 @@ export const ARMS_LAST_FLAG = "treasureArms";
 /** The shared deal-options partial (Table style, Arms and armor column, Special treasure, Met in their lair, the Treasure tables button), drawn by the pot's rail and by any card that asks for the same choices. */
 export const DEAL_OPTIONS_TEMPLATE = `modules/${MODULE_ID}/templates/treasure/deal-options.hbs`;
 
+/** The Deal block of the fight-over card: its caption, then the shared options partial or the reason the card offers none. */
+export const DEAL_BLOCK_TEMPLATE = `modules/${MODULE_ID}/templates/treasure/search-deal.hbs`;
+
 /** The registry documents the Treasure tables button opens the Ruledata Browser on (`treasure` and `magicItemTables`; `tools/test-treasure-deal.mjs` pins them to the importer's ids). */
 export const TREASURE_TABLE_DOCS = Object.freeze(["treasure", "magicItemTables"]);
 

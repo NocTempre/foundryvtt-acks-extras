@@ -19,7 +19,7 @@
           <span class="acks-extras-treasure-search__letter" data-tooltip="ACKS-TREASURE.search.letterTip" aria-label="{{localize 'ACKS-TREASURE.search.letterTip'}}">{{localize "ACKS-TREASURE.search.letter" letter=letter}}</span>
           {{/if}}
           {{#if hasTable}}
-          <span class="acks-extras-treasure-search__table" data-tooltip="ACKS-TREASURE.search.tableTip" aria-label="{{localize 'ACKS-TREASURE.search.tableTip'}}">{{localize "ACKS-TREASURE.search.table"}}</span>
+          <button type="button" class="acks-extras-treasure-search__table" data-action="openTable" data-table="{{tableUuid}}" data-tooltip="ACKS-TREASURE.search.tableTip" aria-label="{{localize 'ACKS-TREASURE.search.tableLabel' name=name}}">{{localize "ACKS-TREASURE.search.table"}}</button>
           {{/if}}
         </span>
       </li>
@@ -29,6 +29,7 @@
       <p>{{localize "ACKS-TREASURE.search.textTitle"}}</p>
       <ul class="acks-extras-treasure-search__text" data-field="text"></ul>
     </div>
+    <div data-field="deal"></div>
     <button type="button" class="acks-btn acks-btn--sm" data-action="searchScene">{{localize "ACKS-TREASURE.search.scene"}}</button>
     <p class="acks-extras-treasure-search__note">{{localize "ACKS-TREASURE.search.sceneNote"}}</p>
   </div>

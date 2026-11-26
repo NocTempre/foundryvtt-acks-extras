@@ -86,6 +86,19 @@ function normalizeDeal(d) {
 }
 
 /**
+ * The four deal choices a pot is made with (table style, special treasure, met
+ * in their lair, arms column), every key present: what `newPot` seeds from the
+ * choices it is given. A card that records the choices before any pot exists
+ * seeds them the same way, so the pot it opens starts as a hand-made one would.
+ * @param {{style?: string, special?: boolean, metInLair?: boolean, armsSetting?: string}} [deal]
+ * @returns {{style: string, special: boolean, metInLair: boolean, armsSetting: string}}
+ */
+export function seedDeal(deal) {
+  const { style, special, metInLair, armsSetting } = normalizeDeal(deal);
+  return { style, special, metInLair, armsSetting };
+}
+
+/**
  * What each document a dropped item delivers weighs, in sixths of a stone, read
  * off that document's own data. A card is one document, so the weights that go
  * on a pot's cards sum to what the pot would put on an actor, and a grab can

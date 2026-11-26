@@ -1119,7 +1119,7 @@
   font-variant-numeric: lining-nums tabular-nums;
 }
 
-/* A fallen row's name with the Judge's open-sheet button after it; the facts stay at the far end. */
+/* A fallen row's name with the Judge's open-sheet button after it; the facts stay at the far end, the Table button among them styled as the sheet button is. */
 .acks-extras-treasure-search .acks-extras-treasure-search__who {
   display: inline-flex;
   align-items: center;
@@ -1127,7 +1127,8 @@
   min-width: 0;
 }
 
-.acks-extras-treasure-search .acks-extras-treasure-search__sheet {
+.acks-extras-treasure-search .acks-extras-treasure-search__sheet,
+.acks-extras-treasure-search .acks-extras-treasure-search__table {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1146,9 +1147,19 @@
   cursor: pointer;
 }
 
-.acks-extras-treasure-search .acks-extras-treasure-search__sheet:disabled {
+.acks-extras-treasure-search .acks-extras-treasure-search__sheet:disabled,
+.acks-extras-treasure-search .acks-extras-treasure-search__table:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* The Deal block under the fallen: the shared options partial stacked in the card's width, an imported column label shrinking to it. */
+.acks-extras-treasure-search .acks-extras-treasure-search__deal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  min-width: 0;
+  margin-block: var(--acks-sp-4);
 }
 
 /* --- The closing record -------------------------------------------------------- */

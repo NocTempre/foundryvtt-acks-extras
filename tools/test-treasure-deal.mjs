@@ -537,6 +537,21 @@ const plain = () => {
   eq([...TREASURE_TABLE_DOCS], [TREASURE_DOC_ID, MAGIC_ITEM_DOC_ID], "the button opens the browser on the importer's two treasure documents");
   const keys = [...partial.matchAll(/ACKS-TREASURE\.[A-Za-z.]+/g)].map((m) => m[0]);
   ok(keys.length > 5 && keys.every((k) => k in lang), "every string the partial names is in the lang file");
+
+  // The fight-over card's Deal block names the same partial; both branches compile on the real Handlebars.
+  const { DEAL_BLOCK_TEMPLATE } = await import("../scripts/treasure/constants.mjs");
+  eq(DEAL_BLOCK_TEMPLATE, "modules/acks-extras/templates/treasure/search-deal.hbs", "the card loads the block template it draws");
+  const blockSource = readFileSync(new URL("../templates/treasure/search-deal.hbs", import.meta.url), "utf8");
+  ok(blockSource.includes('{{> "modules/acks-extras/templates/treasure/deal-options.hbs" options}}'), "the block draws the shared partial");
+  hb.registerPartial("modules/acks-extras/templates/treasure/deal-options.hbs", partial);
+  const drawBlock = (context) => hb.compile(blockSource)(context, { data: { root: context } });
+  const withOptions = drawBlock({ partId: "m1-deal-1", options: view({ canBrowse: true }) });
+  ok(/id="m1-deal-1-deal-title"/.test(withOptions) && /aria-labelledby="m1-deal-1-deal-title"/.test(withOptions), "the block's caption carries an id built from this draw's seed");
+  ok(/id="m1-deal-1-arms"/.test(withOptions) && /for="m1-deal-1-arms"/.test(withOptions) && /aria-describedby="m1-deal-1-arms-hint"/.test(withOptions), "the partial's ids take the card's seed");
+  eq((withOptions.match(/data-action="dealStyle"/g) ?? []).length, 3, "the options branch draws the controls");
+  const withReason = drawBlock({ partId: "m1-deal-2", reason: { text: "A reason line", tip: "Its tooltip" } });
+  ok(/A reason line/.test(withReason) && /data-tooltip-text="Its tooltip"/.test(withReason) && !/data-action="dealStyle"/.test(withReason), "the reason branch draws the visible line with its tooltip and no controls");
+  ok(![withOptions, withReason].some((h) => /\btitle=|<summary|\sid=""|undefined/.test(h)) && [...withOptions.matchAll(/\sid="([^"]*)"/g)].every((m) => m[1].startsWith("m1-deal-1-")), "no title attribute, no empty id, and every id is this draw's own");
 }
 
 /* --- an override of an engine table reaches the deal; an override of a page read does not --- */

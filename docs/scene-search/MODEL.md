@@ -114,6 +114,10 @@ in the plan while it resolves), because the relay runs a lock on a Judge's clien
 The Judge's roll deals the treasure when the session opens, into a pot
 (`treasure/pot.mjs`), every lot unfound. A lot is found when the check that
 holds it is. The pot's window and the tray show a player the found lots only.
+The deal rolls each letter's magic items with the pot's own binding
+(`treasure/deal.mjs` `magicRollerFor`: the deal's style and the pot's arms column),
+so a searched hoard holds rolled items, and the roll's errors and audit rows join
+the letter's report.
 
 A fight's record turns into the session's bodies and a source for each body
 (`session-logic.mjs` `bodiesFromRecord`): the goods it carried, then whatever
@@ -126,8 +130,10 @@ takes nothing: a check's resolution marks the lots it found (`markSceneFound`) a
 then takes each found lot's good off its body, through treasure's own take-off
 (`takeOffBodies`, handed in as the `takeOff` seam of `configureSceneChecks`; see
 [treasure MODEL](../treasure/MODEL.md), "Search the fallen"). A lot found again
-takes nothing, and a body that is gone leaves its card on the snapshot. The lair warning a
-body's letter raises is shown to the Judge as a notice and the deal goes on.
+takes nothing, and a body that is gone leaves its card on the snapshot. The deal runs on the
+choices the fight's card recorded (style, special, lair, arms column; treasure MODEL, "Search
+the fallen"); where Met in their lair is off, the lair warning a body's letter raises is shown
+to the Judge as a notice and the deal goes on.
 
 ## The screen
 

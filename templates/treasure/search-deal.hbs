@@ -1,0 +1,11 @@
+{{!--
+  The fight-over card's Deal block, drawn by the card's render hook (`treasure/search-deal.mjs`) from the message's flag. The context is `partId` (unique to this draw, since one card can be in the page twice), then either `options` (`deal-logic.mjs` `dealOptionsView`, handed whole to the shared partial) or `reason` alone, for a card with nothing to offer.
+--}}
+<section class="acks-extras-treasure acks-extras-treasure-search__deal" role="group" aria-labelledby="{{@root.partId}}-deal-title">
+  <p class="acks-extras-caption" id="{{@root.partId}}-deal-title">{{localize "ACKS-TREASURE.search.deal.title"}}</p>
+  {{#if options}}
+    {{> "modules/acks-extras/templates/treasure/deal-options.hbs" options}}
+  {{else}}
+    <span class="acks-extras-treasure__hint acks-extras-treasure__reason" role="status" data-tooltip-text="{{reason.tip}}">{{reason.text}}</span>
+  {{/if}}
+</section>

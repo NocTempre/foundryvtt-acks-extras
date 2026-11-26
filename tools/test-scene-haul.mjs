@@ -190,6 +190,24 @@ const staged = (deal = {}) => L.normalizePot({ phase: PHASE.staging, deal });
   const own = await H.runHaulDeal({ isGM: true, pot: staged({ metInLair: true }), sources: [{ thing: "body", truths: [{ label: "purse" }] }], deal: fakeDeal(), stage: fakeStage() });
   eq([own.ok, own.lots.map((l) => l.key)], [true, ["body/1"]], "ready-made truths are tagged and staged like dealt ones");
 
+  // A haul given a magic roll hands it each letter's truths and stages what it answers; without one the truths are staged as dealt.
+  {
+    const rolledFor = [];
+    const rollMagic = async ({ letter, truths }) => {
+      rolledFor.push([letter, truths.map((t) => t.label)]);
+      return { truths: [...truths.map((t) => ({ ...t, label: `${t.label} rolled` })), valued(`${letter} magic`, 9)], errors: [{ code: "magic", reason: "no-match" }], audit: [{ where: `${letter}.magic`, magic: true }] };
+    };
+    const log = [];
+    const rolled = await H.runHaulDeal({ isGM: true, pot: staged({ metInLair: true }), sources: [{ thing: "den", letters: ["Y"] }, { thing: "chest", letters: ["Z"] }], deal: fakeDeal(), rollMagic, stage: fakeStage(log) });
+    eq(rolledFor, [["Y", ["Y one", "Y two"]], ["Z", ["Z one", "Z two"]]], "each letter's truths go to the roll");
+    eq(log[0].map((t) => t.label), ["Y one rolled", "Y two rolled", "Y magic", "Z one rolled", "Z two rolled", "Z magic"], "what the roll answers is what is staged");
+    eq(rolled.lots.map((l) => l.key), ["den/1", "den/2", "den/3", "chest/1", "chest/2", "chest/3"], "a rolled truth takes its lot after the roll, like any other");
+    eq(rolled.dealt.map((d) => [d.letter, d.thing, d.cards, d.errors.length, d.audit?.length]), [["Y", "den", 3, 1, 1], ["Z", "chest", 3, 1, 1]], "the roll's errors and audit rows join each letter's report");
+    const plainLog = [];
+    await H.runHaulDeal({ isGM: true, pot: staged({ metInLair: true }), sources: [{ thing: "den", letters: ["Y"] }], deal: fakeDeal(), stage: fakeStage(plainLog) });
+    eq(plainLog[0].map((t) => t.label), ["Y one", "Y two"], "with no roll the truths are staged as dealt");
+  }
+
   // A body's carried goods keep the item they were made from, and the letter's truths after them carry none.
   const spoon = { actorUuid: "Actor.b1", itemId: "i1" };
   const owned = await H.runHaulDeal({
@@ -326,6 +344,7 @@ const staged = (deal = {}) => L.normalizePot({ phase: PHASE.staging, deal });
       typeClassic: {
         Y: { category: "Odds", avgValue: null, cp: "2", sp: null, ep: null, gp: null, pp: null, gems: null, jewelry: null, magic: null },
         Z: { category: "Odds", avgValue: null, cp: "90", sp: null, ep: null, gp: null, pp: null, gems: null, jewelry: null, magic: null },
+        W: { category: "Odds", avgValue: null, cp: null, sp: null, ep: null, gp: null, pp: null, gems: null, jewelry: null, magic: "100% 1 widgets" },
       },
       typeUnits: { classic: { cp: "37s" } },
     },
@@ -406,8 +425,59 @@ const staged = (deal = {}) => L.normalizePot({ phase: PHASE.staging, deal });
   });
   eq([mixed.ok, mixed.lots.map((l) => l.key)], [true, ["z/2"]], "a lot the deal toggles strike when the pot opens is not in the answered map");
 
+  // The choices a fight-over card recorded are the pot's own deal; nothing asked leaves a pot to start as a hand-made one does.
+  {
+    const potDeal = async (over) => {
+      const made = await dealSceneHaul({ sources: [{ thing: "z3", truths: [truth({ label: "Cup" })] }], ...over });
+      return { made, deal: potOf(piles.at(-1)).deal };
+    };
+    const picked = (d) => [d.style, d.special, d.metInLair, d.armsSetting];
+    const asked = await potDeal({ style: "heroic", special: true, metInLair: true, armsSetting: "s2" });
+    eq([asked.made.ok, picked(asked.deal)], [true, ["heroic", true, true, "s2"]], "the pot that opens carries the asked style, special, lair and arms column");
+    eq(picked((await potDeal({ style: "gritty", special: false, metInLair: false, armsSetting: "s3" })).deal), ["gritty", false, false, "s3"], "and a different ask is carried as asked");
+    eq(picked((await potDeal({})).deal), ["classic", false, false, ""], "with nothing asked it starts as a hand-made pot does");
+
+    globalThis.game.user.getFlag = (scope, key) => (scope === MODULE_ID && key === "treasureArms" ? "s5" : undefined);
+    try {
+      eq(picked((await potDeal({ style: "heroic" })).deal)[3], "s5", "no column asked keeps the Judge's last choice");
+      eq(picked((await potDeal({ armsSetting: "" })).deal)[3], "", "a blank column the card asked for wins over the Judge's last choice");
+      eq(picked((await potDeal({ armsSetting: "s2" })).deal)[3], "s2", "and so does a named one");
+    } finally {
+      delete globalThis.game.user.getFlag;
+    }
+
+    // A searched hoard's magic is rolled by the pot's own binding: the deal's style and the pot's arms column reach the roll service.
+    {
+      const services = await import("../scripts/lib/services.mjs");
+      const { acksExtras } = await import("../scripts/namespace.mjs");
+      const savedRoll = services.get("magic-item-roll");
+      const savedMagic = acksExtras.magicItems;
+      const asks = [];
+      services.register("magic-item-roll", { roll: async (a) => (asks.push({ from: a.from, style: a.style, armsSetting: a.armsSetting }), { ok: true, start: a.from, steps: [], item: { list: "classic.wd", text: "Alpha widget", fields: { item: "Alpha widget" }, flag: null, ref: null, uuid: null } }) });
+      acksExtras.magicItems = { starts: () => ({ classic: [{ key: "wd", id: "classic.wd", caption: "Widget" }], heroic: [], gritty: [] }) };
+      try {
+        const magicHaul = await dealSceneHaul({ sources: [{ thing: "den", letters: ["W"] }], metInLair: true, armsSetting: "s2" });
+        eq([magicHaul.ok, asks], [true, [{ from: "classic.wd", style: "classic", armsSetting: "s2" }]], "the pot's arms column and style reach the magic roll");
+        const labels = cardsOf(piles.at(-1)).map((c) => c.flags[MODULE_ID][CARD_FLAG].label);
+        ok(labels.includes("Alpha widget") && !labels.includes("widgets"), "the pot that opens holds the rolled card, not the placeholder");
+        asks.length = 0;
+        await dealSceneHaul({ sources: [{ thing: "den", letters: ["W"] }], metInLair: true });
+        eq(asks.map((a) => a.armsSetting), [undefined], "a pot with no column passes no setting");
+      } finally {
+        services.register("magic-item-roll", savedRoll ?? {});
+        acksExtras.magicItems = savedMagic;
+      }
+    }
+
+    // The lair warning stays the Judge's notice: on, it is never raised; off, it is raised once and the deal goes on.
+    let raised = 0;
+    const warned = { sources, scene: { sceneId: "scene1" }, confirmLair: async () => (raised++, true) };
+    eq([(await dealSceneHaul({ ...warned, metInLair: true })).ok, raised], [true, 0], "with Met in their lair on the warning is never raised");
+    eq([(await dealSceneHaul({ ...warned, metInLair: false })).ok, raised], [true, 1], "with it off the warning is raised once and the deal goes on");
+  }
+
   // A fight's goods: the pot's origin maps each card to the body item it stands for; the goods stay on the bodies until their lots are found (below).
-  const spoon = { actorUuid: "Actor.b1", itemId: "i1" };
+  const spoon ={ actorUuid: "Actor.b1", itemId: "i1" };
   const fight = await dealSceneHaul({
     sources: [{ thing: "body:b1", truths: [truth({ label: "Spoon" }), truth({ label: "Ladle" })], owners: [spoon, null] }],
     metInLair: true,

@@ -302,6 +302,41 @@ What this surface adds to that recipe:
   defeated friend and the party's own token are not listed; the Player seat holds
   the message in its collection and neither sees nor renders it. A second Judge
   seat sees it once (not walked: the walk has one Judge seat).
+- **The Deal block and the Table button** (new 2026-11-26, not walked; offline:
+  `tools/test-treasure-search.mjs`, `tools/test-scene-ways.mjs`,
+  `tools/test-scene-haul.mjs`). Fixtures: the fight's card from a fallen body
+  carrying a treasure letter, and one from a body with a linked RollTable and no
+  letter. Steps and observables:
+  1. On the Judge seat the card shows **Deal** above Search the scene: three Table
+     style buttons with the first pressed, Arms and armor column, Special treasure,
+     Met in their lair, and Treasure tables (opens the Ruledata Browser on the
+     treasure groups). Press Heroic, turn Special treasure and Met in their lair on,
+     choose an arms column if the grid is imported. Each press re-renders the card
+     with the choice kept and focus on the control pressed, and
+     `flags["acks-extras"].treasureSearch.deal` reads `{style: "heroic", special:
+     true, metInLair: true, armsSetting}`. Reload the page: the block shows the
+     same. Open the card in a second place it is drawn (a popped-out chat): each
+     copy's ids are its own and a press in either writes the one flag.
+  2. Press Search the scene. The scene's pot (the session's `potUuid`) reads the
+     same `style`, `special`, `metInLair` and `armsSetting` in its pot flag, and no
+     lair warning is shown. With an arms column chosen on the card (and the magic
+     tables imported), the pot that opens holds rolled magic cards, not placeholders.
+     Repeat with a fresh fight and Met in their lair off: the Judge sees the lair
+     warning as a notice and the pot still opens.
+  3. After the press the card shows no controls, only "This card's scene is open",
+     its tooltip on the line.
+  4. Probe `game.messages.get(id).canUserModify(game.user, "update")` on the GM
+     seat (true) and the Player seat (false; the Player's log holds no such card,
+     so probe the message from the collection), and render the message there:
+     no Deal block is drawn.
+  5. A card whose bodies carry no treasure type: every control is disabled under
+     the visible line "No body here has a treasure type". A card posted before this
+     build (strip `deal` from its flag): the block draws from the seed and Search
+     the scene asks for no choices, so the pot starts as a hand-made one does.
+  6. The Table chip is a button: press it and the linked RollTable's sheet opens;
+     delete the table and re-render the card, the button is disabled. A body with no
+     treasure type keeps the sheet button after its name.
+  Teardown: the run's cards, pots and sessions by the ledger's ids.
 - **The take-off** (changed 2026-11-19, walked 2026-11-19, treasure-search 130212). A pot whose origin asks
   for it takes a good off its body when that good's lot is found, from the Judge's
   client that resolved the check; opening the pot takes nothing. Observables: the

@@ -13,6 +13,7 @@
  * is what the table is shown and may act on, not a secret.
  */
 import { MODULE_ID, PHASE, POT_FLAG, REFUSAL } from "../treasure/constants.mjs";
+import { magicRollerFor } from "../treasure/deal.mjs";
 import { dealHoard } from "../treasure/hoard.mjs";
 import { addTruths, isPot, markLotsFound, newPot, openPot, potOf, viewOf } from "../treasure/pot.mjs";
 import { LAYER_NAMES } from "../lib/place-things-logic.mjs";
@@ -32,6 +33,7 @@ import { bodiesWithFound, carriedOf, foundKeys, lotsInPot, runHaulDeal } from ".
  * @param {"classic"|"heroic"|"gritty"} [args.style]
  * @param {boolean} [args.special]
  * @param {boolean} [args.metInLair] true where the Judge says the creatures were met in their lair
+ * @param {string} [args.armsSetting] the pot's arms column (a setting key; blank is none); left out, the pot starts with the Judge's last choice as a hand-made pot does
  * @param {{noMagic?: boolean, forceCursed?: boolean}} [args.toggles] the pot's deal toggles
  * @param {(warning: {letters: string[]}) => (boolean|Promise<boolean>)} [args.confirmLair]
  *   asked once for the whole haul while the lair warning stands
@@ -40,9 +42,10 @@ import { bodiesWithFound, carriedOf, foundKeys, lotsInPot, runHaulDeal } from ".
  * @param {boolean} [args.doorway] post the doorway card (a scene's own tray replaces it)
  * @returns {Promise<{ok: true, potId: string, potUuid: string, lots: Array<{key: string, thing: string, layer: string, cardId: string}>, dealt: object[]}|{ok: false, reason: string, dealt?: object[]}>}
  */
-export async function dealSceneHaul({ sources, name = "", style, special, metInLair = false, toggles, confirmLair, scene = null, partyId = null, doorway = false } = {}) {
+export async function dealSceneHaul({ sources, name = "", style, special, metInLair = false, armsSetting, toggles, confirmLair, scene = null, partyId = null, doorway = false } = {}) {
   if (!game.user?.isGM) return { ok: false, reason: REFUSAL.notAllowed };
-  const pile = await newPot({ name, render: false, deal: { metInLair, style, special, toggles } });
+  // The key is left out when nothing was asked: a present key, blank or not, wins over the Judge's last column in `newPot`.
+  const pile = await newPot({ name, render: false, deal: { metInLair, style, special, toggles, ...(typeof armsSetting === "string" ? { armsSetting } : {}) } });
   if (!pile) return { ok: false, reason: REFUSAL.failed };
   const discard = () => pile.delete({ chatNotification: false }).catch(() => null);
   try {
@@ -53,6 +56,7 @@ export async function dealSceneHaul({ sources, name = "", style, special, metInL
       sources,
       confirmLair,
       deal: ({ letter, toggles: held }) => dealHoard({ letter, style: pot.deal.style, toggles: held, special: pot.deal.special }),
+      rollMagic: magicRollerFor({ pot, style: pot.deal.style }),
       stage: (truths) => addTruths(pile, truths),
     });
     if (!result.ok) {

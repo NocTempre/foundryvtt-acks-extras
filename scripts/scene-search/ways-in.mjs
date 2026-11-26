@@ -7,7 +7,9 @@
  * screen and nothing else. A fight's record, when the press came from its card,
  * makes the fallen the scene's bodies. A card whose scene was opened once and
  * has ended reopens it on a Judge's press, at the place the first opening used
- * and with the pot it dealt reattached, and deals nothing again.
+ * and with the pot it dealt reattached, and deals nothing again. The deal runs
+ * on the choices the card recorded (`deal`: table style, special treasure, met
+ * in their lair, arms column); a press with no card asks for none.
  *
  * Judge-only, since opening a session deals a haul. A player's press on the
  * Dungeon tab reaches this call through the party-press relay
@@ -40,7 +42,7 @@ const SILENT = new Set(["lairDeclined"]);
  * @param {(args: object) => Promise<{ok: boolean, reason?: string, detail?: string, potUuid?: string|null}>} deps.open the scene search api's `open`
  * @param {(partyId: string) => *} deps.openScreen
  * @param {(messageId: string, made: {potUuid: string|null, placeUuid: string, lots: object[]}) => Promise<*>} deps.stamp marks a card as opened and keeps what the opening made
- * @param {(warning: {letters: string[]}) => (boolean|Promise<boolean>)} deps.confirmLair the deal's lair warning
+ * @param {(warning: {letters: string[]}) => (boolean|Promise<boolean>)} deps.confirmLair the deal's lair warning, asked only where the card's choices (or none) leave "Met in their lair" off
  * @param {() => string} deps.potGoneText the notice for a reopened search whose pot is gone
  * @param {(reason: string) => string} deps.reasonText a `scene:` refusal in words
  * @param {(text: string) => *} deps.warn tells the Judge
@@ -83,7 +85,9 @@ export function createWaysIn(deps) {
         tell(WAYS_REFUSAL.NO_PLACE_HERE);
         return refuse(WAYS_REFUSAL.NO_PLACE_HERE);
       }
-      const args = { partyId: id, placeUuid, sceneId: stamped ? (record.sceneId ?? scene?.id ?? null) : (scene?.id ?? null), recordMessageId, confirmLair: deps.confirmLair };
+      // The choices a card recorded are the deal's own; a press with no card, or a card posted without them, asks for none and the pot starts as a hand-made one does.
+      const asked = !reopen && record?.deal ? { ...record.deal } : {};
+      const args = { partyId: id, placeUuid, sceneId: stamped ? (record.sceneId ?? scene?.id ?? null) : (scene?.id ?? null), recordMessageId, ...asked, confirmLair: deps.confirmLair };
       let opened = await deps.open(args);
       // A deal that rolled nothing still opens the scene, with the bodies and no pot: pressing again would roll again.
       if (!reopen && !opened.ok && opened.detail === REFUSAL.empty) opened = await deps.open({ ...args, sources: [] });

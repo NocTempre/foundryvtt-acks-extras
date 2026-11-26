@@ -144,6 +144,31 @@ const world = () => {
   state.isGM = true;
 }
 {
+  // The choices a card recorded are the deal the press asks for; a press with no record of them asks for none.
+  const { log, state, search } = world();
+  const asked = () => log.opened.at(-1);
+  state.records.m1.deal = { style: "heroic", special: true, metInLair: true, armsSetting: "s2" };
+  await search({ recordMessageId: "m1" });
+  eq([asked().style, asked().special, asked().metInLair, asked().armsSetting], ["heroic", true, true, "s2"], "the card's style, special, lair and arms reach open");
+
+  state.records.m1.deal = { style: "gritty", special: false, metInLair: false, armsSetting: "" };
+  await search({ recordMessageId: "m1" });
+  eq([asked().style, asked().special, asked().metInLair, asked().armsSetting, typeof asked().confirmLair], ["gritty", false, false, "", "function"], "a card that says no lair and a blank column asks for exactly that, and the lair warning is still the Judge's notice");
+
+  delete state.records.m1.deal;
+  await search({ recordMessageId: "m1" });
+  eq(["style", "special", "metInLair", "armsSetting"].map((k) => k in asked()), [false, false, false, false], "a card posted with no recorded choices asks for none, so the pot starts as a hand-made one does");
+  await search({ partyId: "f1" });
+  eq(["style", "special", "metInLair", "armsSetting"].map((k) => k in asked()), [false, false, false, false], "and so does the Dungeon tab's press");
+
+  state.records.m1.deal = { style: "heroic", special: true, metInLair: true, armsSetting: "s2" };
+  state.records.m1.opened = true;
+  state.records.m1.potUuid = "Cards.kept";
+  state.answer = { ok: true, potUuid: "Cards.kept", reopened: true, potGone: false };
+  await search({ recordMessageId: "m1" });
+  eq(["style", "special", "metInLair", "armsSetting"].map((k) => k in asked()), [false, false, false, false], "a reopened card deals nothing again, so asks for no choices");
+}
+{
   const { log, state, search } = world();
   state.token = null;
   eq((await search({ partyId: "f1" })).reason, WAYS_REFUSAL.NO_PLACE_HERE, "a party with no token stands in no place");

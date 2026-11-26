@@ -79,10 +79,23 @@ export function dealLettersIntoPot(pile, { letters, style, special, confirmLair,
     letters,
     confirmLair,
     deal: ({ letter, toggles }) => dealHoard({ letter, style, toggles, special }),
-    rollMagic: ({ letter, truths }) => rollMagicCards({ letter, truths, style, roller, armsSetting: pot?.deal.armsSetting ?? "" }),
+    rollMagic: magicRollerFor({ pot, style, roller }),
     stage: (truths) => addTruths(pile, truths),
   });
 }
+
+/**
+ * The magic roll of a pot's deal, bound to the pot's arms column and the deal's
+ * style: the `rollMagic` a letter deal (`runLetterDeal`) takes. The pot's own
+ * deal and a scene's haul both hand it to their letter deal, so a hoard's magic
+ * is rolled one way wherever the hoard is dealt.
+ * @param {object} args
+ * @param {object|null} args.pot the pot's normalized flag, whose `deal.armsSetting` is the arms column
+ * @param {"classic"|"heroic"|"gritty"} [args.style]
+ * @param {(expr: string) => {total: number, sides: number}|Promise<{total: number, sides: number}>} [args.roller] dice for the walk; core's by default
+ * @returns {(args: {letter: string, truths: object[]}) => Promise<{truths: object[], errors: object[], audit: object[]}>}
+ */
+export const magicRollerFor = ({ pot, style, roller } = {}) => ({ letter, truths }) => rollMagicCards({ letter, truths, style, roller, armsSetting: pot?.deal.armsSetting ?? "" });
 
 /**
  * One letter's magic placeholders rolled on the imported magic-item tables

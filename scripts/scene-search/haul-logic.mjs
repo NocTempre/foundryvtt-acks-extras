@@ -79,11 +79,13 @@ export const lotKey = (thing, n) => `${thing}/${n}`;
  * @param {Array<object>} args.sources see `normalizeSources`
  * @param {(warning: {letters: string[]}) => (boolean|Promise<boolean>)} [args.confirmLair]
  * @param {(args: {letter: string, toggles: object}) => Promise<{truths: object[], errors: object[], cite: string|null}>} args.deal one letter dealt
+ * @param {(args: {letter: string, truths: object[]}) => Promise<{truths: object[], errors: object[], audit: object[]}>} [args.rollMagic]
+ *   rolls each letter's magic placeholders as `runLetterDeal` does for a pot's own deal (its errors and audit rows join the letter's in `dealt`); the rolled truths are tagged and keyed like any other, and without it the truths are staged as dealt
  * @param {(truths: object[]) => Promise<string[]>} args.stage puts truths in the pot, returning the new card ids
  * @returns {Promise<{ok: true, dealt: object[], lots: Array<{key: string, thing: string, layer: string, cardId: string, owner?: {actorUuid: string, itemId: string}}>}|{ok: false, reason: string, dealt?: object[]}>}
  *   a lot made from a body's item carries `owner`
  */
-export async function runHaulDeal({ isGM, pot, sources, confirmLair, deal, stage }) {
+export async function runHaulDeal({ isGM, pot, sources, confirmLair, deal, rollMagic, stage }) {
   if (!isGM) return { ok: false, reason: REFUSAL.notAllowed };
   if (!pot || pot.phase !== PHASE.staging) return { ok: false, reason: REFUSAL.phase };
   const list = normalizeSources(sources);
@@ -107,6 +109,7 @@ export async function runHaulDeal({ isGM, pot, sources, confirmLair, deal, stage
         pot: answered,
         letters: source.letters,
         deal,
+        rollMagic,
         stage: async (made) => {
           truths.push(...made);
           return [];

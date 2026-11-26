@@ -8,7 +8,7 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
-import { MODULE_ID, LANG, POT_HANDLER, DEAL_OPTIONS_TEMPLATE } from "./constants.mjs";
+import { MODULE_ID, LANG, POT_HANDLER, DEAL_BLOCK_TEMPLATE, DEAL_OPTIONS_TEMPLATE } from "./constants.mjs";
 import { newDealPot } from "./deal.mjs";
 import { declareTreasureTables } from "./expected.mjs";
 import { installDoorway } from "./doorway.mjs";
@@ -16,6 +16,7 @@ import PotSheet, { report } from "./pot-sheet.mjs";
 import { createPotRelay, findPot, isPot, newPot, potOf } from "./pot.mjs";
 import { createCardDrop } from "./sheet-drop.mjs";
 import "./search.mjs";
+import "./search-deal.mjs";
 
 registerHandler(POT_HANDLER, createPotRelay().handle);
 
@@ -43,8 +44,8 @@ Hooks.once("init", () => {
   });
   acksExtras.treasure = { newPot, newDealPot, findPot };
   declareTreasureTables();
-  // The shared deal-options partial, which the pot's rail names as `{{> …}}`.
-  foundry.applications.handlebars.loadTemplates([DEAL_OPTIONS_TEMPLATE]);
+  // The shared deal-options partial, which the pot's rail and the fight-over card's Deal block name as `{{> …}}`, and the block that names it.
+  foundry.applications.handlebars.loadTemplates([DEAL_OPTIONS_TEMPLATE, DEAL_BLOCK_TEMPLATE]);
 });
 
 installDoorway();

@@ -7,7 +7,9 @@
  * turns the fallen into the scene's bodies. The rules are `search-logic.mjs`'s;
  * this file reads and writes documents for them and owns the two hooks
  * (`deleteCombat` and the card's render). Nothing reaches a player until the
- * Judge shows the scene.
+ * Judge shows the scene. The card also records the deal choices its press will
+ * search on (`deal`, seeded as a new pot is); `search-deal.mjs` draws and writes
+ * them.
  *
  * The record is built synchronously inside `deleteCombat`, before the first
  * await, because the bodies' tokens may be removed the moment after. It is
@@ -22,11 +24,12 @@ import { isGoods } from "../lib/item-model.mjs";
 import { drawQuietly } from "../lib/roll-audience.mjs";
 import { STATUS_DEAD } from "../lib/status-effects.mjs";
 import { acksExtras } from "../namespace.mjs";
-import { LANG, MODULE_ID, POT_FLAG } from "./constants.mjs";
+import { ARMS_LAST_FLAG, LANG, MODULE_ID, POT_FLAG } from "./constants.mjs";
 import { potOf, truthsFromItem } from "./pot.mjs";
+import { seedDeal } from "./pot-logic.mjs";
 import {
   DRAW_REQUEST, SEARCH_FLAG, bodyActorOf, cardRows, entryOf, fallenOf, heldDraw, isNaturalWeapon, needsTakeOff, normalizeRecord, planTakeOff, recordOf, settleSheetButtons,
-  specOfResult,
+  settleTableButtons, specOfResult,
 } from "./search-logic.mjs";
 
 const loc = makeLoc(LANG);
@@ -108,11 +111,19 @@ export function recordCombat(combat) {
   return recordOf({ combatId: combat.id, sceneId: combat.scene?.id ?? combat.sceneId ?? null, entries });
 }
 
-/** Post the Judge-only card carrying a record. */
+/**
+ * What a new pot starts its deal with on this seat: the arms column this Judge
+ * last chose on a pot, blank where none was. The card's recorded choices and a
+ * card's unrecorded ones read from it exactly as `newPot` seeds a pot.
+ */
+export const cardSeed = () => ({ armsSetting: game.user?.getFlag?.(MODULE_ID, ARMS_LAST_FLAG) ?? "" });
+
+/** Post the Judge-only card carrying a record, with the deal choices it will search on seeded as a new pot seeds them. */
 async function postSearchCard(record) {
   const rows = cardRows(record);
   const content = await foundry.applications.handlebars.renderTemplate(TEMPLATE, { rows });
-  return ChatMessage.create({ content, whisper: gmIds(), flags: { [MODULE_ID]: { [SEARCH_FLAG]: record } } });
+  const flag = { ...record, deal: seedDeal(cardSeed()) };
+  return ChatMessage.create({ content, whisper: gmIds(), flags: { [MODULE_ID]: { [SEARCH_FLAG]: flag } } });
 }
 
 /* -------------------------------------------- */
@@ -254,6 +265,16 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
   // The open-sheet buttons are a Judge's: removed here for any other seat, never hidden by the template.
   const sheetButtons = [...html.querySelectorAll('[data-action="openSheet"]')];
   settleSheetButtons(sheetButtons, { isGM: game.user.isGM, record: flag, resolve: fromUuidSync });
+  // A linked table opens on Foundry's own permission for it, so the button is drawn to every seat that reads the card and disabled only where nothing resolves.
+  const tableButtons = [...html.querySelectorAll('[data-action="openTable"]')];
+  settleTableButtons(tableButtons, fromUuidSync);
+  for (const tableButton of tableButtons) {
+    tableButton.addEventListener("click", () => {
+      Promise.resolve(fromUuid(tableButton.dataset.table))
+        .then((table) => table?.sheet?.render({ force: true }))
+        .catch((err) => console.error(`${MODULE_ID} | search the fallen could not open a linked table`, err));
+    });
+  }
   if (!game.user.isGM) return;
   const record = normalizeRecord(flag);
   for (const sheetButton of sheetButtons) {

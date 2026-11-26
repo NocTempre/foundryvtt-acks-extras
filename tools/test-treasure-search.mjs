@@ -7,8 +7,10 @@
 import assert from "node:assert/strict";
 import {
   DRAW_REQUEST, actorOfDoc, bodyActorOf, cardRows, entryOf, fallenOf, heldDraw, holdsAnything, isDefeated, isHostile, isNaturalWeapon, letterOf, needsTakeOff,
-  normalizeRecord, planTakeOff, recordOf, settleSheetButtons, specOfResult, uuidOfLink,
+  dealChoicesOf, normalizeRecord, planTakeOff, recordOf, settleSheetButtons, settleTableButtons, specOfResult, tableExists, uuidOfLink,
 } from "../scripts/treasure/search-logic.mjs";
+import { DEAL_STYLE, normalizePot, seedDeal } from "../scripts/treasure/pot-logic.mjs";
+import { cardDealChoice, dealBlockOf, dealOfRecord, hasTreasureType } from "../scripts/treasure/search-deal-logic.mjs";
 
 let checks = 0;
 const ok = (cond, msg) => {
@@ -138,7 +140,7 @@ const truthB = { source: { uuid: "Actor.a1.Item.i2", data: { name: "Bent ladle" 
 /* --- reading a record back --- */
 {
   const r = normalizeRecord({ combatId: 5, fallen: "x", opened: "yes", drawnText: [1, "a"] });
-  eq(r, { combatId: "", sceneId: null, fallen: [], opened: false, drawnText: ["1", "a"], potUuid: null, placeUuid: null, lots: [] }, "only a real true is opened");
+  eq(r, { combatId: "", sceneId: null, fallen: [], opened: false, drawnText: ["1", "a"], potUuid: null, placeUuid: null, lots: [], deal: null }, "only a real true is opened");
   eq(normalizeRecord(null).fallen, []);
   eq(normalizeRecord({ opened: true }).opened, true, "a card whose scene was opened says so");
   const kept = normalizeRecord({
@@ -162,10 +164,92 @@ const truthB = { source: { uuid: "Actor.a1.Item.i2", data: { name: "Bent ladle" 
     ],
   });
   eq(cardRows(record), [
-    { combatantId: "a", name: "Mossback", items: 2, letter: null, hasTable: false },
-    { combatantId: "b", name: "Gnarl", items: 0, letter: "B", hasTable: true },
+    { combatantId: "a", name: "Mossback", items: 2, letter: null, hasTable: false, tableUuid: "" },
+    { combatantId: "b", name: "Gnarl", items: 0, letter: "B", hasTable: true, tableUuid: "RollTable.t9" },
   ]);
   eq(cardRows(null), []);
+}
+
+/* --- the Table control: it opens the linked table, and is disabled where nothing resolves --- */
+{
+  const table = { documentName: "RollTable", name: "Gnarl loot" };
+  const resolve = (uuid) => {
+    if (uuid === "RollTable.t9") return table;
+    if (uuid === "Compendium.world.loot.RollTable.c1") return { name: "An index entry, no documentName" };
+    if (uuid === "Actor.notATable") return { documentName: "Actor" };
+    if (uuid === "RollTable.boom") throw new Error("not loaded");
+    return null;
+  };
+  ok(tableExists("RollTable.t9", resolve), "a uuid that names a table opens one");
+  ok(tableExists("Compendium.world.loot.RollTable.c1", resolve), "a compendium table, which resolves to an index entry, opens one");
+  ok(!tableExists("RollTable.gone", resolve), "a uuid that names nothing opens nothing");
+  ok(!tableExists("Actor.notATable", resolve), "a uuid that names something else opens nothing");
+  ok(!tableExists("RollTable.boom", resolve), "a resolver that throws names no table");
+  ok(!tableExists("", resolve) && !tableExists(null, resolve) && !tableExists(7, resolve), "no uuid is no table");
+  const buttons = ["RollTable.t9", "RollTable.gone", "RollTable.boom", ""].map((uuid) => ({ dataset: { table: uuid }, disabled: false }));
+  settleTableButtons(buttons, resolve);
+  eq(buttons.map((b) => b.disabled), [false, true, true, true], "the Table button is disabled where its uuid does not resolve");
+}
+
+/* --- the deal choices a card records --- */
+{
+  eq(normalizeRecord({}).deal, null, "a card that recorded none reads as none");
+  eq(normalizeRecord({ deal: "x" }).deal, null, "a malformed record is none");
+  eq(normalizeRecord({ deal: [1] }).deal, null, "so is a list");
+  const deal = { style: "heroic", special: true, metInLair: true, armsSetting: "s2" };
+  eq(normalizeRecord({ deal }).deal, deal, "the choices survive normalizeRecord");
+  eq(normalizeRecord(normalizeRecord({ deal })).deal, deal, "normalizing twice keeps them");
+  eq(dealChoicesOf({ style: " gritty ", special: "yes", metInLair: 1, armsSetting: null }), { style: "gritty", special: false, metInLair: false, armsSetting: "" }, "only a real true is a choice made, and a blank column is none");
+
+  // Seeded exactly as newPot seeds a pot: the pot's own normalization, the Judge's last arms column the default.
+  eq(seedDeal({ armsSetting: "s3" }), { style: DEAL_STYLE[0], special: false, metInLair: false, armsSetting: "s3" }, "a card starts at the first style, nothing special, not in the lair, on the Judge's last column");
+  eq(seedDeal({}), { style: DEAL_STYLE[0], special: false, metInLair: false, armsSetting: "" }, "with no last column it starts blank");
+  const seeded = normalizePot({ deal: { armsSetting: "s3" } }).deal;
+  eq(seedDeal({ armsSetting: "s3" }), { style: seeded.style, special: seeded.special, metInLair: seeded.metInLair, armsSetting: seeded.armsSetting }, "the seed is what newPot's normalization makes of the same choices");
+  eq(seedDeal({ style: "bogus", armsSetting: "x" }), { style: DEAL_STYLE[0], special: false, metInLair: false, armsSetting: "" }, "a style the pot does not list, or a column that is no setting key, is dropped as a pot drops it");
+}
+
+/* --- the Deal block: who is drawn it, and what it holds --- */
+{
+  const loc = (key, data = {}) => `${key}${Object.keys(data).length ? JSON.stringify(data) : ""}`;
+  const arms = { columns: [{ key: "s1", label: "One" }, { key: "s2", label: "Two" }], cite: null };
+  const styleCite = () => null;
+  const typed = { combatId: "f1", fallen: [{ combatantId: "a", name: "Mossback", letter: "B", goods: [] }], opened: false };
+  const block = (over = {}) => dealBlockOf({ record: typed, canUpdate: true, seed: { armsSetting: "s2" }, styleCite, arms, loc, ...over });
+
+  eq(block({ canUpdate: false }), null, "a seat that cannot update the message is drawn no block");
+  eq(block({ canUpdate: false, record: { ...typed, opened: true } }), null, "nor is it told the scene is open");
+  const open = block({ record: { ...typed, opened: true } });
+  eq([open.kind, open.options, open.reason.text], ["open", undefined, "search.deal.open"], "a card whose scene is open has no controls, and says so");
+  ok(open.reason.tip.length > 0, "the reason carries its tooltip");
+
+  const live = block();
+  eq(live.kind, "choices", "a seat that can update a card whose scene is not open is drawn the choices");
+  eq(live.options.styles.map((s) => [s.key, s.pressed, s.off]), [["classic", true, false], ["heroic", false, false], ["gritty", false, false]], "the card starts at the first style, every one pressable");
+  eq([live.options.arms.options.find((o) => o.selected)?.key, live.options.special, live.options.lair, live.options.locked, live.options.reason], ["s2", false, false, false, null], "the unrecorded deal reads as a new pot would start, on the seed's column");
+  const said = block({ record: { ...typed, deal: { style: "heroic", special: true, metInLair: true, armsSetting: "s1" } } });
+  eq([said.options.styles.find((s) => s.pressed).key, said.options.special, said.options.lair, said.options.arms.options.find((o) => o.selected)?.key], ["heroic", true, true, "s1"], "a recorded deal is what the block shows, whatever the seed");
+
+  const bare = block({ record: { ...typed, fallen: [{ combatantId: "a", name: "Mossback", letter: null, goods: [{ itemId: "i1", truths: [{}] }] }] } });
+  eq([bare.options.locked, bare.options.reason.text, bare.options.styles.every((s) => s.off), bare.options.arms.off], [true, "search.deal.noType", true, true], "a card whose bodies hold no treasure type disables every choice under a visible reason");
+  ok(bare.options.reason.tip.length > 0, "and the reason carries its tooltip");
+  ok(hasTreasureType(typed) && !hasTreasureType({ fallen: [{ letter: "none" }, {}] }), "a type is a letter that is not none");
+  eq(block({ canBrowse: true }).options.tablesButton?.label, "deal.tables", "the Treasure tables button is drawn where the seat may browse");
+  eq(block().options.tablesButton, null, "and not where it may not");
+  eq(block({ arms: { columns: [], cite: null } }).options.arms.options.map((o) => o.key), [""], "with no arms grid imported the select holds only its blank option");
+}
+
+/* --- writing one choice --- */
+{
+  const seed = { armsSetting: "s2" };
+  const typed = { fallen: [{ letter: "B" }], opened: false };
+  eq(dealOfRecord(typed, seed), { style: "classic", special: false, metInLair: false, armsSetting: "s2" }, "a card with no recorded deal stands on the seed");
+  eq(cardDealChoice(typed, "style", "heroic", seed), { style: "heroic", special: false, metInLair: false, armsSetting: "s2" }, "a style is written with the rest of the deal as it stood");
+  eq(cardDealChoice(typed, "special", true, seed)?.special, true, "special is set");
+  eq(cardDealChoice({ ...typed, deal: { metInLair: true } }, "metInLair", false, seed)?.metInLair, false, "the lair is cleared");
+  eq(cardDealChoice({ ...typed, deal: { armsSetting: "s1" } }, "armsSetting", "", seed)?.armsSetting, "", "a blank column is a choice and beats the seed");
+  eq([cardDealChoice(typed, "style", "bogus", seed), cardDealChoice(typed, "armsSetting", "nope", seed), cardDealChoice(typed, "color", "red", seed)], [null, null, null], "a style the pot does not list, a column that is no setting key and a key that is no choice are refused");
+  eq(cardDealChoice({ ...typed, opened: true }, "style", "heroic", seed), null, "a card whose scene is open writes nothing");
 }
 
 /* --- the open-sheet control: which actor a body opens, and who keeps its button --- */

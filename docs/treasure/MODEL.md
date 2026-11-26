@@ -182,7 +182,7 @@ that is the creature's body, and an imported attack row carries no flag.
 
 The record rides on a chat card whispered to the Judges, in
 `flags["acks-extras"].treasureSearch`: `{combatId, sceneId, fallen, opened,
-drawnText}`, and once a scene was opened from the card, what that opening made: `potUuid`, `placeUuid` and `lots` (`{key, thing, layer}`). A fight whose fallen hold nothing posts no card. The card's
+drawnText, deal}`, and once a scene was opened from the card, what that opening made: `potUuid`, `placeUuid` and `lots` (`{key, thing, layer}`). A fight whose fallen hold nothing posts no card. The card's
 **Search the scene** opens the scene search with the record
 (`acksExtras.sceneSearch.searchHere`, which [scene-search's MODEL](../scene-search/MODEL.md)
 describes): the fallen become the scene's bodies, their carried goods and
@@ -194,6 +194,52 @@ is in scene-search's MODEL.
   item results become cards, text results are listed on the card
   (`drawnText`).
 - A treasure letter is dealt by the scene's own deal.
+
+**The card's Deal block.** The card records the four choices the deal reads as
+`treasureSearch.deal = {style, special, metInLair, armsSetting}`, seeded when the
+card is posted as `newPot` seeds a pot (`pot-logic.mjs` `seedDeal`: the first
+style, special off, lair off, the posting Judge's last arms column), so the
+choices have one home before any pot exists and nothing is remembered per user
+beyond what a pot already remembers. `normalizeRecord` keeps them (`deal`, null
+on a card that records none). On Search the scene, `ways-in.mjs` hands the record's
+`deal` to `open`, `dealSceneHaul` passes `style`, `special`, `metInLair` and
+`armsSetting` to `newPot`, and the pot that opens carries exactly the card's
+choices; a press with no card, a card posted with none, or a reopened card asks for
+none, and the pot starts as a hand-made one does (a column left out keeps the
+Judge's last column; a blank one the card asked for wins). With Met in their lair
+off the lair warning is raised once as the Judge's notice and the deal goes on;
+with it on, it is never raised. The scene's deal rolls each letter's magic items
+as a pot's own deal does (`deal.mjs` `magicRollerFor`, bound to the deal's style and
+the pot's arms column, handed to `runLetterDeal` by `runHaulDeal`), so the arms
+column the card chose reaches the roll.
+
+The block (`search-deal.mjs`, pure half `search-deal-logic.mjs` `dealBlockOf`) is
+built in the card's `renderChatMessageHTML` hook from the message's flag and drawn
+from the shared options partial (`deal-options.hbs`, "The rail's choices are one
+partial", below) under `search-deal.hbs`, with a `partId` minted per draw; the
+card's stored content holds only an empty `data-field="deal"` slot (a card posted
+before the block gets one above Search the scene). Every draw reads the flag, so
+no state is held in the DOM, and a press (`dealStyle`, `dealSpecial`, `dealLair`,
+`data-deal-arms`) writes the whole `deal` with `setCardDeal`, which re-renders the
+card and puts focus back on the control pressed. The writer is Foundry's own
+answer, `message.canUserModify(game.user, "update")` (common
+`ChatMessage#getUserLevel` makes the author an owner and `Document#testUserPermission`
+makes a GM one; a whisper plays no part, and no role is tested here). A seat that
+answers false is drawn nothing. For a seat that answers true:
+
+| Card | Drawn |
+|---|---|
+| scene not open, a body carries a treasure type | the four controls and, for a seat that may modify world settings, Treasure tables (`dealTables`: the Ruledata Browser on `TREASURE_TABLE_DOCS`) |
+| scene not open, no body carries a type | every control disabled, under the visible line "No body here has a treasure type", its tooltip on a wrapper |
+| scene open | no controls, the visible line "This card's scene is open" alone (`cardDealChoice` also refuses the write) |
+
+With no arms grid imported the select holds its blank option and the page reference
+alone.
+
+**The Table control.** A body's linked-table chip is a button (`openTable`, its
+uuid in `data-table`) that opens the RollTable's own sheet (`fromUuid`); it is
+disabled where the uuid resolves to no table (`settleTableButtons`). A body with
+no treasure type keeps its sheet button, which is how a type is set.
 
 **The take-off** moves the goods: a pot whose `origin` says `takeOff: true` and
 holds a `carried` map (each goods card's id to the `{actorUuid, itemId}` it came

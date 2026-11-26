@@ -23,6 +23,17 @@ areas overlap. A party with no token on the map, or standing in no place, is
 told so and nothing opens. The treasure is rolled as the scene opens and dealt
 face down, so nothing is found yet.
 
+**The card's Deal block** (Chat sidebar tab → the fight-over card, above Search
+the scene) sets how the scene's treasure is dealt: Table style, the Arms and armor
+column, Special treasure and Met in their lair. The treasure is dealt on the
+choices the card holds when Search the scene is pressed; with Met in their lair off
+the Judge is warned and the deal goes on. Once the scene is open the block gives way
+to a line saying so, and a seat that cannot edit the card sees no block. Treasure
+tables, on the block and under Table style on a treasure pot's rail, opens the
+Ruledata Browser on the imported treasure tables the deal reads, where a figure can
+be corrected (for a seat that may modify world settings). A body's **Table** mark
+on the card opens its linked table.
+
 **A card opens one scene.** Once that scene has ended, the Judge's press on the
 same card reopens it: same place, same treasure, and whatever was found stays
 found. A player's press on a spent card is refused.

@@ -11,9 +11,10 @@ import { sceneReasonText } from "./words.mjs";
 import { createWaysIn } from "./ways-in.mjs";
 
 /**
- * The ways in over the real world. The treasure feature's lair warning is a
- * toggle on its own pot window; a Judge who pressed to search has chosen the
- * deal, so the warning is shown as a notice and the deal goes on.
+ * The ways in over the real world. The deal's "Met in their lair" choice comes
+ * from the card (or is off where none is recorded); with it off the warning is
+ * shown to the Judge as a notice and the deal goes on, and with it on the
+ * warning is never raised.
  * @param {object} real the parts only the module's wiring can supply
  * @param {(args: object) => Promise<object>} real.open the scene search api's `open`
  * @param {(partyId: string) => *} real.openScreen
