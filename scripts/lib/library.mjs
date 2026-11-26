@@ -258,6 +258,90 @@ export function byCookbookId(type, id, { original = false, prefer = null } = {})
 }
 
 /**
+ * The index fields the library's readers rely on, by document type, beyond the
+ * core ones. An index row carries a flag only once its path is declared in
+ * `CONFIG.<Type>.compendiumIndexFields` and a client `getIndex()` has been
+ * built with it, so a reader that matches on a stamp declares it here.
+ */
+export const LIBRARY_INDEX_FIELDS = Object.freeze({ Item: Object.freeze([`flags.${MODULE_ID}.cookbook.id`]) });
+
+/**
+ * Add `LIBRARY_INDEX_FIELDS` to Foundry's per-type index fields, once each. Run
+ * at `init`: a pack's `getIndex()` reads the list when it is called, and every
+ * index row written after it (a create, an update, a re-import) carries the
+ * declared fields too. The field is declared and never passed to `getIndex`,
+ * since a field passed by one caller is dropped from the entries another
+ * caller's `getIndex` builds. Core keeps the declared field on an index row only
+ * after that pack instance's first `getIndex()` has run (its indexed-field set
+ * starts at the core fields), so a reader that needs the field awaits one.
+ */
+export function declareLibraryIndexFields() {
+  for (const [type, fields] of Object.entries(LIBRARY_INDEX_FIELDS)) {
+    const declared = globalThis.CONFIG?.[type]?.compendiumIndexFields;
+    if (!Array.isArray(declared)) continue;
+    for (const field of fields) if (!declared.includes(field)) declared.push(field);
+  }
+}
+
+/** What a `libraryDocsWhere` test is handed: the one shape a world document and an index row share. */
+const rowOf = (source) => ({
+  _id: source._id ?? source.id,
+  id: source._id ?? source.id,
+  uuid: source.uuid,
+  name: source.name,
+  type: source.type,
+  flags: source.flags,
+});
+
+/**
+ * Every library document of a type that passes `match`, read WITHOUT loading a
+ * whole shelf: the sidebar's documents first, then each shelf's, unlined shelf
+ * first (`libraryPacks`). Per shelf it awaits one `pack.getIndex()`, tests each
+ * index row, answers the documents the shelf already holds as they are, and
+ * loads the rest in one `getDocuments({_id__in})`; the matches of a shelf come
+ * back in its index order. It never kicks `loadPack`, so `libraryCold()` and the
+ * synchronous readers' own load are as they were.
+ *
+ * `match` is handed `{_id, id, uuid, name, type, flags}` and nothing else, for a
+ * world document and an index row alike: an index row is stored source the
+ * system has not migrated, so a test never reads `system`. A flag is read only
+ * where its path is declared (`LIBRARY_INDEX_FIELDS`); an undeclared one is
+ * absent from a shelf's rows and matches nothing.
+ *
+ * A shelf that cannot be read, its index or its load, is reported and left out
+ * whole; the others answer. A
+ * document is left out when its id is in `except`, which a caller uses for a
+ * delete whose hook fires before the collection drops the document.
+ *
+ * @param {string} type a document type the importer keeps a shelf for
+ * @param {(row: {_id: string, id: string, uuid?: string, name: string, type: string, flags: object}) => boolean} match
+ * @param {object} [options]
+ * @param {Iterable<string>} [options.except] document ids to leave out
+ * @returns {Promise<object[]>}
+ */
+export async function libraryDocsWhere(type, match, { except = null } = {}) {
+  const skip = except instanceof Set ? except : new Set(except ?? []);
+  const wanted = (source) => !skip.has(source._id ?? source.id) && match(rowOf(source));
+  const docs = [...(worldCollection(type) ?? [])].filter(wanted);
+  const perShelf = await Promise.all(
+    libraryPacks(type).map(async (pack) => {
+      try {
+        const index = await pack.getIndex();
+        const hits = [...index.values()].filter(wanted).map((row) => row._id);
+        const missing = hits.filter((id) => !pack.get(id));
+        if (missing.length) await pack.getDocuments({ _id__in: missing });
+        return hits.map((id) => pack.get(id)).filter(Boolean);
+      } catch (err) {
+        console.warn(`${MODULE_ID} | could not read the imported ${type} library from ${pack.collection}`, err);
+        return [];
+      }
+    }),
+  );
+  for (const list of perShelf) docs.push(...list);
+  return docs;
+}
+
+/**
  * Warm at ready, so the first sheet render is already complete. Registered
  * from the lib module's own ready hook rather than at module scope: this file
  * is imported by pure logic the offline suite exercises with no Foundry

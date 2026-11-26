@@ -150,6 +150,31 @@ const WEAPON_STAMP = "def.weapon.";
 const ARMOR_STAMP = "def.armor.";
 
 /**
+ * Is this truth a magic placeholder, a card waiting for its roll: a magic truth
+ * that carries `tableRef` (the noun printed in the hoard cell, null where none
+ * was)?
+ */
+const isPlaceholder = (truth) => truth?.pool === POOL.magic && "tableRef" in truth;
+
+/**
+ * Whether any of a deal's truths is a magic placeholder, and so whether rolling
+ * the deal's magic has anything to read the library for.
+ * @param {object[]} [truths]
+ */
+export const holdsMagicPlaceholder = (truths) => (truths ?? []).some(isPlaceholder);
+
+/**
+ * Is this library row (`type` and the import stamp, as an index row carries
+ * them) a minted weapon or a minted armour, the two kinds `armsBases` takes a
+ * base from? The stamp `armsBases` refuses (ammunition, helmets, barding) is not
+ * on an index row and is refused later, on the loaded document.
+ */
+export const isArmsBaseRow = (row) => {
+  const id = String(row?.flags?.[MODULE_ID]?.cookbook?.id ?? "");
+  return (row?.type === "weapon" && id.startsWith(WEAPON_STAMP)) || (row?.type === "armor" && id.startsWith(ARMOR_STAMP));
+};
+
+/**
  * The documents a rolled arm's base can be, from the library's own items and
  * by their import stamps, never by name: a minted weapon (type `weapon` under
  * `def.weapon.*`) and a minted armour or shield (type `armor` under
@@ -340,7 +365,7 @@ export async function rollMagicTruths({ truths, style, where, lists, roll, resol
   const audit = [];
   const starts = new Map();
   for (const truth of truths ?? []) {
-    if (truth?.pool !== POOL.magic || !("tableRef" in truth)) {
+    if (!isPlaceholder(truth)) {
       out.push(truth);
       continue;
     }

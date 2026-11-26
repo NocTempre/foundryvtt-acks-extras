@@ -14,13 +14,13 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-08 — [a caption names every control in its group, not only the one](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
 - 2026-09-07 — [extras guards the system's round counter, and the guard is](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
 - 2026-09-02 — [hiding compendiums was a BAD DIRECTION. Explored, shipped,](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
-- 2026-09-02 — [the library reads every shelf, and a caller that cannot](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
+- 2026-09-02 — [the library reads every shelf, and a caller that cannot](DECISIONS-through-v11.14.5.md#shared-library--decision-record), qualified 2026-11-26: [the library is read narrowly from the index](#2026-11-26--the-library-is-read-narrowly-from-the-index-and-its-stamp-is-declared)
 - 2026-09-01 — [the system's compendium tree is the system's, and the library](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
 - 2026-08-30 — [a missing-tables notice asks which TABLES are readable, never](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
 - 2026-08-25 — [the effects the module maintains refuse hand-deletion, and](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
 - 2026-08-24 — [the name-form rules live in `lib/vocab.mjs`, once](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
 - 2026-08-24 — [a package links what exists and mints nothing empty](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
-- 2026-08-24 — [one reader for the imported library, and it is synchronous](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
+- 2026-08-24 — [one reader for the imported library, and it is synchronous](DECISIONS-through-v11.14.5.md#shared-library--decision-record), qualified 2026-11-26: [the library is read narrowly from the index](#2026-11-26--the-library-is-read-narrowly-from-the-index-and-its-stamp-is-declared)
 - 2026-08-24 — [a generated creature never lands in its template's folder](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
 - 2026-07-18 — [v0.1 scope is effect/ability primitives only](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
 - undated — [The shared vocabulary has one definition here](DECISIONS-through-v11.14.5.md#shared-library--decision-record)
@@ -3192,3 +3192,65 @@ aside (registered in ROADMAP, "What daylight from a magic light does not do yet"
 held `{level, by}` alone, sees `source` too; every caller in the repo reads
 `level` or `by`. The field is core's window carrying a control it did not
 declare, which only a live run proves.
+
+## 2026-11-26 — The library is read narrowly from the index, and its stamp is declared
+
+Qualifies "2026-08-24 — one reader for the imported library, and it is
+synchronous" and "2026-09-02 — the library reads every shelf, and a caller that
+cannot re-render awaits" (both archived in `DECISIONS-through-v11.14.5.md`).
+Neither is superseded: the synchronous readers stay for the sheet getters that
+cannot await, and the warm at `ready` stays until its own slice.
+
+**New evidence.** The performance read of 2026-11-26 (`aia-tmp/20261126-perf-timings.json`,
+`tools/live/perf-leads.mjs`) timed what the two entries paid for. In a freshly
+loaded page of the test world the first treasure Deal took 16,458 ms and the
+second 12.9 ms, with `staged: 0`: it staged nothing, and the wait was
+`rollMagicCards` awaiting `whenReady()`. The first weapon draw after an
+unequip of 639.9 ms took 17,132.3 ms, the same wait through the weapon rows'
+readiness. `whenReady()` loads every imported shelf of four document types,
+and the whole load took 12,217.7 ms from the page's state when asked and 11,748 ms
+from empty shelves, seven shelves cold at the start; the Item shelf alone is 4,473
+documents and took 4,556 ms by itself. The 2026-08-24 entry's reason to
+instantiate every shelf, that the callers need `system`, holds for the sheet
+readers and not for these two waits: the weapon rows need the 34 minted weapons
+and the masterwork variations, and the Deal's arms need the minted weapons and
+armour and the same variations. The latent half was verified in code and not
+walked: a seat republished the weapon rows from `libraryItems()` on an item hook,
+and after Foundry evicts a shelf (300 s idle, `CompendiumCollection#clear`, the
+index left whole) only the changed document is held, so the rows republished from
+that one document.
+
+**Ruled.** `libraryDocsWhere(type, match, {except})` (`lib/library.mjs`) is the
+reader for a caller that can await and wants documents it can name by type, name
+or stamp: one awaited `getIndex()` per shelf, the matches in index order, the
+held ones by `pack.get`, the rest in one `getDocuments({_id__in})`, and no whole
+shelf. `match` is handed `{_id, id, uuid, name, type, flags}` and never
+`system`: core returns an index result as stored, with no `fromSource`
+(`client-backend.mjs`, the `operation.index` branch), so the system's migration of
+a document's record has not run on a row, and what `match` needs comes only from
+`type`, `name` and declared flags. The stamp `flags.acks-extras.cookbook.id` is
+declared in `CONFIG.Item.compendiumIndexFields` at `init`
+(`declareLibraryIndexFields`), beside the plate, and never passed to `getIndex`:
+core keeps a declared field on each index row through every create, update and
+re-import of a document it holds (`indexDocument`, from `_onCreate` and
+`_onUpdate`), once that pack instance's first `getIndex()` has run, since its
+indexed-field set starts at the core fields (`compendium-collection.mjs`), where a field passed by one caller is missing from the rows another
+caller's `getIndex` builds. The weapon rows read through it for the first
+publication and for each burst of item hooks, with a deleted id as `except`, so
+a shelf evicted after idle still publishes every row; the Deal's `armsSeam` reads
+through it, and `rollMagicCards` reads nothing when the truths hold no magic
+placeholder.
+
+**Rejected.** Rows built from the raw index projection (an unmigrated record).
+`getDocuments({type: "weapon"})` (597 documents, and a server pass per hook and per
+deal). A `getDocument` per id (a server pass each; the batch is one `_id__in`).
+Passing the stamp to `getIndex({fields})` (it drops from the rows another caller
+builds). A `minted: true` query (a stamp the reader does not own).
+
+*Cost:* each Item pack's first `getIndex()` is one more server pass, and its index
+grows by the stamp. Core has no in-flight dedupe, so two concurrent readers of one
+shelf each ask the server. A flag the index does not declare matches nothing,
+silently. The target figures of the follow-up run (first Deal under 3,000 ms in a
+fresh page, the rows published within 3,500 ms of `ready`) are inferred from the
+Item shelf's 4,556 ms and are not results. The class registry, the warm at `ready`
+and the `documentOf` lookup are the next slice.

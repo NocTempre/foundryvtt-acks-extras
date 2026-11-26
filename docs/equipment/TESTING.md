@@ -1398,6 +1398,20 @@ the imported documents").
    page, and a repair putting the page's figures and the stamp back are in
    `tools/importer/test-refresh.mjs` (the variation case); the three tooltips
    are in `tools/test-equipment.mjs`. No live step walks it.
+6. **A library weapon edited after the shelf's cache lifetime keeps its row
+   count.** Reload the seat, wait for `weaponRowsChanged`, and read the count:
+   `Object.keys(acksExtras.lib.tables.getTable("weapons","grid")).length` (N).
+   Open no library document and wait 300 s or more in the foreground, logging
+   the elapsed seconds. *Observable:* the weapons shelf (`ACKS Cookbook — Item`,
+   via `acksExtras.lib.library.libraryPacks("Item")`) holds fewer documents
+   than its `index.size` (Foundry has evicted them). Edit one minted weapon's
+   damage from the shelf (Compendium Packs → ACKS Cookbook — Item → the weapon
+   → its sheet). *Observable:* after `weaponRowsChanged`, the count is still N,
+   the edited row carries the new damage, and a Draw on that weapon's row from a
+   character sheet answers without the wait of the first Draw after a load.
+   Restore the damage afterwards. The first Draw after a reload and a Deal of a
+   hoard with no magic are timed by `tools/live/perf-leads.mjs`
+   (`firstUnequip.rowsPublication`, `firstDeal`).
 
 ### Teardown
 

@@ -28,11 +28,13 @@ const MASTERWORK_FAMILY = "masterwork";
 /**
  * The library's variation document carrying `key`, or null. A variation
  * applied to an item is a document in the same collection and is not the
- * library's published copy, so contained ones are skipped.
+ * library's published copy, so contained ones are skipped. `items` is the
+ * library documents it searches: the instantiated library by default, or a list
+ * a caller has read with `libraryDocsWhere`.
  */
-export function libraryVariation(key) {
+export function libraryVariation(key, items = libraryItems()) {
   if (!key) return null;
-  return libraryItems().find((i) => i.type === VARIATION_ITEM_TYPE && i.system?.key === key && !containedIn(i)) ?? null;
+  return items.find((i) => i.type === VARIATION_ITEM_TYPE && i.system?.key === key && !containedIn(i)) ?? null;
 }
 
 /** The page a variation document's import stamp names, or the empty string. */
@@ -76,8 +78,8 @@ export function sourceOf(doc) {
  * `layerDeltas` uses, with its source; null when the document is absent or
  * says nothing.
  */
-function figureOf(key) {
-  const doc = libraryVariation(key);
+function figureOf(key, items) {
+  const doc = libraryVariation(key, items);
   const def = doc ? definitionFrom(doc) : null;
   if (!def) return null;
   const total = sumDeltas([entryOf(doc)], (k) => (k === def.key ? def : null));
@@ -93,9 +95,11 @@ export const silverFigure = () => figureOf(SILVER.variation);
 /**
  * One masterwork tier's figures (`bonus`, `damage`, `ac`, `weight6`,
  * `costAdd`), or null when the tier is unknown or its document is not
- * imported.
+ * imported. `items` is the library documents the variation is found among, as
+ * `libraryVariation` takes it; left out, the instantiated library is read, and
+ * an unknown tier reads nothing.
  */
-export const masterworkFigure = (tier) => figureOf(MASTERWORK[tier]);
+export const masterworkFigure = (tier, items) => figureOf(MASTERWORK[tier], items);
 
 /**
  * The masterwork share of a weapon's bonus on one roll, as lib's attack seam

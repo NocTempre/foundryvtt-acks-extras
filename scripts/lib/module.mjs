@@ -36,7 +36,7 @@ import * as wallGeometry from "./wall-geometry.mjs";
 import * as wallLayers from "./wall-layers.mjs";
 import * as fields from "./fields.mjs";
 import * as library from "./library.mjs";
-import { registerLibraryWarm } from "./library.mjs";
+import { declareLibraryIndexFields, registerLibraryWarm } from "./library.mjs";
 import * as tables from "./tables.mjs";
 import * as services from "./services.mjs";
 import * as itemModel from "./item-model.mjs";
@@ -205,7 +205,9 @@ const localImpl = Object.freeze({
   /**
    * The imported library, wherever it lives (library.mjs): `libraryItems` /
    * `libraryActors` / `libraryDocs(type)` read the sidebar AND the importer's
-   * world packs, `whenReady()` awaits the warm. Every "what has this world
+   * world packs, `whenReady()` awaits the warm, and `libraryDocsWhere(type,
+   * match)` reads only the documents a test on the index row picks, with no
+   * whole-shelf load. Every "what has this world
    * imported?" question goes through it — a bare `game.items` finds an empty
    * shelf, because imports are written to a pack.
    */
@@ -690,6 +692,10 @@ Hooks.once("init", () => {
   const indexed = CONFIG.Actor.compendiumIndexFields;
   const plateField = `flags.${MODULE_ID}.plate`;
   if (!indexed.includes(plateField)) indexed.push(plateField);
+  // The library's stamp joins the Item index fields, for the same reason: the
+  // narrow reader `libraryDocsWhere` tests an index row, and a row carries the
+  // stamp only where it is declared before the pack's first `getIndex()`.
+  declareLibraryIndexFields();
   light.declareLightTables();
   senses.declareSenseTables();
   declareDefenseTables();

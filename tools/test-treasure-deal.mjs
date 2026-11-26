@@ -375,6 +375,22 @@ const plain = () => {
   r = await dealLettersIntoPot(pile, { letters: [{ letter: "Z" }], confirmLair: async () => (asked++, false) });
   eq([r.ok, asked, cardsIn()], [true, 0, 1], "met in their lair: dealt without asking");
 
+  // A hoard with no magic placeholder reads no library at all: the shelves stay unasked and unloaded.
+  {
+    globalThis.CONFIG.Item = { compendiumIndexFields: [] };
+    const { declareLibraryIndexFields } = await import("../scripts/lib/library.mjs");
+    declareLibraryIndexFields();
+    const { shelfMock, sourceDoc } = await import("./lib-shelf-mock.mjs");
+    const watched = shelfMock({ docs: [sourceDoc("w1", "Invented Blade", "weapon", "def.weapon.invented"), sourceDoc("f1", "Filler", "equipment")] });
+    const keptPacks = globalThis.game.packs;
+    globalThis.game.packs = [watched];
+    reset({ phase: PHASE.staging, deal: { metInLair: true } });
+    const dealt = await dealLettersIntoPot(pile, { letters: ["Z"] });
+    eq([dealt.ok, cardsIn()], [true, 1], "a hoard with no magic is still dealt and staged");
+    eq([watched.calls.getIndex.length, watched.calls.getDocuments.length], [0, 0], "and no shelf was asked for an index or a document");
+    globalThis.game.packs = keptPacks;
+  }
+
   globalThis.game.user.isGM = false;
   r = await dealLettersIntoPot(pile, { letters: ["Z"], confirmLair: async () => true });
   eq(r, { ok: false, reason: "notAllowed" }, "a player is refused");

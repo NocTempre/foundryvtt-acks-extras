@@ -963,10 +963,22 @@ of the row's name and block.
   property is unlit). An item the importer did not mint yields no row either.
 - Each row's `cite` is the item's stored citation, so a tooltip can name the
   page; the table's own `cites` entry is set when every row shares one.
-- It publishes once the library has loaded, and again on create, update or
-  delete of a library weapon (a weapon on an actor moves nothing). A delete
-  leaves the deleted document out explicitly, since its hook can fire while
-  the collection still lists it. With no row left the document is withdrawn.
+- It publishes once the library's weapons have been read, and again on create,
+  update or delete of a library weapon (a weapon on an actor moves nothing).
+  The read is `libraryDocsWhere` over the minted weapons and every variation
+  document (`weapon-rows.mjs` `isRowSource`): the shelves' indexes, then one
+  load of those documents, never a whole shelf. The variations ride the same
+  read because the attack throw's masterwork figure
+  (`printed-layers.mjs` `masterworkFigure`) reads them from the library
+  synchronously, and a shelf holds what it has loaded until Foundry evicts it.
+  A change is read again once per burst of hooks (`ROWS_REREAD_MS` after the
+  last, and once more when a hook lands during a read), from the index, so a
+  shelf evicted after idle still republishes every row; a deleted document's id
+  is left out of that read, since its hook can fire while the collection still
+  lists it. An action's `rowsSettled()` also waits for a republish a hook has
+  queued. The first publication sets two `performance.mark`s
+  (`ROWS_MARK_STARTED`, `ROWS_MARK_PUBLISHED`). With no row left the document
+  is withdrawn.
 - **A reader waits with `rowsReady()`**, which resolves when the first
   publication has landed (also where it failed, which is logged), and at once
   where the publisher was never registered. **An action a user starts waits

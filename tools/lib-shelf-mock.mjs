@@ -1,0 +1,116 @@
+/**
+ * A stand-in for one of the importer's shelves (a world compendium), faithful to
+ * the parts of core's compendium collection the library's readers touch:
+ *
+ * - the startup index holds core fields only (`_id`, `name`, `type`); the first
+ *   `getIndex()` rebuilds it with `CONFIG.Item.compendiumIndexFields`, and a
+ *   field nobody declared stays absent;
+ * - `getIndex(...)` records its arguments, so a test can say it was asked with none;
+ * - `getDocuments(query)` answers in the SERVER's order (the reverse of the
+ *   index's), takes `_id__in`, instantiates new documents, and sets only the ones
+ *   it did not already hold;
+ * - `size` counts held documents and `index.size` every row, which is how the
+ *   library tells a shelf is cold.
+ *
+ * Every call is recorded on `calls`. Used by the suites that read the library.
+ */
+import { libraryPackLabel } from "../scripts/lib/library.mjs";
+
+/** Core answers a server call on a later tick; so does the stand-in, so a load kicked and not awaited has not landed. */
+const later = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+const pathOf = (obj, path) => path.split(".").reduce((at, key) => at?.[key], obj);
+const putPath = (obj, path, value) => {
+  const keys = path.split(".");
+  let at = obj;
+  for (const key of keys.slice(0, -1)) at = at[key] ??= {};
+  at[keys.at(-1)] = value;
+};
+
+/**
+ * One server-side document: a stamped row when `mint` is set, else an unstamped one.
+ * @param {string} id
+ * @param {string} name
+ * @param {string} type
+ * @param {string|null} [mint] the cookbook id the importer would stamp
+ * @param {object} [system]
+ */
+export const sourceDoc = (id, name, type, mint = null, system = { marker: `body of ${id}` }) => ({
+  _id: id,
+  name,
+  type,
+  flags: mint ? { "acks-extras": { cookbook: { id: mint } } } : {},
+  system,
+});
+
+/**
+ * Build a shelf. `docs` are the server's documents in index order; `held` names
+ * the ids already instantiated; `failIndex` / `failLoad` make that call reject;
+ * `extraIndex` is merged into every index row (a field another module declared).
+ * @param {object} options
+ * @param {string|null} [options.line] the line the shelf holds; the ACKS shelf has none
+ * @param {object[]} options.docs
+ * @param {string[]} [options.held]
+ * @param {boolean} [options.visible]
+ * @param {boolean} [options.failIndex]
+ * @param {boolean} [options.failLoad]
+ * @param {object} [options.extraIndex]
+ * @param {string} [options.type] the document type; Item by default
+ */
+export function shelfMock({ line = null, docs, held = [], visible = true, failIndex = false, failLoad = false, extraIndex = {}, type = "Item" }) {
+  const stored = new Map();
+  const calls = { getIndex: [], getDocuments: [] };
+  const instance = (d) => ({ id: d._id, name: d.name, type: d.type, flags: structuredClone(d.flags), system: structuredClone(d.system), uuid: `Compendium.${d._id}` });
+  const coreRow = (d) => ({ _id: d._id, name: d.name, type: d.type });
+  let indexed = false;
+  const label = libraryPackLabel(type, line);
+  const pack = {
+    collection: `world.${label.replace(/\W+/g, "-")}`,
+    documentName: type,
+    visible,
+    metadata: { packageType: "world", label },
+    calls,
+    index: new Map(docs.map((d) => [d._id, coreRow(d)])),
+    has: (id) => stored.has(id),
+    get: (id) => stored.get(id),
+    get size() {
+      return stored.size;
+    },
+    get contents() {
+      return [...stored.values()];
+    },
+    /** Core's `Collection#clear` of a shelf the cache lifetime evicted: the documents go, the index stays whole. */
+    evict() {
+      stored.clear();
+    },
+    async getIndex(...args) {
+      calls.getIndex.push(args);
+      await later();
+      if (failIndex) throw new Error("index refused");
+      if (!indexed) {
+        for (const d of docs) {
+          const row = coreRow(d);
+          for (const field of globalThis.CONFIG?.[type]?.compendiumIndexFields ?? []) {
+            const value = pathOf(d, field);
+            if (value !== undefined) putPath(row, field, value);
+          }
+          Object.assign(row, extraIndex);
+          pack.index.set(d._id, row);
+        }
+        indexed = true;
+      }
+      return pack.index;
+    },
+    async getDocuments(query) {
+      calls.getDocuments.push(query);
+      await later();
+      if (failLoad) throw new Error("load refused");
+      const ids = query?._id__in ? new Set(query._id__in) : null;
+      const found = docs.filter((d) => !ids || ids.has(d._id)).reverse().map(instance);
+      for (const doc of found) if (!stored.has(doc.id)) stored.set(doc.id, doc);
+      return found;
+    },
+  };
+  for (const id of held) stored.set(id, instance(docs.find((d) => d._id === id)));
+  return pack;
+}

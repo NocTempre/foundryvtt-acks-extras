@@ -54,6 +54,8 @@ whichever pack Foundry registered first.
   finds one class's engraved silver waterskin where the shared Waterskin was
   meant.
 - `whenReady()` — awaits the warm, for callers that can.
+- `libraryDocsWhere(type, match, {except})` — the narrow, async reader: the
+  documents of a type that pass `match`, with no whole-shelf load (below).
 
 **A seat's library is the shelves it opens, and a closed shelf is not a
 secret one.** A Judge's shelf (`judgeLine`) is made with
@@ -94,6 +96,34 @@ imported shelves at `loaded: 0` with their indexes intact after one idle window.
 The consequence for callers is that **cold is the normal state, not the opening
 seconds of a session**, and a read that happens to be complete is not evidence
 that the next one will be.
+
+**The narrow reader answers from the index.** `libraryDocsWhere(type, match,
+{except})` returns the world's documents that pass `match`, then each shelf's
+(`libraryPacks` order). Per shelf it awaits one `pack.getIndex()`, tests every
+index row, answers the documents the shelf holds as they are (`pack.get`), and
+loads the rest in one `getDocuments({_id__in})`; a shelf's matches come back in
+its index order. It never calls `loadPack`, so `libraryCold()` stays true
+and the synchronous readers' own background load is untouched. `match` is
+handed `{_id, id, uuid, name, type, flags}` for a world document and an index
+row alike and never `system`: core returns an index result as stored, with no
+`fromSource` (`client/data/client-backend.mjs`, the `operation.index` branch),
+so the system's migration of a document's record (docs/lib/DECISIONS.md, "The
+system migrates a stamped record") has not run on a row. A shelf that cannot be read
+is reported and the others answer. Every compendium query is a full pass over
+the pack on the server, a `getDocument` included, so a loop of them is a scan
+per id and the one `_id__in` is the batch.
+
+The stamp the readers match on is **declared, never passed**.
+`declareLibraryIndexFields()`, run at `init`, adds `flags.acks-extras.cookbook.id`
+to `CONFIG.Item.compendiumIndexFields`, beside the family plate on
+`CONFIG.Actor`. A pack's startup index holds core fields only; its first
+client `getIndex()` after the declaration is one more server pass, and from then
+on core builds each index row with the declared fields on every create, update
+and re-import of a document it holds, and drops the row on a delete
+(`CompendiumCollection#indexDocument`, called from `_onCreate` and `_onUpdate`).
+A field passed to `getIndex({fields})` by one caller would be missing from the
+rows another caller's `getIndex` rebuilds, so no caller passes one. An
+undeclared flag is absent from every shelf row and matches nothing, silently.
 
 **A caller that would be WRONG for the life of its window must await instead.**
 Answering with what is in hand assumes the caller renders again; a surface that

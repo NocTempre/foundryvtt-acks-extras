@@ -20,6 +20,10 @@ const check = (label, cond) => {
 const rows = await import(new URL("../scripts/equipment/weapon-rows.mjs", import.meta.url));
 const reg = await import(new URL("../scripts/lib/tables.mjs", import.meta.url));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Publication takes the list the narrow read answers with; a case with no shelf hands it the world's.
+const pub = () => rows.publish([...game.items]);
+// A hook's republish is one coalesced read; the action that follows waits for it as a draw does.
+const settled = () => rows.rowsSettled();
 
 const savedHooks = globalThis.Hooks;
 const savedConsole = console.error;
@@ -61,17 +65,17 @@ game.items = [zorgle, axe];
 
 // --- keying: the tail of the mint id, folded; no table of names ------------------
 check("PRODUCES names the weapons document's grid table", Object.keys(rows.PRODUCES).join() === rows.WEAPONS_DOC && "grid" in rows.PRODUCES[rows.WEAPONS_DOC]);
-check("publish registers one row per minted weapon", rows.publish() === 2);
+check("publish registers one row per minted weapon", pub() === 2);
 const grid = () => reg.getTable("weapons", "grid");
 check("a weapon no list names is keyed by its mint id's tail", Object.keys(grid()).sort().join() === "battleaxe,zorgle");
 check("a camelCase tail folds to lowercase letters", grid().battleaxe.name === "Battle Axe");
 check("the key is not the item's name: a renamed item keeps its row", (() => {
   zorgle.name = "Renamed";
   game.items = [zorgle, axe];
-  rows.publish();
+  pub();
   const ok = grid().zorgle?.name === "Renamed" && grid().renamed === undefined;
   zorgle.name = "Zorgle";
-  rows.publish();
+  pub();
   return ok;
 })());
 
@@ -83,10 +87,10 @@ check("and the item's damage types, sorted, from a set or an array", grid().zorg
 check("an item that states no types carries an empty list", (() => {
   const bare = minted("w3", "Bare", "bare", { damage: { base: { formula: "1d1" }, alternate: { formula: "" } } });
   game.items = [bare];
-  rows.publish();
+  pub();
   const ok = Array.isArray(grid().bare.types) && grid().bare.types.length === 0;
   game.items = [zorgle, axe];
-  rows.publish();
+  pub();
   return ok;
 })());
 check("a row carries the item's own size, grips, dice and qualities", grid().zorgle.size === "tiny" && grid().zorgle.damage === "9d3" && grid().zorgle.damage2h === "" && grid().zorgle.handy === true && grid().zorgle.thrown === false && grid().zorgle.melee === true && grid().zorgle.missile === false);
@@ -135,9 +139,9 @@ check("a second call returns the same settled promise", (await rows.rowsReady(),
 // --- republishing and the change announcement ------------------------------------------
 await sleep(rows.ROWS_DEBOUNCE_MS * 2);
 fired.length = 0;
-rows.publish();
-rows.publish();
-rows.publish();
+pub();
+pub();
+pub();
 check("a burst of publications has announced nothing yet", fired.length === 0);
 await sleep(rows.ROWS_DEBOUNCE_MS * 3);
 check("and then announces once, under the module's own hook name", fired.length === 1 && fired[0][0] === rows.ROWS_CHANGED_HOOK && rows.ROWS_CHANGED_HOOK.startsWith("acksExtras."));
@@ -145,6 +149,7 @@ check("and then announces once, under the module's own hook name", fired.length 
 fired.length = 0;
 axe.system.damage.base.formula = "8d2";
 handlers.updateItem[0](axe);
+await settled();
 check("an edit to a library weapon republishes its row", grid().battleaxe.damage === "8d2");
 await sleep(rows.ROWS_DEBOUNCE_MS * 3);
 check("and announces the change", fired.length === 1);
@@ -163,14 +168,17 @@ game.items = [zorgle, axe];
 const quux = minted("w11", "Quux", "quux", { melee: false, missile: true, size: "na", special: {} });
 game.items = [zorgle, axe, quux];
 handlers.createItem[0](quux);
+await settled();
 check("a created library weapon adds its row", grid().quux != null);
 check("a size the system calls na is no size (a missile row prints none)", grid().quux.size === null && grid().quux.special.length === 0);
 
 // A delete removes it, even while the collection still lists the document.
 handlers.deleteItem[0](quux);
+await settled();
 check("a delete removes the row even before the collection drops the document", grid().quux === undefined && grid().zorgle != null);
 game.items = [zorgle, axe];
 handlers.deleteItem[0](axe);
+await settled();
 check("a delete of an unlisted document removes its row", grid().battleaxe === undefined);
 
 // --- items that carry no core fields give no row ---------------------------------------
@@ -181,13 +189,13 @@ delete noSpecial.system.special;
 const noDie = minted("w14", "Mace", "mace", {});
 noDie.system.damage = { base: {} };
 game.items = [zorgle, oldImport, noSpecial, noDie];
-rows.publish();
+pub();
 check("an item without the structured weapon fields gives no row rather than a guessed one", grid().mace === undefined && grid().zorgle != null);
 
 // A melee weapon whose size is the system's `na` still gives its row, with no size.
 const unsized = minted("w15", "Mace", "mace", { melee: true, missile: false, size: "na", special: {}, customTags: ["A tag no property names"] });
 game.items = [zorgle, unsized];
-rows.publish();
+pub();
 check("an unsized melee weapon gives its row with no size, and a custom tag changes nothing", grid().mace?.melee === true && grid().mace.size === null);
 
 // --- identity -----------------------------------------------------------------------------
@@ -195,23 +203,23 @@ const handMade = { ...minted("w19", "Dagger", "dagger"), flags: {} };
 const twin = minted("w20", "Zorgle", "zorgle", { damage: { base: { formula: "5d5" }, alternate: { formula: "" } } });
 const other = minted("w21", "Zorgle", "homebrew", { damage: { base: { formula: "4d4" }, alternate: { formula: "" } } });
 game.items = [zorgle, twin, other, handMade];
-rows.publish();
+pub();
 check("an item the importer did not mint has no row", grid().dagger === undefined);
 check("two items under one mint id: the first in library order wins", grid().zorgle.damage === "9d3");
 check("two items of one name under different mint ids are two rows", grid().homebrew.damage === "4d4" && Object.keys(grid()).sort().join() === "homebrew,zorgle");
 game.items = [twin, zorgle];
-rows.publish();
+pub();
 check("and the order decides which", grid().zorgle.damage === "5d5");
 
 // --- no rows: the document is withdrawn, and the withdrawal is announced ----------------
 await sleep(rows.ROWS_DEBOUNCE_MS * 2);
 fired.length = 0;
 game.items = [handMade];
-check("with no row to publish the document is withdrawn", rows.publish() === 0 && !reg.hasDoc("weapons"));
+check("with no row to publish the document is withdrawn", pub() === 0 && !reg.hasDoc("weapons"));
 await sleep(rows.ROWS_DEBOUNCE_MS * 3);
 check("and the withdrawal is announced", fired.length === 1);
 fired.length = 0;
-rows.publish();
+pub();
 await sleep(rows.ROWS_DEBOUNCE_MS * 3);
 check("a withdrawal of nothing announces nothing", fired.length === 0);
 
@@ -319,6 +327,125 @@ check("a withdrawal of nothing announces nothing", fired.length === 0);
   game.items = [zorgle, twin];
   for (const hook of ["createItem", "updateItem", "deleteItem"]) handlers[hook].length = 1;
   handlers["once:ready"].length = 1;
+}
+
+// --- the rows are read off the shelves' indexes, not from a whole-library load -----------------
+{
+  globalThis.CONFIG = { Item: { compendiumIndexFields: [] } };
+  const { declareLibraryIndexFields } = await import("../scripts/lib/library.mjs");
+  declareLibraryIndexFields();
+  const { shelfMock, sourceDoc } = await import("./lib-shelf-mock.mjs");
+  const weaponSystem = (formula) => ({ melee: true, missile: false, size: "small", special: {}, damage: { base: { formula, types: [] }, alternate: { formula: "" } } });
+  const mint = (id, tail, formula) => sourceDoc(id, `Blade ${tail}`, "weapon", `def.weapon.${tail}`, weaponSystem(formula));
+  const makeShelf = () =>
+    shelfMock({
+      docs: [
+        ...Array.from({ length: 25 }, (_, i) => sourceDoc(`f${i}`, `Filler ${i}`, "equipment")),
+        mint("a1", "alpha", "1d1"),
+        mint("a2", "beta", "2d2"),
+        mint("a3", "gamma", "3d3"),
+        sourceDoc("v1", "Plain variation", "acks-extras.variation", "def.variation.plain", { key: "masterwork.weaponBoth" }),
+      ],
+    });
+  const publishAtReady = () => handlers["once:ready"].at(-1)();
+  const keys = () => Object.keys(grid()).sort().join();
+  const resetHooks = () => {
+    for (const hook of ["createItem", "updateItem", "deleteItem"]) handlers[hook].length = 1;
+    handlers["once:ready"].length = 1;
+  };
+
+  // Readiness: the first publication reads the narrow set, never the whole shelf.
+  reg.unregisterTable("weapons");
+  game.items = [];
+  const shelf = makeShelf();
+  game.packs = [shelf];
+  rows.registerWeaponRows();
+  await publishAtReady();
+  await rows.rowsReady();
+  check("the first publication lists every minted weapon of a cold shelf", keys() === "alpha,beta,gamma");
+  check("and loaded no whole shelf to do it: every load names its ids", shelf.calls.getDocuments.length >= 1 && shelf.calls.getDocuments.every((q) => Array.isArray(q?._id__in)));
+  check("one index read and one load answered it", shelf.calls.getIndex.length === 1 && shelf.calls.getDocuments.length === 1);
+  check("the load asked for the weapons and the variation, and for no filler", (shelf.calls.getDocuments[0]?._id__in ?? []).slice().sort().join() === "a1,a2,a3,v1");
+  check("the shelf holds the variation afterwards, so the attack throw's synchronous read finds it", shelf.get("v1") != null);
+  check("the publication is marked for the timing script", typeof rows.ROWS_MARK_PUBLISHED === "string" && globalThis.performance.getEntriesByName(rows.ROWS_MARK_PUBLISHED).length >= 1);
+
+  // After the cache lifetime evicts the shelf, one weapon's edit still publishes every row.
+  shelf.evict();
+  await shelf.getDocuments({ _id__in: ["a2"] });
+  check("a shelf evicted and holding one document: the one is all the collection has", shelf.contents.length === 1);
+  shelf.calls.getIndex.length = 0;
+  shelf.calls.getDocuments.length = 0;
+  const held = shelf.get("a2");
+  held.system.damage.base.formula = "9d9";
+  handlers.updateItem.at(-1)(held);
+  await settled();
+  check("a weapon edited after an eviction republishes every row, not the one it holds", keys() === "alpha,beta,gamma" && grid().beta.damage === "9d9");
+  check("and the rest were read by id, the held one not again", shelf.calls.getDocuments.length === 1 && !(shelf.calls.getDocuments[0]?._id__in ?? ["a2"]).includes("a2"));
+
+  // One read per burst of hooks, the deleted ids left out of it.
+  await sleep(rows.ROWS_REREAD_MS * 2);
+  shelf.calls.getIndex.length = 0;
+  shelf.calls.getDocuments.length = 0;
+  const burst = ["a1", "a2", "a3"].map((id) => shelf.get(id) ?? { id, type: "weapon", flags: { "acks-extras": { cookbook: { id: `def.weapon.${id}` } } } });
+  for (const doc of burst) handlers.updateItem.at(-1)(doc);
+  handlers.updateItem.at(-1)(burst[0]);
+  handlers.deleteItem.at(-1)(burst[2]);
+  await settled();
+  check("five hooks and a delete in one burst are one index read", shelf.calls.getIndex.length === 1);
+  check("the deleted weapon's row is gone though the index still lists it", keys() === "alpha,beta");
+
+  // A hook that lands while a read is in flight is read again afterwards, with what it changed.
+  await sleep(rows.ROWS_REREAD_MS * 2);
+  shelf.calls.getIndex.length = 0;
+  let open;
+  const gate = new Promise((resolve) => (open = resolve));
+  const realIndex = shelf.getIndex.bind(shelf);
+  let slow = true;
+  shelf.getIndex = async (...args) => {
+    const first = slow;
+    slow = false;
+    if (first) await gate;
+    return realIndex(...args);
+  };
+  const edited = shelf.get("a1") ?? (await shelf.getDocuments({ _id__in: ["a1"] }))[0];
+  handlers.updateItem.at(-1)(edited);
+  await sleep(rows.ROWS_REREAD_MS * 2);
+  edited.system.damage.base.formula = "5d5";
+  handlers.updateItem.at(-1)(edited);
+  open();
+  await settled();
+  check("a hook during a read in flight is read again, and the later change lands", grid().alpha.damage === "5d5" && shelf.calls.getIndex.length === 2);
+  shelf.getIndex = realIndex;
+  await sleep(rows.ROWS_REREAD_MS * 2);
+
+  // A hook before the first publication waits for it.
+  reg.unregisterTable("weapons");
+  resetHooks();
+  rows.registerWeaponRows();
+  shelf.calls.getIndex.length = 0;
+  handlers.updateItem.at(-1)(shelf.get("a1"));
+  await sleep(rows.ROWS_REREAD_MS * 3);
+  check("a change before the first publication reads nothing yet", shelf.calls.getIndex.length === 0 && !reg.hasDoc("weapons"));
+  await publishAtReady();
+  await settled();
+  check("and the first publication carries every row", keys() === "alpha,beta,gamma");
+
+  // An action waits for a republish that is under way.
+  const edited2 = shelf.get("a3");
+  edited2.system.damage.base.formula = "7d7";
+  handlers.updateItem.at(-1)(edited2);
+  let acted = null;
+  rows.rowsSettled().then(() => (acted = grid().gamma.damage));
+  await sleep(1);
+  check("a draw started in the republish's debounce answers from the rows it publishes", acted === null);
+  await settled();
+  await sleep(1);
+  check("and resumes with the new row", acted === "7d7");
+
+  await sleep(rows.ROWS_REREAD_MS * 2);
+  resetHooks();
+  game.packs = [];
+  game.items = [zorgle, twin];
 }
 
 globalThis.Hooks = savedHooks;

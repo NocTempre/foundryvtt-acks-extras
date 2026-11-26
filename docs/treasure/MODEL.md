@@ -421,6 +421,10 @@ words, a period standing for a cut-short word, two words at least, exactly one
 base fitting. A row that is no arm (a ring, a cloak) finds none. The base's
 kind picks the masterwork tier (`ARMS_TIER`: a weapon `weaponBoth`, armour and
 shield `armorAC`), whose `costAdd` is the equipment feature's `masterworkFigure`.
+`armsSeam` reads those from the shelves' indexes (`libraryDocsWhere`: the minted
+weapons and armour by `isArmsBaseRow`, and the variation documents), never a
+whole shelf, and `rollMagicCards` reads nothing at all when the truths it is
+handed hold no magic placeholder (`holdsMagicPlaceholder`).
 Both costs positive, the truth stores `apparent: {baseUuid, baseGp,
 masterworkGp, type?}` at the deal (`type` is the grid's cell, where one was
 rolled), since bands freeze at open; otherwise nothing is

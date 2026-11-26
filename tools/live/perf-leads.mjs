@@ -21,8 +21,11 @@
  *   lordSheet20Henchmen    e. a lord's sheet with 20 henchmen, and `getHenchmen` calls
  *   orgChartSheet          f. a faction sheet whose org chart holds 12 rows
  *   glyphPassAfterHp       g. the reach glyph pass after a hit-point change
- *   firstDeal              h. the treasure Deal, first in a freshly loaded page
- *   firstUnequip           h. a weapon's unequip, first in a freshly loaded page
+ *   firstDeal              h. the treasure Deal, first in a freshly loaded page; with the magic cards it staged and
+ *                          the magic errors it reported, the proxies for the placeholders it held
+ *   firstUnequip           h. a weapon's unequip, first in a freshly loaded page; with `rowsPublication`, the
+ *                          weapon rows' `performance.mark`s read after the redraw (when the first publication
+ *                          began, when it landed, and the read between), in ms since navigation
  *
  * The seats come from `_env.mjs` (CAPTURE_BROWSER, CAPTURE_ORIGIN, SEAT_GM; the
  * Player seat is not driven). It takes the repository's landing lease as the
@@ -570,14 +573,31 @@ const P = {
     const run = async () => {
       const t0 = performance.now();
       const out = await M.dealLettersIntoPot(pile, { letters, confirmLair: () => true });
-      return { ms: Math.round((performance.now() - t0) * 10) / 10, ok: out?.ok ?? null, reason: out?.reason ?? null, dealt: out?.dealt?.length ?? null, staged: out?.staged?.length ?? null };
+      return { ms: Math.round((performance.now() - t0) * 10) / 10, ok: out?.ok ?? null, reason: out?.reason ?? null, dealt: out?.dealt?.length ?? null, staged: out?.staged?.length ?? null, magicErrors: (out?.dealt ?? []).flatMap((d) => d.errors ?? []).filter((e) => e.code === "magic-not-rolled").length };
     };
     const first = await run();
+    // The placeholders the first Deal held, as the cards it staged in the magic pool and the refusals it reported:
+    // a placeholder becomes a magic card (rolled or kept) or a refusal, and none means the Deal read no library.
+    const magicCards = pile.cards.filter((c) => !known.has(c.id) && c.flags?.["acks-extras"]?.card?.pool === "magic").length;
     const second = await run();
     const mine = pile.cards.filter((c) => !known.has(c.id)).map((c) => c.id);
     let removed = null;
     try { if (mine.length) await pile.deleteEmbeddedDocuments("Card", mine); removed = mine.length; } catch { removed = false; }
-    return { first, second, cardsStaged: mine.length, cardsRemoved: removed, chatMessages: game.messages.size };
+    return { first: { ...first, magicCards }, second, cardsStaged: mine.length, cardsRemoved: removed, chatMessages: game.messages.size };
+  },
+
+  /**
+   * h. When the weapon rows' first publication began and landed, from the marks `weapon-rows.mjs` sets, in ms since
+   * navigation; null where a mark is absent (a build that does not set them, or a publication not yet made).
+   */
+  rowsPublication: () => {
+    const at = (name) => {
+      const entry = performance.getEntriesByName(name)[0];
+      return entry ? Math.round(entry.startTime * 10) / 10 : null;
+    };
+    const startedMs = at("acks-extras:weaponRows:started");
+    const publishedMs = at("acks-extras:weaponRows:published");
+    return { startedMs, publishedMs, readMs: startedMs !== null && publishedMs !== null ? Math.round((publishedMs - startedMs) * 10) / 10 : null, readAtMs: Math.round(performance.now() * 10) / 10 };
   },
 
   /** h. A weapon's unequip, the call the sheet's toggle makes, first in a page that has done nothing else; drawn again after. */
@@ -1033,7 +1053,10 @@ try {
     });
     await lead("firstUnequip", async () => {
       if (prep.unequipNote) throw new Error(prep.unequipNote);
-      const out = await freshPage(async (page, bare) => ({ freshPage: bare, ...(await run(page, P.unequipOnce, { actorId: prep.actorId, itemId: prep.itemId })) }));
+      const out = await freshPage(async (page, bare) => {
+        const step = await run(page, P.unequipOnce, { actorId: prep.actorId, itemId: prep.itemId });
+        return { freshPage: bare, ...step, rowsPublication: await run(page, P.rowsPublication) };
+      });
       if (out.skip) throw new Error(out.skip);
       return out;
     });

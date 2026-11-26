@@ -12,14 +12,15 @@
 import { acksExtras } from "../namespace.mjs";
 import { masterworkFigure } from "../equipment/printed-layers.mjs";
 import { keyOfItem } from "../equipment/weapon-rows.mjs";
-import { isWorldCopy, libraryItems, whenReady } from "../lib/library.mjs";
+import { VARIATION_TYPE } from "../lib/constants.mjs";
+import { isWorldCopy, libraryDocsWhere } from "../lib/library.mjs";
 import * as services from "../lib/services.mjs";
 import { citeOf, getDoc, hasDoc } from "../lib/tables.mjs";
 import { MAGIC_ITEM_DOC } from "../magic-items/constants.mjs";
 import { MAGIC_ITEM_ROLL_CONTRACT, MODULE_ID } from "./constants.mjs";
 import { groupMonsters, monsterRows, runLetterDeal } from "./deal-logic.mjs";
 import { dealHoard } from "./hoard.mjs";
-import { armsBases, armsColumns, rollMagicTruths } from "./magic-deal-logic.mjs";
+import { armsBases, armsColumns, holdsMagicPlaceholder, isArmsBaseRow, rollMagicTruths } from "./magic-deal-logic.mjs";
 import { addTruths, newPot, potOf, truthsFromItem } from "./pot.mjs";
 
 /**
@@ -102,7 +103,8 @@ export const magicRollerFor = ({ pot, style, roller } = {}) => ({ letter, truths
  * (`magic-deal-logic.mjs`). The roll is the `magic-item-roll` contract's and
  * the lists a roll may begin at are the magic-items API's `starts()`; with
  * either absent the cards stay placeholders and say so. A rolled item that
- * links to a document is that document, dealt as a dropped item is.
+ * links to a document is that document, dealt as a dropped item is. Truths that
+ * hold no magic placeholder come back as they were, and the library is not read.
  * @param {object} args
  * @param {string} args.letter
  * @param {object[]} args.truths the letter's truths
@@ -111,6 +113,7 @@ export const magicRollerFor = ({ pot, style, roller } = {}) => ({ letter, truths
  * @param {string} [args.armsSetting] the pot's arms column; blank rolls no type, so only a row that names its base is priced
  */
 async function rollMagicCards({ letter, truths, style = "classic", roller, armsSetting = "" }) {
+  if (!holdsMagicPlaceholder(truths)) return { truths: truths ?? [], errors: [], audit: [] };
   const provider = services.get(MAGIC_ITEM_ROLL_CONTRACT);
   const arms = await armsSeam().catch(() => ({}));
   return rollMagicTruths({
@@ -143,15 +146,17 @@ export function armsSource() {
 }
 
 /**
- * What a rolled arm's apparent worth is read from, once the library is warm: the
- * bases found by import stamp among the library's own items (no world copy, no
- * template part) and a masterwork tier's added cost, from the equipment
- * feature's imported masterwork documents (absent until imported). The live walk
- * reads it to check the figures a deal stores against their documents.
+ * What a rolled arm's apparent worth is read from: the bases found by import
+ * stamp among the library's own items (no world copy, no template part) and a
+ * masterwork tier's added cost, from the equipment feature's imported masterwork
+ * documents (absent until imported). Only the minted weapons, the minted armour
+ * and the variation documents are read (`libraryDocsWhere`), from the shelves'
+ * indexes, so no shelf is loaded whole. The live walk reads it to check the
+ * figures a deal stores against their documents.
  * @returns {Promise<{bases: object[], masterwork: (tier: string) => number|null|undefined}>}
  */
 export async function armsSeam() {
-  await whenReady();
-  const mints = libraryItems().filter((i) => !isWorldCopy(i) && !i.flags?.[MODULE_ID]?.templatePart && !i.flags?.[MODULE_ID]?.templateFor);
-  return { bases: armsBases(mints, keyOfItem), masterwork: (tier) => masterworkFigure(tier)?.costAdd };
+  const docs = await libraryDocsWhere("Item", (row) => isArmsBaseRow(row) || row.type === VARIATION_TYPE);
+  const mints = docs.filter((i) => !isWorldCopy(i) && !i.flags?.[MODULE_ID]?.templatePart && !i.flags?.[MODULE_ID]?.templateFor);
+  return { bases: armsBases(mints, keyOfItem), masterwork: (tier) => masterworkFigure(tier, docs)?.costAdd };
 }

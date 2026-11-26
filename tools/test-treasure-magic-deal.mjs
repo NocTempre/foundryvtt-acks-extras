@@ -50,7 +50,7 @@ globalThis.foundry = {};
 const { MODULE_ID, CARD_FLAG, POT_FLAG, PHASE, POOL } = await import("../scripts/treasure/constants.mjs");
 const { apparentName, claimItemData, dealOf, normalizePot, normalizeTruth, rankWorth } = await import("../scripts/treasure/pot-logic.mjs");
 const { DEAL_ERROR_CODES, dealMessages } = await import("../scripts/treasure/deal-logic.mjs");
-const { ARMS_TIER, MAGIC_ERROR, MAGIC_REASON, apparentOf, armsBases, findBase, rollMagicTruths, startFor, unknownTruth } = await import("../scripts/treasure/magic-deal-logic.mjs");
+const { ARMS_TIER, MAGIC_ERROR, MAGIC_REASON, apparentOf, armsBases, findBase, holdsMagicPlaceholder, isArmsBaseRow, rollMagicTruths, startFor, unknownTruth } = await import("../scripts/treasure/magic-deal-logic.mjs");
 const { registerWeaponSource } = await import("../scripts/lib/weapons.mjs");
 const { slug } = await import("../scripts/lib/vocab.mjs");
 const { PRIORITY, registerTable, resetTables, unregisterTable } = await import("../scripts/lib/tables.mjs");
@@ -209,6 +209,16 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   const nouns = [];
   r = await run([placeholder("widgets"), placeholder("widgets"), placeholder("widgets")], { roll: async (a) => (nouns.push(a.from), walked(item(`Item ${nouns.length}`))) });
   eq([nouns.length, r.truths.map((t) => t.label)], [3, ["Item 1", "Item 2", "Item 3"]], "each card is rolled on its own, once");
+}
+
+/* --- which truths are placeholders, and which index rows a deal's arms read ------------- */
+{
+  const plain = normalizeTruth({ pool: POOL.item, label: "Plain thing", source: { uuid: "Item.p", data: { name: "Plain thing", type: "item", flags: {} } } });
+  const named = normalizeTruth({ pool: POOL.magic, label: "Named thing", magical: true, detected: false });
+  eq([holdsMagicPlaceholder([plain, named]), holdsMagicPlaceholder([]), holdsMagicPlaceholder(undefined), holdsMagicPlaceholder([null, plain])], [false, false, false, false], "a magic card with no noun to roll, no truths and a null are no placeholder");
+  eq([holdsMagicPlaceholder([plain, placeholder("widgets")]), holdsMagicPlaceholder([placeholder(null)])], [true, true], "a magic truth carrying its noun is one, a null noun included");
+  const row = (type, stamp) => ({ type, flags: { [MODULE_ID]: { cookbook: { id: stamp } } } });
+  eq([row("weapon", "def.weapon.x"), row("armor", "def.armor.x"), row("weapon", "def.armor.x"), row("armor", "def.weapon.x"), row("weapon", "x"), { type: "weapon" }].map(isArmsBaseRow), [true, true, false, false, false, false], "an arm's base row is a minted weapon or a minted armour, read off the type and the stamp alone");
 }
 
 /* --- an arm's apparent worth: the base found by import stamp, plus masterwork ------- */
@@ -469,6 +479,37 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   r = await dealLettersIntoPot(pile, { letters: ["M"], roller: sequence(1) });
   eq([truthsStored().map((t) => t.label), r.dealt[0].errors.map((e) => e.reason)], [["widgets", "gizmos", "wobbles"], ["no-roller", "no-roller", "no-roller"]], "no roll service: the placeholders stay and say so");
   services.register("magic-item-roll", saved);
+
+  // An arm is priced from the shelf's index-read documents: the minted base and the masterwork variation, never a whole-shelf load.
+  {
+    globalThis.CONFIG.Item = { compendiumIndexFields: [] };
+    const { declareLibraryIndexFields } = await import("../scripts/lib/library.mjs");
+    declareLibraryIndexFields();
+    const { shelfMock, sourceDoc } = await import("./lib-shelf-mock.mjs");
+    const variation = { key: "masterwork.weaponBoth", deltas: { bonus: 1, damage: 1, ac: 0, weight6: 0 }, cost: { baseMul: 1, add: 403, mul: 1 }, source: { cite: "INV p. 7" } };
+    const arms = shelfMock({
+      docs: [
+        ...Array.from({ length: 20 }, (_, i) => sourceDoc(`f${i}`, `Filler ${i}`, "equipment")),
+        sourceDoc("w1", "Zork Blade", "weapon", "def.weapon.zorkBlade", { cost: 19 }),
+        sourceDoc("w2", "Zork Blade copy", "weapon", "def.weapon.zorkBlade", { cost: 99 }),
+        sourceDoc("v1", "Masterwork both", "acks-extras.variation", "def.variation.both", variation),
+      ],
+    });
+    const keptItems = globalThis.game.items;
+    const keptPacks = globalThis.game.packs;
+    globalThis.game.items = [];
+    globalThis.game.packs = [arms];
+    services.register("magic-item-roll", { roll: async () => ({ ok: true, item: { text: "Zork Blade +1", arms: { name: true } } }) });
+    fresh();
+    r = await dealLettersIntoPot(pile, { letters: ["M"], roller: sequence(1) });
+    eq(truthsStored()[0].apparent, { baseUuid: "Compendium.w1", baseGp: 19, masterworkGp: 403 }, "an arm is priced from its base and the masterwork figure read off the shelf");
+    ok(arms.calls.getDocuments.length >= 1 && arms.calls.getDocuments.every((q) => Array.isArray(q?._id__in)), "and every load named its ids: no whole shelf was loaded");
+    eq(arms.calls.getDocuments[0]._id__in.slice().sort(), ["v1", "w1", "w2"], "the one load asked for the weapons and the variation, and for no filler");
+    eq(arms.calls.getIndex.length, 1, "after one index read");
+    globalThis.game.items = keptItems;
+    globalThis.game.packs = keptPacks;
+    services.register("magic-item-roll", saved);
+  }
 
   unregisterTable(MAGIC_ITEM_DOC, { priority: PRIORITY.WORLD });
   fresh();
