@@ -3038,7 +3038,7 @@ send out under it. Nothing is pushed and no walk was run here.
 Followers tab's service mode") and `docs/character-sheet/MODEL.md`
 ("Followers"):
 
-- **h1 (lib `apiVersion` 98):** `serviceChartContext` and
+- **h1 (lib `apiVersion` 99):** `serviceChartContext` and
   `serviceLocationsContext` draw lib's chart and Locations partials in a
   service mode over the nodes the tab passes in (lib imports no henchmen
   reader). A hired unit's head is its officer's Follower Card and the officer
