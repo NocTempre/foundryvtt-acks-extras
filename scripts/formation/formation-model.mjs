@@ -19,7 +19,7 @@ import {
   SETTING_PARTY_TOKEN_SHAPE,
 } from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
-import { SUMMON_COPY_FLAG, summonOfData } from "../lib/summons-logic.mjs";
+import { SUMMON_COPY_FLAG, isTemporaryAlly, summonOfData } from "../lib/summons-logic.mjs";
 import { KEEP_HIT_POINTS_OPTION } from "../lib/constants.mjs";
 import { bodyCount, isGroupActor } from "../lib/group-logic.mjs";
 import { tokenHasStatus, tokenHitPoints } from "../lib/hp-logic.mjs";
@@ -1331,6 +1331,86 @@ export async function addSummonStashes(formationId, stashes, copy = null) {
   if (!record) return [];
   await syncPartyActorSpeed(record);
   return members.map((m) => m.actorId);
+}
+
+/**
+ * Take temporary allies out of a party because their control has ended hostile
+ * (a cast's creatures, `isTemporaryAlly`): the party no longer holds them, and
+ * what stood for them stands on. GM only, and never a body the module cannot
+ * tell is temporary, whatever ids it is handed.
+ *
+ * A stashed creature is amended first (`edit`, handed a deep copy of its stash,
+ * returns the token data to keep), then stood on the party's scene as a token of
+ * that data, beside the party's token, and only then is its row dropped, so the
+ * creature is in storage or on the map at every moment. Where the party has no
+ * token on a scene, or the creation fails, the amended row stays in the party
+ * and is reported in `kept`. A deployed member's row is dropped with its token
+ * left standing where it is. No actor is deleted and no token is removed.
+ *
+ * @param {string} formationId
+ * @param {string[]} actorIds  row `actorId`s
+ * @param {(tokenData: object) => object|null} [edit]
+ * @returns {Promise<{left: {actorId: string, name: string, tokenUuid: string|null, deployed: boolean}[], kept: {actorId: string, name: string}[], amended: string[]}>}
+ */
+export async function ejectSummonMembers(formationId, actorIds, edit) {
+  const out = { left: [], kept: [], amended: [] };
+  const wanted = new Set((actorIds ?? []).filter(Boolean));
+  if (!wanted.size || !game.user?.isGM) return out;
+  const picked = [];
+  await patchFormation(formationId, (record) => {
+    for (const member of record.members ?? []) {
+      if (!member?.actorId || !wanted.has(member.actorId) || !isSummonMember(member) || !isTemporaryAlly(member) || member.deployedStack) continue;
+      const name = String(member.tokenData?.name || getMemberActor(member)?.name || "");
+      if (member.deployedTokenId) {
+        picked.push({ actorId: member.actorId, name, deployed: true, sceneId: member.deployedSceneId, tokenId: member.deployedTokenId });
+        continue;
+      }
+      if (!member.tokenData || member.tokenData.actorLink) continue;
+      const next = typeof edit === "function" ? edit(foundry.utils.deepClone(member.tokenData)) : null;
+      if (next && typeof next === "object") {
+        member.tokenData = next;
+        out.amended.push(member.actorId);
+      }
+      picked.push({ actorId: member.actorId, name, deployed: false, data: foundry.utils.deepClone(member.tokenData) });
+    }
+    if (!out.amended.length) return false;
+  });
+  if (!picked.length) return out;
+  const standing = picked.filter((p) => !p.deployed);
+  const record = getFormation(formationId);
+  const scene = record ? getPartyScene(record) : null;
+  const partyToken = record ? getPartyToken(record) : null;
+  const placed = new Map();
+  if (standing.length && scene && partyToken) {
+    try {
+      const nextFree = freeCellPlacer(scene, { x: partyToken.x, y: partyToken.y });
+      const toCreate = standing.map((p) => {
+        const data = foundry.utils.deepClone(p.data);
+        delete data._id;
+        return Object.assign(data, nextFree());
+      });
+      const made = await scene.createEmbeddedDocuments("Token", toCreate, { [KEEP_HIT_POINTS_OPTION]: true });
+      // A creation a hook cut short places none: every row stays.
+      if (made?.length === standing.length) standing.forEach((p, i) => placed.set(p.actorId, made[i]?.uuid ?? null));
+    } catch (err) {
+      console.error(`${MODULE_ID} | a hostile summon could not be stood on the party's scene; it stays in the party`, err);
+      placed.clear();
+    }
+  }
+  const leaving = new Set([...picked.filter((p) => p.deployed).map((p) => p.actorId), ...placed.keys()]);
+  for (const p of picked) {
+    if (p.deployed) out.left.push({ actorId: p.actorId, name: p.name, tokenUuid: game.scenes?.get?.(p.sceneId)?.tokens?.get?.(p.tokenId)?.uuid ?? null, deployed: true });
+    else if (placed.has(p.actorId)) out.left.push({ actorId: p.actorId, name: p.name, tokenUuid: placed.get(p.actorId), deployed: false });
+    else out.kept.push({ actorId: p.actorId, name: p.name });
+  }
+  if (!leaving.size) return out;
+  const after = await patchFormation(formationId, (stored) => {
+    stored.members = (stored.members ?? []).filter((m) => !(m?.actorId && leaving.has(m.actorId)));
+    stored.lights = (stored.lights ?? []).filter((l) => !leaving.has(l.bearerId));
+    stored.spells = (stored.spells ?? []).filter((s) => !leaving.has(s.casterId));
+  });
+  if (after) await syncPartyActorSpeed(after);
+  return out;
 }
 
 /**

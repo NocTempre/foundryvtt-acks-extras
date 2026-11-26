@@ -125,6 +125,32 @@ export function summonOfData(tokenData) {
 }
 
 /**
+ * Is this body a temporary ally, as far as the module can tell from its own
+ * records? The one place that answer is given: a creature a cast made carries
+ * the cast's record (`summonRecordOf`), whichever summon format made it and
+ * wherever it stands. Every other body in a party (a person, a hired or charmed
+ * creature, a guest, a company, a creature bound by hand) carries no record
+ * saying it is temporary, so it is not one here. A later source of temporary
+ * allies is added to this function.
+ *
+ * The subject is read in the shape it is held in: a roster row (`summon`), a
+ * party's stored member (its `tokenData`, which a deployed member keeps from
+ * before it was deployed), an actor (`documentName` "Actor"), or a token
+ * document or its plain data.
+ * @param {object|null} subject
+ * @returns {boolean}
+ */
+export function isTemporaryAlly(subject) {
+  if (!subject || typeof subject !== "object") return false;
+  let record = null;
+  if ("summon" in subject) record = subject.summon;
+  else if ("tokenData" in subject) record = summonOfData(subject.tokenData).summon;
+  else if (subject.documentName === "Actor") record = summonRecordOf(subject);
+  else record = summonOfData(typeof subject.toObject === "function" ? subject.toObject() : subject).summon;
+  return !!record && typeof record === "object" && !!record.castId;
+}
+
+/**
  * The flags a summoned token's delta carries: the summoner and the record.
  * @param {string} summonerUuid
  * @param {{sourceUuid: string, name?: string, spellId?: string, spellName?: string, castId: string, at: number}} record
@@ -235,19 +261,25 @@ export const controlEndOf = (value) => (Object.hasOwn(CONTROL_ENDS, value) ? val
  * - `hostile`: a token drops its owners (`drop`) and turns to
  *   `HOSTILE_DISPOSITION` (`op: "hostile"`); a stashed creature is amended
  *   through the roster (`stashAfterControlEnd`) and takes the same op, with
- *   nothing more on its step, since the stash is rewritten whole.
+ *   nothing more on its step, since the stash is rewritten whole. A temporary
+ *   ally (`isTemporaryAlly`) also leaves its party where the roster has an
+ *   `ejectSummons` to call: a deployed member's step carries `leave` (its row
+ *   goes, its token stays), and a stashed one takes `op: "eject"` (amended, then
+ *   stood on the party's scene as a token) in place of `hostile`. With no
+ *   `ejectSummons` it is amended and stays a member.
  * A stashed creature that stays takes `op: "stamp"` the same way. With no
  * `amend` to call, a stashed creature that stays or turns hostile is
  * `unapplied`.
  * @param {object} o
  * @param {string} o.outcome  a `CONTROL_ENDS` key, anything else reads `stays`
- * @param {{uuid: string, ownership?: object, member?: {partyId: string, actorId: string}|null}[]} [o.tokens]  the cast's scene tokens, `member` set where the roster answers for the token
- * @param {{partyId: string, actorId: string}[]} [o.held]  the cast's stashed creatures
+ * @param {{uuid: string, ownership?: object, summon?: object|null, member?: {partyId: string, actorId: string}|null}[]} [o.tokens]  the cast's scene tokens, `member` set where the roster answers for the token and `summon` the cast record the token carries
+ * @param {{partyId: string, actorId: string, summon?: object|null}[]} [o.held]  the cast's stashed creatures, `summon` the cast record each carries
  * @param {boolean} [o.canRelease]  whether the roster service has a `release`
  * @param {boolean} [o.canAmend]  whether the roster service has an `amendSummons`
+ * @param {boolean} [o.canEject]  whether the roster service has an `ejectSummons`
  * @returns {{outcome: string, steps: object[]}}
  */
-export function controlEndPlan({ outcome, tokens = [], held = [], canRelease = true, canAmend = true } = {}) {
+export function controlEndPlan({ outcome, tokens = [], held = [], canRelease = true, canAmend = true, canEject = false } = {}) {
   const end = controlEndOf(outcome);
   const steps = [];
   for (const t of tokens) {
@@ -255,12 +287,15 @@ export function controlEndPlan({ outcome, tokens = [], held = [], canRelease = t
     if (end === "gone") {
       if (t.member?.partyId && t.member.actorId) steps.push({ ...step, op: "release", partyId: t.member.partyId, actorId: t.member.actorId });
       else steps.push({ ...step, op: "delete" });
-    } else if (end === "hostile") steps.push({ ...step, op: "hostile", drop: ownershipDrop(t.ownership), disposition: HOSTILE_DISPOSITION });
-    else steps.push({ ...step, op: "stamp" });
+    } else if (end === "hostile") {
+      const leaves = canEject && t.member?.partyId && t.member.actorId && isTemporaryAlly(t);
+      steps.push({ ...step, op: "hostile", drop: ownershipDrop(t.ownership), disposition: HOSTILE_DISPOSITION, ...(leaves ? { leave: { partyId: t.member.partyId, actorId: t.member.actorId } } : {}) });
+    } else steps.push({ ...step, op: "stamp" });
   }
   for (const h of held) {
     const step = { kind: "held", partyId: h.partyId, actorId: h.actorId, lost: end };
     if (end === "gone") steps.push({ ...step, op: canRelease ? "release" : "unapplied" });
+    else if (end === "hostile" && canEject && isTemporaryAlly(h)) steps.push({ ...step, op: "eject" });
     else steps.push({ ...step, op: canAmend ? (end === "hostile" ? "hostile" : "stamp") : "unapplied" });
   }
   return { outcome: end, steps };

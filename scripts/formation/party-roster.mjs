@@ -17,6 +17,10 @@
  * Contract v5 adds `amendSummons`: the write that rewrites the stashed token
  * of summon members still riding in the party token, as a cast's control ending
  * must. A reader takes it as optional.
+ *
+ * Contract v6 adds `ejectSummons`: the write that takes a cast's creatures out
+ * of the party when their control ends hostile. A reader takes it as optional;
+ * with none, such a creature is amended and stays a member.
  */
 import * as services from "../lib/services.mjs";
 import { summonOfData } from "../lib/summons-logic.mjs";
@@ -36,6 +40,7 @@ import {
   formationForToken,
   getFormation,
   getMemberActor,
+  ejectSummonMembers,
   isSummonMember,
   memberHp,
   memberOwnToken,
@@ -131,6 +136,22 @@ async function amendSummons(partyId, actorIds, edit) {
     if (!amended.length) return false;
   });
   return { amended };
+}
+
+/**
+ * Take summon members out of a party because their control ended hostile: the
+ * stashed ones are amended through `edit` and stood on the party's scene as
+ * tokens (kept in the party, amended, where there is no scene to stand them on),
+ * a deployed one's row goes and its token stays. Only a summon member carrying a
+ * cast record is ever taken, whatever ids are named. GM only. See
+ * `ejectSummonMembers`.
+ * @param {string} partyId
+ * @param {string[]} actorIds  row `actorId`s
+ * @param {(tokenData: object) => object|null} [edit]  handed a deep copy of each stash
+ * @returns {Promise<{left: {actorId: string, name: string, tokenUuid: string|null, deployed: boolean}[], kept: {actorId: string, name: string}[], amended: string[]}>}
+ */
+function ejectSummons(partyId, actorIds, edit) {
+  return ejectSummonMembers(partyId, actorIds, edit);
 }
 
 /**
@@ -262,5 +283,6 @@ export function registerPartyRoster() {
     summonerParty,
     admitSummons,
     amendSummons,
+    ejectSummons,
   });
 }

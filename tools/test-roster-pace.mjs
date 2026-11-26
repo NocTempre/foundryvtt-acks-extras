@@ -71,6 +71,7 @@ globalThis.fromUuid = async () => null;
 globalThis.fromUuidSync = () => null;
 globalThis.canvas = { scene: null, tokens: { controlled: [] } };
 
+const sceneMap = new Map();
 const settings = { formations: {}, travelEncounters: true, advanceWorldTime: true, dawnHour: 6, duskHour: 18, travelLogCap: 120 };
 const actors = new Map();
 globalThis.game = {
@@ -82,7 +83,7 @@ globalThis.game = {
   user: { id: "gm1", isGM: true },
   users: [{ id: "gm1", isGM: true }, { id: "p1", isGM: false }],
   actors: { get: (id) => actors.get(id) ?? null, get contents() { return [...actors.values()]; }, [Symbol.iterator]: () => actors.values() },
-  scenes: { get: () => null, [Symbol.iterator]: () => [][Symbol.iterator]() },
+  scenes: { get: (id) => sceneMap.get(id) ?? null, [Symbol.iterator]: () => sceneMap.values() },
   tables: { get: () => null, contents: [] },
   time: { worldTime: 1000, advance: async () => {} },
 };
@@ -364,6 +365,126 @@ await t("a seat that is no GM amends nothing", async () => {
     game.user = user;
   }
   assert.equal(stashOf(id, "s1").delta.flags[SCOPE].summon.lost, undefined);
+});
+
+/* -------------------------------------------- */
+/*  ejectSummons (v6)                           */
+/* -------------------------------------------- */
+
+/** A scene that holds tokens, creates them from data and records every delete, as a party's scene does. */
+function makeScene(id, { failCreate = false } = {}) {
+  const list = [];
+  const scene = {
+    id,
+    grid: { size: 100 },
+    dimensions: { sceneRect: { x: 0, y: 0, width: 2000, height: 2000 } },
+    created: [],
+    deleted: [],
+    tokens: { get: (tid) => list.find((tk) => tk.id === tid) ?? null, [Symbol.iterator]: () => list.values() },
+    add(tk) { tk.parent = scene; tk.uuid = `Scene.${id}.Token.${tk.id}`; list.push(tk); return tk; },
+    async createEmbeddedDocuments(_name, data) {
+      if (failCreate) throw new Error("create refused");
+      return data.map((d) => { scene.created.push(d); return scene.add({ ...d, id: `new${scene.created.length}` }); });
+    },
+    async deleteEmbeddedDocuments(_name, ids) { scene.deleted.push(...ids); return ids; },
+  };
+  sceneMap.set(id, scene);
+  return scene;
+}
+
+/** A party standing on a scene: the party token is at (500, 500). */
+function partyOnScene(members, scene) {
+  const id = party(members);
+  const partyToken = scene.add({ id: "ptok", x: 500, y: 500, width: 1, height: 1 });
+  Object.assign(settings.formations[id], { sceneId: scene.id, tokenId: partyToken.id });
+  return id;
+}
+const rows = (id) => getFormation(id).members.map((m) => m.actorId);
+
+await t("the v6 member, ejectSummons, is registered", () => {
+  assert.equal(typeof roster.ejectSummons, "function");
+});
+
+await t("ejectSummons takes a stashed summon out of the party and stands it on the party's scene hostile, its record on the token", async () => {
+  sceneMap.clear();
+  const scene = makeScene("sc");
+  const id = partyOnScene([walker("c", 36), summonMember("s1"), summonMember("s2")], scene);
+  const answer = await roster.ejectSummons(id, ["s1"], turn);
+  assert.deepEqual(rows(id), ["c", "s2"], "s1 is on no roster afterwards, and nothing else left");
+  assert.deepEqual(answer.left, [{ actorId: "s1", name: "s1", tokenUuid: "Scene.sc.Token.new1", deployed: false }]);
+  assert.deepEqual([answer.kept, answer.amended], [[], ["s1"]]);
+  const [made] = scene.created;
+  assert.equal(made.disposition, -1, "hostile");
+  assert.equal(made.delta.flags[SCOPE].summon.lost, "hostile", "its record survives on the token, stamped lost");
+  assert.deepEqual(made.delta.ownership, { default: 0, p1: 0 });
+  assert.notDeepEqual([made.x, made.y], [500, 500], "beside the party's token, not under it");
+  assert.equal(made._id, undefined);
+  assert.deepEqual(scene.deleted, [], "no token is removed");
+});
+
+await t("ejectSummons with no token for the party on a scene keeps the amended row in the party and says so", async () => {
+  sceneMap.clear();
+  const id = party([walker("c", 36), summonMember("s1")]);
+  const answer = await roster.ejectSummons(id, ["s1"], turn);
+  assert.deepEqual([answer.left, answer.kept, answer.amended], [[], [{ actorId: "s1", name: "s1" }], ["s1"]]);
+  assert.deepEqual(rows(id), ["c", "s1"], "the only record of the creature is not dropped where nothing could stand for it");
+  assert.equal(stashOf(id, "s1").delta.flags[SCOPE].summon.lost, "hostile");
+});
+
+await t("ejectSummons keeps the row when the scene refuses the token, so the creature is never in neither place", async () => {
+  sceneMap.clear();
+  const scene = makeScene("sc", { failCreate: true });
+  const id = partyOnScene([summonMember("s1")], scene);
+  const quiet = console.error;
+  console.error = () => {};
+  let answer;
+  try {
+    answer = await roster.ejectSummons(id, ["s1"], turn);
+  } finally {
+    console.error = quiet;
+  }
+  assert.deepEqual([answer.left, answer.kept.map((k) => k.actorId)], [[], ["s1"]]);
+  assert.deepEqual(rows(id), ["s1"]);
+});
+
+await t("ejectSummons drops a deployed summon's row and leaves its token standing", async () => {
+  sceneMap.clear();
+  const scene = makeScene("sc");
+  scene.add({ id: "tok", x: 900, y: 900 });
+  const id = partyOnScene([walker("c", 36), summonMember("d1", { deployedTokenId: "tok", deployedSceneId: "sc" })], scene);
+  const answer = await roster.ejectSummons(id, ["d1"], (data) => ({ ...data, marked: true }));
+  assert.deepEqual(rows(id), ["c"]);
+  assert.deepEqual(answer.left, [{ actorId: "d1", name: "d1", tokenUuid: "Scene.sc.Token.tok", deployed: true }]);
+  assert.deepEqual(scene.deleted, [], "the token is not deleted");
+  assert.equal(scene.created.length, 0, "and no second one is made");
+  assert.deepEqual(answer.amended, [], "the live token is written by the caller, never the stash");
+});
+
+await t("ejectSummons never takes a person, a stack or a summon with no cast record, whatever it is told", async () => {
+  sceneMap.clear();
+  const scene = makeScene("sc");
+  const bare = summonMember("bare");
+  delete bare.tokenData.delta.flags[SCOPE].summon;
+  const id = partyOnScene([walker("c", 36), bare, summonMember("stacked", { deployedStack: "k" }), summonMember("s1")], scene);
+  const answer = await roster.ejectSummons(id, ["c", "bare", "stacked", "ghost", "s1"], turn);
+  assert.deepEqual(rows(id), ["c", "bare", "stacked"]);
+  assert.deepEqual(answer.left.map((l) => l.actorId), ["s1"]);
+  assert.deepEqual(await roster.ejectSummons("no-such-party", ["s1"], turn), { left: [], kept: [], amended: [] });
+});
+
+await t("a seat that is no GM ejects nothing", async () => {
+  sceneMap.clear();
+  const scene = makeScene("sc");
+  const id = partyOnScene([summonMember("s1")], scene);
+  const user = game.user;
+  game.user = { id: "p1", isGM: false };
+  try {
+    assert.deepEqual(await roster.ejectSummons(id, ["s1"], turn), { left: [], kept: [], amended: [] });
+  } finally {
+    game.user = user;
+  }
+  assert.deepEqual(rows(id), ["s1"]);
+  assert.equal(scene.created.length, 0);
 });
 
 console.log(`\n${checks.length} checks passed`);

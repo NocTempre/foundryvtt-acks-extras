@@ -6,7 +6,7 @@ import { seatChanged } from "./conveyance.mjs";
 import { bindLightCast, lightCastContext } from "./light-cast.mjs";
 import { FLAG_CLASSES } from "../classes/constants.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
-import { buildFormationView, buildGMExtras, buildPlayerPanel, buildSpellTracker } from "./formation-view.mjs";
+import { buildFormationView, buildGMExtras, buildPlayerPanel, buildSpellTracker, hostileReadingMoved } from "./formation-view.mjs";
 import { userOwnsMember } from "./player-requests.mjs";
 import { participantsOf } from "./xp-shares.mjs";
 import { MODE_TEMPLATES, TAB_IDS, buildFrameView, framePartIds, frameTabs } from "./frame-view.mjs";
@@ -326,9 +326,14 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     const onActor = (actor, changes) => {
       if (isMember(actor?.id) && (foundry.utils.hasProperty(changes, "system.hp") || foundry.utils.hasProperty(changes, "ownership") || seatChanged(changes) || castChanged(changes))) this.#renderSoon();
     };
+    // A member's deployed token turning hostile or hidden moves the hostile-member warning.
+    const isMemberToken = (token) => (this.formation?.members ?? []).some((m) => m?.deployedTokenId === token?.id && m.deployedSceneId === token?.parent?.id);
     const onToken = (token, changes) => {
       if (isMember(token?.actorId) && foundry.utils.hasProperty(changes, "delta.system.hp")) this.#renderSoon();
+      else if (hostileReadingMoved(changes) && isMemberToken(token)) this.#renderSoon();
     };
+    // The warning reads the scene the seat is viewing, and drawing another scene changes it.
+    const onCanvasReady = () => this.#renderSoon();
     // A magic light's state follows where its item sits (worn, in a container),
     // and the primary GM's item refresh does not reach other seats either.
     const onItem = (item) => {
@@ -343,6 +348,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     this.#watch = [
       ["updateActor", Hooks.on("updateActor", onActor)],
       ["updateToken", Hooks.on("updateToken", onToken)],
+      ["canvasReady", Hooks.on("canvasReady", onCanvasReady)],
       ["createItem", Hooks.on("createItem", onItem)],
       ["updateItem", Hooks.on("updateItem", onItem)],
       ["deleteItem", Hooks.on("deleteItem", onItem)],

@@ -468,13 +468,19 @@ async function dismissOp({ summonerUuid, tokenUuids, held, user }) {
  * is stamped `lost` in its record, which a non-GM's dismissal is refused on
  * once it is `hostile`; a `gone` creature is deleted as a dismissal deletes it,
  * a deployed party member and a stashed one through the roster's `release`; a
- * `hostile` token drops its owners and turns hostile. A stashed creature that
- * stays or turns hostile is amended in its party's record through the roster's
- * `amendSummons` (`stashAfterControlEnd`) and stays a member; with no such
- * method it is counted `unapplied`.
+ * `hostile` token drops its owners and turns hostile. A temporary ally
+ * (`isTemporaryAlly`) whose control ends `hostile` also leaves its party, in the
+ * same pass, through the roster's `ejectSummons`: a deployed member's token
+ * stands where it is, and a stashed creature is amended (`stashAfterControlEnd`)
+ * and stood on the party's scene as a hostile token, or, where the roster has
+ * no scene to stand it on, kept in the roster amended. The answer then carries
+ * `left` (who left, and the token that stands for each) and `kept`. A stashed
+ * creature that stays, or that turns hostile where the roster has no
+ * `ejectSummons`, is amended through `amendSummons` and stays a member; with no
+ * such method it is counted `unapplied`.
  * @param {Actor} summoner
  * @param {{castId: string, outcome: string}} o
- * @returns {Promise<{ok: false, reason: string}|{ok: true, outcome: string, stamped: number, deleted: number, released: number, hostile: number, unapplied: number}>}
+ * @returns {Promise<{ok: false, reason: string}|{ok: true, outcome: string, stamped: number, deleted: number, released: number, hostile: number, unapplied: number, left?: {partyId: string, actorId: string, name: string, tokenUuid: string|null, deployed: boolean}[], kept?: {partyId: string, actorId: string, name: string}[]}>}
  */
 export async function applyControlEnd(summoner, { castId, outcome } = {}) {
   if (!game.user?.isGM) return refused("notGm");
@@ -483,12 +489,19 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
   const service = roster();
   const canRelease = typeof service?.release === "function";
   const canAmend = typeof service?.amendSummons === "function";
+  const canEject = typeof service?.ejectSummons === "function";
   const plan = controlEndPlan({
     outcome,
-    tokens: tokens.map((t) => ({ uuid: t.uuid, ownership: t.delta?._source?.ownership ?? t.actor?.ownership ?? {}, member: canRelease ? (service.memberOfToken?.(t) ?? null) : null })),
-    held,
+    tokens: tokens.map((t) => ({
+      uuid: t.uuid,
+      ownership: t.delta?._source?.ownership ?? t.actor?.ownership ?? {},
+      summon: summonRecordOf(t.actor),
+      member: canRelease || (canEject && outcome === "hostile") ? (service.memberOfToken?.(t) ?? null) : null,
+    })),
+    held: held.map((h) => ({ partyId: h.partyId, actorId: h.actorId, summon: h.record })),
     canRelease,
     canAmend,
+    canEject,
   });
   const byUuid = new Map(tokens.map((t) => [t.uuid, t]));
   const stampPath = `flags.${MODULE_ID}.${SUMMON_RECORD_FLAG}.lost`;
@@ -496,10 +509,13 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
   const deletes = new Map();
   const releases = new Map();
   const amends = new Map();
+  const ejects = new Map();
+  const toEject = (partyId, actorId) => ejects.set(partyId, [...new Set([...(ejects.get(partyId) ?? []), actorId])]);
   for (const step of plan.steps) {
     const token = step.kind === "token" ? byUuid.get(step.uuid) : null;
     if (step.op === "delete" && token) deletes.set(token.parent, [...(deletes.get(token.parent) ?? []), token.id]);
     else if (step.op === "release") releases.set(step.partyId, [...new Set([...(releases.get(step.partyId) ?? []), step.actorId])]);
+    else if (step.op === "eject") toEject(step.partyId, step.actorId);
     else if (step.kind === "held" && (step.op === "stamp" || step.op === "hostile")) amends.set(step.partyId, [...new Set([...(amends.get(step.partyId) ?? []), step.actorId])]);
     else if (step.op === "stamp" && token?.actor) {
       await token.actor.update({ [stampPath]: step.lost });
@@ -510,6 +526,7 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
       await token.update({ disposition: step.disposition });
       done.stamped++;
       done.hostile++;
+      if (step.leave) toEject(step.leave.partyId, step.leave.actorId);
     } else if (step.op === "unapplied") done.unapplied++;
   }
   for (const [scene, ids] of deletes) done.deleted += (await scene.deleteEmbeddedDocuments("Token", ids)).length;
@@ -519,7 +536,17 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
     done.stamped += amended.length;
     if (plan.outcome === "hostile") done.hostile += amended.length;
   }
-  return { ok: true, outcome: plan.outcome, ...done };
+  const left = [];
+  const kept = [];
+  for (const [partyId, ids] of ejects) {
+    const answer = (await service.ejectSummons(partyId, ids, (data) => stashAfterControlEnd(data, "hostile"))) ?? {};
+    const amended = answer.amended?.length ?? 0;
+    done.stamped += amended;
+    done.hostile += amended;
+    for (const who of answer.left ?? []) left.push({ partyId, actorId: who.actorId, name: String(who.name ?? ""), tokenUuid: who.tokenUuid ?? null, deployed: !!who.deployed });
+    for (const who of answer.kept ?? []) kept.push({ partyId, actorId: who.actorId, name: String(who.name ?? "") });
+  }
+  return { ok: true, outcome: plan.outcome, ...done, ...(left.length ? { left } : {}), ...(kept.length ? { kept } : {}) };
 }
 
 /**

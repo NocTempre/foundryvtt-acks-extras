@@ -42,7 +42,7 @@ import {
   partySpeed,
 } from "./formation-model.mjs";
 import { isMemberDeployed } from "./deployment.mjs";
-import { summonOfData, summonRecordOf } from "../lib/summons-logic.mjs";
+import { isTemporaryAlly, summonOfData, summonRecordOf } from "../lib/summons-logic.mjs";
 import { trapFigures } from "./trap-rules.mjs";
 import { LIT_BY, MAP_BLOCK } from "./mapper-logic.mjs";
 import { journeyIsNight, mappingNeedsLight, mappingOf } from "./mapping.mjs";
@@ -551,7 +551,52 @@ function buildMapsView(formation) {
 }
 
 /**
- * The warnings strip, header and strip both. On a journey the dark is the
+ * The members of a party who stand publicly hostile: a member's own token on
+ * `scene` whose disposition reads exactly hostile, the one thing every seat at
+ * the table sees of it (core draws it as the token's border). A hidden token, a
+ * token on another scene, a stash and a stack read as nothing, and no flag, note
+ * or effect is consulted. A temporary ally under control is left out
+ * (`isTemporaryAlly`): a summons takes its creature's own disposition, so the
+ * reading says nothing of it. One whose cast record reads lost hostile and that
+ * is still a roster row, stashed or deployed, is named: its control ended
+ * hostile, the end card said so, and it is still in the party. Its record is
+ * read, never a token, so a stashed one is named with no scene in view.
+ * @param {object} formation
+ * @param {Scene|null} scene  the scene the seat is viewing
+ * @returns {string[]} the members' names
+ */
+export function publiclyHostileMembers(formation, scene) {
+  const hostile = globalThis.CONST?.TOKEN_DISPOSITIONS?.HOSTILE ?? -1;
+  const names = [];
+  for (const m of realMembers(formation)) {
+    if (m.deployedStack) continue;
+    if (isTemporaryAlly(m)) {
+      // A deployed member's record is on its live token's actor, the stash's is the pre-deploy snapshot.
+      const live = m.deployedTokenId ? game.scenes?.get?.(m.deployedSceneId)?.tokens?.get?.(m.deployedTokenId) : null;
+      const record = live ? summonRecordOf(live.actor) : summonOfData(m.tokenData).summon;
+      if (record?.lost === "hostile") names.push(getMemberActor(m)?.name ?? live?.name ?? m.tokenData?.name ?? "");
+      continue;
+    }
+    if (!scene || !m.deployedTokenId || m.deployedSceneId !== scene.id) continue;
+    const token = scene.tokens?.get?.(m.deployedTokenId);
+    if (!token || token.hidden || token.disposition !== hostile) continue;
+    names.push(getMemberActor(m)?.name ?? token.name ?? "");
+  }
+  return names;
+}
+
+/**
+ * Does a token update change what `publiclyHostileMembers` reads: the token's
+ * disposition, or whether it is hidden? Pure over the update's `changes`.
+ * @param {object} changes
+ * @returns {boolean}
+ */
+export const hostileReadingMoved = (changes) => !!changes && typeof changes === "object" && (Object.hasOwn(changes, "disposition") || Object.hasOwn(changes, "hidden"));
+
+/**
+ * The warnings strip, header and strip both. A member standing publicly hostile
+ * on the viewed scene (`publiclyHostileMembers`) is named in one warning, the
+ * same for a Judge and a Player; it changes nothing about the party. On a journey the dark is the
  * journey's own night (the Judge's word on the hour, else the world clock) and
  * not the scene's darkness, and the turn tracker's rest and winded warnings are
  * left out because a march keeps neither, and by daylight it wants no lantern.
@@ -619,6 +664,8 @@ export function buildWarnings(formation, speed) {
   if (formation.combat?.active) {
     warnings.push(game.i18n.localize("ACKS-FORMATION.warnings.inCombat"));
   }
+  const hostileNow = publiclyHostileMembers(formation, game.scenes?.viewed ?? canvas?.scene ?? null);
+  if (hostileNow.length) warnings.push(game.i18n.format("ACKS-FORMATION.warnings.hostileMember", { names: hostileNow.join(", ") }));
 
   // A role held without the implement it needs — the pole, or the mapper's
   // quill and parchment. A Judge can put anyone in any job (judge-override.mjs),

@@ -1175,6 +1175,31 @@ await ta("the ended card's flag carries the outcome the control ended in, and a 
     }
   }
 });
+await ta("the ended card names who left the party and who stays on the roster, each on a line of its own, from what the control answered", async () => {
+  const prior = { game: globalThis.game, ChatMessage: globalThis.ChatMessage, fromUuidSync: globalThis.fromUuidSync };
+  const made = [];
+  globalThis.game = { i18n: { format: (key, data) => `${key}|${data?.names ?? ""}`, localize: (key) => key }, users: [{ id: "gm1", isGM: true }] };
+  globalThis.game.users.get = (id) => globalThis.game.users.find((u) => u.id === id);
+  globalThis.ChatMessage = { getSpeaker: () => ({}), create: async (data) => (made.push(data), data) };
+  globalThis.fromUuidSync = () => null;
+  try {
+    const effect = { name: "Invented", parent: { uuid: "Actor.c1", name: "Invented Caster", ownership: {} } };
+    const record = { spellUuid: "Actor.c1.Item.sp1", castId: "cast7", casterUuid: "Actor.c1" };
+    await postEnded({ effect, record, tokens: [{}], outcome: "hostile", left: [{ name: "Invented Wolf" }, { name: "Invented Bat" }], kept: [{ name: "Invented Owl" }] });
+    await postEnded({ effect, record, tokens: [{}], outcome: "hostile" });
+    assert.ok(made[0].content.includes("leftParty|Invented Wolf, Invented Bat") && made[0].content.includes("keptInParty|Invented Owl"));
+    assert.equal(made[1].content.includes("leftParty") || made[1].content.includes("keptInParty"), false, "no departure, no line");
+    const posts = [];
+    const doc = { uuid: "Actor.c1.ActiveEffect.e1", flags: { "acks-extras": { spellEffect: { role: "caster", castId: "cast9", casterUuid: "Actor.c1" } } } };
+    await announceEndedCast(doc, { worldTime: 5, stamp: async () => {}, standing: () => ({ tokens: [{}], held: [{}] }), post: async (o) => posts.push(o), control: async () => ({ ok: true, outcome: "hostile", left: [{ name: "Invented Wolf" }], kept: [] }) });
+    assert.deepEqual([posts[0].left, posts[0].kept], [[{ name: "Invented Wolf" }], []], "what the control answered is handed to the card");
+  } finally {
+    for (const [key, value] of Object.entries(prior)) {
+      if (value === undefined) delete globalThis[key];
+      else globalThis[key] = value;
+    }
+  }
+});
 t("the ended card's Dismiss is drawn for an owner of the caster, for a GM seat alone once the creatures turned hostile, and for nobody else", () => {
   const prior = { game: globalThis.game, fromUuidSync: globalThis.fromUuidSync };
   const seat = ({ isGM = false, owner = false, outcome } = {}) => {

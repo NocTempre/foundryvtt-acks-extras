@@ -456,10 +456,11 @@ const { registerSummons, heldSummonsOf, castSummons, dismissSummons } = await im
  * stashed member's `tokenData` through the edit it is handed and never
  * touches a deployed one, as the roster's does.
  */
-function fakeProvider(parties, { release = true, memberOfToken = true, amend = true } = {}) {
+function fakeProvider(parties, { release = true, memberOfToken = true, amend = true, eject = false } = {}) {
   const events = [];
   const restored = [];
-  const rowOf = (m) => ({ actorId: m.actorId, actor: { img: `img/${m.actorId}` }, name: m.name, document: null, stashed: !m.token, unlinked: true, hp: null, summonedBy: m.summonedBy ?? null, summon: m.summon ?? null });
+  const placedTokens = [];
+  const rowOf =(m) => ({ actorId: m.actorId, actor: { img: `img/${m.actorId}` }, name: m.name, document: null, stashed: !m.token, unlinked: true, hp: null, summonedBy: m.summonedBy ?? null, summon: m.summon ?? null });
   const impl = {
     list: () => [...parties.keys()].map((id) => ({ id, name: id })),
     members: (id) => (parties.get(id) ?? []).map(rowOf),
@@ -503,10 +504,40 @@ function fakeProvider(parties, { release = true, memberOfToken = true, amend = t
       return { amended };
     };
   }
+  if (eject) {
+    // The v6 `ejectSummons`: a stash is amended through the edit, then either placed (`eject: "place"`: the row goes and a token stands in its place) or kept (`"keep"`: no scene to place it on, so it stays a member, amended). A deployed member's row goes and its token stays.
+    impl.ejectSummons = async (partyId, ids, edit) => {
+      events.push(["eject", partyId, [...ids]]);
+      const members = parties.get(partyId) ?? [];
+      const out = { left: [], kept: [], amended: [] };
+      for (const id of ids) {
+        const i = members.findIndex((m) => m.actorId === id);
+        if (i < 0) continue;
+        const m = members[i];
+        if (m.token) {
+          members.splice(i, 1);
+          out.left.push({ actorId: id, name: m.name, tokenUuid: m.token.uuid, deployed: true });
+          continue;
+        }
+        const next = typeof edit === "function" ? edit(clone(m.tokenData)) : null;
+        if (next && typeof next === "object") {
+          m.tokenData = next;
+          m.summon = logic.summonOfData(next).summon;
+          out.amended.push(id);
+        }
+        if (eject === "place") {
+          members.splice(i, 1);
+          placedTokens.push({ name: m.name, data: m.tokenData });
+          out.left.push({ actorId: id, name: m.name, tokenUuid: `Scene.sP.Token.placed${id}`, deployed: false });
+        } else out.kept.push({ actorId: id, name: m.name });
+      }
+      return out;
+    };
+  }
   const recall = () => {
     for (const members of parties.values()) for (const m of members) restored.push(m.actorId);
   };
-  return { impl, events, restored, recall };
+  return { impl, events, restored, recall, placedTokens };
 }
 
 /** The token data a party keeps for a stashed summon: unlinked, owned by `p1` and `p2`, friendly, carrying the summoner and the record. */
@@ -1600,7 +1631,109 @@ await t("a creature that turns hostile sets every owner to NONE, turns hostile a
   assert.equal(calls.actorUpdate.concat(calls.tokenUpdate).some((u) => u.id === decoy.id), false, "another cast's creature is untouched");
 });
 
-await t("a stashed creature that turns hostile is stamped, loses its owners and turns hostile in its party's record, and stays a member", async () => {
+await t("isTemporaryAlly answers from the cast record alone, for every shape a body is held in", () => {
+  const rec = { castId: "c1", sourceUuid: "x", at: 1 };
+  const stash = stashOf("Actor.sum", rec);
+  const actorOf = (flags) => ({ documentName: "Actor", getFlag: (scope, key) => (scope === M ? flags[key] : undefined) });
+  // A conjured creature riding stashed in the party token, and the row the roster lists for it.
+  assert.equal(logic.isTemporaryAlly({ actorId: "s1", baseActorId: "copy", tokenData: stash }), true, "a stashed member (a stored record)");
+  assert.equal(logic.isTemporaryAlly({ actorId: "s1", summonedBy: "Actor.sum", summon: rec, stashed: true }), true, "a stashed member (a roster row)");
+  // A summoned creature deployed as a token: the record is in the live token's delta, and the stale stash still carries it.
+  assert.equal(logic.isTemporaryAlly({ actorId: "d1", baseActorId: "copy", deployedTokenId: "tok", deployedSceneId: "sc", tokenData: stash }), true, "a deployed member");
+  assert.equal(logic.isTemporaryAlly({ toObject: () => stash }), true, "a summoned token document");
+  assert.equal(logic.isTemporaryAlly(stash), true, "plain token data");
+  assert.equal(logic.isTemporaryAlly(actorOf({ [logic.SUMMON_RECORD_FLAG]: rec })), true, "an actor carrying the record");
+  // Not temporary as far as the module can tell.
+  assert.equal(logic.isTemporaryAlly({ actorId: "pc", roles: [] }), false, "a person, a hired or charmed creature, a guest: no record says otherwise");
+  assert.equal(logic.isTemporaryAlly({ actorId: "pc", roles: [], tokenData: { actorLink: true, delta: null } }), false, "a member whose token matches its actor");
+  assert.equal(logic.isTemporaryAlly({ actorId: "g1", groupBodies: 4 }), false, "a company or stack");
+  assert.equal(logic.isTemporaryAlly({ blank: true }), false, "a blank cell");
+  assert.equal(logic.isTemporaryAlly(actorOf({ [logic.SUMMON_FLAG]: "Actor.sum" })), false, "a creature bound by hand has a summoner and no cast record");
+  assert.equal(logic.isTemporaryAlly({ delta: { flags: { [M]: { [logic.SUMMON_FLAG]: "Actor.sum", [logic.SUMMON_RECORD_FLAG]: { nope: 1 } } } } }), false, "a record with no cast id is none");
+  assert.equal(logic.isTemporaryAlly(null), false);
+  assert.equal(logic.isTemporaryAlly(undefined), false);
+});
+
+await t("a temporary ally whose control ends hostile leaves the party: the plan ejects a stash, and a deployed member's row goes with its token left standing", () => {
+  const rec = { castId: "cA", sourceUuid: "x", at: 1 };
+  const tokens = [{ uuid: "T.plain", ownership: { p1: 3 }, summon: rec }, { uuid: "T.deployed", ownership: { p1: 3 }, member: { partyId: "pty", actorId: "m1" }, summon: rec }];
+  const held = [{ partyId: "pty", actorId: "h1", summon: rec }];
+  const plan = logic.controlEndPlan({ outcome: "hostile", tokens, held, canEject: true });
+  assert.deepEqual(plan.steps.map((s) => [s.kind, s.op]), [["token", "hostile"], ["token", "hostile"], ["held", "eject"]]);
+  assert.equal(plan.steps[0].leave, undefined, "a scene token no party holds has no roster to leave");
+  assert.deepEqual(plan.steps[1].leave, { partyId: "pty", actorId: "m1" }, "a deployed member's row is named, and the step still writes the token hostile");
+  assert.equal(plan.steps[1].disposition, logic.HOSTILE_DISPOSITION);
+  assert.deepEqual([plan.steps[2].partyId, plan.steps[2].actorId], ["pty", "h1"]);
+  // The same cast with no ejectSummons to call is as it was: the stash is amended and stays a member.
+  assert.deepEqual(logic.controlEndPlan({ outcome: "hostile", tokens, held }).steps.map((s) => s.op), ["hostile", "hostile", "hostile"]);
+  // A body the module cannot tell is temporary is never ejected.
+  const person = logic.controlEndPlan({ outcome: "hostile", tokens: [{ uuid: "T.p", ownership: {}, member: { partyId: "pty", actorId: "pc" } }], held: [{ partyId: "pty", actorId: "pc2" }], canEject: true });
+  assert.deepEqual(person.steps.map((s) => [s.op, s.leave]), [["hostile", undefined], ["hostile", undefined]]);
+  // stays and gone are as they were.
+  assert.deepEqual(logic.controlEndPlan({ outcome: "stays", tokens, held, canEject: true }).steps.map((s) => s.op), ["stamp", "stamp", "stamp"]);
+  assert.deepEqual(logic.controlEndPlan({ outcome: "gone", tokens, held, canEject: true }).steps.map((s) => s.op), ["delete", "release", "release"]);
+});
+
+await t("a stashed temporary ally that turns hostile is on no roster afterwards and its record survives as a hostile token", async () => {
+  const { summoner, scene } = setup();
+  summonedBy(scene, summoner.uuid, { castId: "cA", sourceUuid: "x", at: 1 }, { p1: 3 });
+  const stash = member("h1", summoner.uuid, "cA");
+  const person = { actorId: "pc", name: "Person", summonedBy: null, summon: null, tokenData: { name: "Person", actorLink: true } };
+  const provider = fakeProvider(new Map([["pty", [stash, person]]]), { eject: "place" });
+  services.register("party-roster", provider.impl);
+  const out = await applyControlEnd(summoner, { castId: "cA", outcome: "hostile" });
+  assert.equal(out.outcome, "hostile");
+  assert.deepEqual(out.left, [{ partyId: "pty", actorId: "h1", name: "Wolf h1", tokenUuid: "Scene.sP.Token.placedh1", deployed: false }], "the card is told who left and the token that stands for it");
+  assert.equal(out.kept, undefined);
+  assert.deepEqual([out.stamped, out.hostile, out.unapplied], [2, 2, 0], "the scene token and the stash are each stamped hostile");
+  assert.deepEqual(provider.events.map((e) => [e[0], e[1], e[2]]), [["eject", "pty", ["h1"]]]);
+  assert.deepEqual(provider.impl.members("pty").map((r) => r.actorId), ["pc"], "the cast's creature is on no roster, and nobody else left");
+  const [placed] = provider.placedTokens;
+  assert.equal(logic.summonOfData(placed.data).summon.lost, "hostile", "the record survives on the token it is placed as, stamped lost");
+  assert.equal(placed.data.disposition, logic.HOSTILE_DISPOSITION);
+  assert.deepEqual(placed.data.delta.ownership, { default: 0, p1: 0, p2: 0 }, "its owners are NONE");
+});
+
+await t("a token that turns hostile stays a token where it stands and leaves the roster; a deployed member's creature is never deleted", async () => {
+  const { summoner, scene } = setup();
+  const dep = member("m1", summoner.uuid, "cA", scene);
+  const provider = fakeProvider(new Map([["pty", [dep]]]), { eject: "place" });
+  services.register("party-roster", provider.impl);
+  const out = await applyControlEnd(summoner, { castId: "cA", outcome: "hostile" });
+  assert.deepEqual(out.left, [{ partyId: "pty", actorId: "m1", name: "Wolf m1", tokenUuid: dep.token.uuid, deployed: true }]);
+  assert.equal(calls.tokenDelete.length, 0, "nothing is deleted");
+  assert.equal(scene.tokens.has(dep.token.id), true, "the token stands");
+  assert.deepEqual(calls.tokenUpdate, [{ id: dep.token.id, patch: { disposition: logic.HOSTILE_DISPOSITION } }], "hostile where it stands");
+  assert.equal(calls.actorUpdate[0].patch[`flags.${M}.${logic.SUMMON_RECORD_FLAG}.lost`], "hostile");
+  assert.deepEqual(provider.impl.members("pty"), [], "and the party no longer holds it");
+});
+
+await t("a hostile stash the roster could not place is kept, counted, and named in `kept` for the card", async () => {
+  const { summoner } = setup();
+  const stash = member("h1", summoner.uuid, "cA");
+  const provider = fakeProvider(new Map([["pty", [stash]]]), { eject: "keep" });
+  services.register("party-roster", provider.impl);
+  const out = await applyControlEnd(summoner, { castId: "cA", outcome: "hostile" });
+  assert.deepEqual(out.kept, [{ partyId: "pty", actorId: "h1", name: "Wolf h1" }]);
+  assert.equal(out.left, undefined);
+  assert.equal(provider.impl.members("pty").length, 1, "the record is not dropped where nothing could stand for it");
+  assert.equal(stash.tokenData.delta.flags[M][logic.SUMMON_RECORD_FLAG].lost, "hostile");
+});
+
+await t("stays and gone never eject, whatever the roster offers", async () => {
+  for (const outcome of ["stays", "gone"]) {
+    const { summoner, scene } = setup();
+    const stash = member("h1", summoner.uuid, "cA");
+    const dep = member("m1", summoner.uuid, "cA", scene);
+    const provider = fakeProvider(new Map([["pty", [stash, dep]]]), { eject: "place" });
+    services.register("party-roster", provider.impl);
+    const out = await applyControlEnd(summoner, { castId: "cA", outcome });
+    assert.equal(out.left, undefined, outcome);
+    assert.equal(provider.events.some((e) => e[0] === "eject"), false, outcome);
+  }
+});
+
+await t("a stashed creature that turns hostile, with no roster ejectSummons, is stamped, loses its owners and turns hostile in its party's record, and stays a member", async () => {
   const { summoner, scene } = setup();
   summonedBy(scene, summoner.uuid, { castId: "cA", sourceUuid: "x", at: 1 }, { p1: 3 });
   const stash = member("h1", summoner.uuid, "cA");

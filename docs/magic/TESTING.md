@@ -2504,3 +2504,22 @@ them before its first check.
 ### Drive mechanics
 
 A whispered card prints user names in its header: crop the shot to the card body.
+
+## A temporary ally that turns hostile leaves the party
+
+Owner ruling 2026-11-26 (lib `DECISIONS.md`): a creature a cast made that returns to hostile leaves the party; a person who is publicly hostile stays, with a warning. Not walked.
+
+### Fixtures
+
+- `magic/hostile-party`: a party with a token on a scene (Party sheet, Order tab), its caster a member of it riding inside the party token, and a second member deployed as a token (`magic/hostile-member`). Find them by marker; build them with the party sheet's own add controls.
+- `magic/hostile-conjure`: the caster's conjuration spell whose summon row reads "They turn hostile" (`controlEnd`), cast from inside the party so the creature is made as a member with no token (the "Casting a summoning spell from inside a party" steps).
+- A Player seat that owns the caster, and a second Player seat that owns nothing (the shared warning).
+
+### Steps
+
+1. Cast `magic/hostile-conjure` from inside `magic/hostile-party`. *Observable:* the party sheet's Order tab lists the creature, and the scene holds no token for it.
+2. Lose concentration (damage the caster) and, in a second run, let the duration run out. *Observable:* the chat card whispered to the Judge and the caster's owner reads "Left the party: <name>. Each stands where it is, hostile."; the creature is on no Order tab roster; a token of it stands on the party's scene beside the party token, with a red (hostile) border, and its Dismiss on the card is the Judge's alone and removes that token. `game.actors` still holds the creature's world copy.
+3. Repeat with the creature deployed (Detach or a fight) before the control ends. *Observable:* the token does not move or vanish, turns hostile, and the Order tab no longer lists it.
+4. Repeat with a spell whose row reads "They stay" and "They go". *Observable:* the creature stays on the roster (stays) or is gone (goes), as before.
+5. Drop the hostile creature's token on the open party sheet (or Add to party on its token HUD) as the Judge. *Observable:* it is a member again, while its caster is in the party. On the Order tab, Remove takes a member out by hand.
+6. Set `magic/hostile-member`'s token to Hostile in its token configuration (the Disposition control). *Observable:* on the Judge's seat and on both Player seats the party sheet's warning box (above the tabs, on every tab) reads "Hostile, and still in the party: <name>.", the member is still on the roster, and nothing else changed. Hide the token: the warning goes on every seat. Move the viewed scene: the warning goes.

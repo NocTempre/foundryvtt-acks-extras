@@ -74,7 +74,7 @@ acksExtras.lib = {
   // 86: a stack's `gen` carries `formula` and `thrown`; org.editRow's and planEdit's stack change takes `thrown` (below, "`org` — the organisation chart")
   // 87: light.{MAGIC_LIGHT_CITE_FLAG, magicLightChanges, magicLightRecord, magicLightCite}; light.magicLights entries carry `cite`; fields.effectField carries `lightBands` (docs/lib/MODEL.md, "Perception: senses, light, and the token")
   // 88: a group roster record carries `tokenSize`, the size a hand gave its body token, kept across a gather; the token flags `FLAG_FOOTPRINT_LOCK` and `FLAG_SIZE_STAMP` live in lib/constants.mjs (docs/lib/GROUPS.md, "A size a hand gave a body")
-  // 89: summons.dismissSummons refuses a non-GM only a creature whose control ended hostile; a bare summon reads Foundry's Create Tokens grant; the party-roster contract's v5 `amendSummons` (below, "`summons`" and "Contract `party-roster` v5")
+  // 89: summons.dismissSummons refuses a non-GM only a creature whose control ended hostile; a bare summon reads Foundry's Create Tokens grant; the party-roster contract's v5 `amendSummons` (below, "`summons`" and "Contract `party-roster` v6")
   // 91: groups.registerCarryResolver; groups.deploy takes `extraDelta`; a group roster record carries `carries` (docs/lib/GROUPS.md, "A body sent out carrying its item"); itemRun.logic.{itemRunUsedUp, SPENDING_KINDS} (below, "`itemUse`, `itemRun` and `auraReach`")
   // 94: groups.{deployAnchor, registerStackRowControl, stackRowControls, pressStackRowControl}; groups.deploy takes `carrying` (docs/lib/GROUPS.md, "A body sent out carrying its item"); actorRead.kindKeys (below, "`itemUse`, `itemRun` and `auraReach`")
   // 95: itemRun.{postOutcomeCard, swigHeal, swigAskSave}; a `consume` activation is run (Swig); itemRun.logic.readItemRun answers a consume activation's `left` and `bearerUuid`; itemRun.logic.itemRunUsedUp counts a consume item with no swigs left (below, "apiVersion 95, the consume item")
@@ -238,7 +238,7 @@ else importing the definition from its own pipeline — and reports what it
 could not resolve; it never throws on content. The specialty suffix lands
 on the embedded copy's name only. No provider ⇒ consumers skip granting.
 
-### Contract `party-roster` v5
+### Contract `party-roster` v6
 
 Provider: formation (`scripts/formation/party-roster.mjs`). Consumers: the
 hit-point tool (`lib/hp.mjs`), which works on a whole party at once, the
@@ -261,13 +261,28 @@ the treasure pot's party aside and Quick grab (`list`, `members`, `pace`). Shape
   summonerParty(actorId) → {id, name, sceneId, tokenId} | null,
   admitSummons(partyId, summonerUuid, stashes) → Promise<{actorIds: string[], reason?: string}>,
   // v5 (additive)
-  amendSummons(partyId, actorIds, edit) → Promise<{amended: string[]}>
+  amendSummons(partyId, actorIds, edit) → Promise<{amended: string[]}>,
+  // v6 (additive)
+  ejectSummons(partyId, actorIds, edit) → Promise<{left: {actorId, name, tokenUuid, deployed}[], kept: {actorId, name}[], amended: string[]}>
 }
 ```
 
 `summonedBy`, `summon`, `memberOfToken`, `release`, `pace`, `summonerParty`,
-`admitSummons` and `amendSummons` are optional to a consumer: each is read with an optional call,
+`admitSummons`, `amendSummons` and `ejectSummons` are optional to a consumer: each is read with an optional call,
 and with one absent the consumer does what it does with no party in play.
+
+`ejectSummons(partyId, actorIds, edit)` takes temporary allies out of a party
+because their control ended hostile. It acts only on a summon member carrying a
+cast record (`isTemporaryAlly`); a person, a stack and any other id are skipped.
+A deployed member's row is dropped and its token stays where it stands. A
+stashed member is handed through `edit` (a deep copy, as `amendSummons` does),
+stood on the party's scene as a token of the edited data beside the party's
+token, and only then dropped from the party, so the creature is in storage or on
+the map at every moment. Where the party has no token on a scene, or the scene
+refuses the token, the edited row stays in the party and is answered in `kept`.
+No actor or token is deleted. It runs on the GM's client only and answers empty
+lists elsewhere. `left` names each member that left and the token that stands for
+it (`tokenUuid`); `amended` is the row ids whose stash was edited.
 
 `summonerParty(actorId)` names the party the actor marches inside: the party
 that holds the actor as a person (never a summon's own record) neither deployed
@@ -1376,9 +1391,13 @@ other token from its scene; with `release` absent, a held summon is refused and
 counted in `refused`, and a token is deleted from its scene. `deleted` counts
 every one removed. A held summon that stays or turns hostile is rewritten in its
 party's record through the roster's `amendSummons` (`stashAfterControlEnd`: the
-stamp, and for `hostile` its owners at NONE and the hostile disposition), and it
-stays a member until a Judge dismisses it; with `amendSummons` absent it is left
-as it was and counted in `unapplied`. `stamped` counts each creature stamped,
+stamp, and for `hostile` its owners at NONE and the hostile disposition); with
+`amendSummons` absent it is left as it was and counted in `unapplied`. A
+temporary ally (`isTemporaryAlly`) that turns hostile also leaves its party
+through the roster's `ejectSummons`, and the answer then carries `left` (party,
+member, name, the token that stands for it, whether it was deployed) and `kept`
+(a stash the roster could not stand on a scene, still a member); with
+`ejectSummons` absent it stays a member until a Judge dismisses it. `stamped` counts each creature stamped,
 token or stash, and `hostile` each turned. `reason` is one of `noUser`, `notSummoner`,
 `notOwner`, `badCount`, `badSource`, `unreadable`, `badSpell`, `spellRequired`,
 `badScene`, `badPositions`, `outOfRange`, `noCaster`, `noCopy`, `badOp`, `noCanvas`, `paused`,

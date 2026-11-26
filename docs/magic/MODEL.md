@@ -385,8 +385,11 @@ carries it out on the creatures the cast's own record names: each is stamped
 ownership and turns its disposition hostile, and `stays` leaves it with its
 owners. A creature stashed in a party is written the same way through the party
 roster's `amendSummons` (`stashAfterControlEnd` is the edit): `stays` stamps it
-and `hostile` also sets its owners to NONE and its disposition hostile, and it
-stays a member either way until it is dismissed. A creature stamped `hostile` is
+and `hostile` also sets its owners to NONE and its disposition hostile. A
+`stays` creature stays a member until it is dismissed; one that turns `hostile`
+leaves the party in the same pass, through the roster's `ejectSummons`, and
+stands as a hostile token (lib's MODEL, "A temporary ally that turns hostile
+leaves its party"). A creature stamped `hostile` is
 refused to a seat that is no GM (`controlLost`); one that stays is its owner's to
 dismiss as any other is. With no GM connected nothing is applied. It runs at both
 ends of a cast. At the *held end* (every `HELD_CAUSES`) the funnel's card

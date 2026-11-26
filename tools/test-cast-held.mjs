@@ -318,6 +318,31 @@ await ta("the end asks the GM's client to end the creatures' control, only where
   await endHeldCast(held(), { cause: "damage", caster, deps: none.deps });
 });
 
+await ta("a stashed creature that left its party is listed by the token that stands for it, the card says who left and who stays on the roster, each on its own line", async () => {
+  const r = funnelDeps({ recipients: [] });
+  r.deps.standing = async () => ({ tokens: [{ name: "Invented Wisp", uuid: "Scene.s1.Token.t1" }], held: [{ name: "Invented Stashed", img: "", partyId: "party1", actorId: "member1" }, { name: "Invented Kept", img: "", partyId: "party1", actorId: "member2" }] });
+  r.deps.control = async () => ({
+    ok: true,
+    outcome: "hostile",
+    left: [{ partyId: "party1", actorId: "member1", name: "Invented Stashed", tokenUuid: "Scene.s9.Token.new1", deployed: false }],
+    kept: [{ partyId: "party1", actorId: "member2", name: "Invented Kept" }],
+  });
+  const flag = await endHeldCast(held(), { cause: "damage", caster, deps: r.deps });
+  assert.deepEqual(flag.summons[1], { name: "Invented Stashed", img: "", tokenUuid: "Scene.s9.Token.new1" }, "its roster row is gone, so Dismiss names the token");
+  assert.deepEqual(flag.summons[2].held, { partyId: "party1", actorId: "member2" }, "one the roster kept is still its row");
+  assert.deepEqual([flag.left, flag.kept], [[{ name: "Invented Stashed" }], [{ name: "Invented Kept" }]]);
+  const view = heldEndView(flag, loc);
+  assert.equal(view.leftParty, 'leftParty|{"names":"Invented Stashed"}');
+  assert.equal(view.keptInParty, 'keptInParty|{"names":"Invented Kept"}');
+  assert.equal(view.controlLost, "controlLost.hostile (p. 1)", "the page's own line is not extended with the departure");
+  assert.equal(heldEndView({ ...FLAG(), summons: SUMMONS(), outcome: "hostile" }, loc).leftParty, "", "no departure, no line");
+  const plain = funnelDeps({ recipients: [] });
+  plain.deps.standing = async () => ({ tokens: [{ name: "Invented Wisp", uuid: "Scene.s1.Token.t1" }], held: [] });
+  plain.deps.control = async () => ({ ok: true, outcome: "hostile" });
+  const unchanged = await endHeldCast(held(), { cause: "damage", caster, deps: plain.deps });
+  assert.equal("left" in unchanged || "kept" in unchanged, false);
+});
+
 await ta("every cause of a held end asks for the control end alike and the card carries what it answered: a conjuration capped by time ends as one broken by damage, by a save, by a new cast or by a hand", async () => {
   const standing = async () => ({ tokens: [{ name: "Invented Wisp", uuid: "Scene.s1.Token.t1" }], held: [] });
   for (const cause of HELD_CAUSES) {

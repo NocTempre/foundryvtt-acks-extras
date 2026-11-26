@@ -1224,4 +1224,62 @@ const stripOf = (id) => {
   unregisterTable("weather");
 }
 
+{
+  // A member whose token reads hostile on the viewed scene is a warning, and nothing follows from it. Every seat reads the same
+  // thing: the token's disposition as core draws it, never a flag, a hidden token or a note.
+  const HOSTILE = -1;
+  const scene = makeScene("sHostile", { kind: "square" });
+  const partyToken = makeToken(scene, "pt", 0, 0);
+  const id = makeFormation(scene, partyToken);
+  const body = (actorId, extra = {}) => {
+    actors.set(actorId, { id: actorId, name: actorId.toUpperCase(), type: "character", system: { movementacks: { exploration: 120 } }, items: [], effects: [], testUserPermission: () => false, getFlag: () => undefined, flags: {} });
+    return { actorId, roles: [], ...extra };
+  };
+  const deployedAs = (actorId, disposition, tokenExtra = {}, memberExtra = {}) => {
+    const token = makeToken(scene, `tok-${actorId}`, 100, 0);
+    Object.assign(token, { disposition, hidden: false, name: actorId, ...tokenExtra });
+    return body(actorId, { deployedTokenId: token.id, deployedSceneId: scene.id, ...memberExtra });
+  };
+  const warn = () => buildWarnings(getFormation(id), 120).filter((w) => w.includes("hostileMember")).join("\n");
+  const rosterBefore = () => JSON.stringify(getFormation(id).members.map((m) => m.actorId));
+  game.scenes.viewed = scene;
+  const stashSummon = { actorLink: false, delta: { flags: { "acks-extras": { summonedBy: "Actor.x", summon: { castId: "c1" } } } } };
+  const members = settings.formations[id].members;
+  members.push(deployedAs("hostiled", HOSTILE), deployedAs("friend", 1), deployedAs("secret", -2), deployedAs("unseen", HOSTILE, { hidden: true }), body("stashed", { tokenData: { actorLink: true, disposition: HOSTILE } }), deployedAs("conjured", HOSTILE, {}, { baseActorId: "copy", tokenData: stashSummon }));
+  // A creature whose control ended hostile and that is still a roster row is named: stashed (no token on the scene) or deployed (its live token's actor carries the record).
+  const lostRecord = { castId: "c1", lost: "hostile" };
+  const keptStash = { name: "KEPTSTASH", actorLink: false, delta: { flags: { "acks-extras": { summonedBy: "Actor.x", summon: lostRecord } } } };
+  members.push({ actorId: "kept1", baseActorId: "copy", roles: [], tokenData: keptStash });
+  const keptLive = deployedAs("keptlive", 1, { name: "KEPTLIVE" }, { baseActorId: "copy2", tokenData: stashSummon });
+  scene.tokens.get(keptLive.deployedTokenId).actor = { documentName: "Actor", getFlag: (scope, key) => (scope === "acks-extras" && key === "summon" ? lostRecord : undefined) };
+  members.push(keptLive);
+  const before = rosterBefore();
+  const text = warn();
+  assert.ok(text.includes("KEPTSTASH"), "a kept stash that turned hostile is named with no token in view");
+  assert.ok(text.includes("KEPTLIVE"), "so is a deployed one whose live record reads lost hostile");
+  assert.ok(text.includes("hostileMember"), "a member whose token is hostile on the viewed scene raises the warning");
+  assert.ok(text.includes("HOSTILED"), "naming the member");
+  for (const quiet of ["FRIEND", "SECRET", "UNSEEN", "STASHED", "CONJURED"]) assert.equal(text.includes(quiet), false, `${quiet} is not named: not hostile, not an exact HOSTILE reading, hidden, no token on the scene, or a temporary ally`);
+  assert.equal(rosterBefore(), before, "no automation follows: nothing is removed, blocked or re-ordered");
+  // The same on a seat that is not the Judge's.
+  const gm = game.user;
+  game.user = { isGM: false };
+  try {
+    assert.equal(warn(), text, "a Player is shown the same warning");
+  } finally {
+    game.user = gm;
+  }
+  // On another scene the token is not in view.
+  game.scenes.viewed = makeScene("sElsewhere", { kind: "square" });
+  assert.equal(warn().includes("HOSTILED"), false, "a member with no token on the viewed scene is not named");
+  game.scenes.viewed = scene;
+  members.splice(0, members.length, ...members.filter((m) => m.actorId !== "hostiled"));
+  assert.equal(warn().includes("HOSTILED"), false, "and not once the member's token is no longer hostile");
+  members.splice(0, members.length, ...members.filter((m) => !["kept1", "keptlive"].includes(m.actorId)));
+  assert.equal(warn(), "", "nothing is left to name");
+  const { hostileReadingMoved } = await import("../scripts/formation/formation-view.mjs");
+  assert.deepEqual([{ disposition: -1 }, { hidden: true }, { x: 1 }, {}, null].map(hostileReadingMoved), [true, true, false, false, false], "a token update moves the reading by its disposition or hiding alone");
+  game.scenes.viewed = undefined;
+}
+
 console.log("test-strip: OK (strip by mode, journey tally and clock, cadence next, pause, camp readout, warnings, the sheet's parts by mode and seat, the country's cards, chips and hand, what the party is shown, where they are and the compass)");

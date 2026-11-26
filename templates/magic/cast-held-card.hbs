@@ -14,6 +14,8 @@
   </header>
   <p class="acks-extras-cast-held__line">{{cause}}</p>
   {{#if controlLost}}<p class="acks-extras-cast-held__line">{{controlLost}}</p>{{/if}}
+  {{#if leftParty}}<p class="acks-extras-cast-held__line">{{leftParty}}</p>{{/if}}
+  {{#if keptInParty}}<p class="acks-extras-cast-held__line">{{keptInParty}}</p>{{/if}}
   {{#each sections}}
   <section class="acks-extras-cast-held__section">
     <h5 class="acks-extras-cast-held__legend">{{legend}}</h5>

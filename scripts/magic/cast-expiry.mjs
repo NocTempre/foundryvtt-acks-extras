@@ -165,7 +165,7 @@ export async function announceEndedCast(effect, { worldTime, stamp, standing, po
     const outcome = done?.ok ? done.outcome : null;
     // Creatures that went leave nothing to announce, unless some could not be removed (a stash with no roster release): those keep the card.
     if (outcome === "gone" && !(done.unapplied > 0)) return { posted: false, reason: "gone", n, outcome };
-    await post({ effect, record, tokens, held, outcome });
+    await post({ effect, record, tokens, held, outcome, left: done?.ok ? (done.left ?? []) : [], kept: done?.ok ? (done.kept ?? []) : [] });
     return { posted: true, n, ...(outcome ? { outcome } : {}) };
   } finally {
     announcing.delete(key);
@@ -233,10 +233,14 @@ const stampEnded = (effect, worldTime) => effect.update({ [`flags.${MODULE_ID}.$
  * turned hostile, and Dismiss, which `bindCard` draws for the seats that may use
  * it. The flag carries the cast's `outcome`, the one fact that decision reads.
  *
- * @param {{effect: object, record: object, tokens: object[], held?: object[], outcome?: string|null}} o  `announceEndedCast`'s post argument
+ * Where the creatures turned hostile and left their party, the card names who
+ * left (`left`), and who could not be stood on a scene and so stays on the
+ * party's roster (`kept`), each on a line of its own.
+ *
+ * @param {{effect: object, record: object, tokens: object[], held?: object[], outcome?: string|null, left?: {name: string}[], kept?: {name: string}[]}} o  `announceEndedCast`'s post argument
  * @returns {Promise<object>} the created message
  */
-export async function postEnded({ effect, record, tokens, held = [], outcome = null }) {
+export async function postEnded({ effect, record, tokens, held = [], outcome = null, left = [], kept = [] }) {
   const caster = effect.parent;
   // A spell since deleted reads by the name its record was made with.
   const spellName = docOf(record.spellUuid)?.name ?? effect.name;
@@ -244,6 +248,8 @@ export async function postEnded({ effect, record, tokens, held = [], outcome = n
   const content =
     `<div class="acks-extras-cast-ended"><p>${esc(loc("text", { spell: spellName, name: caster?.name ?? "", n: tokens.length + held.length }))}</p>` +
     (outcome === "hostile" ? `<p>${esc(loc("hostile"))}</p>` : "") +
+    (left.length ? `<p>${esc(loc("leftParty", { names: left.map((l) => l.name).join(", ") }))}</p>` : "") +
+    (kept.length ? `<p>${esc(loc("keptInParty", { names: kept.map((k) => k.name).join(", ") }))}</p>` : "") +
     `<button type="button" ${DISMISS_ATTR}><i class="fa-solid fa-ghost" inert></i> ${esc(loc("dismiss"))}</button></div>`;
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor: caster }),

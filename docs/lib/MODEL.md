@@ -3633,11 +3633,26 @@ summon is the scene token it always was and nothing here runs.
   roster's `amendSummons` (contract v5), and `controlEndPlan` names every step
   first. A stash is rewritten whole by `stashAfterControlEnd`, a pure copy: the
   stamp, and for a hostile end its owners at NONE and the hostile disposition,
-  which is what the deployed token's write does. Membership is not changed, so
-  a stashed creature that turned hostile stays in the party until a Judge
-  dismisses it. `amendSummons` writes only an undeployed, unlinked summon
-  member, in one patch, on the GM's client; with no such method on the
-  provider a stash is left as it was and counted `unapplied`.
+  which is what the deployed token's write does. `amendSummons` writes only an
+  undeployed, unlinked summon member, in one patch, on the GM's client, and
+  changes no membership; with no such method on the provider a stash is left as
+  it was and counted `unapplied`.
+- *A temporary ally that turns hostile leaves its party.* `isTemporaryAlly`
+  (`summons-logic.mjs`) is the one test of what the module can tell is
+  temporary: a body carrying a cast's record, whatever summon format made it and
+  wherever it stands. A person, a hired or charmed creature, a guest, a company
+  and a creature bound by hand carry no such record and are not temporary. On a
+  `hostile` end the plan gives such a creature a `leave` (a deployed member) or
+  an `eject` step (a stashed one), and `applyControlEnd` calls the roster's
+  `ejectSummons` (contract v6) in the same pass that stamps it lost, so every
+  cause of a held end reaches it. A token stays where it stands, hostile. A
+  stash is stood on the party's scene as a hostile token carrying its record,
+  and only then dropped from the roster; where the roster has no scene to stand
+  it on it stays a member, amended, and the control-end card names it (`kept`).
+  `stays` and `gone` never eject. With no `ejectSummons` the creature stays a
+  member as before. The Judge puts a creature back by dropping its token on the
+  party sheet or Add to party on the token HUD, which needs its summoner in the
+  party, and takes a member out with the Order tab's Remove.
 - *Authority.* The seat and the GM's client each read the held summon's row
   from the roster; the GM's reading decides. Two casters of the same creature
   never reach each other's: a row names its summoner, and the check is the

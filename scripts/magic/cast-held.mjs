@@ -277,13 +277,18 @@ export async function endHeldCast(record, { cause, caster, deps }) {
   }
   // A summons held by concentration loses its control. The card lists its creatures with the ids a Dismiss names, read before the GM's client applies what the spell's row says becomes of them (`deps.control`); Dismiss is the Judge's, and is not drawn for creatures that went.
   const found = (await deps.standing?.(record)) ?? {};
-  const summons = [
+  const standing = [
     ...(found.tokens ?? []).map((t) => ({ name: String(t.name ?? t.actor?.name ?? ""), img: String(t.texture?.src || t.actor?.img || ""), tokenUuid: String(t.uuid ?? "") })),
     ...(found.held ?? []).map((h) => ({ name: String(h.name ?? ""), img: String(h.img ?? ""), held: { partyId: String(h.partyId ?? ""), actorId: String(h.actorId ?? "") } })),
   ];
   // With no GM connected `control` answers null and nothing is applied: the creatures stand, and the card draws no outcome of its own.
-  const control = summons.length ? await deps.control?.({ casterUuid: record.casterUuid, castId: record.castId, cause }) : null;
+  const control = standing.length ? await deps.control?.({ casterUuid: record.casterUuid, castId: record.castId, cause }) : null;
   const outcome = control?.ok ? control.outcome : null;
+  // A stashed creature that left its party is a token now, and its Dismiss names that token: its roster row is gone.
+  const left = control?.ok ? (control.left ?? []) : [];
+  const kept = control?.ok ? (control.kept ?? []) : [];
+  const tokenOf = new Map(left.filter((l) => l.tokenUuid).map((l) => [`${l.partyId}|${l.actorId}`, l.tokenUuid]));
+  const summons = standing.map((s) => (s.held && tokenOf.has(`${s.held.partyId}|${s.held.actorId}`) ? { name: s.name, img: s.img, tokenUuid: tokenOf.get(`${s.held.partyId}|${s.held.actorId}`) } : s));
   const flag = {
     cause,
     castId: record.castId,
@@ -298,6 +303,8 @@ export async function endHeldCast(record, { cause, caster, deps }) {
     open: done.open,
     ...(summons.length ? { summons } : {}),
     ...(outcome ? { outcome } : {}),
+    ...(left.length ? { left: left.map((l) => ({ name: l.name })) } : {}),
+    ...(kept.length ? { kept: kept.map((k) => ({ name: k.name })) } : {}),
     caster: { actorUuid: caster.actorUuid, data: caster.data },
   };
   await deps.post(flag);
@@ -368,6 +375,8 @@ export function heldEndView(flag, loc) {
     casterImg: flag.casterImg ?? "",
     cause: `${loc(`cause.${HELD_CAUSES.includes(flag.cause) ? flag.cause : "removed"}`)}${lost ? "" : cite}`,
     controlLost: lost ? `${lost}${cite}` : "",
+    leftParty: flag.left?.length ? loc("leftParty", { names: flag.left.map((l) => l.name).join(", ") }) : "",
+    keptInParty: flag.kept?.length ? loc("keptInParty", { names: flag.kept.map((k) => k.name).join(", ") }) : "",
     sections,
     creatures,
     dismissable,
