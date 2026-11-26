@@ -475,7 +475,7 @@ false record.
   modules is a deliberate, together-only change.)
 - `tools/pack-data.mjs` is the module-owned content file. Contract:
   `export const packs = { "<pack-name>": () => [docs] }` (arrays also accepted).
-  Large data may live in sibling files (e.g. monsters' `bestiary-data.mjs`)
+  Large data may live in sibling files (e.g. `<feature>-data.mjs`)
   re-exported through the map. Documents carry 16-char alphanumeric `_id` and a
   `_key` ending in that `_id`.
 - `tools/validate.mjs` checks: JS syntax of `scripts/**` + `tools/**`,

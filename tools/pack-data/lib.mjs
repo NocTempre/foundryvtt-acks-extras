@@ -8,7 +8,7 @@
  *   _key  "!<collection>!<_id>" (e.g. "!items!<id>", "!macros!<id>",
  *         "!tables!<id>"); embedded documents use
  *         "!items.effects!<parentId>.<childId>" style keys
- * Large datasets may live in sibling files (e.g. bestiary-data.mjs) and be
+ * Large datasets may live in sibling files (e.g. `<feature>-data.mjs`) and be
  * re-exported through this map.
  *
  * If documents carry `_stats`, use FIXED createdTime/modifiedTime values —

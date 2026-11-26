@@ -294,7 +294,6 @@
     "tools/pack-data/monsters.mjs",
     "tools/pack-data/system-icons.mjs",
     "tools/pack-data/location.mjs",
-    "tools/pack-data/bestiary-data.mjs",
     "tools/pack-data/formation.mjs",
     "tools/pack-data/influence.mjs",
     "tools/pack-data/cleanup.mjs",
