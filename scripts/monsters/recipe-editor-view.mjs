@@ -15,8 +15,8 @@ import { ANIMAL_TYPE, TEMPLATE_TYPE } from "../lib/constants.mjs";
 import { MODULE_ID, MONSTER_TYPE } from "./constants.mjs";
 import { LINKED_ROLES, editorRows, handCount, laid, mountBeastLink, parseCount, recipeTarget, validatePart } from "./recipe-editor-logic.mjs";
 
-/** The lang root of the editor's strings. */
-export const RECIPE_LANG = "ACKS-MONSTERS.recipe";
+/** The lang root the editor's strings sit under (`<root>.recipe.*`). */
+export const MONSTERS_LANG = "ACKS-MONSTERS";
 
 /** The encounter states a tab names: the values of a part's `when.state`. */
 export const RECIPE_STATES = Object.freeze(["wandering", "lair"]);
@@ -24,7 +24,7 @@ export const RECIPE_STATES = Object.freeze(["wandering", "lair"]);
 /** How many library entries a link search lists at once. */
 const LINK_LIMIT = 12;
 
-const K = (key) => `${RECIPE_LANG}.${key}`;
+const K = (key) => `${MONSTERS_LANG}.recipe.${key}`;
 const blank = (v) => v === null || v === undefined || (typeof v === "string" && !v.trim());
 const text = (v) => (v === null || v === undefined ? "" : String(v));
 
@@ -65,7 +65,7 @@ export function changesFor(field, value, part, word = "") {
     case "fixedHp": return { ok: true, changes: { fixedHp: value } };
     case "state": return { ok: true, changes: { when: { state: value } } };
     case "unit": {
-      const have = (part?.when?.units ?? []).filter((u) => u !== word);
+      const have = (part?.when?.units ?? []).filter((u) => u.toLowerCase() !== word.toLowerCase());
       return { ok: true, changes: { when: { units: value ? [...have, word] : have } } };
     }
     case "count": {
@@ -274,7 +274,7 @@ function paneView(marks, { recipe, editKey, canWrite, loc }) {
       selected: !!editKey && m.keys.includes(editKey),
       keys: m.keys.join(" "),
       press: canWrite,
-      tip: read ? loc(K("pane.readBy"), { parts: m.keys.map(name).join(", ") }) : loc(K("pane.unread")),
+      tip: read ? loc(K("pane.readBy"), { parts: m.keys.map(name).join(", ") }) : canWrite ? loc(K("pane.unread")) : loc(K("pane.unreadSeen")),
     });
   }
   const unread = marks.filter((m) => !m.keys.length).length;
@@ -331,7 +331,7 @@ export function buildContext({ recipe, readCopy = [], state, place = "", editKey
     canWrite,
     head: {
       line: cite ? loc(K("head.line"), { cite, hand: count.hand, all: count.all }) : loc(K("head.lineNoCite"), { hand: count.hand, all: count.all }),
-      tip: cite ? loc(K("head.tip"), { cite }) : "",
+      tip: loc(K("head.tip"), { cite }).trim(),
     },
     places: places.length ? [{ value: "", label: loc(K("place.all")), selected: !place }, ...places.map((p) => ({ value: p, label: placeLabel(p), selected: p === place }))] : [],
     states: RECIPE_STATES.map((s) => ({ key: s, label: loc(K(`state.${s}`)), active: s === state })),
@@ -340,7 +340,8 @@ export function buildContext({ recipe, readCopy = [], state, place = "", editKey
     unitsTip: cite,
     hasUnits: rows.units.length > 0,
     hasParts: rows.parts.length > 0,
-    partsCount: rows.parts.length,
+    partsLabel: loc(K("parts.count"), { n: rows.parts.length }),
+    partsTip: loc(K("parts.countTip"), { cite }).trim(),
     pane: paneView(marks, { recipe: all, editKey, canWrite, loc }),
     paneCite: cite,
     selectedName: edited ? edited.label || loc(K(`role.${edited.role || "none"}`)) : "",

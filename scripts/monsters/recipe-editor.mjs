@@ -26,15 +26,17 @@ import { MODULE_ID } from "./constants.mjs";
 import {
   LINKED_ROLES, RECIPE_TEXT, addPart, linkChanges, readCopyAt, readStored, recipeAt, recipeUpdate, resetAll, resetPart, savePart, sentenceMarks,
 } from "./recipe-editor-logic.mjs";
-import { RECIPE_LANG, RECIPE_STATES, buildContext, changesFor, doorOf, extrasAt, problemsOf } from "./recipe-editor-view.mjs";
+import { RECIPE_STATES, buildContext, changesFor, doorOf, extrasAt, problemsOf } from "./recipe-editor-view.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
 const T = `modules/${MODULE_ID}/templates/monsters`;
 const ROW_PARTIAL = `${T}/recipe-row.hbs`;
 
-/** A lang key under the editor's root, formatted. */
-const say = (key, data = {}) => game.i18n.format(`${RECIPE_LANG}.${key}`, data);
+/** The lang root of the editor's strings. */
+const ROOT = "ACKS-MONSTERS";
+/** A lang key under the editor's recipe section, formatted. */
+const say = (key, data = {}) => game.i18n.format(`${ROOT}.recipe.${key}`, data);
 /** A full lang key, formatted (what the view module's `loc` takes). */
 const loc = (key, data = {}) => game.i18n.format(key, data);
 
@@ -207,6 +209,17 @@ export class RecipeEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     return Object.keys(values).length || problems.length ? { key: d.key, values, problems } : null;
   }
 
+  /** Open `key` in edit and bring its row into view: the tab of its encounter state, and every place where its own is filtered out. */
+  #select(key) {
+    const part = recipeAt(this.#doc, this.#target).find((p) => p?.key === key);
+    this.#editKey = key;
+    this.#draft = null;
+    this.#changing = false;
+    this.#linkQuery = "";
+    if (RECIPE_STATES.includes(part?.when?.state)) this.#state = part.when.state;
+    if (this.#place && part?.when?.place && part.when.place !== this.#place) this.#place = "";
+  }
+
   /** A control changed: a view filter, a link search, or one field of the part in edit written at once. */
   async #onChange(event) {
     const el = event.target;
@@ -228,6 +241,8 @@ export class RecipeEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       return this.render();
     }
     this.#draft = this.#draftWithout(field);
+    // A part whose encounter changes moves to that tab, and the window follows it.
+    if (field === "state" && RECIPE_STATES.includes(value)) this.#state = value;
     if (!(await this.#write((recipe, copy) => savePart(recipe, copy, part.key, made.changes)))) this.render();
   }
 
@@ -244,11 +259,9 @@ export class RecipeEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Open or close the part's edit box. */
   static #onEditPart(_event, target) {
     const key = target.dataset.key;
-    this.#editKey = this.#editKey === key ? "" : key;
-    this.#draft = null;
-    this.#changing = false;
-    this.#linkQuery = "";
-    this.#scrollPane = !!this.#editKey;
+    if (this.#editKey === key) return RecipeEditor.#onDonePart.call(this);
+    this.#select(key);
+    this.#scrollPane = true;
     this.render();
   }
 
@@ -275,8 +288,7 @@ export class RecipeEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       return made.recipe;
     });
     if (!landed) return;
-    this.#editKey = key;
-    this.#draft = null;
+    this.#select(key);
     this.#scrollPane = !!sentence;
     this.render();
   }
@@ -287,8 +299,7 @@ export class RecipeEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     const recipe = recipeAt(this.#doc, this.#target);
     const first = String(keys ?? "").split(" ").find((k) => k && recipe.some((p) => p?.key === k));
     if (first) {
-      this.#editKey = first;
-      this.#draft = null;
+      this.#select(first);
       this.#scrollPane = true;
       return this.render();
     }
@@ -301,22 +312,15 @@ export class RecipeEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   /** Put the part in edit back to the import's copy. */
   static async #onResetPart(_event, target) {
     const key = target.dataset.key;
-    const landed = await this.#write((recipe, copy) => resetPart(recipe, copy, key));
-    if (landed) this.#draft = null;
+    this.#draft = null;
+    if (!(await this.#write((recipe, copy) => resetPart(recipe, copy, key)))) this.render();
   }
 
-  /** Put the whole recipe back to the import's copy, after asking. */
+  /** Put the whole recipe back to the import's copy; a part a hand added is removed. */
   static async #onResetAll() {
-    if (!this.#canWrite()) return ui.notifications.warn(say("notice.noWrite", { name: this.#name }));
-    const ok = await foundry.applications.api.DialogV2.confirm({
-      window: { title: say("confirm.resetAll.title") },
-      content: `<p>${say("confirm.resetAll.body")}</p>`,
-      classes: ["acks-extras", "acks-extras-scroll", "acks-extras-recipe-confirm"],
-      rejectClose: false,
-    });
-    if (ok !== true) return;
-    const landed = await this.#write((_recipe, copy) => resetAll(copy));
-    if (landed) { this.#editKey = ""; this.#draft = null; this.render(); }
+    this.#editKey = "";
+    this.#draft = null;
+    if (!(await this.#write((_recipe, copy) => resetAll(copy)))) this.render();
   }
 
   /** Open a linked creature's own sheet. */
@@ -358,7 +362,8 @@ export async function openRecipeEditor(subject, { optionKey = "", axisKey = "var
   let hostTemplate = null;
   if (doc && Array.isArray(doc.system?.units)) {
     const rows = unitsOf(doc);
-    const found = templateOf(rows, rows[0]?.key ?? "", hostGenOf(doc));
+    const gen = hostGenOf(doc);
+    const found = gen?.template ? { template: String(gen.template), variant: String(gen.variant ?? "") } : templateOf(rows, rows[0]?.key ?? "", null);
     hostTemplate = { doc: found.template ? await fromUuid(found.template).catch(() => null) : null, variant: found.variant };
   }
   const door = doorOf(doc, { optionKey, axisKey, hostTemplate });

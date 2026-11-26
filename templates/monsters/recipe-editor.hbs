@@ -6,7 +6,7 @@
     {{#if art}}<img class="acks-extras-recipe-art" src="{{art}}" alt="">{{/if}}
     <div class="acks-extras-recipe-headtext">
       <div class="acks-extras-recipe-name">{{name}}{{#if optionName}} <span class="acks-extras-recipe-cite">{{optionName}}</span>{{/if}}</div>
-      <p class="acks-extras-recipe-hint" {{#if head.tip}}data-tooltip-text="{{head.tip}}"{{/if}}>{{head.line}}</p>
+      <p class="acks-extras-recipe-hint" data-tooltip-text="{{head.tip}}">{{head.line}}</p>
     </div>
     {{#if places.length}}
     <label class="acks-extras-recipe-place">
@@ -35,7 +35,7 @@
       </section>
 
       <section class="acks-extras-recipe-sec">
-        <h3 class="acks-extras-recipe-h">{{localize "ACKS-MONSTERS.recipe.parts"}} <small>{{partsCount}}</small></h3>
+        <h3 class="acks-extras-recipe-h">{{localize "ACKS-MONSTERS.recipe.parts"}} <small data-tooltip-text="{{partsTip}}">{{partsLabel}}</small></h3>
         <ul class="acks-extras-recipe-list">
           {{#each parts}}{{> "modules/acks-extras/templates/monsters/recipe-row.hbs" isUnits=false}}{{/each}}
         </ul>

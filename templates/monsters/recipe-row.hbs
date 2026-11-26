@@ -12,7 +12,7 @@
     <span class="acks-extras-recipe-count">
       {{#if countBlank}}<span class="acks-extras-recipe-blank" {{#if countTip}}tabindex="0" aria-label="{{countTip}}" data-tooltip=""{{/if}}></span>{{else}}<span class="acks-extras-recipe-fig" data-tooltip-text="{{countTip}}">{{countText}}</span>{{/if}}
     </span>
-    {{#unless isUnits}}<span class="acks-extras-recipe-when" data-tooltip-text="{{whenTip}}">{{whenText}}</span>{{/unless}}
+    {{#unless isUnits}}<span class="acks-extras-recipe-when" {{#if whenTip}}data-tooltip-text="{{whenTip}}"{{/if}}>{{whenText}}</span>{{/unless}}
     <span class="acks-extras-recipe-from">{{#if hand}}{{fromText}}{{else}}{{#unless isUnits}}{{fromText}} {{/unless}}<span class="acks-extras-recipe-cite">{{cite}}</span>{{/if}}</span>
     {{#if @root.canWrite}}
     <button type="button" class="acks-extras-recipe-iconbtn" data-action="editPart" data-key="{{key}}" data-tooltip="" aria-label="{{editLabel}}" aria-pressed="{{#if inEdit}}true{{else}}false{{/if}}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>

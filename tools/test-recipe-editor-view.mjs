@@ -15,7 +15,7 @@ import { readEcologyRecipe } from "../scripts/importer/ecology-recipe.mjs";
 import { bookText } from "../scripts/importer/prose.mjs";
 import { REGISTER_ORIGIN } from "../scripts/lib/magic-vocab.mjs";
 import { readStored, savePart, sentenceMarks } from "../scripts/monsters/recipe-editor-logic.mjs";
-import { RECIPE_LANG, RECIPE_STATES, buildContext, changesFor, countEdit, doorOf, extrasAt, problemsOf } from "../scripts/monsters/recipe-editor-view.mjs";
+import { MONSTERS_LANG, RECIPE_STATES, buildContext, changesFor, countEdit, doorOf, extrasAt, problemsOf } from "../scripts/monsters/recipe-editor-view.mjs";
 
 const tests = [];
 const t = (name, fn) => tests.push([name, fn]);
@@ -24,7 +24,7 @@ const LANG = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url)
 const format = (key, data = {}) => (LANG[key] ?? key).replace(/\{(\w+)\}/g, (_, n) => String(data[n] ?? ""));
 const loc = (key, data) => format(key, data);
 const esc = (v) => Handlebars.escapeExpression(v);
-const K = (key) => `${RECIPE_LANG}.${key}`;
+const K = (key) => `${MONSTERS_LANG}.recipe.${key}`;
 
 const hb = Handlebars.create();
 hb.registerHelper("localize", (key) => format(key));
@@ -71,6 +71,9 @@ t("the tables are the tab's state, each row named by its label, its role or its 
   assert.deepEqual(c.parts.map((r) => r.key), ["archers", "leader-chief", "mounts", "pen-lair"]);
   assert.deepEqual(c.states.map((s) => [s.key, s.active]), RECIPE_STATES.map((s) => [s, s === "lair"]));
   assert.equal(c.parts[0].name, "archers");
+  assert.equal(c.partsLabel, format(K("parts.count"), { n: 4 }));
+  assert.ok(c.partsTip.includes("XX p. 1") && c.head.tip.includes("XX p. 1"));
+  assert.ok(ctxOf({ cite: "" }).head.tip.length > 0, "the hand count carries a tooltip with no page too");
   assert.equal(c.parts[0].muted, false);
 });
 
@@ -108,6 +111,15 @@ t("a share reads as a share of the units, and a count rolled per unit says which
   const c = ctxOf();
   assert.equal(c.parts[0].countText, format(K("count.share"), { text: "40%", of: format(K("count.ofUnits")) }));
   assert.equal(c.parts.find((r) => r.key === "pen-lair").countText, format(K("count.per"), { text: "2d4", unit: "band" }));
+});
+
+t("a share of another part names that part, and a unit word's case does not matter to its checkbox", () => {
+  const shares = [...clone(IMPORT), part("warriors", "body", { label: "QA warriors", count: { ratioOf: "archers", percent: 60 }, when: { units: ["band"] } })];
+  const row = ctxOf({ recipe: shares, readCopy: shares }).parts.find((r) => r.key === "warriors");
+  assert.equal(row.countText, format(K("count.share"), { text: "60%", of: "archers" }));
+  assert.match(row.countText, /^60% of archers$/);
+  assert.match(ctxOf().parts[0].countText, /^40% of the units$/);
+  assert.deepEqual(changesFor("unit", false, { when: { units: ["Band", "hold"] } }, "band").changes, { when: { units: ["hold"] } });
 });
 
 t("a blank figure carries the page reference alone", () => {
@@ -159,11 +171,11 @@ t("a hand part offers Reset where the import's copy holds its key, and a Judge's
 });
 
 t("a value a hand typed and the check refused shows in its field with its problem and the foot says to fix it", () => {
-  const draft = { key: "pen-lair", values: { chance: "150" }, problems: [{ field: "chance", key: `${RECIPE_LANG}.problem.chance` }] };
+  const draft = { key: "pen-lair", values: { chance: "150" }, problems: [{ field: "chance", key: `${MONSTERS_LANG}.recipe.problem.chance` }] };
   const c = ctxOf({ editKey: "pen-lair", draft });
   const f = c.parts.find((r) => r.key === "pen-lair").edit.fields.find((x) => x.name === "chance");
   assert.equal(f.value, "150");
-  assert.equal(f.error, LANG[`${RECIPE_LANG}.problem.chance`]);
+  assert.equal(f.error, LANG[`${MONSTERS_LANG}.recipe.problem.chance`]);
   assert.equal(c.foot.line, LANG[K("foot.fix")]);
   assert.equal(c.foot.error, true);
 });
@@ -351,7 +363,7 @@ t("a leader part draws the Leader figures line and nothing that sets a grade", (
 t("the foot offers Reset all only where a hand changed a part, and names a refused field", () => {
   assert.ok(!foot(ctxOf()).includes("resetAll"));
   assert.ok(foot(ctxOf({ recipe: handed("archers", { count: { percent: 55 } }) })).includes('data-action="resetAll"'));
-  const draft = { key: "pen-lair", values: { chance: "150" }, problems: [{ field: "chance", key: `${RECIPE_LANG}.problem.chance` }] };
+  const draft = { key: "pen-lair", values: { chance: "150" }, problems: [{ field: "chance", key: `${MONSTERS_LANG}.recipe.problem.chance` }] };
   assert.match(foot(ctxOf({ editKey: "pen-lair", draft })), /is-error/);
 });
 
