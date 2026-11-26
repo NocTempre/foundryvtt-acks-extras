@@ -11984,6 +11984,7 @@
   "ACKS-LIB.org.unlisted.title": "{removed} was taken off the chart; no actor was deleted. These rows moved up to the top:",
   "ACKS-LIB.org.unlisted.tip": "Remove takes one row. The rows beneath it stay on the chart under the removed row's parent, and every group, creature and leader is still in the Actors tab.",
   "ACKS-LIB.org.unlisted.dismiss": "Dismiss",
+  "ACKS-MONSTERS.grog.broke": "{actor}'s {items} broke. (MM p. 56)",
   "ACKS-MONSTERS.organisation.badge.rolled": "{axis}: {label}, rolled",
   "ACKS-MONSTERS.organisation.badge.byHand": "{axis}: {label}, chosen by hand",
   "ACKS-MONSTERS.recipe.tip.hand": "{label}: set by a hand. The import read {read}. {cite}",
