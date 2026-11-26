@@ -871,10 +871,11 @@ the bright and dim reach `strongestSource` reads per band. Straight-line,
 ignoring walls. No scene or no point is null, which a reader takes as "cannot
 say".
 
-**The reading names its source.** `source` is `{kind, name, cite}`, null for a
+**The reading names its source.** `source` is `{kind, name, cite, id}`, null for a
 dark point. `kind` is `sky`, `ambient`, `token`, `column` or `extra`; `name` is
 the deciding thing's own name (a token's, a placed light's label) and null where
-it has none; `cite` is the page naming the level: the sky's (RR ch. 6) for
+it has none; `id` is the ambient light's or token's id on the scene, null for the
+sky, the column and `extra`, so a caller can ask a permission of the document; `cite` is the page naming the level: the sky's (RR ch. 6) for
 `sky`, a light's daylight band (RR p. 228) for a daylight reading from an
 ambient light, a token or the column, and null for every other reading, a
 caller's `extra` point included, since nothing the module knows names a page for

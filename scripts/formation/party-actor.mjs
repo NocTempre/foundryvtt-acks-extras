@@ -64,6 +64,31 @@ export class PartyData extends foundry.abstract.TypeDataModel {
   }
 }
 
+/** Whether a token carries a light of its own: core's bright or dim radius above zero. */
+export function tokenEmitsLight(token) {
+  const light = token?.light;
+  return (Number(light?.bright) || 0) > 0 || (Number(light?.dim) || 0) > 0;
+}
+
+/**
+ * Whether a token's change stirs the Kit tab's Light here line: its own light
+ * changing, or it moving, being hidden or changing elevation (the party's own
+ * token also by its size) while it is the party's token or emits light. Pass
+ * `changes` null for a token created or deleted, which stirs it on the same
+ * terms. A token that neither is the party's nor emits light stirs nothing but
+ * a change to its light.
+ * @param {TokenDocument} token
+ * @param {object|null} changes the update's changes, null for a create or delete
+ * @param {string|null} partyTokenId the formation's linked token
+ */
+export function tokenStirsLight(token, changes, partyTokenId) {
+  const own = !!partyTokenId && token?.id === partyTokenId;
+  if (changes == null) return own || tokenEmitsLight(token);
+  if (foundry.utils.hasProperty(changes, "light")) return true;
+  const keys = own ? ["x", "y", "hidden", "elevation", "width", "height"] : ["x", "y", "hidden", "elevation"];
+  return keys.some((key) => key in changes) && (own || tokenEmitsLight(token));
+}
+
 /** The formation record backed by a given party actor. */
 export function formationForActor(actor) {
   if (!actor) return null;
@@ -345,10 +370,31 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
       if (changes && !["system", "flags", "name"].some((path) => foundry.utils.hasProperty(changes, path))) return;
       this.#renderSoon();
     };
+    // The Kit tab's Light here line reads the party scene's darkness, its placed lights, the party token's place and the light any token there carries; none of those writes the formation.
+    const onPartyScene = (sceneId) => !!sceneId && this.formation?.sceneId === sceneId;
+    const onSceneLight = (scene, changes) => {
+      if (onPartyScene(scene?.id) && (foundry.utils.hasProperty(changes, "environment") || foundry.utils.hasProperty(changes, "darkness"))) this.#renderSoon();
+    };
+    const onPlacedLight = (light) => {
+      if (onPartyScene(light?.parent?.id)) this.#renderSoon();
+    };
+    const onLightToken = (token, changes) => {
+      if (onPartyScene(token?.parent?.id) && tokenStirsLight(token, changes, this.formation?.tokenId)) this.#renderSoon();
+    };
+    const onTokenPresence = (token) => {
+      if (onPartyScene(token?.parent?.id) && tokenStirsLight(token, null, this.formation?.tokenId)) this.#renderSoon();
+    };
     this.#watch = [
       ["updateActor", Hooks.on("updateActor", onActor)],
       ["updateToken", Hooks.on("updateToken", onToken)],
       ["canvasReady", Hooks.on("canvasReady", onCanvasReady)],
+      ["updateToken", Hooks.on("updateToken", onLightToken)],
+      ["createToken", Hooks.on("createToken", onTokenPresence)],
+      ["deleteToken", Hooks.on("deleteToken", onTokenPresence)],
+      ["updateScene", Hooks.on("updateScene", onSceneLight)],
+      ["createAmbientLight", Hooks.on("createAmbientLight", onPlacedLight)],
+      ["updateAmbientLight", Hooks.on("updateAmbientLight", onPlacedLight)],
+      ["deleteAmbientLight", Hooks.on("deleteAmbientLight", onPlacedLight)],
       ["createItem", Hooks.on("createItem", onItem)],
       ["updateItem", Hooks.on("updateItem", onItem)],
       ["deleteItem", Hooks.on("deleteItem", onItem)],

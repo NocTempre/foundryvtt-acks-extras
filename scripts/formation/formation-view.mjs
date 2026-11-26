@@ -2,7 +2,7 @@
 import { defaultPartyShape, isCasualty, isDead, partyTokenShape } from "./formation-model.mjs";
 import { appliedEffects } from "../lib/effect-scan.mjs";
 import { roundsPerTurn } from "../lib/time-unit.mjs";
-import { lightCite, lightControl, lightFigures, magicLights } from "../lib/light.mjs";
+import { lightCite, lightControl, lightFigures, lightLevelOf, magicLights } from "../lib/light.mjs";
 import {
   FORMATION_DOC,
   LIGHT_SOURCES,
@@ -143,6 +143,72 @@ function blindTip() {
     : game.i18n.format("ACKS-FORMATION.app.blindBadge", { share: fractionLabel(share) });
 }
 import { hexStockKey } from "./hex-stock.mjs";
+
+/** The lang key naming each kind of source a light reading can be decided by (`lightLevelAt`'s `source.kind`). */
+const LIGHT_HERE_KINDS = Object.freeze({
+  sky: "ACKS-FORMATION.app.lightHereKindSky",
+  ambient: "ACKS-FORMATION.app.lightHereKindAmbient",
+  token: "ACKS-FORMATION.app.lightHereKindToken",
+  column: "ACKS-FORMATION.app.lightHereKindColumn",
+  extra: "ACKS-FORMATION.app.lightHereKindExtra",
+});
+
+/**
+ * The Kit tab's Light here line: how brightly the party's own token (the
+ * formation's linked token on its scene, `getPartyToken`) is lit, as
+ * `{caption, level, label, tip}`, the words already localized. `label` is the
+ * stage's name (`ACKS-LIB.light.level.*`, the four `LIGHT_LEVELS`); `tip` names what decided it as a provenance, its
+ * kind in words, its own name where it has one, and the page the reading cites
+ * where one stands, joined by " · ". A dark point has no deciding source, so
+ * its tip is empty. Null, and the tab then draws no line, where the party is
+ * journeying (the journey's night is `journeyIsNight`, and this reads the
+ * scene's sky, so the two could disagree on one sheet), has no token on its
+ * scene, or has a hidden token (`strongestSource` skips a hidden token, so the
+ * point no longer says where the party stands), or the reading finds nothing.
+ *
+ * Where the party stands is its linked token, the scene `isPartyInDark` reads.
+ * @param {object} formation a formation record
+ * @param {(token: TokenDocument) => object|null} [read] answers `{level, by, source}`
+ *   for a token, as `lightLevelOf` does
+ * @param {(source: object) => boolean} [canName] whether the seat may be told
+ *   the deciding source's name; a source it refuses is named by its kind alone
+ */
+export function lightHere(formation, read = lightLevelOf, canName = () => true) {
+  if (formation?.travel?.mode === "journey") return null;
+  const token = getPartyToken(formation);
+  if (!token || token.hidden) return null;
+  const reading = read(token);
+  if (!reading?.level) return null;
+  const source = reading.source;
+  const kindKey = LIGHT_HERE_KINDS[source?.kind];
+  const parts = [];
+  if (kindKey) {
+    const kind = game.i18n.localize(kindKey);
+    parts.push(source.name && canName(source) ? game.i18n.format("ACKS-FORMATION.app.lightHereNamed", { kind, name: source.name }) : kind);
+  }
+  if (source?.cite) parts.push(source.cite);
+  return {
+    caption: game.i18n.localize("ACKS-FORMATION.app.lightHereLabel"),
+    level: reading.level,
+    label: game.i18n.localize(`ACKS-LIB.light.level.${reading.level}`),
+    tip: parts.join(" · "),
+  };
+}
+
+/**
+ * Whether this seat may be told the name of a light reading's deciding source:
+ * a token's name only to a seat holding at least Observer on the token's actor
+ * (Foundry's own test, which a GM passes); a token whose actor cannot be found
+ * is not named. Every other kind of source is named freely. Pass it, bound to
+ * the formation, as `lightHere`'s `canName`.
+ * @param {object} formation a formation record
+ * @param {{kind: string, id: string|null}} source a reading's `source`
+ */
+export function canNameLightSource(formation, source) {
+  if (source?.kind !== "token") return true;
+  const actor = (source.id ? getPartyScene(formation)?.tokens.get(source.id) : null)?.actor;
+  return actor?.testUserPermission?.(game.user, "OBSERVER") ?? false;
+}
 
 /**
  * The Kit tab's rows for the light the members' effects hold: one per magic
@@ -423,6 +489,7 @@ export function buildFormationView(formation) {
   });
 
   view.magicLights = magicLightRows(formation);
+  view.lightHere = lightHere(formation, undefined, (source) => canNameLightSource(formation, source));
 
   view.spells = (formation.spells ?? []).map((spell) => {
     const caster = spell.casterId ? game.actors.get(spell.casterId) : null;

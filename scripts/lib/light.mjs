@@ -729,7 +729,7 @@ const sourceName = (thing) => String(thing?.name ?? "").trim() || null;
 /**
  * The deciding source of one band at `me` (a pixel point), `{reach, source}`:
  * the largest radius, in scene units, among the scene's sources that reach it,
- * and which source that is (`source` is `{kind, name, cite}`, null with `reach`
+ * and which source that is (`source` is `{kind, name, cite, id}`, null with `reach`
  * 0 when nothing reaches). Sources are ambient lights, tokens' own lights and a
  * marching column's lights. Straight-line, ignoring walls. `band` is `"bright"`,
  * `"dim"` or `"daylight"`. An ambient light's daylight is its flag
@@ -757,7 +757,7 @@ function strongestSource(scene, me, { strict = false, extra = [], band = "bright
     if (reach <= best.reach) return; // cannot win; skip the distance work
     const at = centreOf(thing);
     const feet = Math.hypot(at.x - me.x, at.y - me.y) / perUnit;
-    if (feet <= reach) best = { reach, source: { kind, name: sourceName(thing), cite: citeFor(kind) } };
+    if (feet <= reach) best = { reach, source: { kind, name: sourceName(thing), cite: citeFor(kind), id: kind === "ambient" || kind === "token" ? (thing.id ?? null) : null } };
   };
 
   for (const light of scene.lights ?? []) {
@@ -892,10 +892,12 @@ function indoorsAt(scene, point, elevation) {
  * own actor's daylight band (`shedLight`), the marching column's lights and
  * `extra`.
  *
- * `source` names the thing that decided, `{kind, name, cite}`: `kind` is `sky`,
+ * `source` names the thing that decided, `{kind, name, cite, id}`: `kind` is `sky`,
  * `ambient`, `token`, `column` or `extra`; `name` is that thing's own name, null
  * where it has none; `cite` is the page that names the level (the sky's, or a
- * light's daylight band), null where the module knows none. It is null for a dark
+ * light's daylight band), null where the module knows none; `id` is the deciding
+ * ambient light's or token's id on the scene, null for the sky, the column and
+ * `extra`, so a caller can ask a permission of the document. It is null for a dark
  * point. Of several sources reaching a point, the one reaching furthest in the
  * level's band is named, and a tie goes by kind (ambient, token, column, extra)
  * and then by order among its kind; the sky is read before every light.
@@ -908,13 +910,13 @@ function indoorsAt(scene, point, elevation) {
  * @param {boolean} [opts.daylit] replaces the scene's own sky reading (a journey's
  *   clock states the hour the scene's darkness does not); an indoors Region still roofs the point
  * @param {number} [opts.elevation] the point's elevation, for a Region bounded in height
- * @returns {{level: string, by: string, source: {kind: string, name: string|null, cite: string|null}|null}|null}
+ * @returns {{level: string, by: string, source: {kind: string, name: string|null, cite: string|null, id: string|null}|null}|null}
  *   null with no scene or no point
  */
 export function lightLevelAt(scene, point, { extra = [], daylit, elevation = 0 } = {}) {
   if (!scene || !Number.isFinite(point?.x) || !Number.isFinite(point?.y)) return null;
   const sky = typeof daylit === "boolean" ? daylit : skyIsDaylight(scene);
-  if (sky && !indoorsAt(scene, point, elevation)) return { level: "daylight", by: "sky", source: { kind: "sky", name: null, cite: SKY_CITE } };
+  if (sky && !indoorsAt(scene, point, elevation)) return { level: "daylight", by: "sky", source: { kind: "sky", name: null, cite: SKY_CITE, id: null } };
   for (const band of ["daylight", "bright", "dim"]) {
     const { reach, source } = strongestSource(scene, point, { strict: true, extra, band });
     if (reach > 0) return { level: band, by: "light", source };

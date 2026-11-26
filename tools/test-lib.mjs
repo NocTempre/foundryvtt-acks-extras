@@ -2836,8 +2836,8 @@ const litScene = ({ units = "ft", distance = 10, darkness = 0, global = null, li
   regions,
 });
 const lightTok = (x, y, over = {}) => ({ x, y, width: 1, height: 1, ...over });
-/** The `source` a reading names: `{kind, name, cite}`. */
-const SRC = (kind, name = null, cite = null) => ({ kind, name, cite });
+/** The `source` a reading names: `{kind, name, cite, id}`; the helpers' documents carry no id. */
+const SRC = (kind, name = null, cite = null, id = null) => ({ kind, name, cite, id });
 /** An ambient light at (x, y) with the stored figures; `daylight` is the module's flag on it. */
 const ambient = (x, y, config, { daylight, name, ...over } = {}) => ({
   x, y, width: 0, height: 0, config, ...(name ? { name } : {}),
@@ -3036,8 +3036,13 @@ t("lightLevelAt: the source is chosen by the largest reach, then by kind order, 
   } finally {
     delete globalThis.acksExtras.formation;
   }
+  // A document's own id is named for a placed light and a token, and for no other kind.
+  const lamp = ambient(150, 50, { bright: 20, dim: 20 }, { id: "lamp1" });
+  assert.equal(lightLevelAt(litScene({ lights: [lamp] }), origin).source.id, "lamp1", "a placed light names its id");
+  assert.equal(lightLevelAt(litScene({ tokens: [lightTok(0, 0, { id: "bearer1", light: { bright: 20, dim: 20 } })] }), origin).source.id, "bearer1", "a token names its id");
+  assert.equal(lightLevelAt(litScene(), origin, { extra: [{ id: "x", x: 50, y: 50, bright: 20 }] }).source.id, null, "a caller's own point names none");
   // The sky decides before any light, and names no thing.
-  const noon = litScene({ darkness: 0, global: { enabled: true, darkness: { min: 0, max: 1 } }, lights: [ambient(50, 50, { bright: 50, dim: 50 }, { daylight: 50 })] });
+  const noon =litScene({ darkness: 0, global: { enabled: true, darkness: { min: 0, max: 1 } }, lights: [ambient(50, 50, { bright: 50, dim: 50 }, { daylight: 50 })] });
   assert.deepEqual(lightLevelAt(noon, origin).source, SRC("sky", null, "RR ch. 6"));
 });
 

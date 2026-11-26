@@ -997,6 +997,24 @@ pressed. The blank cell's tooltip stays the page alone. A
 member's sheet redraws on an item's change as well as an effect's, so a seat
 that is not the primary GM sees a light stow or return.
 
+The section opens with one reading line, Light here, for every seat that sees
+the tab (`lightHere`): the stage at the party's own token, named as lib's four
+light levels are (daylight, bright light, dim light, dark), read by
+`lightLevelOf` at the formation's linked token (`getPartyToken`) on the scene
+`isPartyInDark` reads. Its tooltip is a provenance: the deciding source's kind in
+words, its name where it has one, and the page the reading cites (the sky's
+chapter, a placed light's daylight band); a source with no page carries none, and
+a dark point, which no source decides, has no tooltip. A token source is named
+only to a seat holding at least Observer on the token's actor
+(`canNameLightSource`); any other seat is told the kind and the page. A party with
+no token on its scene, or with a hidden one (a hidden token is not a light's
+reading point), has no line, and so has a party that is journeying, whose night
+is `journeyIsNight` and not the sky this reads; nothing says a reading is
+missing. The open sheet redraws on the party scene's darkness or environment, on
+a placed light created, changed or deleted there, on the party token moving,
+hiding or resizing, on any token there changing its light, and on a token that
+emits light (`tokenEmitsLight`) being created, deleted, moved, hidden or raised.
+
 Below the lights, the Kit tab offers a cast of a light spell (`light-cast.mjs`
 over `magic/light-offers.mjs`). Its menu lists, for each member the seat owns
 (every member for a GM), each spell carrying a light row that is not reversed,

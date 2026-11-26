@@ -6335,6 +6335,30 @@ world clock is read for the end.
     the page's reach. A radius the page's wording does not yield stays blank and
     is listed as unread; the editor's tooltip on it is the page alone. Teardown:
     the casts' records and cards by the run's own ids; the imported spells stay.
+12. **K-c12. Daylight from a placed light.** Fixtures: the kit party and its
+    scene, and the ambient light marked `formation/daylight-ambient` (lib's
+    "Daylight from a placed light" recipe builds it, bright and dim radii typed and
+    no daylight flag). Where that light stands on another scene than the kit
+    party's, the step makes a second light there with `api.create`, which the
+    teardown sweeps. GM seat: set the party scene's darkness to 0.8 (read first),
+    which leaves the sky no daylight, put the party token beside the light, and
+    open the party's sheet → Kit tab → Light Sources. *Observable before the
+    radius:* the Light here line reads the stage the light's own bright and dim
+    radii give, or Dark where none reaches. Set the light's Daylight radius so the
+    party token stands inside it (Scene controls → Lighting Controls →
+    double-click the light → Basic Configuration tab → Light Placement → Daylight
+    radius). *Observable:* with no other action the open sheet's line reads
+    Daylight and its tooltip names a placed light, with the light's name where it
+    has one, and ends RR p. 228; the same line on a Player seat's open sheet. Move
+    the party token out of the radius: the line falls to the next stage (bright or
+    dim by the light's own radii, else Dark, and a Dark line carries no tooltip).
+    Clear the radius with the token inside: the same. A lit token that decides the
+    reading is named on a Player seat only where that seat holds Observer on its
+    actor; a Player seat with less reads the kind alone and the page. Moving a lit
+    token on the scene redraws the open sheet. No line is in the DOM for a party
+    with no token on its scene, while the party's token is hidden (members
+    deployed), or while the party's travel mode is journey. Teardown: the light's flag cleared, the
+    token put back, the scene's darkness put back to what the run read.
 
 Teardown: the run puts back the spells' radii, counts and pools (`P.shape`), the
 deployed member, the fixture scene's darkness (K-c10 sets it to 0.8 and writes

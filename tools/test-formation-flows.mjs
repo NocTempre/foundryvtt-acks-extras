@@ -3176,6 +3176,82 @@ await scenario("template renders live controls for a member-owner", async () => 
     dave.effects.length = 0;
   }
 
+  // Light here: one reading line at the party's own token, read through lib's
+  // `lightLevelOf`, with the deciding source and its page as the tooltip. A
+  // party with no token on its scene has no line.
+  {
+    const SCENE_ID = "scene-light-here";
+    game.scenes.set(SCENE_ID, { id: SCENE_ID, tokens: new Coll([["tok-lh", { id: "tok-lh", name: "Party" }]]) });
+    const placed = { sceneId: SCENE_ID, tokenId: "tok-lh" };
+    const reading = (level, source) => () => ({ level, by: source ? "light" : "none", source });
+    try {
+      for (const level of ["daylight", "bright", "dim", "dark"]) {
+        const line = view.lightHere(placed, reading(level, level === "dark" ? null : { kind: "ambient", name: "Brazier", cite: null }));
+        assert.equal(line.level, level, `${level}: the line carries the stage`);
+        assert.equal(line.label, `ACKS-LIB.light.level.${level}`, `${level}: the line names the stage by the module's own lang key`);
+        assert.equal(line.caption, "ACKS-FORMATION.app.lightHereLabel", "the line is captioned Light here");
+      }
+
+      const placedLight = view.lightHere(placed, reading("daylight", { kind: "ambient", name: "Brazier", cite: "RR p. 228" }));
+      assert.ok(placedLight.tip.includes("lightHereKindAmbient") && placedLight.tip.includes("Brazier") && placedLight.tip.includes("RR p. 228"), "the tooltip names the source's kind, its name and its page");
+      const noPage = view.lightHere(placed, reading("bright", { kind: "token", name: "Torch", cite: null }));
+      assert.ok(noPage.tip.includes("lightHereKindToken") && noPage.tip.includes("Torch") && !noPage.tip.includes("RR"), "with no page the tooltip carries the source alone and invents none");
+      const unnamed = view.lightHere(placed, reading("dim", { kind: "column", name: null, cite: null }));
+      assert.ok(unnamed.tip.includes("lightHereKindColumn") && !unnamed.tip.includes("lightHereNamed"), "a source with no name is named by its kind alone");
+      const sky = view.lightHere(placed, reading("daylight", { kind: "sky", name: null, cite: "RR ch. 6" }));
+      assert.ok(sky.tip.includes("lightHereKindSky") && sky.tip.includes("RR ch. 6"), "the sky is named, with its chapter");
+      const extra = view.lightHere(placed, reading("bright", { kind: "extra", name: null, cite: null }));
+      assert.ok(extra.tip.includes("lightHereKindExtra"), "a light a caller states is named by its kind");
+      const dark = view.lightHere(placed, reading("dark", null));
+      assert.equal(dark.tip, "", "a dark point has no deciding source, so no tooltip words stand in for one");
+
+      let asked = 0;
+      const counting = () => {
+        asked += 1;
+        return { level: "bright", by: "light", source: null };
+      };
+      assert.equal(view.lightHere({ sceneId: SCENE_ID, tokenId: null }, counting), null, "a party with no token has no line");
+      assert.equal(view.lightHere({ sceneId: SCENE_ID, tokenId: "gone" }, counting), null, "a record whose token is gone has no line");
+      assert.equal(view.lightHere({ sceneId: "elsewhere", tokenId: "tok-lh" }, counting), null, "a record whose scene is gone has no line");
+      assert.equal(asked, 0, "no token is never read for a reading");
+      assert.equal(view.lightHere(placed, () => null), null, "a token on a scene that reads nothing has no line");
+
+      // A journey reads its own night, so the line is not drawn there; a hidden party token no longer says where the party stands.
+      assert.equal(view.lightHere({ ...placed, travel: { mode: "journey" } }, counting), null, "a journeying party has no line");
+      assert.ok(view.lightHere({ ...placed, travel: { mode: "delve" } }, counting), "a party in the delve has one");
+      game.scenes.get(SCENE_ID).tokens.set("tok-hid", { id: "tok-hid", name: "Party", hidden: true });
+      assert.equal(view.lightHere({ sceneId: SCENE_ID, tokenId: "tok-hid" }, counting), null, "a hidden party token has no line");
+      assert.equal(asked, 1, "neither a journey nor a hidden token is read for a reading (the delve read once)");
+
+      // A token's name reaches a seat only where Foundry lets it see the token's actor.
+      const torch = { kind: "token", name: "Torch", cite: null, id: "tok-lit" };
+      assert.ok(view.lightHere(placed, reading("bright", torch), () => true).tip.includes("Torch"), "named where the seat may be told");
+      const unnamedTip = view.lightHere(placed, reading("daylight", { ...torch, cite: "RR p. 228" }), () => false).tip;
+      assert.ok(unnamedTip.includes("lightHereKindToken") && !unnamedTip.includes("Torch") && unnamedTip.includes("RR p. 228"), "a seat refused the name is told the kind and the page");
+      const seen = (permission) => ({ id: "tok-lit", actor: { testUserPermission: (user, level) => level === "OBSERVER" && user === game.user && permission } });
+      game.scenes.get(SCENE_ID).tokens.set("tok-lit", seen(true));
+      assert.equal(view.canNameLightSource(placed, torch), true, "an Observer is told the token's name");
+      game.scenes.get(SCENE_ID).tokens.set("tok-lit", seen(false));
+      assert.equal(view.canNameLightSource(placed, torch), false, "a seat with less than Observer is not");
+      game.scenes.get(SCENE_ID).tokens.set("tok-lit", { id: "tok-lit" });
+      assert.equal(view.canNameLightSource(placed, torch), false, "a token with no actor to ask is not named");
+      assert.equal(view.canNameLightSource(placed, { ...torch, id: "nobody" }), false, "nor one that is not on the scene");
+      assert.equal(view.canNameLightSource(placed, { kind: "ambient", name: "Brazier", id: "a1" }), true, "a placed light's label is not an actor's secret");
+      assert.equal(view.canNameLightSource(placed, { kind: "sky", name: null }), true, "the sky is named freely");
+
+      // The template draws the line for a seat that sees the tab, and no line at all without one.
+      const drawn = parts[1]({ isGM: false, formation, lightHere: placedLight });
+      const hereRow = drawn.match(/<div class="light light-here"[\s\S]*?<\/div>/)?.[0] ?? "";
+      assert.ok(hereRow.includes("lightHereLabel") && hereRow.includes("ACKS-LIB.light.level.daylight"), "the Kit tab states the stage in words beside its caption");
+      assert.ok(hereRow.includes("data-tooltip-text=") && hereRow.includes("Brazier") && !hereRow.includes(" title="), "its tooltip is core's text tooltip, never a title");
+      assert.ok(!parts[1]({ isGM: false, formation, lightHere: null }).includes("light-here"), "no token, no line, and no words saying a reading is missing");
+      const darkRow = parts[1]({ isGM: false, formation, lightHere: dark }).match(/<div class="light light-here"[\s\S]*?<\/div>/)?.[0] ?? "";
+      assert.ok(darkRow.includes("ACKS-LIB.light.level.dark") && !darkRow.includes("data-tooltip-text"), "a dark reading draws its stage and no empty tooltip");
+    } finally {
+      game.scenes.delete(SCENE_ID);
+    }
+  }
+
   // The owner's seat is offered a shutter on each of their own lights; an
   // observer of another member's light sees its state and no button.
   assert.ok(rows.slice(0, 3).every((row) => row.includes('data-action="shutterMagicLight"')), "the owner sees a shutter on each of their lights");
@@ -3255,6 +3331,69 @@ await scenario("template renders live controls for a member-owner", async () => 
     assert.equal(redraws, 7, "a stranger's spell does not");
     fire("updateItem", spell(dave, { type: TYPES.weapon }), { system: { quantity: 2 } }, {}, "PL1");
     assert.equal(redraws, 7, "a member's weapon does not");
+
+    // The Light here line reads the scene's darkness, its placed lights and the party token's place: each of those, on the party's scene, redraws the open sheet.
+    const there = watched.formation;
+    assert.ok(there.sceneId && there.tokenId, "the party stands on a scene with a token");
+    const onScene = { id: there.sceneId };
+    fire("updateScene", onScene, { environment: { darknessLevel: 0.8 } });
+    assert.equal(redraws, 8, "the party scene's darkness changing redraws");
+    fire("updateScene", onScene, { darkness: 0.8 });
+    assert.equal(redraws, 9, "the party scene's legacy darkness field changing redraws");
+    fire("updateScene", onScene, { name: "Renamed" });
+    assert.equal(redraws, 9, "a scene change that is not its light does not");
+    fire("updateScene", { id: "elsewhere" }, { environment: { darknessLevel: 0.8 } });
+    assert.equal(redraws, 9, "another scene's darkness does not");
+    for (const [n, hook] of ["createAmbientLight", "updateAmbientLight", "deleteAmbientLight"].entries()) {
+      fire(hook, { parent: onScene }, {});
+      assert.equal(redraws, 10 + n, `${hook} on the party's scene redraws`);
+    }
+    fire("updateAmbientLight", { parent: { id: "elsewhere" } }, {});
+    assert.equal(redraws, 12, "a placed light on another scene does not");
+    fire("updateToken", { id: there.tokenId, parent: onScene }, { x: 500 });
+    assert.equal(redraws, 13, "the party token moving redraws");
+    fire("updateToken", { id: there.tokenId, parent: onScene }, { elevation: 5 });
+    assert.equal(redraws, 14, "the party token changing elevation redraws");
+    fire("updateToken", { id: "other", parent: onScene }, { light: { bright: 20 } });
+    assert.equal(redraws, 15, "a token on the party's scene changing its light redraws");
+    fire("updateToken", { id: "other", parent: onScene }, { x: 500 });
+    assert.equal(redraws, 15, "another token walking does not");
+    fire("updateToken", { id: there.tokenId, parent: { id: "elsewhere" } }, { x: 500 });
+    assert.equal(redraws, 15, "a token on another scene does not");
+
+    // A token that emits light moving, hiding or rising redraws; one that emits none does not. Creating or deleting one stirs it on the same terms.
+    const lit = { id: "lamp-bearer", parent: onScene, light: { bright: 20, dim: 40 } };
+    const dim = { id: "dim-bearer", parent: onScene, light: { bright: 0, dim: 10 } };
+    const unlit = { id: "walker", parent: onScene, light: { bright: 0, dim: 0 } };
+    for (const [n, change] of [{ x: 1 }, { y: 1 }, { hidden: true }, { elevation: 5 }].entries()) {
+      fire("updateToken", lit, change);
+      assert.equal(redraws, 16 + n, `a lit token's ${Object.keys(change)[0]} change redraws`);
+    }
+    fire("updateToken", dim, { x: 1 });
+    assert.equal(redraws, 20, "a token with only a dim radius counts as emitting");
+    fire("updateToken", lit, { rotation: 90 });
+    fire("updateToken", unlit, { x: 1 });
+    fire("updateToken", unlit, { hidden: true });
+    assert.equal(redraws, 20, "a lit token turning, or an unlit one walking or hiding, does not");
+    fire("createToken", lit);
+    fire("deleteToken", lit);
+    assert.equal(redraws, 22, "a lit token created or deleted redraws");
+    fire("createToken", unlit);
+    fire("deleteToken", unlit);
+    fire("createToken", { ...lit, parent: { id: "elsewhere" } });
+    assert.equal(redraws, 22, "an unlit token, or a lit one on another scene, does not");
+    fire("createToken", { id: there.tokenId, parent: onScene, light: {} });
+    assert.equal(redraws, 23, "the party's own token created redraws");
+    fire("updateToken", { id: there.tokenId, parent: onScene }, { hidden: true });
+    assert.equal(redraws, 24, "the party token hiding redraws");
+
+    const { tokenEmitsLight, tokenStirsLight } = partyActorModule;
+    assert.deepEqual([{ light: { bright: 5 } }, { light: { dim: 5 } }, { light: { bright: 0, dim: 0 } }, { light: {} }, {}, null].map(tokenEmitsLight), [true, true, false, false, false, false], "core's bright or dim radius above zero is a light");
+    assert.equal(tokenStirsLight({ id: "t", light: { bright: 5 } }, { x: 1 }, "p"), true);
+    assert.equal(tokenStirsLight({ id: "t", light: {} }, { x: 1 }, "p"), false);
+    assert.equal(tokenStirsLight({ id: "t", light: {} }, { light: { bright: 5 } }, "p"), true, "its own light changing always stirs");
+    assert.equal(tokenStirsLight({ id: "p", light: {} }, { width: 2 }, "p"), true, "the party token changing size stirs");
+    assert.equal(tokenStirsLight({ id: "t", light: { bright: 5 } }, { width: 2 }, "p"), false, "another token changing size does not");
   } finally {
     for (const [name, list] of hooks) list.length = before.get(name) ?? 0;
   }

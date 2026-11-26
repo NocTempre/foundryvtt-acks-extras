@@ -2,6 +2,13 @@
   {{#if formation}}
   <section class="lights">
     <h3>{{localize "ACKS-FORMATION.app.lights"}}</h3>
+    {{#if lightHere}}
+    <div class="light light-here" data-light-here="{{lightHere.level}}">
+      <i class="fa-solid fa-sun" aria-hidden="true"></i>
+      <span class="label">{{lightHere.caption}}</span>
+      <span class="remaining"{{#if lightHere.tip}} data-tooltip-text="{{lightHere.tip}}"{{/if}}>{{lightHere.label}}</span>
+    </div>
+    {{/if}}
     {{#each lights}}
     <div class="light {{#unless this.lit}}unlit{{/unless}}" data-light-id="{{this.id}}">
       <i class="{{#if this.lit}}fa-solid fa-fire-flame-curved lit{{else}}fa-regular fa-fire-flame-curved{{/if}}"></i>

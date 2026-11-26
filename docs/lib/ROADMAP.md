@@ -223,7 +223,11 @@ at a point"). Not yet:
   on its target as an ambient light, not on the caster's record
   (`lightRowsOnCaster`).
 - **One sky answer.** `skyIsDaylight`, `journeyIsNight` and `sceneIsDark` read
-  the sky three ways.
+  the sky three ways. Until it has one, the party sheet's Light here line is not
+  drawn while the party is journeying.
+- **Light here redraws.** The open party sheet does not redraw when an effect on
+  a non-member actor changes its token's daylight, or when an indoors Region is
+  edited; the line reads the new figure at the next redraw.
 - **Ranges recalculated per ability (set aside by the owner).** Each rederives a
   range from the bright reach: `lib/senses.mjs` `nightReach` and
   `senseProfile({litBy})`; `lib/light.mjs` `brightestLightReaching`;
