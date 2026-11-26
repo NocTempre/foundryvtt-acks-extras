@@ -3025,6 +3025,75 @@ the landings file.
 **Left to (h):** S12b, the Followers tab's views over `serviceNodes`
 (board 1l), in a fresh session from `aia-tmp/20261125-handover-chart-h.md`.
 
+### Phase 3b, slice (h), 2026-11-25
+
+A fresh session (chart-h) built S12b from board 1l in three `implementer`
+slices on `topic/beastman-organisation`, each from a brief quoting the
+owner's words, and landed them once. Board 1l's points 2 and 3 were taken
+as drawn ("The owner's correction: controls, not gates"): the views are
+Cards, Org chart and Locations, and Show stays on the card with edit and
+send out under it. Nothing is pushed and no walk was run here.
+
+**What was built.** The mechanics are in `docs/lib/ORGANISATION.md` ("The
+Followers tab's service mode") and `docs/character-sheet/MODEL.md`
+("Followers"):
+
+- **h1 (`484306b3`, lib `apiVersion` 96):** `serviceChartContext` and
+  `serviceLocationsContext` draw lib's chart and Locations partials in a
+  service mode over the nodes the tab passes in (lib imports no henchmen
+  reader). A hired unit's head is its officer's Follower Card and the officer
+  has no node; a lone follower's head is its own card; the root is the lord
+  with a count of its direct followers. `org.sendOutHolder` and
+  `org.recallHolder` are keyed by the follower's uuid, and `org.placesOf` is
+  the one reader of the places, so a hidden roster row stays a Judge's.
+- **h2 (`f0b7c561`, `290835f5`):** the Followers tab's switch, kept per
+  window in the sheet's `#ui.followersView`; the sheet takes six org actions
+  by name, never `ORG_ACTIONS` whole, since its `hirelingShow` would replace
+  the sheet's. Also four fixes to h1's output: Out at reads `placesOf`, a
+  placed follower's name prints once, service-worded tooltips and refusals,
+  and the rank line names the kind in words.
+- **h3 (`a235d8cf`):** `tools/live/character-followers-views.mjs` and
+  `docs/character-sheet/TESTING.md` "The Followers tab's views", on fixtures
+  of its own, `character-sheet/followers-*`, so it never fights
+  `lib-org-chart` over `henchmen/service-*`.
+
+**Readings drawn as the session's pick, and built so:**
+- (a) The pen is Open: a service row stores nothing an in-card form could
+  write through, so editing a follower is its own sheet.
+- (b) A lord's cards wear no role frame; board 1l's text gives the frame to
+  the village.
+- (c) A follower's Recall takes it off every roster and writes no group
+  (`docs/lib/DECISIONS.md`, 2026-11-25).
+- (d) The root's "henchmen" count is every lone direct follower, mercenaries
+  and specialists included; its tooltip says so.
+
+**The two items the hub deferred into S12b were found built.** The
+champion's mint is the officer line's Make (`orgMakeLeader`, through the
+`org-chart` service's `makeLeader`, with its tooltip), from the
+officer-assign slice. The die beside bodies is `orgRollCount` in the card's
+form, from (g) at `18fface1`. Neither was rebuilt.
+
+**Offline only.** Suites as the agents and this session ran them:
+test-org-tree 38, test-org-chart-ui 42, test-org 43, test-org-service 11,
+test-character-sheet 109, test-service-nodes 12, test-lib 296, test-org-run
+30, test-org-write 31, test-org-delete 10, test-org-chart-service 7,
+test-group-faction 14. h1's mutation checks were all killed (14). A scratch
+Handlebars render showed the faction and group sheets' partials
+byte-identical to before.
+
+**Not checked:** everything live. The real render, the tree's sideways
+scroll inside the sheet's body, the Send out dialog, and a Player seat's
+presses are the walk's.
+
+**Findings, not fixed:**
+- `chartContext` (the faction and group sheets) builds Out at from
+  `rostersHolding`, which ignores a roster row's `hidden` mark, so a
+  non-Judge can read where a hidden group stands.
+- `org.recallHolder` takes a follower off a roster row a non-Judge cannot
+  see; on a place the seat does not own it is refused before any write.
+- With hired units and no hirelings, the Cards view shows its empty hint
+  under the switch, since the cards list hirelings only.
+
 ### Start prompt, phase 2
 
 Since this prompt was written, the owner's go-ahead on canvases 2 to 5
