@@ -1187,9 +1187,38 @@ reader's own book gave them. Nothing falls back to a shipped number.
   `attackThrowRows` pass it to `maneuverMods`, and a generated beastman's melee
   weapons carry the flag (`docs/monsters/MODEL.md`, "Equipment"). On a monster,
   which has no loadout, `attackThrowRows` still answers the manoeuvre's row from
-  the weapon item alone. The `targetShaft` and `targetTwoHanded` options have
-  no caller in the module: they are API only. The hooked figures' save part
-  reaches the Rolls tab's tooltip only; no path rolls a manoeuvre's save.
+  the weapon item alone. The `targetShaft` option has no caller in the module:
+  it is API only. `maneuverMods` also returns `saveParts`, the read parts of the
+  target's save modifier (`trickery`, `hooked`, `twoHanded`), each with its
+  table; a positive value helps the saver.
+  **The maneuver's save** (`maneuver-save.mjs`): a maneuver that calls a save
+  owes it once the attack succeeds, after any damage it deals (RR pp. 305–306;
+  incapacitate calls none). The post-attack seam's `onAttackResolved` calls
+  `settleManeuver`: where the attack declared a maneuver that calls a save, hit,
+  and has a target token, with `overlayManeuvers` on, it posts lib's
+  `postOutcomeCard` of kind `maneuverSave` (`maneuverSavePost`, pure). The
+  attacker speaks; the one subject is the target token, whose owners press the
+  Save by Foundry's ownership; the title reads "<maneuver>: <attacker> against
+  <target>" and the subtitle is the page. The save is `MANEUVERS[key].save` with
+  the modifier from `maneuverSaveMods` (`maneuverMods` with the weapon's
+  `hooked`, and for a disarm `targetTwoHanded` from the one weapon the target
+  holds, read through `getLoadout`, `heldGrip` and `isTwoHandedOnly`); a
+  positive modifier helps the saver as `cardSaveOptions` reads it, a zero is
+  left off, and the modifier's tooltip (`saveLabel`) names the parts and the
+  page. **The save is named only where its modifier is read whole**; the card is
+  otherwise posted with a blank save name, the Judge's Passed and Failed card
+  (lib's declared verdict), and never a figure that may be wrong. That is the
+  case for an imported part not read (`targetSaveMod` null), a size-adjusted
+  maneuver (force back, knock down, wrestle) unless both creatures have a known
+  size, the same size, and neither a mount nor a rider (no size figure is
+  imported, and the mount's size stands for its rider's), a sunder (its save
+  moves with the struck weapon or shield, which the attack does not name), and a
+  disarm whose target is not a character holding exactly one weapon. The Save
+  press's writer (`maneuverSaveOutcome`, registered at setup beside the on-hit
+  writer) records the verdict on the card and writes nothing to either actor;
+  what a failed save does is applied by hand. No card is posted on a miss, with
+  roll automation or the overlay off, with no targeted token, or for an attack
+  that declared no maneuver. Only the Rolls tab declares one.
   A `maneuverRider` row on an ability (`{maneuvers, dice}`, a `CONSUMED_TARGETS`
   entry read by `damageRows`) adds `+<dice>` to the damage of a declared
   manoeuvre it names, labelled with the carrier's name and page; it follows

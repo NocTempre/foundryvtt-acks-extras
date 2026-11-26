@@ -131,6 +131,7 @@ feature:
 | --- | --- | --- |
 | `ctx.pending = {title}` | henchmen (`special.pendingCalamity`) | the dot after the compact card's name |
 | `ctx.savesAs = "…"` | monsters (`MonsterExtras.saveAs`) | the compact card's saves row |
+| `ctx.acTip`, `ctx.moraleTip` | monsters (`followerCardTips`, the parts `derivationTips` names on the full sheet) | the tooltip on the AC and Morale cells, both faces; a hand-set AC override keeps its own tooltip, and with none set the cells keep the generic ones |
 
 ## API — `acksLib.followerCard`
 

@@ -41,7 +41,7 @@ export const FOLLOWER_CARD_TEMPLATE =`modules/${MODULE_ID}/templates/lib/followe
  * Fired with `(actor, ctx)` once the lib has built a card's context, before
  * it renders. A feature adds what only it knows: `ctx.pending = {title}` for
  * a throw owed on the follower, `ctx.savesAs` for the class a creature saves
- * as. The lib reads no feature's flag itself.
+ * as, `ctx.acTip` and `ctx.moraleTip` for the parts behind those figures. The lib reads no feature's flag itself.
  */
 export const FOLLOWER_CARD_HOOK = "acksExtrasFollowerCardContext";
 
@@ -292,6 +292,8 @@ export async function followerCardContext(actor, { editable = false, interactive
     // What only a feature knows, set through FOLLOWER_CARD_HOOK below.
     pending: null,
     savesAs: null,
+    acTip: null,
+    moraleTip: null,
   };
 
   // The five save targets, where the body stores any; the readings a compact

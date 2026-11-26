@@ -873,6 +873,16 @@ unregisterTable("equipment", { priority: PRIORITY.OVERRIDE });
   const { rollGroups } = await import("../scripts/equipment/item-sheet/rolls.mjs");
   const disarmRow = (item, who) => rollGroups(item, who).find((g) => g.key === "maneuvers")?.rows.find((r) => r.id === "man:disarm");
   check("the Rolls tab's disarm row shows the hooked figure for a hooked weapon only", disarmRow(flagged, rollActor([flagged])).v === "−2" && disarmRow(swordItem, plain).v === "−7");
+  // A monster's weapon lists the manoeuvres from the same rows as a character's.
+  const manIds = (item, who) => rollGroups(item, who).find((g) => g.key === "maneuvers")?.rows.map((r) => `${r.id}:${r.v}:${r.rollable}`);
+  const monsterOwner = { ...rollActor([flagged]), type: "monster" };
+  const charIds = manIds(flagged, rollActor([flagged]));
+  check("a monster's weapon lists the maneuvers group with the rows a character's lists", charIds?.length === Object.keys(MANEUVERS).length && JSON.stringify(manIds(flagged, monsterOwner)) === JSON.stringify(charIds));
+  check("a monster's maneuver row is pressable and shows the same figure the throw carries", (() => { const row = rollGroups(flagged, monsterOwner).find((g) => g.key === "maneuvers").rows.find((r) => r.id === "man:disarm"); return row.rollable === true && row.v === "−2" && attackThrowRows(monsterOwner, flagged, "melee", { maneuver: "disarm" })[0]?.value === -2; })());
+  check("a weapon with no owner lists no maneuvers group", !rollGroups(flagged, null).some((g) => g.key === "maneuvers"));
+  SETTINGS_STATE.overlayManeuvers = false;
+  check("with the maneuver overlay off a monster's weapon lists none", !rollGroups(flagged, monsterOwner).some((g) => g.key === "maneuvers"));
+  SETTINGS_STATE.overlayManeuvers = true;
   unregisterTable("equipment", { priority: PRIORITY.WORLD });
 }
 

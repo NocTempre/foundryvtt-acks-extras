@@ -19,7 +19,7 @@ import { printKey } from "../importer/printed-name.mjs";
 import { numOrNull } from "../lib/util.mjs";
 import { blankLoyaltyCite } from "../lib/score-bounds.mjs";
 import { damageTypeOf, extraordinaryOf } from "../lib/damage-type.mjs";
-import { MODULE_ID } from "./constants.mjs";
+import { FLAG_EXTRAS, MODULE_ID } from "./constants.mjs";
 
 /**
  * The glyph a body form puts on the band, keyed by `printKey` of the form's
@@ -329,6 +329,33 @@ export function derivationTips(snapHeld, loc) {
     initiativeTip: orgText("initiative", snapHeld.initiative),
     surpriseTip: orgText("avoidSurprise", snapHeld.surpriseAvoid),
   };
+}
+
+/**
+ * The Follower Card's armour class and morale tooltips: the parts
+ * `derivationTips` names for the same figures on the full sheet, read off the
+ * actor's own system data and extras flag. `{acTip, moraleTip}`, "" where
+ * the actor holds a figure no import or generation worked out, or is no
+ * monster at all.
+ */
+export function followerCardTips(actor, loc) {
+  const extras = actor?.flags?.[MODULE_ID]?.[FLAG_EXTRAS];
+  if (!extras) return { acTip: "", moraleTip: "" };
+  const sys = actor.system ?? {};
+  const tips = derivationTips(
+    {
+      ac: sys.ac?.value,
+      morale: sys.details?.morale,
+      derived: extras.derived ?? {},
+      kit: extras.kit ?? null,
+      damageMod: Number(sys.damage?.mod?.melee) || 0,
+      attackMod: Number(sys.attack?.mod?.melee) || 0,
+      attackThrow: sys.attack?.throw,
+      saveLevel: extras.saveAs?.level,
+    },
+    loc,
+  );
+  return { acTip: tips.acTip, moraleTip: tips.moraleTip };
 }
 
 /** One dashboard row. The pin state is read off the id. */

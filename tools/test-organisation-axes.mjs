@@ -14,7 +14,7 @@ import { AXIS_ORDER, orderAxes, organisationAxes, unionOrganisationAxes } from "
 import { CONDITIONS, CONDITION_IDS } from "../scripts/lib/conditions.mjs";
 import { applyGeneratedLeaderGrade, applyGeneratedOrganisation, gearCarryOf, matchCondition, naturalAttackItems, GEAR_AXIS, NO_TRAIT, NO_TROOP, TRAIT_AXIS, TROOP_AXIS } from "../scripts/monsters/organisation.mjs";
 import { applyGeneratedKit } from "../scripts/monsters/kits.mjs";
-import { derivationTips } from "../scripts/monsters/statblock.mjs";
+import { derivationTips, followerCardTips } from "../scripts/monsters/statblock.mjs";
 import { SOURCE_AXIS } from "../scripts/importer/leader-roles.mjs";
 import { chooseAxes, optionAvailable, ROLL_PIN } from "../scripts/lib/template-logic.mjs";
 import { registryBands } from "../scripts/lib/template-bands.mjs";
@@ -497,6 +497,19 @@ check("initiative and the avoid-surprise figure carry their parts and pages", ti
 const mc = gen({ trait: "tc", role: "standard" });
 tips = derivationTips({ derived: mc.ex.derived, ac: 5, morale: mc.r.system.details.morale, damageMod: mc.r.system.damage.mod.melee, attackMod: 0, initiative: 0, surpriseAvoid: 0 }, loc);
 check("morale and damage carry the trait's part", tips.moraleTip.includes("Trait C") && tips.damageTip.includes("Trait C"));
+{
+  // The Follower Card reads the same parts off the actor itself: armour class and morale alone.
+  const held = (r, ex) => ({ system: r.system, flags: { [MID]: { extras: ex } } });
+  const card = followerCardTips(held(mc.r, mc.ex), loc);
+  check("the card's morale tip names the trait's part and page, as the full sheet's does", card.moraleTip === tips.moraleTip && card.moraleTip.includes("Trait C"));
+  check("and its armour class tip is the one the rail shows", card.acTip === derivationTips({ derived: mc.ex.derived, ac: mc.r.system.ac.value, morale: mc.r.system.details.morale, damageMod: 0, attackMod: 0 }, loc).acTip);
+  const moved = followerCardTips(held(kitted, kex), loc);
+  check("a kit's armour class tip carries the kit's part and each organisation part", moved.acTip.includes("statblock.tip.acKit") && moved.acTip.includes("statblock.tip.orgFigure"));
+  kitted.system.ac.value = 99;
+  check("an armour class a Judge has since typed is not explained by parts it no longer comes from", followerCardTips(held(kitted, kex), loc).acTip === "");
+  kitted.system.ac.value = 6 - 2 + 1 + 1;
+  eq("an actor with no extras, or none of a monster's shape, names nothing", [followerCardTips({ system: { ac: { value: 4 }, details: { morale: 1 } }, flags: {} }, loc), followerCardTips(null, loc)], [{ acTip: "", moraleTip: "" }, { acTip: "", moraleTip: "" }]);
+}
 const tableLeader = { derived: { leader: { source: "table", cite: "XX p. 1", ac: 8, armour: "felt" }, throw: { hd: "2" } }, ac: 8, morale: 0, damageMod: 0 };
 tips = derivationTips(tableLeader, loc);
 check("a table leader's tip names the page and the armour words, and says edited once the armour class moves", tips.leaderTip.includes("leaderTable{") && tips.acTip.includes("acTable") && derivationTips({ ...tableLeader, ac: 9 }, loc).leaderTip.includes("leaderTableEdited"));

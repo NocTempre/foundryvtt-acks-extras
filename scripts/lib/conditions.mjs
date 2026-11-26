@@ -451,18 +451,65 @@ export const STACKS_FLAG = "conditionStacks";
  */
 export const AC_WAIVER_TARGET = "acWaiver";
 
-/** The condition ids an actor's abilities waive the Armor Class figure of, each once, catalogue conditions only. */
-function waivedBy(actor) {
-  const ids = new Set();
+/** An ability's cookbook citation, trimmed; blank where it has none. */
+function citeOfItem(item) {
+  return String(item.getFlag?.(MODULE_ID, "cookbook")?.cite ?? item.flags?.[MODULE_ID]?.cookbook?.cite ?? "").trim();
+}
+
+/**
+ * The conditions an actor's abilities name in an Armor Class waiver row, each
+ * once in the order the rows name them, catalogue conditions only, with the
+ * abilities that name each: `Map<id, [{name, cite}]>`. An ability with no name
+ * names its condition and no source.
+ */
+function waiverRows(actor) {
+  const out = new Map();
   for (const item of actor?.items ?? []) {
     if (item?.type !== "ability") continue;
     const extras = item.getFlag?.(MODULE_ID, "extras") ?? item.flags?.[MODULE_ID]?.extras;
+    const name = String(item.name ?? "").trim();
     for (const spec of Array.isArray(extras?.effects) ? extras.effects : []) {
       if (spec?.type !== "modifier" || spec.target !== AC_WAIVER_TARGET || spec.gate?.kind || spec.condition) continue;
-      for (const id of Array.from(spec.conditions ?? [])) if (CONDITIONS[id]) ids.add(id);
+      for (const id of Array.from(spec.conditions ?? [])) {
+        if (!CONDITIONS[id]) continue;
+        const sources = out.get(id) ?? [];
+        out.set(id, sources);
+        const cite = citeOfItem(item);
+        if (name && !sources.some((s) => s.name === name && s.cite === cite)) sources.push({ name, cite });
+      }
     }
   }
-  return [...ids];
+  return out;
+}
+
+/** The condition ids an actor's abilities waive the Armor Class figure of, each once, catalogue conditions only. */
+function waivedBy(actor) {
+  return [...waiverRows(actor).keys()];
+}
+
+/**
+ * What waives the Armor Class figure of each condition an actor's abilities
+ * name: `Map<conditionId, [{name, cite}]>`, the ability's own name and its
+ * citation (blank where it has none). A condition the waived one implies takes
+ * the sources of the condition that implies it, as the decision
+ * (`acWaivedSet`) spares it with that one. Read from the same rows as
+ * `subjectOf`'s `acWaived`, so a row that is not read there names no source here.
+ *
+ * @param {object|null} actor
+ * @returns {Map<string, Array<{name: string, cite: string}>>}
+ */
+export function acWaiverSources(actor) {
+  const named = waiverRows(actor);
+  const out = new Map([...named].map(([id, sources]) => [id, [...sources]]));
+  for (const [id, sources] of named) {
+    for (const brought of closure([id])) {
+      if (named.has(brought)) continue;
+      const held = out.get(brought) ?? [];
+      out.set(brought, held);
+      for (const source of sources) if (!held.some((s) => s.name === source.name && s.cite === source.cite)) held.push({ ...source });
+    }
+  }
+  return out;
 }
 
 /**

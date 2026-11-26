@@ -3144,9 +3144,13 @@ slot (`setTargetAcReader`, filled by `attack-card-target-ac.mjs` with
 condition effects make to `system.ac.mod`, as `{name, value}`, the effect's own
 name (with the name of the condition the step belongs to where the two differ,
 a charge's step being its disorder's) and the step as it stands in the effect.
-A monster target has none (its steps are terms on the throw). A step the Armor
-Class waiver spares is listed, because the system folded it into the Armor
-Class the card shows. The seam holds the answer by the attacker's uuid beside the weapon's
+A monster target has none unless its waiver spares a step (its steps are terms
+on the throw): then the rows are the steps the throw counts, then each waived
+step as `{name, waived: true, by}` with no figure, `by` being the abilities
+that waive it (`acWaiverSources`: the ability's name and its page, an implied
+condition taking the sources of the condition that implies it). A step the
+Armor Class waiver spares on a character is listed, because the system folded it
+into the Armor Class the card shows. The seam holds the answer by the attacker's uuid beside the weapon's
 damage, for a weapon attack and a spell carrier's alike, and stamps it as
 `flags["acks-extras"].targetAc`, `{target, rows}`, on the system's attack card
 when the message is created, with or without an Apply. The stamp is the record:
@@ -3160,7 +3164,9 @@ system's chat message removes the one the viewer may not see once the render
 hooks have run, so the module tests no setting. A re-render removes the line it
 drew before it draws again. The tooltip of the shown span names the effect, the
 target, the step and that the step is already in the Armor Class shown, with the
-page; the hidden span's names no step. The line adds nothing to the throw.
+page; the hidden span's names no step. A waived row is told after the counted
+rows in both spans, as "not counted: <name>, waived by <ability> (<page>)", and
+its tooltip says it is not counted. The line adds nothing to the throw.
 
 **Where each roll takes it.**
 

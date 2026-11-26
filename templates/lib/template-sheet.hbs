@@ -77,6 +77,20 @@
             <a data-action="addOption" data-tooltip="{{localize 'ACKS-LIB.template.addOption'}}"><i class="fas fa-plus"></i></a>
             <a data-action="deleteAxis" data-tooltip="{{localize 'ACKS-LIB.template.deleteAxis'}}"><i class="fas fa-trash"></i></a>
           </header>
+          {{!-- A multi axis is opt-in add-ons and never reads a default, so it gets no select. --}}
+          {{#if canDefault}}
+            <label class="editor-default">
+              <span>{{localize "ACKS-LIB.template.default"}}</span>
+              <select class="acks-lib-template-default" data-axis="{{key}}"
+                      aria-label="{{localize 'ACKS-LIB.template.defaultFor' axis=label}}"
+                      data-tooltip="{{localize 'ACKS-LIB.template.defaultHint'}}">
+                <option value="">{{localize "ACKS-LIB.template.defaultNone"}}</option>
+                {{#each options}}
+                  <option value="{{key}}" {{#if isDefault}}selected{{/if}}>{{label}}</option>
+                {{/each}}
+              </select>
+            </label>
+          {{/if}}
           <ul>
             {{#each options}}
               <li data-axis-key="{{../key}}" data-option-key="{{key}}" class="editor-option{{#if empty}} is-empty{{/if}}"

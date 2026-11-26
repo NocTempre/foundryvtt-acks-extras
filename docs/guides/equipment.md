@@ -418,7 +418,7 @@ the art, its toolbar wrapped onto a second row above the text.*
 **The tabs**, always in this order and only when earned:
 
 - **Rolls** — a weapon's attack modes, the special manoeuvres when that overlay
-  is on, a spell book's recorded formulae, a locked container's Pick / Break
+  is on (a monster's weapon lists them as a character's does), a spell book's recorded formulae, a locked container's Pick / Break
   rows. Roll buttons appear only where a real throw exists — the lock rows need
   the character's own Lockpicking or Dungeon Bashing. A manoeuvre's row shows
   the penalty the throw will carry, its tooltip naming the parts and the pages

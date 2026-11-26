@@ -5270,4 +5270,30 @@ await (async () => {
   console.log("ok - a module sub-type's create drops the system's new-actor flag");
 }
 
+{
+  // The template editor's Default select writes through setAxisDefault; deleting an option goes through removeAxisOption.
+  const { setAxisDefault, removeAxisOption } = await import("../scripts/lib/template-logic.mjs");
+  const axes = () => [
+    { key: "kind", options: [{ key: "a" }, { key: "b" }], default: "a" },
+    { key: "extras", multi: true, options: [{ key: "x" }] },
+    { key: "size", options: [{ key: "s" }] },
+  ];
+  const set = setAxisDefault(axes(), "size", "s");
+  assert.equal(set.find((a) => a.key === "size").default, "s", "a default names one of the axis's options");
+  assert.equal(set.find((a) => a.key === "kind").default, "a", "other axes are untouched");
+  assert.equal(setAxisDefault(axes(), "kind", "b").find((a) => a.key === "kind").default, "b", "a default is replaced");
+  assert.equal(setAxisDefault(axes(), "kind", "").find((a) => a.key === "kind").default, "", "an empty value clears the default");
+  assert.equal(setAxisDefault(axes(), "kind", "gone").find((a) => a.key === "kind").default, "", "a key naming no option clears it");
+  assert.equal(setAxisDefault(axes(), "extras", "x").find((a) => a.key === "extras").default, undefined, "a multi axis takes no default");
+  const source = axes();
+  setAxisDefault(source, "kind", "b");
+  assert.equal(source[0].default, "a", "the input array is not mutated");
+  const dropped = removeAxisOption(axes(), "kind", "a");
+  assert.deepEqual(dropped.find((a) => a.key === "kind").options.map((o) => o.key), ["b"]);
+  assert.equal(dropped.find((a) => a.key === "kind").default, "", "deleting the default option clears the default");
+  assert.equal(removeAxisOption(axes(), "kind", "b").find((a) => a.key === "kind").default, "a", "deleting another option keeps it");
+  n++;
+  console.log("ok - the template editor sets, clears and drops an axis default through pure helpers");
+}
+
 console.log(`\n${n} tests passed`);

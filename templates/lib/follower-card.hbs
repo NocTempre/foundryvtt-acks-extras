@@ -52,7 +52,7 @@
       </div>
       {{!-- AC, SPD and ENC take a card-only override: the input carries no
             name, so it rides no submit; the sheet writes the flag. --}}
-      <label class="acks-extras-frame__fact" data-tooltip="{{#if acOverridden}}{{localize 'ACKS-LIB.followerCard.acOverride' n=ac base=acBase}}{{else}}{{localize 'ACKS-LIB.followerCard.acHint' n=ac}}{{/if}}">
+      <label class="acks-extras-frame__fact"{{#if acOverridden}} data-tooltip="{{localize 'ACKS-LIB.followerCard.acOverride' n=ac base=acBase}}"{{else if acTip}} data-tooltip-text="{{acTip}}"{{else}} data-tooltip="{{localize 'ACKS-LIB.followerCard.acHint' n=ac}}"{{/if}}>
         <span class="acks-extras-frame__fact-label">{{localize "ACKS-LIB.followerCard.ac"}}</span>
         <input class="acks-input acks-extras-frame__fact-input acks-nums{{#if acOverridden}} is-overridden{{/if}}" type="number" data-fc-ac value="{{ac}}" data-dtype="Number">
       </label>
@@ -70,7 +70,7 @@
         <span class="acks-extras-frame__fact-of">/</span><span class="acks-extras-frame__fact-note acks-nums">{{enc.max}}</span>
       </label>
       {{/if}}
-      <label class="acks-extras-frame__fact">
+      <label class="acks-extras-frame__fact"{{#if moraleTip}} data-tooltip-text="{{moraleTip}}"{{else}} data-tooltip="{{localize 'ACKS.details.morale'}}"{{/if}}>
         <span class="acks-extras-frame__fact-label">{{localize "ACKS.details.morale"}}</span>
         <input class="acks-input acks-extras-frame__fact-input acks-nums" type="number" name="system.details.morale" value="{{morale}}" data-dtype="Number" min="-6" max="4">
       </label>
@@ -263,14 +263,14 @@
 
   <div class="acks-lib-follower-card__facts">
     <span class="acks-lib-follower-card__fact" data-tooltip="{{localize 'ACKS-LIB.followerCard.hpOf' value=hp.value max=hp.max}}"><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.hp"}}</span><b class="acks-nums">{{hp.value}}</b></span>
-    <span class="acks-lib-follower-card__fact{{#if acOverridden}} is-overridden{{/if}}" data-tooltip="{{#if acOverridden}}{{localize 'ACKS-LIB.followerCard.acOverride' n=ac base=acBase}}{{else}}{{localize 'ACKS-LIB.followerCard.acHint' n=ac}}{{/if}}"><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.ac"}}</span><b class="acks-nums">{{ac}}</b></span>
+    <span class="acks-lib-follower-card__fact{{#if acOverridden}} is-overridden{{/if}}"{{#if acOverridden}} data-tooltip="{{localize 'ACKS-LIB.followerCard.acOverride' n=ac base=acBase}}"{{else if acTip}} data-tooltip-text="{{acTip}}"{{else}} data-tooltip="{{localize 'ACKS-LIB.followerCard.acHint' n=ac}}"{{/if}}><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.ac"}}</span><b class="acks-nums">{{ac}}</b></span>
     {{#if speed}}<span class="acks-lib-follower-card__fact{{#if speed.overridden}} is-overridden{{/if}}" data-tooltip="{{#if speed.overridden}}{{localize 'ACKS-LIB.followerCard.speedOverride' n=speed.primary}}{{else}}{{localize 'ACKS-LIB.followerCard.speedHint' n=speed.primary}}{{/if}}"><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.speed"}}</span><b class="acks-nums">{{speed.primary}}</b></span>{{/if}}
     {{#if enc}}<span class="acks-lib-follower-card__fact{{#if enc.overridden}} is-overridden{{/if}}" data-tooltip="{{localize 'ACKS-LIB.followerCard.stoneOf' value=enc.value max=enc.max}}"><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.encShort"}}</span><b class="acks-nums">{{enc.value}}/{{enc.max}}</b></span>{{/if}}
     {{#if controls}}
-    <button type="button" class="acks-lib-follower-card__fact is-roll" data-action="hirelingMorale" data-tooltip="{{localize 'ACKS-LIB.followerCard.moraleThrow' n=moraleSigned}}"><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.moraleShort"}}</span><b class="acks-nums">{{moraleSigned}}</b></button>
+    <button type="button" class="acks-lib-follower-card__fact is-roll" data-action="hirelingMorale"{{#if moraleTip}} data-tooltip-text="{{localize 'ACKS-LIB.followerCard.moraleThrow' n=moraleSigned}} · {{moraleTip}}"{{else}} data-tooltip="{{localize 'ACKS-LIB.followerCard.moraleThrow' n=moraleSigned}}"{{/if}}><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.moraleShort"}}</span><b class="acks-nums">{{moraleSigned}}</b></button>
     <button type="button" class="acks-lib-follower-card__fact is-roll" data-action="hirelingLoyalty"{{#if loyaltyTip}} data-tooltip-text="{{loyaltyTip}}"{{else}} data-tooltip="{{localize 'ACKS-LIB.followerCard.loyaltyThrow' n=loyaltySigned}}"{{/if}}><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.loyaltyShort"}}</span><b class="acks-nums">{{loyaltySigned}}</b></button>
     {{else}}
-    <span class="acks-lib-follower-card__fact" data-tooltip="{{localize 'ACKS.details.morale'}}"><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.moraleShort"}}</span><b class="acks-nums">{{moraleSigned}}</b></span>
+    <span class="acks-lib-follower-card__fact"{{#if moraleTip}} data-tooltip-text="{{moraleTip}}"{{else}} data-tooltip="{{localize 'ACKS.details.morale'}}"{{/if}}><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.moraleShort"}}</span><b class="acks-nums">{{moraleSigned}}</b></span>
     <span class="acks-lib-follower-card__fact"{{#if loyaltyTip}} data-tooltip-text="{{loyaltyTip}}"{{else}} data-tooltip="{{localize 'ACKS.Loyalty'}}"{{/if}}><span class="acks-lib-follower-card__k">{{localize "ACKS-LIB.followerCard.loyaltyShort"}}</span><b class="acks-nums">{{loyaltySigned}}</b></span>
     {{/if}}
   </div>

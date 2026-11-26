@@ -139,7 +139,7 @@ export function rollGroups(item, actor = rollerFor(item)) {
     }
     groups.push({ key: "attackModes", name: loc("itemSheet.rolls.group.attackModes"), note: typeLabel, src: null, rows });
 
-    if (maneuverOverlayEnabled() && actor?.type === ACTOR_TYPE.character) {
+    if (maneuverOverlayEnabled() && actor) {
       const trickery = trickeryFor(actor);
       // The penalty the throw will carry: this actor's Combat Trickery and this
       // weapon's qualities included. One not imported has a blank figure; the

@@ -24,6 +24,7 @@ import { registerRecipeDoors } from "./recipe-doors.mjs";
 import * as config from "./config.mjs";
 import { escape, findActor, makeLoc, primaryGMSettled } from "../lib/util.mjs";
 import { FOLLOWER_CARD_HOOK } from "../lib/follower-card.mjs";
+import { followerCardTips } from "./statblock.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 import { applyGeneratedKit, importedKits } from "./kits.mjs";
@@ -280,9 +281,13 @@ async function migrateDefenseBands() {
 }
 
 /* The Follower Card asks what a feature knows of the actor: a creature's
- * saves-as class and level, which live on this feature's extras. */
+ * saves-as class and level, and the parts behind its armour class and morale,
+ * which live on this feature's extras. */
 Hooks.on(FOLLOWER_CARD_HOOK, (actor, ctx) => {
   if (!sheetTypes.includes(actor?.type)) return;
+  const tips = followerCardTips(actor, loc);
+  ctx.acTip = tips.acTip || null;
+  ctx.moraleTip = tips.moraleTip || null;
   const saveAs = MonsterExtras.fromActor(actor)?.saveAs ?? {};
   if (!saveAs.class) return;
   const cls = game.i18n.localize(config.SAVE_CLASSES[saveAs.class]?.label ?? saveAs.class);

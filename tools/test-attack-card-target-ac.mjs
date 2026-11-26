@@ -1,6 +1,7 @@
 /**
  * The attack card's line naming a condition inside a character target's Armor
- * Class (scripts/lib/attack-card-target-ac.mjs, and the seam's hold and stamp in
+ * Class, and a monster target's step its waiver spares
+ * (scripts/lib/attack-card-target-ac.mjs, and the seam's hold and stamp in
  * scripts/lib/patches/attack-throw.mjs).
  *
  * Stand-in actors, effects, a libWrapper that keeps the wrappers it is given and
@@ -197,10 +198,44 @@ await ok("a state that brings a condition has one row named for both, and the co
   }
 });
 
-await ok("a monster, a null actor and an actor of another type have no rows: a monster's steps are terms on the throw", () => {
+await ok("a monster with no waived step, a null actor and an actor of another type have no rows: a monster's steps are terms on the throw", () => {
   assert.deepEqual(targetAcRows(monster([effectOf("disordered")])), []);
   assert.deepEqual(targetAcRows(null), []);
   assert.deepEqual(targetAcRows(actorOf("group", [effectOf("disordered")])), []);
+});
+
+/** An ability item whose waiver row names `conditions`, named and cited as an imported one is. */
+const waiverAbility = (name, cite, ...conditions) => {
+  const item = waiverRow(...conditions);
+  item.name = name;
+  if (cite) item.flags["acks-extras"].cookbook = { cite };
+  return item;
+};
+
+await ok("a monster target has a row for each step its waiver spares, naming what waives it and no figure, after the steps the throw counts", () => {
+  const target = monster([effectOf("disordered", { name: "Spared" }), effectOf("shaken", { name: "Kept" })]);
+  assert.deepEqual(targetAcRows(target), [], "no waiver, no row: its steps are terms on the throw");
+  target.items = [waiverAbility("Ability 3", "XX p. 00", "disordered")];
+  assert.deepEqual(targetAcRows(target), [
+    { name: named("Kept", "shaken"), value: step("shaken") },
+    { name: named("Spared", "disordered"), waived: true, by: [{ name: "Ability 3", cite: "XX p. 00" }] },
+  ]);
+  assert.ok(!("value" in targetAcRows(target)[1]), "the waived row has no figure");
+});
+
+await ok("a waived charge's disorder is one waived row on the charging effect, and an ability with no page names no page", () => {
+  const charge = implyingEffect("charging", { name: cond("charging") });
+  const target = monster([charge]);
+  target.items = [waiverAbility("Ability 3", "", "charging")];
+  assert.deepEqual(targetAcRows(target), [{ name: named(cond("charging"), "disordered"), waived: true, by: [{ name: "Ability 3", cite: "" }] }]);
+});
+
+await ok("a monster's waived row names every ability that waives it, once each, and a waiver no ability names leaves the row with none", () => {
+  const target = monster([effectOf("disordered", { name: "Spared" })]);
+  target.items = [waiverAbility("Ability 3", "XX p. 00", "disordered"), waiverAbility("Ability 4", "XX p. 01", "disordered"), waiverAbility("Ability 3", "XX p. 00", "disordered")];
+  assert.deepEqual(targetAcRows(target)[0].by, [{ name: "Ability 3", cite: "XX p. 00" }, { name: "Ability 4", cite: "XX p. 01" }]);
+  target.items = [waiverRow("disordered")];
+  assert.deepEqual(targetAcRows(target)[0].by, []);
 });
 
 await ok("an effect that moves Armor Class but carries no condition status has no row", () => {
@@ -243,6 +278,44 @@ await ok("the shown tooltip names effect, target and step with the page; the hid
   }
   assert.ok(line.hidden.tip.includes("Ghoul Token") && line.hidden.tip.includes("Fx One") && line.hidden.tip.includes("RR 291-303, 507-515"));
   assert.ok(!/\d/.test(line.hidden.tip.replace("RR 291-303, 507-515", "")), "no figure in the hidden tooltip");
+});
+
+const waivedStamp = {
+  target: "Ghoul Token",
+  rows: [{ name: "Fx One", value: step("disordered") }, { name: "Fx Two", waived: true, by: [{ name: "Ability 3", cite: "XX p. 00" }, { name: "Ability 4", cite: "" }] }],
+};
+const WAIVED_TEXT = "not counted: Fx Two, waived by Ability 3 (XX p. 00), Ability 4";
+
+await ok("a waived row is told after the counted ones, in both spans, with what waived it and its page and no figure", () => {
+  const line = targetAcLine(waivedStamp);
+  assert.equal(line.shown.text, format("ACKS-LIB.conditionRoll.targetAc.lineJoin", { counted: `Target's AC counts: Fx One +${step("disordered")}`, waived: WAIVED_TEXT }));
+  assert.equal(line.hidden.text, format("ACKS-LIB.conditionRoll.targetAc.lineJoin", { counted: "Target's AC counts: Fx One", waived: WAIVED_TEXT }));
+  assert.ok(line.shown.text.includes("Fx One +") && !/Fx Two[^,]*[+−-]\d/.test(line.shown.text), "the waived row carries no figure");
+});
+
+await ok("a stamp of waived rows alone reads as the target's Armor Class with the not-counted part", () => {
+  const line = targetAcLine({ target: "Ghoul Token", rows: [waivedStamp.rows[1]] });
+  assert.equal(line.shown.text, `Target's AC, ${WAIVED_TEXT}`);
+  assert.equal(line.hidden.text, line.shown.text, "the two spans agree where no figure is told");
+  assert.ok(!/counts/.test(line.shown.text));
+});
+
+await ok("a waived row with no ability named is told by its name alone, without the page's parenthesis", () => {
+  const line = targetAcLine({ target: "T", rows: [{ name: "Fx Two", waived: true, by: [] }, { name: "Fx Three", waived: true, by: [{ name: "Ability 3", cite: "" }] }] });
+  assert.equal(line.shown.text, "Target's AC, not counted: Fx Two; Fx Three, waived by Ability 3");
+});
+
+await ok("the tooltips of a waived row name the target and what waived it, and the hidden one carries no figure of the target's", () => {
+  const line = targetAcLine(waivedStamp);
+  assert.ok(line.shown.tip.includes("Fx Two on Ghoul Token: not counted, waived by Ability 3 (XX p. 00), Ability 4"));
+  assert.ok(line.shown.tip.includes("Fx One on Ghoul Token") && line.shown.tip.includes("RR 291-303, 507-515"));
+  assert.ok(line.hidden.tip.includes("Fx One on Ghoul Token, counted in the Armor Class this card does not show"));
+  assert.ok(line.hidden.tip.includes("Fx Two, waived by Ability 3 (XX p. 00), Ability 4 on Ghoul Token, not counted in the Armor Class this card does not show"));
+  assert.ok(!line.hidden.tip.includes(`+${step("disordered")}`));
+  const alone = targetAcLine({ target: "T", rows: [waivedStamp.rows[1]] });
+  assert.ok(alone.hidden.tip.startsWith("Fx Two, waived by Ability 3 (XX p. 00), Ability 4 on T, not counted in the Armor Class this card does not show"), "no counted row, so no counted sentence");
+  assert.ok(!alone.shown.tip.includes("already in the Armor Class"), "a waived row is not in the figure shown");
+  assert.equal(targetAcLine({ target: "T", rows: [{ name: "Fx Two", waived: true }] }).shown.tip.includes("Fx Two on T: not counted"), true, "no ability named, no 'waived by'");
 });
 
 await ok("a stamp with no usable row draws no line", () => {
@@ -329,6 +402,18 @@ await ok("no stamp for a monster target, a target with no condition steps, no ta
     await attack(attacker, targets, () => preCreate(message));
     assert.deepEqual(message.updates, [], JSON.stringify(content));
   }
+});
+
+await ok("a card made inside an attack on a monster whose waiver spares a step is stamped with the waived row, its sources and no figure; a copy is stamped, not the reader's own", async () => {
+  const spared = monster([effectOf("disordered", { name: "Spared" })]);
+  spared.items = [waiverAbility("Ability 3", "XX p. 00", "disordered")];
+  const message = messageOf(ATTACK_CARD);
+  await attack(attacker, [targetWith(spared, "Beast Token")], () => preCreate(message));
+  assert.deepEqual(merged(message)[FLAG_PATH], { target: "Beast Token", rows: [{ name: named("Spared", "disordered"), waived: true, by: [{ name: "Ability 3", cite: "XX p. 00" }] }] });
+  const read = targetAcRows(spared);
+  const held = seam.targetAcOf({ targetActor: spared, targetName: "Beast Token" });
+  held.rows[0].by[0].name = "changed";
+  assert.equal(read[0].by[0].name, "Ability 3");
 });
 
 await ok("what an attack held is let go with it: a card made after the roll, or by another speaker, takes no stamp", async () => {

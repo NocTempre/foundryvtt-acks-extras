@@ -555,11 +555,12 @@ function outcomeResult(card, entry, cite, w) {
 }
 
 /**
- * Build the body of a save card of an outcome kind (`swig`, `onHit`) for a seat:
+ * Build the body of a save card of an outcome kind (`swig`, `onHit`, and any a
+ * feature registers) for a seat:
  * the subjects with their save targets read live, the Save press for a seat that
  * owns the subject, and each verdict's result line. The save is named with its
  * modifier where the card holds one, the modifier's tooltip naming the row it was
- * read from. A card that names no save draws the Judge's line and no Save press;
+ * read from, or the card's own `saveLabel` where its kind words that itself. A card that names no save draws the Judge's line and no Save press;
  * the Judge's seat reads Passed and Failed on each open row, and a verdict the
  * Judge declared reads "(the Judge's call)" after its result.
  */
@@ -578,7 +579,7 @@ function outcomeBody(message, card) {
     const figure = burstSaveFigure(fromUuidSync(sub.uuid)?.actor ?? null, saveName, cite, cardSaveOptions(card));
     const row = { key: sub.uuid, name: sub.name, state, entryKey, entry, target: figure.target, targetTip: figure.tip };
     if (saveName) row.detail = mod === null ? saveName : `${saveName} ${signedFigure(mod)}`;
-    if (saveName && mod !== null) row.nameTooltip = rowTip({ label: loc("itemRun.card.saveModTip", { source: card.source ?? card.title ?? "" }), figure: signedFigure(mod), cite });
+    if (saveName && mod !== null) row.nameTooltip = rowTip({ label: card.saveLabel || loc("itemRun.card.saveModTip", { source: card.source ?? card.title ?? "" }), figure: signedFigure(mod), cite });
     if (state === "applied" || state === "judge") row.result = outcomeResult(card, entry, cite, w);
     if (state === "applied" && entry.declared === true) row.result = { ...row.result, text: `${row.result.text} (${w.declared})` };
     return row;

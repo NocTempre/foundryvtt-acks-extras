@@ -3069,3 +3069,31 @@ Cost: a follower sent out of a group (Send out clears its parent group, as it
 does for a row) is not put back under that group by Recall, so the press that
 undoes a Send out is not its inverse for a group that was nested. The unit's
 nesting is the group sheet's to restore.
+
+## 2026-11-26 — A monster target's waived Armor Class step is told on the card, without a figure
+
+Qualifies "The attack card names a condition inside a character target's Armor
+Class" (2026-11-24), which gave a monster target no row because its steps are
+terms on the throw. New evidence (T-0770): a step the Armor Class waiver spares
+on a monster is no term, since `conditionSteps` moves it to `waived`, and
+`attackConditions` put that list on `math` where no caller read it, so a
+waiver's effect on the throw was told on no surface. The release hub approved
+the card line as drawn on the board. A monster target takes the line only where
+it has a waived step: the steps the throw counts, with their figures, then
+"not counted:" and each waived step with what waived it and that ability's page,
+and no figure for the waived step, in the shown and the hidden span alike. A
+monster with nothing waived has no line, as before.
+
+- `acWaiverSources(actor)` (`conditions.mjs`) names, for each condition an
+  ability's waiver row names, the ability's name and its cookbook citation; a
+  condition the waived one implies takes the implier's sources. It reads the
+  rows `subjectOf`'s `acWaived` reads, so a gated row names no source.
+- The stamp's rows may be `{name, waived: true, by: [{name, cite}]}`; the names
+  and pages are read at the roll and drawn from the stamp, like every row.
+
+**Rejected.** A zero term on the throw: core's `effectiveModifiers` drops a zero
+modifier, so it would not show. A figure beside the waived step: the throw does
+not count it, and a number there reads as one it did.
+
+**Cost.** The stamp shape grows a second row kind that readers of
+`flags["acks-extras"].targetAc` must tell by `waived`.

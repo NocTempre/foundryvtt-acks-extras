@@ -8,7 +8,7 @@
  */
 import { MODULE_ID, TEMPLATE_TYPE } from "../constants.mjs";
 import { generateFromTemplate } from "../template-generate.mjs";
-import { axisIsBanded, axisOffersChoice, pinOptionRows, ROLL_PIN } from "../template-logic.mjs";
+import { axisIsBanded, axisOffersChoice, pinOptionRows, removeAxisOption, ROLL_PIN, setAxisDefault } from "../template-logic.mjs";
 import { registryBands, registryCarry } from "../template-bands.mjs";
 import * as services from "../services.mjs";
 
@@ -82,6 +82,8 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
         key: axis.key,
         label: axis.label || axis.key,
         multi: !!axis.multi,
+        // A multi axis never reads a default, so edit mode draws no Default select for it.
+        canDefault: !axis.multi,
         rollLabel: fallback
           ? game.i18n.format("ACKS-LIB.template.defaultTo", { option: fallback.label || fallback.key })
           : axis.roll
@@ -104,6 +106,7 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
             selected: axis.multi
               ? (this.#pins[axis.key] ?? []).includes?.(o.key)
               : (this.#pins[axis.key] ?? "") === o.key,
+            isDefault: !axis.multi && !!axis.default && axis.default === o.key,
             empty: !Object.keys(o.merge ?? {}).length && !(o.items ?? []).length,
           };
         }),
@@ -138,6 +141,10 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
         if ((sys.cells ?? []).some((c) => (c.by ?? []).includes(key)) || (sys.axes ?? []).some((a) => a.multi || a.bandsFrom?.by === key)) this.render();
       });
     }
+    // Edit mode: an axis's Default select writes `system.axes[i].default`; empty clears it.
+    for (const sel of this.element.querySelectorAll("select.acks-lib-template-default")) {
+      sel.addEventListener("change", (ev) => this.#setDefault(ev.currentTarget.dataset.axis, ev.currentTarget.value));
+    }
     // Multi-select axes pin an ARRAY of checked options (stacked add-ons).
     for (const box of this.element.querySelectorAll("input.acks-lib-template-multi")) {
       box.addEventListener("change", (ev) => {
@@ -153,6 +160,13 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
       permissions: { drop: () => this.isEditable },
       callbacks: { drop: (event) => this.#onDropActor(event) },
     }).bind(this.element);
+  }
+
+  /** Write one axis's default option (empty clears it) as a whole-array update, since a partial write would replace the array. */
+  async #setDefault(axisKey, optionKey) {
+    const axes = setAxisDefault(this.actor.system.toObject().axes, axisKey, optionKey);
+    await this.actor.update({ "system.axes": axes });
+    this.render();
   }
 
   async #onDropActor(event) {
@@ -274,10 +288,7 @@ export class TemplateSheet extends HandlebarsApplicationMixin(foundry.applicatio
   static async #onDeleteOption(event, target) {
     const row = target.closest("[data-axis-key][data-option-key]");
     if (!row) return;
-    const axes = this.actor.system.toObject().axes;
-    const axis = axes.find((a) => a.key === row.dataset.axisKey);
-    if (!axis) return;
-    axis.options = axis.options.filter((o) => o.key !== row.dataset.optionKey);
+    const axes = removeAxisOption(this.actor.system.toObject().axes, row.dataset.axisKey, row.dataset.optionKey);
     await this.actor.update({ "system.axes": axes });
     this.render();
   }

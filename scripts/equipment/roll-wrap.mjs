@@ -15,6 +15,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { encumbranceDelta6 } from "./containers.mjs";
 import { settleShot } from "./on-hit.mjs";
+import { settleManeuver } from "./maneuver-save.mjs";
 import { rowsSettled } from "./weapon-rows.mjs";
 import { attackThrowRows, damageRows, attackTypesFor, damageModesFor, damageFormulaFor, ATTACK_TYPE } from "./attack-mods.mjs";
 import { addAttackContributor, attackInFlight, POST_ATTACK_HOOK } from "../lib/patches/attack-throw.mjs";
@@ -48,9 +49,10 @@ export const equipmentContributor = Object.freeze({
 /**
  * Spend ammunition, or mark a thrown weapon thrown, once an attack has
  * RESOLVED, and post the on-hit card where the shot's ammunition asks one
- * (`settleShot`). One attack is one shot: the system rolls one throw per call. A
- * cancelled dialog fires no post-attack hook, so it spends nothing. Both are
- * fire-and-forget: a failed decrement or post never fails the attack.
+ * (`settleShot`) and the save card of a maneuver that hit and calls a save
+ * (`settleManeuver`). One attack is one shot: the system rolls one throw per
+ * call. A cancelled dialog fires no post-attack hook, so it spends nothing.
+ * Each is fire-and-forget: a failed decrement or post never fails the attack.
  */
 function onAttackResolved(actor, ctx, outcome) {
   try {
@@ -59,6 +61,7 @@ function onAttackResolved(actor, ctx, outcome) {
     const kind = outcome?.result?.attackType ?? ctx.type;
     const type = kind === ATTACK_TYPE.melee ? "melee" : "missile";
     settleShot({ actor, item, ctx, outcome, type });
+    settleManeuver({ actor, item, ctx, outcome });
   } catch (err) {
     console.error(`${MODULE_ID} | ammunition consumption skipped`, err);
   }

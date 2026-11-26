@@ -103,9 +103,12 @@ const sign = (n) => (n > 0 ? `+${n}` : String(n));
  * @param {boolean} [opts.targetShaft] sunder: target weapon is a staff/spear/polearm
  * @param {boolean} [opts.hooked] MM hooked weapon (disarm)
  * @returns {{attackPenalty:number|null, targetSaveMod:number|null, save:string|null,
- *   notes:string[], missing:string[], parts:{part:string, value:number, table:string}[]}|null}
+ *   notes:string[], missing:string[], parts:{part:string, value:number, table:string}[],
+ *   saveParts:{part:string, value:number, table:string}[]}|null}
  *   `parts` are the attack penalty's read parts (`base`, `trickery`, `hooked`, or
- *   a weapon quality's key) with the `equipment` table each came from; `missing`
+ *   a weapon quality's key) with the `equipment` table each came from;
+ *   `saveParts` are the target's save modifier's read parts (`trickery`, `hooked`,
+ *   `twoHanded`), a positive value helping the saver; `missing`
  *   is `<table>.<field>` for every part needed and not read. Null for an unknown key.
  */
 export function maneuverMods(actor, profile, key, opts = {}) {
@@ -114,6 +117,7 @@ export function maneuverMods(actor, profile, key, opts = {}) {
   const notes = [];
   const missing = [];
   const parts = [];
+  const saveParts = [];
   const read = (table, field) => {
     const v = figureOf(table, field);
     if (v == null) missing.push(`${table}.${field}`);
@@ -142,7 +146,11 @@ export function maneuverMods(actor, profile, key, opts = {}) {
       parts.push({ part: "trickery", value: reduction, table: MANEUVER_TABLES.trickery });
       notes.push(`Combat Trickery (${m.label}) ${sign(reduction)}`);
     }
-    if (m.save) targetSaveMod = plus(targetSaveMod, read(MANEUVER_TABLES.trickery, "saveMod"));
+    if (m.save) {
+      const saveMod = read(MANEUVER_TABLES.trickery, "saveMod");
+      targetSaveMod = plus(targetSaveMod, saveMod);
+      if (saveMod != null) saveParts.push({ part: "trickery", value: saveMod, table: MANEUVER_TABLES.trickery });
+    }
   }
 
   // MM hooked weapons behave as Combat Trickery for disarm.
@@ -153,7 +161,9 @@ export function maneuverMods(actor, profile, key, opts = {}) {
       parts.push({ part: "hooked", value: reduction, table: MANEUVER_TABLES.hooked });
       notes.push(`hooked weapon ${sign(reduction)}`);
     }
-    targetSaveMod = plus(targetSaveMod, read(MANEUVER_TABLES.hooked, "saveMod"));
+    const saveMod = read(MANEUVER_TABLES.hooked, "saveMod");
+    targetSaveMod = plus(targetSaveMod, saveMod);
+    if (saveMod != null) saveParts.push({ part: "hooked", value: saveMod, table: MANEUVER_TABLES.hooked });
   }
 
   // Weapon qualities.
@@ -171,8 +181,11 @@ export function maneuverMods(actor, profile, key, opts = {}) {
   if (key === "disarm" && opts.targetTwoHanded) {
     const bonus = read(MANEUVER_TABLES.disarm, "twoHandedSave");
     targetSaveMod = plus(targetSaveMod, bonus);
-    if (bonus != null) notes.push(`target wields two-handed: saves ${sign(bonus)}`);
+    if (bonus != null) {
+      saveParts.push({ part: "twoHanded", value: bonus, table: MANEUVER_TABLES.disarm });
+      notes.push(`target wields two-handed: saves ${sign(bonus)}`);
+    }
   }
 
-  return { attackPenalty, targetSaveMod, save: m.save, notes, missing, parts };
+  return { attackPenalty, targetSaveMod, save: m.save, notes, missing, parts, saveParts };
 }

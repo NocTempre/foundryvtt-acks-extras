@@ -13,7 +13,7 @@ import { readFileSync } from "node:fs";
 import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
 import {
   ACTS, ATTACK_KINDS, CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, CONDITION_IDS, CONDITION_SLOTS, LOSSES, SAVE_KINDS,
-  STACKS_FLAG, acMath, acWaivedSet, attackMath, conditionLabel, conditionNameKey, conditionSet, conditionValues, conditionsReady, endingAt, endingAtTurn, forbiddenBy,
+  STACKS_FLAG, acMath, acWaivedSet, acWaiverSources, attackMath, conditionLabel, conditionNameKey, conditionSet, conditionValues, conditionsReady, endingAt, endingAtTurn, forbiddenBy,
   giverOf, lostTo, rollMath, shieldOf, speedMath, subjectOf, systemEntryOf,
 } from "../scripts/lib/conditions.mjs";
 import { isShield, isWorn } from "../scripts/lib/item-model.mjs";
@@ -373,6 +373,25 @@ ok("subjectOf reads the waiver rows of an actor's abilities: ungated, a catalogu
   assert.deepEqual(subjectOf(actor(undefined)).acWaived, []);
   assert.deepEqual([...acWaivedSet(subjectOf(actor([ability([row()])])))].sort(), ["charging", "disordered"], "the subject an actor makes carries it into the decision");
   assert.deepEqual(subjectOf(actor([])).implied, [], "no effect, nothing implied");
+});
+
+ok("acWaiverSources names the abilities that waive each condition, with their pages; an implied condition takes its implier's", () => {
+  const row = (conditions) => ({ type: "modifier", target: "acWaiver", appliesTo: "self", conditions });
+  const ability = (name, cite, effects) => ({ type: "ability", name, flags: { "acks-extras": { ...(cite ? { cookbook: { cite } } : {}), extras: { effects } } } });
+  const actor = (items) => ({ statuses: new Set(), items, uuid: "Actor.w" });
+  const sources = acWaiverSources(actor([ability("Ability 3", "XX p. 00", [row(["charging", "retreating"])]), ability("Ability 4", "", [row(["retreating"])])]));
+  assert.deepEqual(sources.get("charging"), [{ name: "Ability 3", cite: "XX p. 00" }]);
+  assert.deepEqual(sources.get("retreating"), [{ name: "Ability 3", cite: "XX p. 00" }, { name: "Ability 4", cite: "" }]);
+  assert.deepEqual(sources.get("disordered"), [{ name: "Ability 3", cite: "XX p. 00" }, { name: "Ability 4", cite: "" }], "the disorder a waived charge or retreat brings is spared with it, by each ability that waives either");
+  assert.deepEqual(acWaiverSources(actor([ability("Ability 3", "XX p. 00", [row(["charging"])])])).get("disordered"), [{ name: "Ability 3", cite: "XX p. 00" }]);
+  assert.deepEqual([...sources.keys()].filter((id) => !["charging", "retreating", "disordered"].includes(id)), []);
+  assert.deepEqual(subjectOf(actor([ability("Ability 3", "XX p. 00", [row(["charging", "retreating"])])])).acWaived, ["charging", "retreating"], "an implied condition is not named in the subject's own list");
+  const twice = acWaiverSources(actor([ability("Ability 3", "XX p. 00", [row(["charging"])]), ability("Ability 3", "XX p. 00", [row(["charging"])])]));
+  assert.deepEqual(twice.get("charging"), [{ name: "Ability 3", cite: "XX p. 00" }], "the same source is named once");
+  assert.deepEqual(acWaiverSources(actor([ability("", "", [row(["charging"])])])).get("charging"), [], "an ability with no name names the condition and no source");
+  assert.equal(acWaiverSources(actor([ability("A", "", [{ ...row(["charging"]), gate: { kind: "status", status: "x" } }])])).size, 0, "a row the subject does not read names no source");
+  assert.equal(acWaiverSources(actor([{ ...ability("A", "", [row(["charging"])]), type: "weapon" }])).size, 0);
+  assert.equal(acWaiverSources(null).size, 0);
 });
 
 ok("a condition only an effect carrying the status that implies it carries is implied; one another effect also carries is not", () => {

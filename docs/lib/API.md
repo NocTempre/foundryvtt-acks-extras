@@ -2270,7 +2270,10 @@ opt-in, never rolled, every checked option applies in list order (stacked
 add-ons instead of a combinatorial option list). A dropped base actor
 SEEDS generation (full system/items/flags, patches layered on top), so
 templates COMPOSE: generate a Goblin Chieftain, drop it on Vampire Thrall.
-The sheet's edit mode adds/removes axes and options and CAPTURES a dropped
+The sheet's edit mode adds/removes axes and options, sets each single axis's
+`default` from a Default select (None clears it; a multi axis never reads a
+default and has no select; deleting the default option clears it —
+`setAxisDefault` / `removeAxisOption` in `template-logic.mjs`), and CAPTURES a dropped
 actor as an option's preset — hand-built families with no import, post-import
 extension, and cross-book merging all ride that one gesture; capturing into
 an otherwise-empty template adopts the source actor's TYPE (mounts and pack

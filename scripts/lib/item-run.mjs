@@ -531,12 +531,14 @@ function lifeOf(subjectToken, edge = "start") {
  * The options a prompt card's own save modifier adds to its save (`saveSpec`'s `situational`, which rides on the
  * throw: a positive figure helps the saver). The one reader of `card.saveMod`: the throw a seat rolls
  * (`pressRoll`) and the target the GM recomputes (`pressHere`) both take their save through it, so the two
- * agree. A card holding no modifier, a zero or a figure that is no number adds nothing.
+ * agree. A card holding no modifier, a zero or a figure that is no number adds nothing. A card whose
+ * `saveMagical` is `false` (a fact its post sets) throws the save as no save against magic, so the parts
+ * a magical throw alone takes stay off it; a card that says nothing keeps `saveSpec`'s default.
  */
 export function cardSaveOptions(card) {
   const raw = card?.saveMod;
   const mod = raw === null || raw === undefined || raw === "" ? NaN : Number(raw);
-  return Number.isFinite(mod) && mod !== 0 ? { situational: mod } : {};
+  return { ...(Number.isFinite(mod) && mod !== 0 ? { situational: mod } : {}), ...(card?.saveMagical === false ? { magical: false } : {}) };
 }
 
 /** The fight's present initiative as `momentKey` reads it: all null outside a begun fight. */

@@ -1238,6 +1238,17 @@ await t("an on-hit card speaks for the attacker: the struck token's owner presse
   me.current = users[0];
 });
 
+await t("a card that words its own modifier tooltip (`saveLabel`) shows that label, not the row's, and a failure of a kind that writes nothing reads Failed alone", async () => {
+  await presenter.presentUse(outcomePost("maneuverSave", "swMan", { itemName: "Knock Down: Archer against Struck", actorUuid: "A.at", actorName: "Archer", subjects: [{ key: "S.s", name: "Struck" }], saveName: "blast", saveMod: -3, facts: { maneuver: "knockDown", cite: "Book p. 5", saveLabel: "Own label: part −3" } }));
+  const body = bodyOf("outcomeBody", "swMan", users[0]);
+  assert.ok(body.includes('data-tooltip-text="Own label: part −3: −3 (Book p. 5)"'), "the card's own label leads the tooltip");
+  assert.ok(!body.includes(L("saveModTip")), "the row's wording is not used beside it");
+  outcomeFor("swMan").entries["S~s"] = { subject: "S.s", state: "applied", saved: false, total: 3, target: 14, recordIds: [], names: [], life: "raised", presser: "pb" };
+  const failed = bodyOf("outcomeBody", "swMan", users[0]);
+  assert.ok(failed.includes(L("failed")) && !failed.includes(L("onHitLine")), "Failed, with no delayed damage");
+  me.current = users[0];
+});
+
 await t("an unknown drinker's card: Heal and Ask the save for a seat that owns the drinker's actor (a Judge's seat owns every one), the note alone for any other seat, and blank dice a blank cell with the page", async () => {
   const gm = bodyOf("swigUnknownBody", "sw3", users[0]);
   const owner = bodyOf("swigUnknownBody", "sw3", users[1]);

@@ -22,6 +22,7 @@ import { registerClothingDeclaration } from "./clothing-declaration.mjs";
 import { registerEncumbranceWrap, registerRollWrap } from "./roll-wrap.mjs";
 import { registerDamagePrompt } from "./damage-prompt.mjs";
 import { installOnHit } from "./on-hit.mjs";
+import { installManeuverSave } from "./maneuver-save.mjs";
 import { registerSheet } from "./sheet.mjs";
 import { registerItemSheet, ITEM_SHEET_TEMPLATES } from "./item-sheet/sheet.mjs";
 import { advanceWieldedOnLevelUp, levelsGained } from "./overlays/named.mjs";
@@ -160,6 +161,8 @@ Hooks.once("setup", () => {
   // The writer of the on-hit card's Save press, which runs on the GM's window
   // whatever the roll setting says.
   installOnHit().catch((err) => console.error(`${MODULE_ID} | failed to register the on-hit outcome`, err));
+  // The same for the maneuver save card's, which records a verdict and no more.
+  installManeuverSave().catch((err) => console.error(`${MODULE_ID} | failed to register the maneuver save outcome`, err));
   if (!game.settings.get(MODULE_ID, SETTINGS.ROLL_AUTOMATION)) return;
   try {
     registerRollWrap();

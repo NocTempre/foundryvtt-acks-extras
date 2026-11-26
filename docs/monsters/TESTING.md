@@ -683,8 +683,8 @@ what each wrote by ordinal, to be read against the two printed tables by hand.
 `generateFromTemplate(template, {pins: {variant, role, gear: [<row key>]}})`,
 the key read from `importedOrganisation().equipment` by the row whose figures
 hold the key the step names, or by `figuresFrom` (never by label), then
-`api.track` it. A monster has no manoeuvre row on a weapon's Rolls tab, so a
-manoeuvre on a generated creature is driven the way that tab's Roll does:
+`api.track` it. A monster's weapon lists the manoeuvre rows on its Rolls tab
+(the overlay on), and a row's press is the call a scripted manoeuvre makes:
 `actor.makeAttackThrow({item, attackType: "melee", acksLib: {maneuver:
 "disarm"}})`, the item a melee weapon of the creature; the card is read off the
 chat message. The rider and the hooked part are read from `damageRows` and

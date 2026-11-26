@@ -485,7 +485,8 @@ export function weaponGatesOf(item) {
  * The key under `flags[MODULE_ID]` that holds what a card names inside its
  * target's Armor Class: `{target, rows: [{name, value}]}`, the target's name
  * and each condition effect's own name with its signed step, as they stood when
- * the attack was rolled.
+ * the attack was rolled. A step the target's waiver spares is `{name, waived:
+ * true, by: [{name, cite}]}` and carries no figure.
  */
 export const TARGET_AC_FLAG = "targetAc";
 
@@ -497,7 +498,8 @@ let targetAcReader = null;
 
 /**
  * Install the reader of the condition steps inside a target's Armor Class:
- * `reader(targetActor)` answers `[{name, value}]`, empty for none. The seam
+ * `reader(targetActor)` answers `[{name, value}]`, or a waived step as
+ * `{name, waived: true, by}`; empty for none. The seam
  * calls it once per attack, before the system rolls, and holds the answer for
  * the card the attack posts. Passing a non-function removes the reader.
  */
@@ -505,19 +507,29 @@ export function setTargetAcReader(reader) {
   targetAcReader = typeof reader === "function" ? reader : null;
 }
 
+/** The `{name, cite}` sources of a waived row, as plain strings; none where the row names none. */
+const byOfRow = (row) =>
+  (Array.isArray(row?.by) ? row.by : [])
+    .filter((b) => b && typeof b.name === "string" && b.name)
+    .map((b) => ({ name: b.name, cite: String(b.cite ?? "") }));
+
 /**
  * What an attack names inside its target's Armor Class, or null: a reader is
  * installed, the context has a target actor, and the reader answers at least
- * one row. A reader that throws is reported and the attack goes ahead unnamed.
+ * one row. A row is a step with its figure, or a waived step (`waived: true`
+ * and `by`, the abilities that waive it) with none. A reader that throws is
+ * reported and the attack goes ahead unnamed.
  *
  * @param {{targetActor?: Actor|null, targetName?: string|null}} ctx
- * @returns {{target: string, rows: Array<{name: string, value: number}>}|null}
+ * @returns {{target: string, rows: Array<{name: string, value?: number, waived?: boolean, by?: Array<{name: string, cite: string}>}>}|null}
  */
 export function targetAcOf(ctx) {
   if (!targetAcReader || !ctx?.targetActor) return null;
   try {
     const read = targetAcReader(ctx.targetActor);
-    const rows = (Array.isArray(read) ? read : []).filter((r) => r && Number.isFinite(r.value)).map((r) => ({ name: String(r.name ?? ""), value: r.value }));
+    const rows = (Array.isArray(read) ? read : [])
+      .filter((r) => r && (r.waived === true || Number.isFinite(r.value)))
+      .map((r) => (r.waived === true ? { name: String(r.name ?? ""), waived: true, by: byOfRow(r) } : { name: String(r.name ?? ""), value: r.value }));
     return rows.length ? { target: String(ctx.targetName ?? ""), rows } : null;
   } catch (err) {
     console.error(`${MODULE_ID} | the target's Armor Class could not be read for the card; the card names none`, err);
@@ -537,7 +549,7 @@ export function targetAcOf(ctx) {
 export function targetAcMatch({ actorUuids = [], content = "" } = {}, byUuid = targetAcInFlight) {
   if (typeof content !== "string" || !content.includes("attack-throw-card")) return null;
   const held = heldUnder(actorUuids, byUuid);
-  return held ? { target: held.target, rows: held.rows.map((r) => ({ ...r })) } : null;
+  return held ? { target: held.target, rows: held.rows.map((r) => ({ ...r, ...(r.by ? { by: r.by.map((b) => ({ ...b })) } : {}) })) } : null;
 }
 
 /** The attribute `name` of the first apply-damage button in a card's markup, or null. */

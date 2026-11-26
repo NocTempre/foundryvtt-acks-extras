@@ -525,3 +525,30 @@ export function resolveActor(system, choices, { baseName = "", templateName = ""
   }
   return { name, system: merged, items, htmlParts, art, tint, flags, token, rollHp };
 }
+
+/**
+ * A copy of `axes` with one axis's `default` set to `optionKey`. An empty key,
+ * or one that names none of the axis's options, clears the default, so a dead
+ * default is never stored. A multi axis is returned unchanged: its options are
+ * opt-in add-ons and `chooseAxes` never reads a default for it.
+ */
+export function setAxisDefault(axes, axisKey, optionKey) {
+  return (axes ?? []).map((axis) => {
+    if (axis.key !== axisKey || axis.multi) return { ...axis };
+    const stands = !!optionKey && (axis.options ?? []).some((o) => o.key === optionKey);
+    return { ...axis, default: stands ? optionKey : "" };
+  });
+}
+
+/**
+ * A copy of `axes` with one option removed from one axis. The axis's `default`
+ * is cleared when it named the removed option.
+ */
+export function removeAxisOption(axes, axisKey, optionKey) {
+  return (axes ?? []).map((axis) => {
+    if (axis.key !== axisKey) return { ...axis };
+    const next = { ...axis, options: (axis.options ?? []).filter((o) => o.key !== optionKey) };
+    if (axis.default === optionKey) next.default = "";
+    return next;
+  });
+}

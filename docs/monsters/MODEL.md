@@ -1038,9 +1038,9 @@ The rider and the hooked part follow the equipment feature's `overlayManeuvers`
 world setting, since both are parts of a manoeuvre: `damageRows` adds the rider
 as a signed dice fragment, labelled with the carrier's name and page, only for a
 manoeuvre declared with the attack (`acksLib: {maneuver}`), and `maneuverMods`
-adds the hooked part to a disarm. A monster has no manoeuvre row on a weapon's
-Rolls tab, so a manoeuvre on a generated creature is declared through the
-attack call. The weapon's own damage on those manoeuvres is unchanged. The save
+adds the hooked part to a disarm. A monster's weapon lists the manoeuvre rows on
+its Rolls tab from the same rows as a character's, and a row's press is that
+attack call (`acksLib: {maneuver}`). The weapon's own damage on those manoeuvres is unchanged. The save
 part of the hooked figures reaches the Rolls tab's tooltip only: no path rolls a
 manoeuvre's save.
 

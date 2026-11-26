@@ -258,4 +258,54 @@ test("the wear toggle's tooltip is its accessible name, and the key exists", () 
   assert.ok(lang["ACKS-LIB.followerCard.carried"] && lang["ACKS-LIB.followerCard.worn"]);
 });
 
+console.log("follower card: the parts behind armour class and morale");
+
+const { default: Handlebars } = await import("handlebars");
+const { followerCardContext } = await import("../scripts/lib/follower-card.mjs");
+Handlebars.registerHelper("localize", (key, opts) => (Object.keys(opts?.hash ?? {}).length ? `${key}|${Object.values(opts.hash).join(",")}` : key));
+const cardHbs = Handlebars.compile(fs.readFileSync("templates/lib/follower-card.hbs", "utf8"));
+const face = (extra, { editable, controls = !editable }) => cardHbs({ ac: 5, acBase: 5, morale: 1, moraleSigned: "+1", editable, controls, ...extra });
+
+const monsterActor = { type: "monster", id: "m1", name: "M", system: { ac: { value: 5 }, details: { morale: 1 }, hp: { value: 3, max: 3 } }, items: Object.assign([], { contents: [] }), flags: {} };
+globalThis.CONFIG = { Actor: { typeLabels: {} } };
+globalThis.foundry.applications = { ux: { TextEditor: { implementation: { enrichHTML: async (text) => text } } } };
+const ctxPlain = await followerCardContext(monsterActor, { editable: true, interactive: true });
+globalThis.Hooks.callAll = (_name, _actor, ctx) => {
+  ctx.acTip = "AC parts";
+  ctx.moraleTip = "Morale parts";
+};
+const ctxTips = await followerCardContext(monsterActor, { editable: true, interactive: true });
+globalThis.Hooks.callAll = () => {};
+
+test("the context carries null tips until a feature's hook sets them", () => {
+  assert.equal(ctxPlain.acTip, null);
+  assert.equal(ctxPlain.moraleTip, null);
+  assert.equal(ctxTips.acTip, "AC parts");
+  assert.equal(ctxTips.moraleTip, "Morale parts");
+});
+
+for (const [name, opts] of [["editable", { editable: true }], ["compact with controls", { editable: false, controls: true }], ["compact read-only", { editable: false, controls: false }]]) {
+  test(`${name}: a set tip reads as text on the armour class and morale cells`, () => {
+    const html = face({ acTip: "AC parts", moraleTip: "Morale parts" }, opts);
+    assert.match(html, /data-tooltip-text="AC parts"/);
+    assert.match(html, /data-tooltip-text="[^"]*Morale parts"/);
+    assert.ok(!html.includes("followerCard.acHint"), "the generic armour class line gives way");
+  });
+  test(`${name}: with no tip set, today's tooltips stay`, () => {
+    const html = face({}, opts);
+    assert.match(html, /data-tooltip="ACKS-LIB\.followerCard\.acHint\|5"/);
+    assert.ok(!html.includes('data-tooltip-text="AC parts"'));
+  });
+  test(`${name}: a hand-set armour class override keeps its own tooltip`, () => {
+    const html = face({ acTip: "AC parts", acOverridden: true, ac: 7 }, opts);
+    assert.match(html, /data-tooltip="ACKS-LIB\.followerCard\.acOverride|5,7\|7,5"/);
+    assert.ok(!html.includes('data-tooltip-text="AC parts"'));
+  });
+}
+
+test("the compact roll button keeps its throw wording ahead of the parts", () => {
+  const html = face({ moraleTip: "Morale parts" }, { editable: false, controls: true });
+  assert.match(html, /data-action="hirelingMorale" data-tooltip-text="ACKS-LIB\.followerCard\.moraleThrow\|\+1 · Morale parts"/);
+});
+
 console.log(`follower card: ${passed} passed`);

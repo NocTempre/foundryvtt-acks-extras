@@ -1647,14 +1647,72 @@ prints booleans and counts, never a page figure.
 
 What it cannot reach: a manoeuvre declared through a macro's `acksLib.maneuver`
 with a part unread (the throw goes out without the row and no warning is
-shown; the unit suite covers the null), and the `hooked`, `targetShaft` and
-`targetTwoHanded` options, which nothing in the module passes.
+shown; the unit suite covers the null), and the `targetShaft` option, which
+nothing in the module passes. The maneuver's save card has its own recipe
+below.
 
 ### Teardown
 
 The kept actor stays. The run's own cards are tracked by id and swept by that
 list, and the sweep object is printed; the overrides are cleared in a
 `finally`.
+
+## The maneuver's save card
+
+A maneuver that calls a save posts a card for its target after a hit
+(docs/equipment/MODEL.md, "The maneuver's save"). GM seat plus a Player seat
+that owns the target token; the roll-automation and maneuver-overlay settings
+on, the equipment tables for the maneuvers imported (the card's figure is the
+imported Combat Trickery save modifier and disarm's two-handed bonus).
+
+### Fixtures
+
+- **Kept, `equipment/maneuvers-actor`** (the fixture above): the attacker,
+  with the sword in hand and Combat Trickery naming `knockDown`.
+- **Kept, `equipment/maneuver-target`**: a `character` actor with one weapon
+  equipped (a one-handed one) and a linked token on the scene, owned by the
+  Player seat; **`equipment/maneuver-target-monster`**: a `monster` actor with
+  a token, no weapon and no stated size.
+- Both targets' tokens are targeted before each roll (`game.user.targets`),
+  and the sheet's attack throw is forced to hit and to miss by rigging the die
+  (`CONFIG.Dice.randomUniform`: on core 14, 0.025 throws a 20 and 0.975 a 1).
+
+### Steps
+
+1. Weapon sheet → Rolls tab → Knock Down against `maneuver-target`, die rigged
+   to a 20 (the attack hits). *Observable:* the chat log gets, after the attack
+   card, a card titled "Knock Down: <attacker> against <target>" with the page in
+   its subtitle; one row for the target carrying the Paralysis save, the figure
+   after it is the Trickery save modifier, its tooltip naming Combat Trickery,
+   the figure and the page. (Size-adjusted: the target is man-sized and so is the
+   character.) Track the card's message id.
+2. Press Save on the Player seat that owns the token. *Observable:* the row
+   reads Saved or Failed with the throw's total and target; the GM seat's row
+   shows the same; **neither actor changes** (no condition, no HP, no item).
+   The attacker's owner who does not own the target sees no row.
+3. Die rigged to a 1 (a miss). *Observable:* no second card.
+4. The same Knock Down against `maneuver-target-monster`. *Observable:* a card
+   posts with no save named and the Judge's line; on the GM seat the row offers
+   Passed and Failed; pressing one writes the verdict marked as the Judge's
+   call, and the Player seat has no press.
+5. Disarm against `maneuver-target` (one weapon, one-handed). *Observable:* the
+   save is named with no figure (a zero is left off). Equip a two-handed weapon
+   on the target instead: the figure is disarm's two-handed bonus, with a "Two-
+   handed grip" part in the tooltip.
+6. Incapacitate, and Sunder. *Observable:* Incapacitate posts no card (it calls
+   no save); Sunder posts the Judge's card with no save named.
+7. Turn the maneuver overlay off and roll Knock Down on a hit. *Observable:* no
+   card. Turn it on again.
+
+What it cannot reach: a maneuver rolled with roll automation off posts nothing
+(the seam is not installed; checked offline only), and a target with no token
+on the scene (nothing to target).
+
+### Teardown
+
+The kept actors and tokens stay. The run's own cards are tracked by message id
+and swept by that list, and the sweep object is printed; the rigged die and the
+overlay setting are restored in a `finally`.
 
 ## A spell book's pages and value
 
