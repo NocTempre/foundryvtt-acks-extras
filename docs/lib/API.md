@@ -1,4 +1,4 @@
-# lib API (apiVersion 99)
+# lib API (apiVersion 100)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 99,
+  apiVersion: 100,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
