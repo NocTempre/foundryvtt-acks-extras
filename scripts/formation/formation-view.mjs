@@ -109,7 +109,7 @@ import { planView } from "./turn-plan.mjs";
 import { buildCrossingView, canCross } from "./crossing.mjs";
 import { formatTurns, parseSpellTurns, turnDistance } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
-import { provisionForecast } from "./provisions.mjs";
+import { EPSILON, provisionForecast, provisionOf, tidy } from "./provisions.mjs";
 import { survivalStateOf, foodDaysOf, waterDaysOf } from "./provision-day.mjs";
 import {
   NOURISHMENT, HYDRATION, EXPOSURE, heatBurden, exposureBites,
@@ -1424,30 +1424,135 @@ function campSupplies(formation, t) {
   };
 }
 
+/** A figure in days as the camp prints it: two places at most, no trailing zeros. */
+const daysLabel = (n) => String(Math.round(Number(n) * 100) / 100);
+
+/** The kinds of provision each camp figure counts: the food figure takes hunted game too, as `foodDaysOf` does. */
+const CAMP_KINDS = Object.freeze({ food: ["food", "hunt"], water: ["water"] });
+
 /**
- * The camp: what the party is living on, and who is suffering for it — one
+ * Every provision item the actors carry that reads as one of `kinds` and still
+ * holds a unit, as `{actor, item, provision}`: the one walk the camp's
+ * tooltips and its vessel list share, over the same reader the forecast uses.
+ */
+function carriedProvisions(actors, kinds) {
+  const rows = [];
+  for (const actor of actors) {
+    for (const item of actor.items ?? []) {
+      const provision = provisionOf(item);
+      if (provision && provision.units > 0 && kinds.includes(provision.kind)) rows.push({ actor, item, provision });
+    }
+  }
+  return rows;
+}
+
+/** The page reference naming where a provision kind's size is printed; game reads as food. */
+const provisionCite = (kind) => game.i18n.localize(`ACKS-EQUIPMENT.itemSheet.provision.cite.${kind === "water" ? "water" : "food"}`);
+
+/** The word saying where an item's size came from, in the item sheet's own words. */
+function sizeSourceWord(provision) {
+  const key = { declared: "sourceHand", page: "sourcePage", name: "sourceName", foraged: "sourceForaged" }[provision.sizeSource];
+  return game.i18n.format(`ACKS-EQUIPMENT.itemSheet.provision.${key}`, { cite: provisionCite(provision.kind) });
+}
+
+/**
+ * The tooltip of the camp's Food or Water figure: the parts, each named, with
+ * this party's own numbers. A first line gives the figure, the person-days the
+ * packs pool and the mouths; then one line per sized item carried (its size
+ * and where the size came from, and for a vessel what is left), then one per
+ * item carried with no size, with the page that prints it. Water adds the
+ * need per person where today's weather raises it.
+ */
+function provisionTip(kind, actors, { figure, pooled, mouths, need = 1 }) {
+  const t = (key, data) => game.i18n.format(`ACKS-FORMATION.camp.tip.${key}`, data);
+  const lines = [t("head", {
+    kind: game.i18n.localize(`ACKS-FORMATION.camp.${kind}`),
+    figure: figure ?? "—",
+    pooled: daysLabel(pooled),
+    mouths,
+  })];
+  for (const { actor, item, provision } of carriedProvisions(actors, CAMP_KINDS[kind])) {
+    const base = { member: actor.name, item: item.name, units: provision.units };
+    if (!provision.sized) lines.push(t("unsized", { ...base, cite: provisionCite(provision.kind) }));
+    else if (provision.kind === "water") {
+      lines.push(t("sizedWater", { ...base, perUnit: daysLabel(provision.perUnit), left: daysLabel(provision.left), source: sizeSourceWord(provision) }));
+    } else lines.push(t("sized", { ...base, perUnit: daysLabel(provision.perUnit), source: sizeSourceWord(provision) }));
+  }
+  if (kind === "water" && need > 1) lines.push(t("need", { need: daysLabel(need) }));
+  return lines.join("\n");
+}
+
+/** The rungs of a ladder as `<option>` rows, the member's own marked selected. */
+const rungOptions = (rungs, current) => Object.entries(rungs).map(([value, { label }]) => ({
+  value, label: game.i18n.localize(label), selected: value === current,
+}));
+
+/**
+ * The camp: what the party is living on, and who is going without — one
  * section, since a Judge asks how long the packs last, who is going short,
  * and whether tonight's foraging is worth the hours together. `milesPerDay` is
  * the expedition's march day (`expeditionMiles`), which prices a search hour.
  * `stock` is the Judge's `hexStockView`, or null for a player: the search
  * selects (`presentOptions`, `targetOptions`) and the point names in them are
  * built only from it.
+ *
+ * `foodTip` and `waterTip` are the parts of the two figures (`provisionTip`).
+ * `vessels` is a row per water item a member carries, as `provisionOf` reads
+ * it; `canRefill` says this seat owns at least one member, whose vessels the
+ * Refill press fills. `members` is every member's hunger and thirst rung, the
+ * word for each and, where this seat owns the member (`editable`), the
+ * options of its rung menus; `handSet` marks a rung a hand set. Exposure and
+ * lost Constitution ride as a trailing note.
  */
 function buildCampView(formation, t, milesPerDay = 0, stock = null) {
   const { actors, mouths, burden, forecast, short } = campSupplies(formation, t);
+  const loc = (key, data) => (data ? game.i18n.format(key, data) : game.i18n.localize(key));
 
-  // Only the suffering are listed. A roster of well-fed names is noise, and it
-  // would bury the one person who is starving.
-  const suffering = actors
-    .map((a) => ({ name: a.name, ...survivalStateOf(a) }))
-    .filter((r) => r.nourishment !== "fed" || r.hydration !== "watered" || r.exposure !== "sheltered")
-    .map((r) => ({
-      name: r.name,
-      nourishment: r.nourishment === "fed" ? "" : game.i18n.localize(NOURISHMENT[r.nourishment].label),
-      hydration: r.hydration === "watered" ? "" : game.i18n.localize(HYDRATION[r.hydration].label),
-      exposure: r.exposure === "sheltered" ? "" : game.i18n.localize(EXPOSURE[r.exposure].label),
-      conLost: r.conLost,
-    }));
+  const pooled = {
+    food: actors.reduce((n, a) => n + foodDaysOf(a), 0),
+    water: actors.reduce((n, a) => n + waterDaysOf(a), 0),
+  };
+  const foodTip = provisionTip("food", actors, { figure: forecast.foodDays, pooled: pooled.food, mouths });
+  const waterTip = provisionTip("water", actors, { figure: forecast.waterDays, pooled: pooled.water, mouths, need: burden.waterNeed });
+
+  const vessels = carriedProvisions(actors, CAMP_KINDS.water).map(({ actor, item, provision }) => {
+    const unsized = !provision.sized;
+    const full = unsized ? null : tidy(provision.units * provision.perUnit);
+    const empty = !unsized && provision.left <= EPSILON;
+    let status;
+    if (unsized) status = loc("ACKS-FORMATION.camp.vessels.unsized", { cite: provisionCite("water") });
+    else if (empty) status = loc("ACKS-FORMATION.camp.vessels.empty");
+    else status = loc("ACKS-FORMATION.camp.vessels.left", { left: daysLabel(provision.left), full: daysLabel(full) });
+    // Where the figure comes from: the unit count, the size of a unit and where that size was read.
+    const tip = unsized ? "" : loc("ACKS-FORMATION.camp.vessels.tip", {
+      units: provision.units, perUnit: daysLabel(provision.perUnit), source: sizeSourceWord(provision),
+    });
+    return {
+      member: actor.name, actorId: actor.id, item: item.name, itemId: item.id, units: provision.units,
+      left: unsized ? null : provision.left, full, empty, unsized, cite: unsized ? provisionCite("water") : "", status, tip,
+    };
+  });
+
+  // Every member is listed: a rung is a control, and the Judge needs the
+  // well-fed beside the starving to set either by hand.
+  const members = actors.map((a) => {
+    const state = survivalStateOf(a);
+    const editable = !!a.isOwner;
+    return {
+      actorId: a.id,
+      name: a.name,
+      nourishment: state.nourishment,
+      hydration: state.hydration,
+      nourishmentLabel: loc(NOURISHMENT[state.nourishment].label),
+      hydrationLabel: loc(HYDRATION[state.hydration].label),
+      nourishmentOptions: editable ? rungOptions(NOURISHMENT, state.nourishment) : [],
+      hydrationOptions: editable ? rungOptions(HYDRATION, state.hydration) : [],
+      editable,
+      handSet: { ...state.handSet },
+      exposureLabel: state.exposure === "sheltered" ? "" : loc(EXPOSURE[state.exposure].label),
+      conLost: state.conLost,
+    };
+  });
 
   // What the picked slots could actually yield tonight.
   // The day board stores its picks as `activities` — reading a `slots` that
@@ -1510,8 +1615,12 @@ function buildCampView(formation, t, milesPerDay = 0, stock = null) {
     waterNeed: burden.waterNeed,
     thirstyWeather: burden.waterNeed > 1,
     short,
-    suffering,
-    anySuffering: suffering.length > 0,
+    foodTip,
+    waterTip,
+    vessels,
+    anyVessels: vessels.length > 0,
+    canRefill: actors.some((a) => a.isOwner),
+    members,
     forage,
     hunt,
     search,

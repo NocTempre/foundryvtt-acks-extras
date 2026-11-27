@@ -24,7 +24,7 @@ import {
   FED_FLAG, FOOD_AND_GAME, fedDayOf, refillActor, spendFood, spendShares, spendWater,
 } from "./provision-spend.mjs";
 import {
-  HELD, advanceSurvival, advanceExposureHour, survivalOf, freshSurvival,
+  HELD, advanceSurvival, advanceExposureHour, survivalOf, freshSurvival, setRung,
   heatBurden, thirstDie, coldDie, isDiceExpression,
 } from "../lib/survival.mjs";
 import { travelOf } from "./travel.mjs";
@@ -464,4 +464,21 @@ export async function runProvisionDay(formation) {
 /** One body's state, for a readout. Never throws on an unprovisioned actor. */
 export function survivalStateOf(actor) {
   return survivalOf(actor?.getFlag?.(MODULE_ID, SURVIVAL_FLAG) ?? freshSurvival());
+}
+
+/**
+ * Set one ladder of a body to a rung by hand (`setRung`), written to the actor
+ * as the seat. A body's owner may write its flag, so no Judge-only gate stands
+ * here: whether this seat may is the caller's test of the actor's ownership.
+ *
+ * @param {object} actor
+ * @param {"nourishment"|"hydration"} ladder
+ * @returns {Promise<object|null>} the state written, or null where the ladder
+ *   or the rung is unknown and nothing was written.
+ */
+export async function setBodyRung(actor, ladder, rung) {
+  const next = setRung(survivalStateOf(actor), ladder, rung);
+  if (!next) return null;
+  await actor.setFlag(MODULE_ID, SURVIVAL_FLAG, next);
+  return next;
 }

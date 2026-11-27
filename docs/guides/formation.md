@@ -462,9 +462,32 @@ items and the page that prints the size. Set the item's **Days per unit**
 item's row → its sheet, armed with the pencil → **Details** tab →
 **Provision**) and End day counts it from then on.
 
-Only the suffering are listed. Someone who is hungry, thirsty, hypothermic or
-losing Constitution appears with what it has cost them; the well-fed do not,
-because a full roster would bury the one who is starving.
+An item counts as food or water by what it is: an imported ration or vessel, a
+name that reads as one (a ration, a waterskin), or the **Provides** control on
+its **Details** tab, which also says the opposite for an item that only looks
+like one. A vessel may hold only part of a person's day, so the days of water
+are the sum of what the vessels hold, not a count of vessels. Hover the **Food**
+or **Water** figure in the Camp section to see its parts: each item carried,
+its size and where the size was read, and the people it is shared across. When
+a day's supply cannot give everyone a whole day, an even share deals a full
+portion, a half portion or none, nothing between.
+
+**Vessels** lists every water item a member carries, with what is left of it
+(or *empty*, or the page that prints its size where it has none). **Refill**,
+beside the caption, fills every sized vessel carried by a member you own; a
+Judge owns every member. What is left is also set on the item's **Details**
+tab. (Actors sidebar tab → a party actor → its sheet → **Wilderness** tab →
+**Camp** section → **Vessels**.)
+
+**Going without** lists every member with a hunger rung and a thirst rung. The
+seat that owns a member gets a menu for each rung and can set it by hand; any
+other seat reads the word. A rung set by hand wears a small *set by hand* mark,
+and the next **End day** that steps that ladder goes on from the rung set and
+takes the mark off. Hunger does not step down on short commons, only when the
+body is fed, so a hunger rung set high stays until then. Hours in the weather
+and Constitution lost show at the end of each member's row. (Actors sidebar tab
+→ a party actor → its sheet → **Wilderness** tab → **Camp** section → **Going
+without**.)
 
 **Hours in the weather** is yours to set. A marching day is not automatically a
 day spent unprotected, so the module does not assume one: say how long the

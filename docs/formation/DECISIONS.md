@@ -908,3 +908,19 @@ Qualifies "The Trapbreaking dialog is one window per party and character, and a 
 - A vessel sized by what it holds over a day's drink alone, where the page also counts the vessels to a day: a full complement would read just short of a day, and the camp would warn of thirst on a pack the page calls enough.
 
 **Cost.** A world imported before sizes were read, and every copy already on an actor, reads unsized until a repair (library items) or a hand size (copies). End day names those members and items rather than feeding them. A vessel's what-is-left is a stored figure that only End day, Refill and a hand change, so water found on the march counts once a Judge presses Refill or types it.
+
+## 2026-11-27 — The Camp's rung menus set a ladder by hand, and only a full day's water ends dehydration (T-0911)
+
+**Evidence.** Slice C built the Going without table from the board above (artboard Camp). Its implementer found that a body set dehydrated by hand read watered again after one dry day under the registry's threshold. Thirst's rung was read afresh from its clocks on any day short of full, while hunger's never steps down on short commons. The book ends dehydration only with a day's full water (RR ch. 6, Dehydration).
+
+**Ruled** (the batch's calls under the owner's three principles, on the board the orchestrator approved):
+- The Going without table lists every member. A seat that owns the member gets a menu per rung; any other seat sees the word. The list of the suffering it replaces offered no control.
+- A rung set by hand resets that ladder's runs to 0 and carries a "set by hand" mark. The next End day that steps the ladder clears the mark; a held ladder keeps it.
+- Thirst steps down only on a full day's water, as hunger does on a full ration. A short or dry day never ends dehydration. That is the printed procedure; the old reading let a half day after a dry one end it.
+- A water forage deposit that End day has drawn on gains what is found in its left as well as its quantity, so found water counts without a Refill. The entry above's cost line said otherwise; that line is overtaken.
+
+**Rejected.**
+- Leaving thirst as it was and narrowing the hint: a hand-set rung would hold for hunger and not for thirst, and the menu would promise what the next day undid.
+- Keeping the runs under a hand-set rung: a lowered rung would climb straight back on the next short day.
+
+**Cost.** A hand-set rung below what a body's history earned starts that ladder's clocks again. A body watered by a half day after a dry one now stays dehydrated until a full day's water.

@@ -8229,6 +8229,111 @@ await scenario("a refill fills the vessels of the members `only` accepts, leaves
   }
 });
 
+await scenario("the Refill press follows ownership of the actor holding the vessel: a seat owning no member is refused, an owner fills its own and no more, and a Judge fills every member's", async () => {
+  const { SHARED_ACTIONS } = await import("../scripts/formation/formation-actions.mjs");
+  const party = await provisionParty("Press Refill", [[flaskItem(2, 0.5), unsizedLoaf(1)], [flaskItem(1, 0.5)]]);
+  const [mine, theirs] = party.actors;
+  mine.ownership = { default: 0, PL1: 3 };
+  for (const actor of party.actors) Object.defineProperty(actor, "isOwner", { get: () => actor.testUserPermission(game.user) });
+  const [[mineFlask], [theirFlask]] = party.items;
+  const sheet = () => ({ formation: model.getFormation(party.id), render() {} });
+  const prior = game.user;
+  game.users.push({ id: "PL9", name: "Stranger", isGM: false, isSelf: false });
+  try {
+    await mineFlask.update({ "flags.acks-extras.provision.left": 0.25 });
+    await theirFlask.update({ "flags.acks-extras.provision.left": 0.25 });
+    const noticed = notices.length;
+
+    game.user = game.users.get("PL9");
+    await SHARED_ACTIONS.refillVessels.call(sheet());
+    assert.equal(mineFlask.flags["acks-extras"].provision.left, 0.25, "a seat owning no member fills nothing");
+    assert.equal(notices.length, noticed, "and says nothing");
+
+    game.user = game.users.get("PL1");
+    await SHARED_ACTIONS.refillVessels.call(sheet());
+    assert.equal(mineFlask.flags["acks-extras"].provision.left, undefined, "an owner's vessel is full");
+    assert.equal(theirFlask.flags["acks-extras"].provision.left, 0.25, "another member's is left");
+    assert.deepEqual(notices.at(-1), ["info", 'ACKS-FORMATION.camp.vessels.refilled {"count":1}'], "one notice counts what was filled");
+
+    game.user = game.users.get("GM1");
+    await SHARED_ACTIONS.refillVessels.call(sheet());
+    assert.equal(theirFlask.flags["acks-extras"].provision.left, undefined, "a Judge owns every actor, so no gate stands between");
+  } finally {
+    game.user = prior;
+    await disbandProvisioned(party);
+  }
+});
+
+await scenario("a rung menu writes the member's own flag as the seat: the rung, that ladder's clocks reset, a mark for that ladder; a seat that does not own the member writes nothing; End day takes the mark off the ladder it steps and not off one it holds", async () => {
+  const { bindCampRungs } = await import("../scripts/formation/formation-actions.mjs");
+  const { setRung } = await import("../scripts/lib/survival.mjs");
+  const party = await provisionParty("Rung Menu", [[loafItem(1)], [unsizedLoaf(1)]]);
+  const [mine, theirs] = party.actors;
+  mine.ownership = { default: 0, PL1: 3 };
+  for (const actor of party.actors) Object.defineProperty(actor, "isOwner", { get: () => actor.testUserPermission(game.user) });
+  const prior = game.user;
+  const selects = [];
+  const app = {
+    formation: model.getFormation(party.id),
+    render() {},
+    element: { querySelectorAll: (sel) => (sel === "select[data-rung-for]" ? selects : []) },
+  };
+  /** A rung select as the template draws it, with the listener the binder attaches. */
+  const menu = (actor, ladder) => {
+    const select = {
+      dataset: { rungFor: actor.id, ladder, pick: `rung-${actor.id}-${ladder}` }, value: "",
+      addEventListener(_type, fn) { this.change = fn; },
+    };
+    selects.push(select);
+    return select;
+  };
+  const flag = (actor) => actor.getFlag(MODULE_ID, SURVIVAL_FLAG);
+  try {
+    const hunger = menu(mine, "nourishment");
+    const thirst = menu(mine, "hydration");
+    const other = menu(theirs, "nourishment");
+    bindCampRungs(app);
+    bindCampRungs(app);
+    assert.ok(hunger.change && thirst.change && other.change, "each select is bound");
+
+    await mine.setFlag(MODULE_ID, SURVIVAL_FLAG, { nourishment: "fed", hydration: "watered", noFoodRun: 2, shortFoodRun: 4, noWaterRun: 1, conLost: 2 });
+    game.user = game.users.get("PL1");
+    hunger.value = "underfed";
+    await hunger.change();
+    assert.equal(flag(mine).nourishment, "underfed", "the rung is written to the member");
+    assert.deepEqual([flag(mine).noFoodRun, flag(mine).shortFoodRun], [0, 0], "that ladder's runs restart");
+    assert.equal(flag(mine).noWaterRun, 1, "the other ladder's do not");
+    assert.deepEqual(flag(mine).handSet, { nourishment: true, hydration: false });
+    assert.equal(flag(mine).conLost, 2, "what is not a rung is kept");
+
+    other.value = "starving";
+    await other.change();
+    assert.equal(flag(theirs), undefined, "a seat that does not own the member writes nothing");
+    assert.equal(notices.at(-1)[0], "warn", "and says so");
+
+    hunger.value = "peckish";
+    await hunger.change();
+    assert.equal(flag(mine).nourishment, "underfed", "a value that is no rung writes nothing");
+
+    // End day: the ladder it steps loses the mark; the ladder it holds keeps its own.
+    thirst.value = "dehydrated";
+    await thirst.change();
+    assert.deepEqual(flag(mine).handSet, { nourishment: true, hydration: true });
+    game.user = game.users.get("GM1");
+    await runProvisionDay(model.getFormation(party.id));
+    assert.deepEqual(flag(mine).handSet, { nourishment: false, hydration: false }, "both ladders were stepped, so neither mark stays");
+
+    await theirs.setFlag(MODULE_ID, SURVIVAL_FLAG, setRung(undefined, "nourishment", "underfed"));
+    await runProvisionDay(model.getFormation(party.id));
+    assert.deepEqual(flag(theirs).handSet, { nourishment: true, hydration: false }, "a member with an unsized ration has food held: that ladder keeps its mark");
+    assert.equal(flag(theirs).nourishment, "underfed");
+    assert.equal(flag(theirs).handSet.hydration, false, "and every key is written, so a merge cannot keep a stale one");
+  } finally {
+    game.user = prior;
+    await disbandProvisioned(party);
+  }
+});
+
 await scenario("a member's owner forms the party up through the relay: applied and announced once, and a forged or refused request writes nothing", async () => {
   const { saveTemplate, deleteTemplate } = await import("../scripts/formation/marching-templates.mjs");
   const party = await fightingParty("Relay Form Party", pressData("Form Owner", { owned: true }), "Form Other");

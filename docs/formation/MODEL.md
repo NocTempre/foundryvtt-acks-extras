@@ -2475,12 +2475,48 @@ these together: how long the packs last, who is going short, and whether
 tonight's chosen hours are worth spending. Three panels would hide the trade
 between them, and the trade is what the day board exists to make visible.
 
-It shows the supply forecast in days for the whole order, then **only the
-suffering** — a roster of well-fed names is noise that would bury the one
-person who is starving — and, Judge-side, what each picked slot is actually
-worth tonight: the forage targets for food, water and firewood, the hunting
-target moved by territory, and the search target with how many hours the board
-is holding for it. Anything unimported leaves its figure blank rather than showing a number.
+It shows the supply forecast in days for the whole order, then the **vessels**
+and a **Going without** table, and, Judge-side, what each picked slot is
+actually worth tonight: the forage targets for food, water and firewood, the
+hunting target moved by territory, and the search target with how many hours
+the board is holding for it. Anything unimported leaves its figure blank rather
+than showing a number.
+
+- **The two figures carry their parts.** The Food and Water days each have a
+  `data-tooltip-text` built at render (`provisionTip`): the figure, the
+  person-days the packs pool and the mouths, then a line per item carried,
+  `<member>: <item> ×<units>` with its size and where the size was read (the
+  item sheet's own source words, `provisionOf`'s `sizeSource`) and, for a
+  vessel, what is left; an item with no size is a line with the page reference
+  and no figure. Food counts hunted game as `foodDaysOf` does, so the lines add
+  up to the figure. Water adds the need per person where today's weather raises
+  it. The class `acks-extras-camp-tip` lets the tooltip keep its line breaks.
+- **Vessels** (`camp.vessels`, `camp.canRefill`): a row per water item a member
+  carries, `<member> · <item> ×<units>` against what is left of its full
+  complement, `empty` at nothing and the page reference where it has no size.
+  The Refill press (`refillVessels` in `SHARED_ACTIONS`) is drawn where the
+  seat owns a member and fills the vessels of the members whose actor it owns
+  (`actor.isOwner`; a Judge owns every actor, so no Judge-only gate stands); one
+  notice counts what was filled and names the unsized vessels left as they were.
+- **Going without** (`camp.members`): every member is a row, with the hunger
+  and thirst rung. A seat that owns the member (`editable`: the actor's
+  `isOwner` on this seat) gets a select for each ladder, its rungs the
+  `NOURISHMENT` and `HYDRATION` ladders in `lib/survival.mjs`; any other seat
+  reads the word. A rung set by hand carries a "set by hand" mark. Exposure
+  and the Constitution lost ride at the end of the row.
+
+**A rung set by hand** belongs to the actor, so it is routed round the
+formation record: each select is a staging pick (`data-pick`, no `name`) with
+`data-rung-for` and `data-ladder`, bound by `bindCampRungs`, whose `change`
+writes the actor's `survival` flag through `setBodyRung` as the seat, after
+checking the actor is a member's and is owned. The write is `setRung`: the rung
+chosen, that ladder's two runs reset, and `handSet[ladder]` true. Neither
+rung steps down on a day short of full, so a hand-set higher rung stays until
+the body gets a full day's ration or water. The mark lives
+in the flag as `handSet: {nourishment, hydration}`, both keys always written
+(a stored flag merges objects, so a missing key would keep a stale `true`).
+`survivalOf` carries it, and `advanceSurvival` clears the mark of each ladder
+the day steps; a ladder passed as `HELD` is not stepped, so it keeps its mark.
 
 A seat that owns a member also carries the camp's exposure (hours, at a heat
 source, wet) and the three declarations, each a plain yes or no on the travel
@@ -2623,13 +2659,15 @@ the same day twice.
   ladder charges and recovers nothing. `HELD` is no member of `RATION_LEVELS`.
   The toll card names each such member, the items (`name ×count`) and the
   page reference, and a size set on the item brings the member back into the
-  next day's count.
+  next day's count. A held ladder is not stepped, so a rung set by hand on it
+  keeps its mark (§The camp panel).
 - **Refill** (`refillVessels(formation, {only})`, `provision-day.mjs`) sets
   every sized vessel of each member `only` accepts to full by unsetting its
   `left`, which reads as full and follows the stack's size. It returns
   `{filled, skipped}` as `{actor, item}` rows, `skipped` being the unsized
   vessels. It carries no Judge-only gate: who may press it is the caller's
-  `only`, by Foundry ownership of the actor holding the vessel.
+  `only`, by Foundry ownership of the actor holding the vessel. The Camp
+  section's Refill press calls it (§The camp panel), as does nothing else.
 - **Found water.** A forage deposit of water that lands on a deposit End day
   has drawn on raises its `left` by the days found as well as its quantity
   (`forage-run.mjs` `deposit`), so what is found is counted.

@@ -337,15 +337,90 @@
     <div class="acks-extras-formation-camp">
       <p class="acks-extras-formation-camp-supply">
         {{localize "ACKS-FORMATION.camp.food"}}:
-        <strong class="{{#if travel.camp.short}}acks-extras-formation-camp-short{{/if}}">{{travel.camp.forecast.foodDays}}</strong>
+        <strong class="{{#if travel.camp.short}}acks-extras-formation-camp-short{{/if}}"
+                data-tooltip-text="{{travel.camp.foodTip}}" data-tooltip-class="acks-extras-camp-tip">{{travel.camp.forecast.foodDays}}</strong>
         &middot; {{localize "ACKS-FORMATION.camp.water"}}:
-        <strong class="{{#if travel.camp.short}}acks-extras-formation-camp-short{{/if}}">{{travel.camp.forecast.waterDays}}</strong>
+        <strong class="{{#if travel.camp.short}}acks-extras-formation-camp-short{{/if}}"
+                data-tooltip-text="{{travel.camp.waterTip}}" data-tooltip-class="acks-extras-camp-tip">{{travel.camp.forecast.waterDays}}</strong>
         <span class="hint">{{localize "ACKS-FORMATION.camp.days" mouths=travel.camp.mouths}}</span>
         {{#if travel.camp.thirstyWeather}}
         <span class="acks-extras-formation-camp-short"
               data-tooltip="{{localize 'ACKS-FORMATION.camp.thirstyHint'}}">{{localize "ACKS-FORMATION.camp.thirsty"}}</span>
         {{/if}}
       </p>
+
+      {{#if travel.camp.anyVessels}}
+      <div class="acks-extras-formation-camp-vessels">
+        <div class="acks-extras-formation-camp-caption">
+          <h3 class="acks-extras-formation-camp-subtitle">{{localize "ACKS-FORMATION.camp.vessels.title"}}</h3>
+          {{#if travel.camp.canRefill}}
+          <button type="button" data-action="refillVessels"
+                  data-tooltip="{{localize 'ACKS-FORMATION.camp.vessels.refillTip'}}">
+            <i class="fa-solid fa-droplet" inert></i> {{localize "ACKS-FORMATION.camp.vessels.refill"}}
+          </button>
+          {{/if}}
+        </div>
+        <ul class="acks-extras-formation-camp-vessel-list">
+          {{#each travel.camp.vessels}}
+          <li class="acks-extras-formation-camp-vessel{{#if empty}} is-empty{{/if}}">
+            <span>{{member}} &middot; {{item}} &times;{{units}}</span>
+            <span class="acks-nums" data-tooltip-text="{{tip}}">{{status}}</span>
+          </li>
+          {{/each}}
+        </ul>
+        <p class="hint">{{localize "ACKS-FORMATION.camp.vessels.hint"}}</p>
+      </div>
+      {{/if}}
+
+      {{#if travel.camp.members.length}}
+      <div class="acks-extras-formation-camp-without">
+        <h3 class="acks-extras-formation-camp-subtitle">{{localize "ACKS-FORMATION.camp.without.title"}}</h3>
+        <table class="acks-extras-formation-camp-without-table">
+          <thead>
+            <tr>
+              <th scope="col">{{localize "ACKS-FORMATION.camp.without.member"}}</th>
+              <th scope="col">{{localize "ACKS-FORMATION.camp.without.hunger"}}</th>
+              <th scope="col">{{localize "ACKS-FORMATION.camp.without.thirst"}}</th>
+              <th scope="col"><span class="acks-sr-only">{{localize "ACKS-FORMATION.camp.without.other"}}</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each travel.camp.members}}
+            <tr>
+              <th scope="row">{{name}}</th>
+              <td>
+                {{#if editable}}
+                <label>
+                  <span class="acks-sr-only">{{localize "ACKS-FORMATION.camp.without.hungerOf" name=name}}</span>
+                  <select data-pick="rung-{{actorId}}-nourishment" data-rung-for="{{actorId}}" data-ladder="nourishment">
+                    {{#each nourishmentOptions}}<option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+                  </select>
+                </label>
+                {{else}}{{nourishmentLabel}}{{/if}}
+                {{#if handSet.nourishment}}<span class="acks-extras-formation-camp-hand" data-tooltip="{{localize 'ACKS-FORMATION.camp.without.handSetTip'}}">{{localize "ACKS-FORMATION.camp.without.handSet"}}</span>{{/if}}
+              </td>
+              <td>
+                {{#if editable}}
+                <label>
+                  <span class="acks-sr-only">{{localize "ACKS-FORMATION.camp.without.thirstOf" name=name}}</span>
+                  <select data-pick="rung-{{actorId}}-hydration" data-rung-for="{{actorId}}" data-ladder="hydration">
+                    {{#each hydrationOptions}}<option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+                  </select>
+                </label>
+                {{else}}{{hydrationLabel}}{{/if}}
+                {{#if handSet.hydration}}<span class="acks-extras-formation-camp-hand" data-tooltip="{{localize 'ACKS-FORMATION.camp.without.handSetTip'}}">{{localize "ACKS-FORMATION.camp.without.handSet"}}</span>{{/if}}
+              </td>
+              <td class="acks-extras-formation-camp-note">
+                {{#if exposureLabel}}<span>{{exposureLabel}}</span>{{/if}}
+                {{#if conLost}}<span class="acks-extras-formation-camp-short" data-tooltip="{{localize 'ACKS-FORMATION.camp.without.conLostTip'}}">&minus;{{conLost}} CON</span>{{/if}}
+              </td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+        <p class="hint">{{localize "ACKS-FORMATION.camp.without.hint"}}</p>
+      </div>
+      {{/if}}
 
       {{#if seat.ownsMember}}
       <p class="acks-extras-formation-camp-exposure">
@@ -384,19 +459,6 @@
           {{localize "ACKS-FORMATION.travel.camp.sleepInArmour"}}
         </label>
       </p>
-      {{/if}}
-
-      {{#if travel.camp.anySuffering}}
-      <ul class="acks-extras-formation-camp-suffering">
-        {{#each travel.camp.suffering}}
-        <li><strong>{{name}}</strong>
-          {{#if nourishment}}<span>{{nourishment}}</span>{{/if}}
-          {{#if hydration}}<span>{{hydration}}</span>{{/if}}
-          {{#if exposure}}<span>{{exposure}}</span>{{/if}}
-          {{#if conLost}}<span class="acks-extras-formation-camp-short">&minus;{{conLost}} CON</span>{{/if}}
-        </li>
-        {{/each}}
-      </ul>
       {{/if}}
 
       {{#if isGM}}

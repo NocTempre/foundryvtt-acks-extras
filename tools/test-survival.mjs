@@ -14,7 +14,7 @@ import {
   SURVIVAL_DOC, NOURISHMENT, HYDRATION, EXPOSURE, RATION_LEVELS, HELD,
   freshSurvival, survivalOf, forbidden, draining,
   hungerRung, thirstRung, advanceSurvival, survivalReady,
-  exposureRung, advanceExposureHour, heatBurden, animalNeeds, simplifiedSupply,
+  exposureRung, advanceExposureHour, heatBurden, animalNeeds, simplifiedSupply, setRung,
 } from "../scripts/lib/survival.mjs";
 
 let passed = 0;
@@ -419,6 +419,52 @@ ok("a held ladder keeps its runs and rung, charges nothing and recovers nothing,
   assert.equal(mixed.state.noWaterRun, 1, "while water, dealt none, does");
   const owing = advanceSurvival({ ...freshSurvival(), conLost: 4 }, { food: "full", water: HELD });
   assert.equal(owing.recovered, 1, "a held ladder adds nothing to what a full one gives back");
+});
+
+ok("a rung set by hand restarts that ladder's clocks, carries a mark for that ladder alone, and survives normalising", () => {
+  load();
+  const worn = { ...run(3, { food: "none", water: "none" }), conLost: 2, hoursUnprotected: 5 };
+  assert.deepEqual(worn.handSet, { nourishment: false, hydration: false }, "a fresh body has no mark, spelt out for both ladders");
+  const set = setRung(worn, "nourishment", "starving");
+  assert.equal(set.nourishment, "starving");
+  assert.deepEqual([set.noFoodRun, set.shortFoodRun], [0, 0], "its runs restart");
+  assert.deepEqual([set.noWaterRun, set.hydration], [worn.noWaterRun, worn.hydration], "the other ladder is as it was");
+  assert.deepEqual(set.handSet, { nourishment: true, hydration: false });
+  assert.deepEqual([set.conLost, set.hoursUnprotected], [2, 5], "what is not a rung is kept");
+  assert.deepEqual(survivalOf(set).handSet, { nourishment: true, hydration: false }, "normalising keeps the mark");
+  assert.deepEqual(survivalOf({ handSet: { nourishment: "yes", hydration: 1 } }).handSet, { nourishment: false, hydration: false }, "and reads only a true as set");
+  assert.equal(setRung(worn, "nourishment", "peckish"), null, "a rung that is none is refused");
+  assert.equal(setRung(worn, "exposure", "sheltered"), null, "and a ladder a hand does not set");
+  assert.equal(setRung(worn, "hydration", "toString"), null, "an inherited key is no rung");
+  const thirst = setRung(worn, "hydration", "dehydrated");
+  assert.deepEqual([thirst.noWaterRun, thirst.shortWaterRun, thirst.noFoodRun], [0, 0, worn.noFoodRun], "thirst resets its own clocks only");
+  assert.deepEqual(thirst.handSet, { nourishment: false, hydration: true });
+  unregisterTable(SURVIVAL_DOC);
+});
+
+ok("a day that steps a ladder takes its mark off, a held ladder keeps it, and a hand-set hunger rung does not step down on short commons", () => {
+  load();
+  const set = setRung(setRung(freshSurvival(), "nourishment", "starving"), "hydration", "dehydrated");
+  const stepped = advanceSurvival(set, { food: "half", water: HELD }).state;
+  assert.deepEqual(stepped.handSet, { nourishment: false, hydration: true }, "food stepped, water held");
+  assert.equal(stepped.nourishment, "starving", "short commons never step a body down");
+  const fed = advanceSurvival(stepped, { food: "full", water: HELD }).state;
+  assert.equal(fed.nourishment, "underfed", "a full day does");
+  assert.equal(fed.handSet.hydration, true, "a ladder held every day keeps its mark");
+  const both = advanceSurvival(set, { food: "none", water: "full" }).state;
+  assert.deepEqual(both.handSet, { nourishment: false, hydration: false });
+  assert.equal(advanceExposureHour(set, { band: "frigid" }).state.handSet.nourishment, true, "the cold's hour leaves the marks alone");
+  unregisterTable(SURVIVAL_DOC);
+});
+
+ok("thirst ends only on a full day's water: a hand-set dehydrated body on a short day below the registry's threshold stays dehydrated", () => {
+  load();
+  const set = setRung(freshSurvival(), "hydration", "dehydrated");
+  assert.equal(advanceSurvival(set, { water: "none" }).state.hydration, "dehydrated", "one day with nothing is under the invented threshold of two, and still does not end it");
+  assert.equal(advanceSurvival(set, { water: "half" }).state.hydration, "dehydrated", "a half day does not end it");
+  assert.equal(advanceSurvival(set, { water: "full" }).state.hydration, "watered", "a full day ends it");
+  assert.equal(advanceSurvival(set, { water: HELD }).state.hydration, "dehydrated", "a held day keeps it");
+  unregisterTable(SURVIVAL_DOC);
 });
 
 console.log("\ntest-survival: all " + passed + " checks passed");

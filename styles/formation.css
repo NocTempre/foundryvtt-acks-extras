@@ -3649,15 +3649,76 @@
   color: var(--acks-danger-ink);
 }
 
-.acks-extras-formation-camp-suffering {
-  margin: 0 0 var(--acks-sp-2);
-  padding-left: var(--acks-sp-6);
+/* The parts of the Food and Water figures are one line each. */
+#tooltip.acks-extras-camp-tip {
+  white-space: pre-line;
+}
+
+.acks-extras-formation-camp-vessels,
+.acks-extras-formation-camp-without {
+  margin: 0 0 var(--acks-sp-3);
   font-size: var(--acks-fs-label);
+}
+
+.acks-extras-formation-camp-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-formation-camp-subtitle {
+  margin: 0;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-formation-camp-vessel-list {
+  margin: var(--acks-sp-1) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acks-extras-formation-camp-vessel {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-formation-camp-vessel.is-empty {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-formation-camp-without-table {
+  width: 100%;
+  margin: var(--acks-sp-1) 0;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.acks-extras-formation-camp-without-table th,
+.acks-extras-formation-camp-without-table td {
+  padding: var(--acks-sp-1) var(--acks-sp-2) var(--acks-sp-1) 0;
+  vertical-align: middle;
+}
+
+.acks-extras-formation-camp-without-table select {
+  max-width: 100%;
+}
+
+.acks-extras-formation-camp-note span {
+  margin-right: var(--acks-sp-2);
   color: var(--acks-warning-ink);
 }
 
-.acks-extras-formation-camp-suffering span {
-  margin-left: var(--acks-sp-2);
+.acks-extras-formation-camp-note .acks-extras-formation-camp-short {
+  color: var(--acks-danger-ink);
+}
+
+/* A rung a hand set reads as set by hand, small beside the rung. */
+.acks-extras-formation-camp-hand {
+  margin-left: var(--acks-sp-1);
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
 }
 
 .acks-extras-formation-camp-throw {

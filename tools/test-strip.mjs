@@ -1116,6 +1116,124 @@ const stripOf = (id) => {
   assert.equal(count(padded, "acks-extras-where__cell is-empty"), 2, "the two corners a row grid has no neighbour in stay empty");
   shownScene.tokens.delete(shade.id);
   settings.formations[veiled].travel.lost = {};
+
+  // ---- The camp: the parts of the two figures, the vessels, and the Going without table ----
+  // Invented items and sizes only. Three members: one the seat owns carrying
+  // sized and hand-sized food and two vessels, one it does not own carrying
+  // an item that reads as food and has no size, and a third with nothing.
+  {
+    const camp = makeScene("S.strip.camp.view", { kind: "hex", miles: TABLE_MILES });
+    const campToken = makeToken(camp, "t.strip.camp.view");
+    const id = makeFormation(camp, campToken);
+    const plain = (name, qty, flags) => ({
+      id: `i.${name}`, name, type: "item", system: { quantity: qty }, flags, getFlag: (ns, key) => flags[ns]?.[key],
+    });
+    const item = (name, qty, provision) => plain(name, qty, { "acks-extras": { provision } });
+    const mine = actors.get(`a${id}`);
+    Object.assign(mine, {
+      name: "Hale", isOwner: true,
+      items: [
+        item("Trail Loaf", 3, { kind: "food", perUnit: 2 }),
+        item("Pot Bread", 2, { kind: "food" }),
+        item("Flask", 2, { kind: "water", perUnit: 0.5, left: 0.25 }),
+        item("Skin", 1, { kind: "water", perUnit: 0.5, left: 0 }),
+        item("Cup", 1, { kind: "water" }),
+        plain("Sword", 1, {}),
+      ],
+    });
+    const theirs = { ...mine, id: `b${id}`, name: "Moss", isOwner: false, items: [item("Dry Biscuit", 2, { kind: "food" })] };
+    const idle = { ...mine, id: `c${id}`, name: "Reed", isOwner: false, items: [] };
+    for (const a of [theirs, idle]) {
+      actors.set(a.id, a);
+      settings.formations[id].members.push({ actorId: a.id, roles: [] });
+    }
+    // Hale's hunger is set by hand to a rung; Moss is starving by the clocks.
+    mine.getFlag = (_ns, key) => (key === "survival"
+      ? { nourishment: "hungry", handSet: { nourishment: true, hydration: false } } : undefined);
+    theirs.getFlag = (_ns, key) => (key === "survival" ? { hydration: "dehydrated", exposure: "hypothermic", conLost: 3 } : undefined);
+
+    const campOf = (seatIsGM) => {
+      const was = game.user;
+      game.user = { isGM: seatIsGM, id: seatIsGM ? "gm1" : "pl1" };
+      try {
+        return buildFormationView(getFormation(id)).travel.camp;
+      } finally {
+        game.user = was;
+      }
+    };
+    const view = campOf(true);
+
+    // The parts of the Food figure: its first line, then each item, hand-sized and unsized apart.
+    const foodLines = view.foodTip.split("\n");
+    assert.match(foodLines[0], /^ACKS-FORMATION\.camp\.tip\.head \{"kind":"ACKS-FORMATION\.camp\.food","figure":\d+,"pooled":"6","mouths":3\}$/, "the figure, the person-days pooled and the mouths");
+    assert.equal(foodLines.length, 4, "a line for each of the two food items and the one with no size");
+    assert.ok(foodLines[1].includes('"item":"Trail Loaf"') && foodLines[1].includes('"units":3') && foodLines[1].includes('"perUnit":"2"')
+      && foodLines[1].includes("sourceHand"), "a sized item names its units, its size and that a hand set it");
+    assert.ok(foodLines[2].includes('"item":"Pot Bread"') && foodLines[2].includes("camp.tip.unsized") && foodLines[2].includes("provision.cite.food")
+      && !foodLines[2].includes("perUnit"), "an item with no size carries the page reference and no figure");
+    assert.ok(foodLines[3].includes('"member":"Moss"') && foodLines[3].includes("camp.tip.unsized"), "and a member's item is named under its owner");
+    assert.ok(!view.foodTip.includes("Flask") && !view.foodTip.includes("Sword"), "water and non-provisions are no part of Food");
+
+    // Water: the one sized vessel with what is left, the empty one, the one with no size.
+    const waterLines = view.waterTip.split("\n");
+    assert.ok(waterLines[0].includes('"pooled":"0.25"'), "the pool is what is left in the vessels");
+    assert.ok(waterLines[1].includes("camp.tip.sizedWater") && waterLines[1].includes('"left":"0.25"') && waterLines[1].includes('"perUnit":"0.5"'), "a vessel says what is left");
+    assert.ok(waterLines.some((l) => l.includes('"item":"Cup"') && l.includes("provision.cite.water")), "a vessel with no size carries the page");
+    assert.ok(!waterLines.some((l) => l.includes("camp.tip.need")), "no need line while the weather asks nothing more");
+
+    // The vessels: left, empty and unsized, each as the reader sees it.
+    assert.deepEqual(view.vessels.map((v) => [v.item, v.units, v.left, v.full, v.empty, v.unsized]), [
+      ["Flask", 2, 0.25, 1, false, false], ["Skin", 1, 0, 0.5, true, false], ["Cup", 1, null, null, false, true],
+    ]);
+    assert.ok(view.vessels[0].status.includes("camp.vessels.left") && view.vessels[0].status.includes('"left":"0.25"') && view.vessels[0].status.includes('"full":"1"'));
+    assert.equal(view.vessels[1].status, "ACKS-FORMATION.camp.vessels.empty");
+    assert.ok(view.vessels[2].status.includes("camp.vessels.unsized") && view.vessels[2].cite === "ACKS-EQUIPMENT.itemSheet.provision.cite.water");
+    assert.ok(view.vessels[0].tip.includes("camp.vessels.tip") && view.vessels[2].tip === "", "a sized vessel's figure says where it came from; an unsized one has none");
+
+    // Every member is a row, with the rung words and the seat's own menus.
+    assert.deepEqual(view.members.map((m) => [m.name, m.nourishment, m.hydration, m.editable]), [
+      ["Hale", "hungry", "watered", true], ["Moss", "fed", "dehydrated", false], ["Reed", "fed", "watered", false],
+    ]);
+    assert.deepEqual(view.members[0].handSet, { nourishment: true, hydration: false });
+    assert.deepEqual(view.members[1].handSet, { nourishment: false, hydration: false }, "a state with no mark reads as none");
+    assert.deepEqual([view.members[1].exposureLabel, view.members[1].conLost], ["ACKS-LIB.survival.hypothermic", 3]);
+    assert.deepEqual(view.members[0].nourishmentOptions.map((o) => [o.value, o.selected]), [["fed", false], ["hungry", true], ["underfed", false], ["starving", false]], "the menu offers every rung, the member's own chosen");
+    assert.deepEqual(view.members[1].nourishmentOptions, [], "a member the seat does not own has no menu");
+    assert.equal(view.canRefill, true);
+
+    // A seat owning no member: no Refill, no menu.
+    mine.isOwner = false;
+    const stranger = campOf(false);
+    assert.deepEqual([stranger.canRefill, ...stranger.members.map((m) => m.editable)], [false, false, false, false]);
+    mine.isOwner = true;
+
+    // The markup: Refill where `canRefill`, one pick-keyed select per ladder a seat may set, the word alone elsewhere.
+    const html = sectionOf(render(id, { gm: true }).mode, "camp");
+    assert.ok(html.includes('data-action="refillVessels"'), "the Judge's seat is offered Refill");
+    assert.ok(html.includes('data-tooltip-text="ACKS-FORMATION.camp.tip.head'), "the figures carry their parts");
+    assert.equal(count(html, "data-rung-for="), 2, "the one member the seat owns has a hunger and a thirst menu");
+    assert.ok(html.includes(`data-rung-for="a${id}" data-ladder="nourishment"`) && html.includes(`data-pick="rung-a${id}-nourishment"`));
+    assert.ok(/<label>\s*<span class="acks-sr-only">ACKS-FORMATION\.camp\.without\.hungerOf\{&quot;name&quot;:&quot;Hale&quot;\}<\/span>\s*<select/.test(html), "a hidden label names the ladder and the member, wrapping the control");
+    assert.ok(/<option value="hungry" selected>/.test(html) && /<option value="dehydrated"/.test(html));
+    assert.equal(count(html, "acks-extras-formation-camp-hand"), 1, "one rung is marked as set by hand");
+    assert.ok(html.includes("ACKS-LIB.survival.dehydrated") && html.includes("ACKS-LIB.survival.watered"), "a member the seat does not own shows the word alone");
+    assert.ok(!/\sid="/.test(html), "no literal id");
+    mine.isOwner = false;
+    const lone = sectionOf(render(id, { gm: false, seat: { isGM: false, ownsMember: false, ownsEveryMember: false, ownsParty: false, canBrowse: false, canSaveOrders: false } }).mode, "camp");
+    assert.ok(!lone.includes('data-action="refillVessels"') && !lone.includes("data-rung-for"), "a seat that owns no member is offered neither");
+    assert.ok(lone.includes("acks-extras-formation-camp-without-table") && lone.includes("ACKS-LIB.survival.hungry"), "yet it still reads every member's rung");
+    mine.isOwner = true;
+
+    // Where the weather raises the need, the Water figure says by how much, from the registry.
+    registerTable({ id: "survival", source: "invented", tables: { heat: { sweltering: { waterNeed: 1.5, dehydrationDrain: 2 } } } }, { priority: PRIORITY.WORLD, source: "test" });
+    settings.formations[id].travel.weather = { temperature: "sweltering" };
+    const hot = campOf(true);
+    assert.ok(hot.waterTip.split("\n").at(-1).includes("camp.tip.need") && hot.waterTip.includes('"need":"1.5"'), "the need per person is a line of the Water parts");
+    assert.ok(!hot.foodTip.includes("camp.tip.need"), "and none of Food's");
+    unregisterTable("survival");
+    mine.getFlag = () => undefined;
+    theirs.getFlag = () => undefined;
+  }
 }
 
 {

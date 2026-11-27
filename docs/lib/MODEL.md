@@ -2981,6 +2981,13 @@ An unimported subsystem starves nobody: with no thresholds the ladders do not
 advance, though the clocks still run, so importing later starts from the truth
 rather than from zero.
 
+**A rung can be set by hand** (`setRung`): the rung chosen, that ladder's two
+runs reset, and `handSet[ladder]` marked. `handSet` is `{nourishment,
+hydration}`, always carried by `survivalOf` as two booleans, and
+`advanceSurvival` clears the mark of every ladder it steps, leaving a `HELD`
+one as it was. Neither ladder steps down on a day short of full, so a hand-set
+rung above what the clocks give stays until a full day's ration or water.
+
 **Fatigue is the body's third ladder**
 ([fatigue.mjs](../../scripts/lib/fatigue.mjs)), beside hunger and thirst for
 the same reason. Three clocks, each reset by its own answer: days of activity,

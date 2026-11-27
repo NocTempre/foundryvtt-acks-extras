@@ -4732,7 +4732,41 @@
       "exposureHours": "Hours in the weather",
       "exposureHoursHint": "Hours the order stood unprotected today. A member carrying weather clothing counts as sheltered (RR 277–279).",
       "atHeatSource": "At a fire",
-      "wet": "Got wet"
+      "wet": "Got wet",
+      "tip": {
+        "head": "{kind}: {figure} days, from {pooled} person-days across {mouths} in the order",
+        "sized": "{member}: {item} ×{units} · {perUnit} days each, {source}",
+        "sizedWater": "{member}: {item} ×{units} · {perUnit} days each, {left} left, {source}",
+        "unsized": "{member}: {item} ×{units} ({cite})",
+        "need": "Each drinks {need} days of water today (RR 277–279)"
+      },
+      "vessels": {
+        "title": "Vessels",
+        "refill": "Refill",
+        "refillTip": "Fill every sized vessel carried by a member you own.",
+        "hint": "Refill fills every sized vessel carried by a member this seat owns. What is left is also set on the item's Details tab, under Provision.",
+        "left": "{left} of {full} days left",
+        "empty": "empty",
+        "unsized": "no size ({cite})",
+        "tip": "{units} × {perUnit} days each, {source}",
+        "refilled": "Filled {count} vessel(s).",
+        "skipped": "Left as they were, with no size: {items}.",
+        "nothing": "No vessel of yours to fill."
+      },
+      "without": {
+        "title": "Going without",
+        "member": "Member",
+        "hunger": "Hunger",
+        "thirst": "Thirst",
+        "other": "Exposure and Constitution lost",
+        "hungerOf": "Hunger of {name}",
+        "thirstOf": "Thirst of {name}",
+        "handSet": "set by hand",
+        "handSetTip": "Set by hand. The next End day that steps this ladder takes the mark off.",
+        "conLostTip": "Constitution lost to going without, owed back.",
+        "hint": "The next End day goes on from the rung set here.",
+        "notOwner": "You do not own {name}."
+      }
     },
     "forageRun": {
       "title": "What the country gave",

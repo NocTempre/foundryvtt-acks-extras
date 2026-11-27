@@ -8,8 +8,10 @@ import {
   getFrontage,
   getPartyActor,
   getPartyScene,
+  getMemberActor,
   getPartyToken,
   isHurried,
+  realMembers,
   removeMember,
   swapCells,
   syncPartyActorSpeed,
@@ -41,6 +43,7 @@ import { requestBringIn, requestCrossingLanding, requestCrossingPace, requestCro
 import { spendPicks } from "../lib/picks.mjs";
 import { chooseConveyance } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
+import { refillVessels, setBodyRung } from "./provision-day.mjs";
 import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
 import { dismount } from "../lib/mount.mjs";
 import { appliedEffects } from "../lib/effect-scan.mjs";
@@ -1272,6 +1275,25 @@ export const SHARED_ACTIONS = {
     await consumeRations(formation, game.user.isGM ? {} : { only: (actor) => actor.isOwner });
   },
 
+  /**
+   * Fill every sized water vessel carried by a member this seat owns. No
+   * Judge-only gate: a Judge owns every actor, so Foundry's own ownership of
+   * the actor holding the vessel decides. One notice says what was filled and
+   * which vessels were left for want of a size.
+   */
+  async refillVessels() {
+    const formation = this.formation;
+    if (!formation || !seatOwnsMember(formation)) return;
+    const { filled, skipped } = await refillVessels(formation, { only: (actor) => actor.isOwner });
+    const said = [];
+    if (filled.length) said.push(loc("camp.vessels.refilled", { count: filled.length }));
+    if (skipped.length) {
+      said.push(loc("camp.vessels.skipped", { items: skipped.map(({ actor, item }) => `${actor.name}: ${item.name}`).join(", ") }));
+    }
+    ui.notifications.info(said.length ? said.join(" ") : loc("camp.vessels.nothing"));
+    this.render?.();
+  },
+
   async togglePause() {
     const formation = gmFormation(this);
     if (!formation) return;
@@ -1496,6 +1518,36 @@ export function bindCrossingRescuer(app) {
       } else {
         await requestCrossingRescue(formation, drownedId, select.value);
       }
+      app.render?.();
+    });
+  }
+}
+
+/** The camp's rung selects already carrying a listener, so a re-render of a part that kept its element does not stack a second. */
+const rungBound = new WeakSet();
+
+/**
+ * Bind each rung select of the Camp section's Going without table: a change
+ * sets that member's hunger or thirst rung by hand (`setBodyRung`). A rung
+ * belongs to the actor, not the formation record, so the write is the
+ * actor's, made from this seat where it owns the actor: the select is a
+ * staging pick, so its change is no form submit, and it is spent before the
+ * write so the redraw shows what was stored. A seat that does not own the
+ * member, or a member the formation does not hold, writes nothing; the redraw
+ * puts the stored rung back.
+ */
+export function bindCampRungs(app) {
+  for (const select of app.element?.querySelectorAll?.("select[data-rung-for]") ?? []) {
+    if (rungBound.has(select)) continue;
+    rungBound.add(select);
+    select.addEventListener("change", async () => {
+      const formation = app.formation;
+      const actorId = select.dataset.rungFor;
+      if (!formation || !actorId) return;
+      spendPicks(app.element, [select.dataset.pick]);
+      const actor = realMembers(formation).map(getMemberActor).find((a) => a?.id === actorId);
+      if (actor?.isOwner) await setBodyRung(actor, select.dataset.ladder, select.value);
+      else if (actor) ui.notifications.warn(loc("camp.without.notOwner", { name: actor.name }));
       app.render?.();
     });
   }

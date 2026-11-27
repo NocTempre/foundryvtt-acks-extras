@@ -1,6 +1,6 @@
 /* global game, foundry, document, CSS, Hooks */
 import { MODULE_ID, PANEL_FLAG, PARTY_TYPE } from "./constants.mjs";
-import { SHARED_ACTIONS, bindCrossingPace, bindCrossingRescuer, bindMemberDrop, onChangeForm } from "./formation-actions.mjs";
+import { SHARED_ACTIONS, bindCampRungs, bindCrossingPace, bindCrossingRescuer, bindMemberDrop, onChangeForm } from "./formation-actions.mjs";
 import { cellBodies, getFormations, getMemberActor, isStackMember, memberHp, partyHeadcount, realMembers } from "./formation-model.mjs";
 import { seatChanged } from "./conveyance.mjs";
 import { bindLightCast, lightCastContext } from "./light-cast.mjs";
@@ -547,6 +547,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
       ["drop", () => bindMemberDrop(this)],
       ["rescuer", () => bindCrossingRescuer(this)],
       ["pace", () => bindCrossingPace(this)],
+      ["rungs", () => bindCampRungs(this)],
       ["lightcast", () => bindLightCast(this)],
       ["stacks", () => this.#markStacks(context)],
       ["plates", () => this.#paintPlates(context)],

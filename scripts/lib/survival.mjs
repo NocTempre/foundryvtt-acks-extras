@@ -91,10 +91,15 @@ export function freshSurvival() {
     hoursUnprotected: 0,
     /** Constitution the ladders have taken, and owe back. */
     conLost: 0,
+    /**
+     * Which ladders a hand set. Both keys are always written, as booleans:
+     * a stored flag merges objects, so a missing key would leave a stale one.
+     */
+    handSet: { nourishment: false, hydration: false },
   };
 }
 
-/** Normalize whatever a record holds. */
+/** Normalize whatever a record holds. The hand-set marks are kept, as explicit booleans. */
 export function survivalOf(state) {
   const s = state ?? {};
   const fresh = freshSurvival();
@@ -109,7 +114,29 @@ export function survivalOf(state) {
     shortFoodRun: int(s.shortFoodRun),
     shortWaterRun: int(s.shortWaterRun),
     conLost: int(s.conLost),
+    handSet: { nourishment: s.handSet?.nourishment === true, hydration: s.handSet?.hydration === true },
   };
+}
+
+/** The two ladders a rung can be set on by hand, with the rungs of each and the clocks each keeps. */
+export const HAND_LADDERS = Object.freeze({
+  nourishment: { rungs: NOURISHMENT, runs: ["noFoodRun", "shortFoodRun"] },
+  hydration: { rungs: HYDRATION, runs: ["noWaterRun", "shortWaterRun"] },
+});
+
+/**
+ * A body's state with one ladder's rung set by hand: the rung chosen, that
+ * ladder's runs reset to nothing (the climb starts again from this rung), and
+ * the ladder marked as set by hand. The mark stays until a day steps that
+ * ladder (`advanceSurvival`). Null where the ladder or the rung is unknown.
+ */
+export function setRung(state, ladder, rung) {
+  const spec = HAND_LADDERS[ladder];
+  if (!spec || !Object.hasOwn(spec.rungs, rung)) return null;
+  const s = survivalOf(state);
+  const next = { ...s, [ladder]: rung, handSet: { ...s.handSet, [ladder]: true } };
+  for (const run of spec.runs) next[run] = 0;
+  return next;
 }
 
 /** Everything a rung takes away, from both ladders at once. */
@@ -191,7 +218,8 @@ export function coldDie() {
  * `eased`, `unpriced`, `unrolled`). Pure: the caller owns the dice and passes
  * `thirstRoll`. A rolled cost with no roll supplied is reported as `unrolled`
  * and charged nothing. See docs/lib/DECISIONS.md, "Thirst charges a rolled toll;
- * hunger charges a flat one".
+ * hunger charges a flat one". A ladder this steps loses its hand-set mark
+ * (`setRung`); a held ladder keeps it.
  *
  * @param {object} opts
  * @param {"full"|"half"|"none"|"held"} opts.food  what this body ate, or `HELD`
@@ -207,6 +235,12 @@ export function advanceSurvival(state, {
   const before = { nourishment: s.nourishment, hydration: s.hydration };
   const foodHeld = food === HELD;
   const waterHeld = water === HELD;
+
+  // A ladder the day steps is no longer where a hand put it; a held one is not stepped.
+  next.handSet = {
+    nourishment: foodHeld && s.handSet.nourishment,
+    hydration: waterHeld && s.handSet.hydration,
+  };
 
   // --- the clocks ---
   if (!foodHeld) {
@@ -229,7 +263,13 @@ export function advanceSurvival(state, {
       ? climbed : s.nourishment;
   }
 
-  if (!waterHeld) next.hydration = water === "full" ? "watered" : thirstRung(next);
+  if (water === "full") {
+    next.hydration = "watered";
+  } else if (!waterHeld) {
+    // Only a full day's water ends dehydration: a short day never steps it down.
+    const climbed = thirstRung(next);
+    next.hydration = HYDRATION[climbed].rung >= HYDRATION[s.hydration].rung ? climbed : s.hydration;
+  }
 
   // --- the cost, and the debt coming back ---
   // A held ladder charges nothing: the day it would charge for is not known.
