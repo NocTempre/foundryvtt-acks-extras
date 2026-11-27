@@ -2400,7 +2400,7 @@ Read: dismissing is something the concentration does, so once a held cast has no
 
 **Strongest counter, LOW.** A dismissal relayed while the asking client is disconnected before the answer arrives deletes the creature and leaves the hold standing. Held: the status's own toggle ends it, as before this ruling, and the card that follows names no creature.
 
-## 2026-11-27 — Power on the casting strip is an icon per power the character has (T-0923)
+## 2026-11-27 — Power on the casting strip is an icon per power the character has
 
 The owner, in three messages on 2026-11-27, each refining the one before:
 

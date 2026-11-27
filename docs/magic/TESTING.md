@@ -2080,15 +2080,17 @@ its uuid from the run's own ledger.
 ## The power ledger (M-l)
 
 A character's divine and arcane power on the casting strip, with the API the ritual and
-sacrifice slices call. Offline: `tools/test-power-ledger.mjs`. Live:
-`tools/live/magic-power-ledger.mjs`, the GM seat and a Player seat together (`SEAT_GM`,
-`SEAT_PLAYER`).
+sacrifice slices call. Offline: `tools/test-power-ledger.mjs`. Live: the walk script
+`tools/live/magic-power-ledger.mjs` is parked and this recipe stands without it; it is
+walked by the GM seat and a Player seat together (`SEAT_GM`, `SEAT_PLAYER`).
 
 ### Fixtures
 
 Kept, found by marker (`gm.fixture` builds them where none carries it): `magic/power-class` (an
-`acks-extras.class` with one vancian casting row, so the strip has a pool, and a divine and an
-arcane casting row, since a power shows where its kind is cast), `magic/power-hero`
+`acks-extras.class` with two casting rows, keyed `divine` and `arcane`, at least one of them
+vancian so the strip has a pool: a power shows where its kind is cast. A `magic/power-class` kept
+from before carries one vancian row alone, so bring its `system.casting` to this shape before the
+walk, or the hero draws no arcane icon and steps 2 to 5, 8 and 9 fail), `magic/power-hero`
 (a linked character bound to that class by `flags["acks-extras"].classes.uuid`, owned by the
 Player seat's user) and `magic/power-stranger` (a character whose default ownership is Observer,
 which the Player cannot write). Each step that needs a known shape starts it: both characters'
@@ -2225,8 +2227,8 @@ spy on the socket. The clock is shared by every seat and the walk never moves it
 written in the past (`actor.update` of the kind's `entries`), which is what a gain a lifetime ago is,
 and the balance reads the clock as it stands. A real advance of the clock, the calendar's own weekday
 list for a lifetime counted in weeks (`calendar.days.values`), the chip on the system's own character
-sheet (it is the same `castingStripElement`), and the Sacrifice button inside the panels are not walked,
-and the walk script `tools/live/magic-power-ledger.mjs` is parked: this recipe stands without it.
+sheet (it is the same `castingStripElement`), and the Sacrifice button inside the panels (the sacrifice
+recipe below walks it) are not walked here.
 
 ### Teardown
 
@@ -2419,8 +2421,8 @@ world's half, `sacrifice-record.mjs` and `sacrifice-record-live.mjs` the shared 
 the owner's checks inside each row, the yield, the verdicts and the act. Offline: `tools/test-sacrifice.mjs`, and
 `tools/test-bucket.mjs` for the row's slot. Live: `tools/live/magic-sacrifice.mjs`, the GM seat and a Player seat
 together (`SEAT_GM`, `SEAT_PLAYER`). Who sets the facts is ownership of the caster; severity
-still reads the role, so the walk drives the Player seat as the caster's owner and as an observer of another caster. The window opens from the Sacrifice… button beside the power tags on the
-caster's casting strip (the character sheet, under the class field), which a test drives with a real click;
+still reads the role, so the walk drives the Player seat as the caster's owner and as an observer of another caster. The window opens from the Sacrifice… button inside a shown power panel of the
+caster's casting strip (the character sheet, under the class field; open the panel by pressing its power's icon first), which a test drives with a real click;
 `acksExtras.magic.sacrifice.open(actor)` is the same call under it, and is how the observed caster's window is
 opened, since step 10 reads the window and not the strip.
 
@@ -2447,8 +2449,10 @@ is never deleted, so the fixtures survive every run.
 
 ### Steps
 
-1. The strip. On the GM seat the caster's sheet draws a Sacrifice… button beside the power tags, its tooltip
-   naming the caster and the page, and a real click opens the window. The Player seat draws it for the same
+1. The strip. On the GM seat the caster's sheet draws a divine power icon (the caster's class casts divine), and
+   pressing it opens the panel, which holds a Sacrifice… button, its tooltip
+   naming the caster and the page, and a real click opens the window; the strip line itself carries no such
+   button. The Player seat draws it for the same
    caster (chaotic, divine class) though the ledger holds nothing; a character with no divine class and no
    mark gets none. The window is titled with the caster's name, in the scroll contract, with a drag corner and a
    body that scrolls apart from the pinned footer. With no victim the Sacrifice button is `aria-disabled` and
@@ -2506,7 +2510,8 @@ is never deleted, so the fixtures survive every run.
 The window's id is `acks-extras-sacrifice-<actor id>`; `foundry.applications.instances.get(id)` closes it, and an
 owner's close clears the record. The strip's button is found on `actor.sheet.element` after
 `sheet.render({force: true})`, polled for, since the strip is injected by the render hook; it carries
-`data-sacrifice-open`. A checkbox is ticked by `click()`, which submits the form: a seat that owns the caster
+`data-sacrifice-open` and sits inside `[data-power-panel="<kind>"]`, which is `hidden` until the icon
+`[data-power-toggle][data-power-kind="<kind>"]` is pressed, so the walk presses the icon first. A checkbox is ticked by `click()`, which submits the form: a seat that owns the caster
 writes the changed fact to the caster's flag (a Player's through the GM's client) and every window for the caster
 is drawn again by the `updateActor` hook, so a control is looked up again after each tick, and what another
 seat's window shows is polled for with `until`. A value is typed by setting the box's `value` and dispatching a

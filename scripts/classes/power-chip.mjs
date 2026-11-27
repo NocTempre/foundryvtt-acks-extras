@@ -51,7 +51,7 @@ function freshState(base) {
 }
 
 /**
- * The record of one window: `divine` and `arcane` are true where that tag is on
+ * The record of one window: `divine` and `arcane` are true where that power's switch is on
  * Stays, `open[kind]` is whether its panel is open, `amount[kind]` is the text
  * in its amount box, and `base` is what the panel ids are built from (the
  * window's own id). The window is the application that hosts the strip, so two
@@ -79,7 +79,7 @@ export function forgetPowerSwitch(app) {
 /** The id of one kind's panel, built from the window's own id. */
 const panelId = (state, kind) => `${state.base}-power-${kind}`;
 
-/** A seat's Fades / Stays switch for one tag: two pills, the one in `onStays`'s state pressed. */
+/** A seat's Fades / Stays switch for one power: two pills, the one in `onStays`'s state pressed. */
 function stayHtml(k, onStays) {
   const pill = (stays, label, tip) =>
     `<button type="button" class="acks-extras-classes-powerpill" data-power-stay="${stays ? 1 : 0}" data-power-kind="${k.kind}" aria-pressed="${stays === onStays ? "true" : "false"}" data-tooltip-text="${esc(tip)}">${esc(label)}</button>`;
@@ -139,7 +139,7 @@ function panelHtml(model, k, state, opener) {
     : `<span class="acks-extras-classes-powerempty">${esc(model.emptyText)}</span>`;
   return (
     `<div class="acks-extras-classes-powerpanel" id="${esc(panelId(state, k.kind))}" data-power-panel="${k.kind}"${open ? "" : " hidden"}>` +
-    `<div class="acks-extras-classes-powerhead"><span class="acks-label acks-extras-classes-powerheadtext">${esc(k.label)} <span class="acks-nums acks-extras-classes-powerbal" data-power-balance="${k.kind}">${k.balance}</span></span>${model.owns ? controlsHtml(k, state) : ""}${opener}</div>` +
+    `<div class="acks-extras-classes-powerhead"><span class="acks-label acks-extras-classes-powerheadtext">${esc(k.label)} <span class="acks-nums acks-extras-classes-powerbal" data-power-balance="${k.kind}" data-tooltip-text="${esc(k.tip)}">${k.balance}</span></span>${model.owns ? controlsHtml(k, state) : ""}${opener}</div>` +
     list +
     `</div>`
   );

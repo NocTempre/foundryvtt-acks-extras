@@ -733,8 +733,8 @@ t("an icon wears its balance as a badge while the balance is above zero, and the
   assert.ok(/aria-label="ACKS-MAGIC\.power\.disclosureLabel\{&#34;label&#34;:&#34;ACKS-MAGIC\.power\.kind\.divine&#34;,&#34;balance&#34;:5\}"/.test(icon("divine")), "the button's name carries the power and its balance");
   assert.ok(/data-tooltip-text="ACKS-MAGIC\.power\.tipHead\{[^"]*&#34;balance&#34;:5/.test(icon("divine")), "its tooltip is the balance with its parts");
   assert.ok(/aria-expanded="false" aria-controls="wb-power-divine"/.test(icon("divine")));
-  assert.match(html, /data-power-balance="divine">5<\/span>/, "the divine head reads 5 as text");
-  assert.match(html, /data-power-balance="arcane">0<\/span>/, "the arcane head reads 0 as text, where no badge is drawn");
+  assert.match(html, /data-power-balance="divine" data-tooltip-text="[^"]*tipHead[^"]*">5<\/span>/, "the divine head reads 5 as text, with the figure's tooltip");
+  assert.match(html, /data-power-balance="arcane" data-tooltip-text="[^"]*">0<\/span>/, "the arcane head reads 0 as text, where no badge is drawn, with its tooltip");
   assert.ok(html.includes("ACKS-MAGIC.power.kind.divine <span"), "the head names the power");
   assert.ok(!html.includes("fa-chevron") && !html.includes("powertag") && !html.includes('powerchip"'), "no tag, no chevron");
   gameState.isGM = true;
@@ -911,7 +911,7 @@ await ta("the relay handler runs an owner's request for a lot that stays, refuse
   assert.equal("stays" in actor.flags["acks-extras"].power.divine.entries[0], false);
 });
 
-t("the strip draws a Fades / Stays pair for a Judge on each tag, Fades pressed, and none for a Player; a lot that stays shows its pin", () => {
+t("the strip draws a Fades / Stays pair for a Judge on each power, Fades pressed, and none for a Player; a lot that stays shows its pin", () => {
   resetTables();
   const actor = worldActor("Actor.c4", { casting: ["divine", "arcane"], flags: { divine: { entries: [e("k", 4, 5, { name: "Kept", by: "judge", stays: true }), e("f", 2, 5, { name: "Faded", by: "judge" })] } } });
   gameState.isGM = false;
@@ -921,7 +921,7 @@ t("the strip draws a Fades / Stays pair for a Judge on each tag, Fades pressed, 
   assert.equal(player.split('powerline"><i class="fa-solid fa-thumbtack"').length - 1, 1, "and the lot that fades has none");
   gameState.isGM = true;
   const judge = C.powerSectionHtml(actor, true);
-  assert.equal((judge.match(/role="group"/g) ?? []).length, 2, "a group on each tag");
+  assert.equal((judge.match(/role="group"/g) ?? []).length, 2, "a group on each panel");
   assert.equal((judge.match(/data-power-stay="0" data-power-kind="(divine|arcane)" aria-pressed="true"/g) ?? []).length, 2, "Fades starts pressed");
   assert.equal((judge.match(/data-power-stay="1" data-power-kind="(divine|arcane)" aria-pressed="false"/g) ?? []).length, 2, "Stays starts not pressed");
   assert.equal((judge.match(/aria-label="ACKS-MAGIC.power.stayGroup\{&#34;label&#34;:&#34;ACKS-MAGIC.power.kind.(divine|arcane)&#34;\}"/g) ?? []).length, 2, "each group is named for its power");
@@ -930,7 +930,7 @@ t("the strip draws a Fades / Stays pair for a Judge on each tag, Fades pressed, 
   assert.ok(!/\sid="(?![^"]*-power-)/.test(judge), "no id but the panels'");
 });
 
-await ta("the switch sets what that tag's plus writes, starts on Fades, and writes nothing itself", async () => {
+await ta("the switch sets what that power's plus writes, starts on Fades, and writes nothing itself", async () => {
   resetTables();
   gameState.isGM = true;
   const actor = worldActor("Actor.c5", { flags: {} });
@@ -961,7 +961,7 @@ await ta("the switch sets what that tag's plus writes, starts on Fades, and writ
   assert.equal(entries("divine")[1].stays, true, "Stays then plus writes a lot that stays");
   plus("arcane");
   await tick();
-  assert.equal("stays" in entries("arcane")[0], false, "the other tag's switch is its own, still Fades");
+  assert.equal("stays" in entries("arcane")[0], false, "the other power's switch is its own, still Fades");
   pressPill(divine[0]);
   assert.deepEqual(divine.map((p) => p.pressed), [true, false]);
   minus("divine");
@@ -1118,7 +1118,7 @@ function wiredStrip(actor, state) {
   };
 }
 
-await ta("the switch holds across a render: kept per window and per tag, never on the actor, and Fades for a window that has not set it", async () => {
+await ta("the switch holds across a render: kept per window and per power, never on the actor, and Fades for a window that has not set it", async () => {
   resetTables();
   gameState.isGM = true;
   const actor = worldActor("Actor.c6", { casting: ["divine", "arcane"], flags: {} });
@@ -1163,7 +1163,7 @@ await ta("the switch holds across a render: kept per window and per tag, never o
   assert.deepEqual(switchesOf(windowA), { divine: false, arcane: false }, "pressing Fades puts it back");
   render2.press("divine", 1);
   render2.press("arcane", 1);
-  assert.deepEqual(switchesOf(windowA), { divine: true, arcane: true }, "each tag holds its own state");
+  assert.deepEqual(switchesOf(windowA), { divine: true, arcane: true }, "each power holds its own state");
   C.forgetPowerSwitch(windowB);
   assert.deepEqual(switchesOf(windowA), { divine: true, arcane: true }, "closing another window leaves this one's record");
   C.forgetPowerSwitch(windowA);

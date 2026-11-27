@@ -136,7 +136,7 @@ export async function openSacrifice(actor) {
 }
 
 /**
- * What the casting strip draws for a caster's Sacrifice button, or null where this seat sees none: a Judge's seat on
+ * What each power panel of the casting strip draws for a caster's Sacrifice button, or null where this seat sees none: a Judge's seat on
  * every caster the strip draws for (`casts`), a Player's on a divine caster who is chaotic or one a Judge marked as holding the class power
  * (`openerVisible`). `tip` is the tooltip, and the button's name as well.
  * @returns {{label: string, tip: string}|null}

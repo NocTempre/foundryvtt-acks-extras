@@ -189,7 +189,7 @@ export function touchesRecord(changes, key = "sacrifice") {
 }
 
 /**
- * Whether a caster's Sacrifice button is drawn on the casting strip: a Judge sees it on every caster (`casts`, an
+ * Whether a caster's Sacrifice button is drawn in the power panels of the casting strip: a Judge sees it on every caster (`casts`, an
  * actor the strip draws for), and a Player on one whose casting tradition is divine and whose alignment is chaotic, or
  * for whom the Judge marked the class power.
  */
