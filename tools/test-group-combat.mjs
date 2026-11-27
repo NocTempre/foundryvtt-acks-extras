@@ -288,7 +288,7 @@ async function endCombat(combat) {
 }
 
 const { default: GroupData } = await import("../scripts/lib/data/group-data.mjs");
-const { registerGroupCleanup, setParentGroup, addLabelledStack } = await import("../scripts/lib/group.mjs");
+const { registerGroupCleanup, setParentGroup, addLabelledStack, setStackPrototype, materializeMembers } = await import("../scripts/lib/group.mjs");
 const { installRecreatedHitPoints } = await import("../scripts/lib/hp.mjs");
 const { COMBAT_FLAG, groupGangs } = await import("../scripts/lib/group-combat.mjs");
 const { gangPartition } = await import("../scripts/lib/group-logic.mjs");
@@ -702,6 +702,28 @@ t("a labelled stack is a label and a count with no prototype, and a blank label 
   assert.deepEqual(stack.gen, { part: "Q1", cite: "p. 5" });
   assert.equal(await addLabelledStack(group, { label: " ", count: 2 }), null);
   assert.equal(group.system.stacks.length, 1);
+});
+
+t("a labelled stack keeps the printed hit points it was given, and its bodies take that figure once a creature is dropped on it", async () => {
+  const group = groupActor("Pen", []);
+  const key = await addLabelledStack(group, { label: "Frobnik", count: 3, fixedHp: 11.9 });
+  assert.equal(group.system.stackOf(key).fixedHp, 11, "a whole number above zero");
+  const plain = await addLabelledStack(group, { label: "Plain", count: 1 });
+  const zero = await addLabelledStack(group, { label: "Zero", count: 1, fixedHp: 0 });
+  assert.equal(group.system.stackOf(plain).fixedHp, null);
+  assert.equal(group.system.stackOf(zero).fixedHp, null, "a figure below one is none");
+
+  assert.deepEqual(await materializeMembers(group, key, 3), [], "no creature behind the stack: no body is rolled");
+  assert.equal(group.system.stackOf(key).roster.length, 0);
+
+  const source = monster("Frobnik");
+  source.toObject = () => ({ type: "monster", name: "Frobnik", system: { hp: { hd: "2d8" } } });
+  assert.equal(await setStackPrototype(group, key, source), true);
+  bodyRolls.push(2, 3, 4);
+  const members = await materializeMembers(group, key, 3);
+  assert.deepEqual(members.map((m) => [m.delta.system.hp.value, m.delta.system.hp.max]), [[11, 11], [11, 11], [11, 11]], "the figure, never a roll");
+  assert.deepEqual(bodyRolls, [2, 3, 4], "no die was thrown");
+  bodyRolls.length = 0;
 });
 
 /** The token ids of each group the system's tracker holds, sorted, as a comparable list. */

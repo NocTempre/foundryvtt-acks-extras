@@ -438,9 +438,10 @@ export async function addStack(group, source, { count = 0, gen = null, fixedHp =
  * @param {string} stack.label the word, as the import read it
  * @param {number} [stack.count] living bodies
  * @param {{part: string, cite: string}} [stack.gen] the recipe part and its page
+ * @param {number} [stack.fixedHp] the printed hit points every body of this stack takes in place of a roll, once a creature is given to it
  * @returns {Promise<string|null>} the new stack's key, or null
  */
-export async function addLabelledStack(group, { label, count = 0, gen = null } = {}) {
+export async function addLabelledStack(group, { label, count = 0, gen = null, fixedHp = null } = {}) {
   if (!isGroup(group) || !String(label ?? "").trim()) return null;
   const n = Math.max(0, count | 0);
   const stacks = group.system.toObject().stacks;
@@ -450,6 +451,7 @@ export async function addLabelledStack(group, { label, count = 0, gen = null } =
     template: { uuid: null, type: "", label: String(label).trim(), snapshot: {}, snapshotTime: 0 },
     size: { current: n, initial: n, formula: "" },
     gen: genOf(gen),
+    fixedHp: fixedHpOf(fixedHp),
     roster: [],
   });
   await group.update({ "system.stacks": stacks });
@@ -630,7 +632,9 @@ async function rollBodyHp(stack) {
  * change `size.current` (the bodies already existed; they just gained records).
  *
  * Capped at the pristine that exist, so asking for more than the stack holds
- * returns what it could give rather than inventing bodies.
+ * returns what it could give rather than inventing bodies. A stack with no
+ * creature behind it (no prototype uuid and no snapshot) materializes nothing:
+ * there are no hit dice to roll.
  *
  * @param {object} [opts]
  * @param {string[]} [opts.names] a name per body, in order; absent → numbered
@@ -641,6 +645,7 @@ export async function materializeMembers(group, stackKey, n, { names = [], extra
   if (!isGroup(group)) return [];
   const stack = group.system.stackOf(stackKey);
   if (!stack) return [];
+  if (!stack.template?.uuid && !stack.template?.snapshot?.type) return [];
   const count = Math.min(Math.max(0, Math.floor(n)), group.system.pristineCountOf(stack));
   if (count <= 0) return [];
 

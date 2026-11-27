@@ -129,7 +129,7 @@ export async function runPlan(plan, { mint = null, makeLeader = null } = {}) {
         const key = await addStack(group, source, { count: op.count, gen, fixedHp: op.fixedHp ?? null });
         if (!key) return result({ ok: false, reason: "failed", error: "addStack" });
       } else if (op.op === "addLabelledStack") {
-        const key = await addLabelledStack(await docOfRef(op.group), { label: op.label, count: op.count, gen: op.gen });
+        const key = await addLabelledStack(await docOfRef(op.group), { label: op.label, count: op.count, gen: op.gen, fixedHp: op.fixedHp ?? null });
         if (!key) return result({ ok: false, reason: "failed", error: "addLabelledStack" });
       } else if (op.op === "makeActor") {
         const held = isRef(op.spec) ? specs.get(op.spec) : { spec: { kind: "entry", uuid: op.spec } };

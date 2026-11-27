@@ -1,4 +1,4 @@
-# lib API (apiVersion 102)
+# lib API (apiVersion 103)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 102,
+  apiVersion: 103,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -85,6 +85,7 @@ acksExtras.lib = {
   // 100: org.{sendOutHolder, recallHolder, placesOf}; org-chart-ui.mjs `serviceChartContext` and `serviceLocationsContext` draw a character's service tree through the chart partials (docs/lib/ORGANISATION.md, "The Followers tab's service mode"; below, "`org`")
   // 101: templateLogic.{setAxisDefault, removeAxisOption}; itemRun.cardSaveOptions reads a card's `saveMagical: false` as no save against magic; a `targetAc` stamp row may be `{name, waived: true, by: [{name, cite}]}` (a monster target's waived step, no `value`)
   // 102: movementScales.ownSpeeds, a creature's own speeds read without the character load calculation (below, `ownSpeeds`)
+  // 103: groups.addLabelledStack takes and stores `fixedHp`; the org plan's `addLabelledStack` op carries it
 }
 ```
 

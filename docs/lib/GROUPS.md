@@ -320,7 +320,9 @@ to the map, by a row dropped there, the row's Deploy or its group's token joinin
 combat, whispers the Judges that the stack has no creature behind it, in the form a
 group holding nothing to place is whispered, and places nothing of that stack while the
 group's other stacks still go. It is a warning and no refusal. Dropping a creature on
-its row (`setStackPrototype`) gives it one.
+its row (`setStackPrototype`) gives it one. It carries the roll's printed `fixedHp` as an
+addStack does, which its bodies take once it has a creature; until then
+`materializeMembers` makes no body of it, since there are no hit dice to roll.
 
 ### A row moved between groups
 

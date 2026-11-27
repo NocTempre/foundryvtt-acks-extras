@@ -20,8 +20,8 @@
  * - `{op: "createGroup", ref, name}` and `{op: "parent", uuid, parentUuid}`: a
  *   group for each filled row, nested as the rows nest.
  * - `{op: "addStack", group, prototype, count, gen, fixedHp?, mount?, carry?,
- *   speakers?}`, or `{op: "addLabelledStack", group, label, count, gen}` for a
- *   creature no entry answered. `prototype` is a ref, or a library uuid.
+ *   speakers?}`, or `{op: "addLabelledStack", group, label, count, gen, fixedHp?}`
+ *   for a creature no entry answered. `prototype` is a ref, or a library uuid.
  * - `{op: "makeActor", ref, spec, role, ...}` and `{op: "setOfficer", group,
  *   officer, moraleBonus}`: a leader is an actor, never a stack; the first of a
  *   unit's leaders is its group's officer, and its morale part goes with it.
@@ -204,8 +204,11 @@ export function planRoll({ host, rows, rowKey = "", tree, scope = "one", labels 
     const group = groupOf.get(node);
     for (const s of node.stacks ?? []) {
       const spec = tree.prototypes?.[s.proto];
-      if (spec?.kind === "label") ops.push({ op: "addLabelledStack", group, label: s.label || spec.label, count: s.count, gen: { ...s.gen, rolled: s.count } });
-      else {
+      if (spec?.kind === "label") {
+        const labelled = { op: "addLabelledStack", group, label: s.label || spec.label, count: s.count, gen: { ...s.gen, rolled: s.count } };
+        if (s.fixedHp != null) labelled.fixedHp = s.fixedHp;
+        ops.push(labelled);
+      } else {
         const stack = { op: "addStack", group, prototype: refOfProto(s.proto), count: s.count, gen: { ...s.gen, rolled: s.count } };
         if (s.fixedHp != null) stack.fixedHp = s.fixedHp;
         if (s.mount) stack.mount = { prototype: refOfProto(s.mount.proto), perBody: s.mount.perBody ?? 1 };

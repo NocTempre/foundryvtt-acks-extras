@@ -259,6 +259,19 @@ t("a stack's recorded formula is stored on it by addStack and addLabelledStack",
   if (labelled) assert.ok(stacks.some((s) => s.gen.formula === "1d4"), "a labelled stack records it too");
 });
 
+t("a labelled stack's printed hit points are stored on it by the run", async () => {
+  reset();
+  const host = faction("Holdfast");
+  const plan = planRoll({ host: { uuid: host.uuid, kind: "faction" }, rows: [], tree: rollTree(), scope: "below" });
+  const labelled = plan.ops.find((o) => o.op === "addLabelledStack");
+  assert.ok(labelled, "the tree holds a word no entry answered");
+  labelled.fixedHp = 7;
+  const run = await runPlan(plan, provider());
+  assert.equal(run.ok, true, run.error);
+  const stacks = [...actors.values()].filter((a) => a.type === GROUP).flatMap(stacksOf);
+  assert.equal(stacks.find((s) => s.gen.part === labelled.gen.part).fixedHp, 7);
+});
+
 t("a run that fails hands back every id it made, and writes no ref it could not resolve", async () => {
   reset();
   const host = faction("Holdfast");

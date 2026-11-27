@@ -35,7 +35,7 @@ const TREE = () => {
     stacks: [
       { proto: "P5", label: "zorps", count: 3, role: "guard", gen: { part: "guard-1", cite: "XX p. 2" }, fixedHp: 9 },
       { proto: "P6", label: "folk", count: 2, role: "captive", gen: { part: "captives", cite: "XX p. 2" } },
-      { proto: "P7", label: "bens", count: 5, role: "guard", gen: { part: "guard-2", cite: "XX p. 2" } },
+      { proto: "P7", label: "bens", count: 5, role: "guard", gen: { part: "guard-2", cite: "XX p. 2" }, fixedHp: 7 },
     ],
   });
   return {
@@ -148,6 +148,7 @@ t("a creature no entry answered is a labelled stack carrying its word and its pa
   const labelled = opsOf(plan, "addLabelledStack");
   assert.deepEqual(labelled.map((s) => [s.label, s.count, s.gen.part]), [["folk", 2, "captives"], ["bens", 5, "guard-2"]]);
   assert.ok(labelled.every((s) => !("prototype" in s)));
+  assert.deepEqual(labelled.map((s) => s.fixedHp), [undefined, 7], "the printed figure rides the op where the node has one");
   assert.equal(plan.ops.some((o) => o.op === "prototype" && o.spec.kind === "label"), false, "nothing is minted for a word");
 });
 
