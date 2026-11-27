@@ -629,15 +629,18 @@ assert.deepEqual(encounterWhen({ activity: "entry", clock, mileHex: 6 }), []);
   const { resolveCreature } = await import("../scripts/formation/encounter-card.mjs");
   const worldActors = [{ name: "Moor Grazer" }, { name: "Fen Drone, Medium Wasp" }];
   worldActors.contents = worldActors;
-  const shelved = [{ name: "Moor Grazer, Large" }, { name: "Hollow Imp" }];
+  const { shelfMock, sourceDoc } = await import("./lib-shelf-mock.mjs");
+  const shelf = shelfMock({ type: "Actor", docs: [sourceDoc("lib1", "Moor Grazer, Large", "monster"), sourceDoc("lib2", "Hollow Imp", "monster")] });
   game.actors = worldActors;
-  game.packs = [{ metadata: { packageType: "world", label: "ACKS Cookbook — Actor" }, documentName: "Actor", contents: shelved, size: 2, index: { size: 2 } }];
+  game.packs = [shelf];
   const named = (label) => resolveCreature(label)?.name ?? null;
   assert.equal(named("Moor Grazer, Large"), "Moor Grazer, Large", "an exact name in the library outranks the loose family head in the world");
   assert.equal(named("Moor Grazer, Small (dunbuck)"), "Moor Grazer", "a family member falls to the world's head row");
   assert.equal(named("Fen Drone, Med. Wasp"), "Fen Drone, Medium Wasp", "an abbreviation is read");
   assert.equal(named("Hollow Imp (3)"), "Hollow Imp", "a library row answers when the world has none");
   assert.equal(named("Marsh Strider, Giant"), null, "a miss stays a miss");
+  assert.equal(resolveCreature("Hollow Imp (3)").uuid, "Compendium.lib2", "a library row carries the uuid the card links");
+  assert.equal(shelf.calls.getDocuments.length, 0, "a creature resolves from the index rows, with no document loaded");
   delete game.packs;
 }
 

@@ -11,7 +11,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { generateFromTemplate } from "../lib/template-generate.mjs";
 import { ANIMAL_TYPE } from "../lib/constants.mjs";
-import { libraryActors, whenReady } from "../lib/library.mjs";
+import { libraryRows } from "../lib/library.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { ORG_PROTOTYPE_FLAG, hostGenOf, makeFaction, nodesOf, orgHostOf, planRoll, rostersHolding, rowAncestors, runPlan, unitsOf } from "../lib/org.mjs";
 import { setParentGroup } from "../lib/group.mjs";
@@ -168,8 +168,7 @@ export async function rollOrganisation({ host = null, rowKey = "", template = nu
   const encounter = option?.flags?.[MODULE_ID]?.extras?.encounter ?? null;
   if (!encounter) return refused("noRecipe");
 
-  await whenReady();
-  const library = libraryActors().filter((a) => a.type === "monster" || a.type === ANIMAL_TYPE).map((a) => ({ name: a.name, uuid: a.uuid }));
+  const library = libraryRows("Actor", (a) => a.type === "monster" || a.type === ANIMAL_TYPE).map((a) => ({ name: a.name, uuid: a.uuid }));
   const org = importedOrganisation();
   const hdOf = (role) => Number(cellOf(family, key, role)?.flags?.[MODULE_ID]?.extras?.hd?.count) || null;
   const printedHp = (spec) => (spec.kind === "cell" && spec.role ? Number(cellOf(family, key, spec.role)?.merge?.hp?.max) || null : null);

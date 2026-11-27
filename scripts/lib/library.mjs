@@ -248,25 +248,26 @@ export const libraryItems = () => libraryDocs("Item");
 export const libraryActors = () => libraryDocs("Actor");
 
 /**
- * The library document carrying this importer cookbook id, or null. Skips the
- * class-template parts, which inherit the id of the definition they were made
+ * The document of `docs` that carries this importer cookbook id, or null. Skips
+ * the class-template parts, which inherit the id of the definition they were made
  * from. With `original`, it also skips a world copy (`isWorldCopy`) and a
  * group's base actor (`templateFor`), which carry the stamp of the document
  * they were made from and answer for no import of their own. Several documents
  * may carry one id (a world actor dragged out of its shelf keeps the stamp, and
  * the world's are read first): `prefer(doc)` picks the first of them it answers
- * true for, and the first of all where it answers for none.
- * @param {string} type
+ * true for, and the first of all where it answers for none. It is the predicate
+ * of every stamp reader below, so the synchronous and the awaited answer cannot
+ * disagree.
+ * @param {object[]} docs
  * @param {string} id
  * @param {{original?: boolean, prefer?: ((doc: object) => boolean)|null}} [options]
  */
-export function byCookbookId(type, id, { original = false, prefer = null } = {}) {
+export function pickCarrier(docs, id, { original = false, prefer = null } = {}) {
   if (!id) return null;
   const carries = (d) =>
     cookbookId(d) === id &&
     !d.flags?.[MODULE_ID]?.templatePart &&
     !(original && (isWorldCopy(d) || d.flags?.[MODULE_ID]?.templateFor));
-  const docs = libraryDocs(type);
   if (typeof prefer !== "function") return docs.find(carries) ?? null;
   let first = null;
   for (const d of docs) {
@@ -277,6 +278,79 @@ export function byCookbookId(type, id, { original = false, prefer = null } = {})
   return first;
 }
 
+/** The path of the importer's stamp in an index row's flags. */
+const STAMP_PATH = `flags.${MODULE_ID}.cookbook.id`;
+
+/** Whether this type's index rows carry the stamp (`LIBRARY_INDEX_FIELDS`), so a read can test it on a row. */
+const declaresStamp = (type) => LIBRARY_INDEX_FIELDS[type]?.includes(STAMP_PATH) === true;
+
+/** The test for a stamp's definition on a row: its id, and not a class-template part, which a reader never takes. */
+const stampMatch = (id) => (row) => cookbookId(row) === id && !row.flags?.[MODULE_ID]?.templatePart;
+
+/**
+ * The library document carrying this importer cookbook id (`pickCarrier`), or
+ * null. Synchronous: where the type's index rows carry the stamp
+ * (`LIBRARY_INDEX_FIELDS`) it reads through `libraryHeld`, so the answer is the
+ * held document, and a twin not yet in memory is loaded by an `_id__in` of its
+ * own (never a whole shelf) and answers on the next ask. A type that declares no
+ * stamp reads the documents held (`libraryDocs`). A caller that can wait reads
+ * `byCookbookIdAsync`, and one that shows only a name reads `cookbookRow`.
+ * @param {string} type
+ * @param {string} id
+ * @param {{original?: boolean, prefer?: ((doc: object) => boolean)|null}} [options] see `pickCarrier`
+ */
+export function byCookbookId(type, id, options = {}) {
+  if (!id) return null;
+  const docs = declaresStamp(type) ? libraryHeld(type, stampMatch(id)) : libraryDocs(type);
+  return pickCarrier(docs, id, options);
+}
+
+/**
+ * `byCookbookId` for a caller that can wait: the stamp's matches are read by
+ * `libraryDocsWhere` (the index, then one `_id__in` for the documents not held)
+ * and `pickCarrier` picks among them. A type whose rows carry no stamp
+ * (JournalEntry, RollTable) has no row to test it on, so only the world's
+ * documents answer for it; an action that needs a shelf of those loads it itself
+ * (`loadLibrary`).
+ * @param {string} type
+ * @param {string} id
+ * @param {{original?: boolean, prefer?: ((doc: object) => boolean)|null}} [options] see `pickCarrier`
+ * @returns {Promise<object|null>}
+ */
+export async function byCookbookIdAsync(type, id, options = {}) {
+  if (!id) return null;
+  return pickCarrier(await libraryDocsWhere(type, stampMatch(id)), id, options);
+}
+
+/**
+ * The index row of the document carrying this cookbook id, for a surface that
+ * shows its name, picture or uuid: a `libraryRows` projection, never a document,
+ * the class-template parts skipped. Null where no row carries the id, which on
+ * an unindexed shelf is also what it answers until the index lands, when
+ * `redraw` re-renders the caller (`redrawOnRead`).
+ * @param {string} type
+ * @param {string} id
+ * @param {object} [options]
+ * @param {Function|object|null} [options.redraw] what to re-render when a read this ask started lands
+ * @returns {{_id: string, id: string, uuid: string, name: string, type: string, img: string, flags: object, pack: string|null}|null}
+ */
+export function cookbookRow(type, id, { redraw = null } = {}) {
+  if (!id) return null;
+  return libraryRows(type, stampMatch(id), { redraw })[0] ?? null;
+}
+
+/**
+ * Resolves once the library twin of an imported document is held, for a caller
+ * that can wait and then reads it synchronously (`byCookbookId`). A no-op for a
+ * document carrying no cookbook stamp.
+ * @param {object} doc a document carrying the importer's stamp (a spell, a creature)
+ * @returns {Promise<object|null>} the twin, or null where there is none to find
+ */
+export async function libraryTwinReady(doc) {
+  const id = cookbookId(doc);
+  return id ? byCookbookIdAsync(doc.documentName, id) : null;
+}
+
 /**
  * The index fields the library's readers rely on, by document type, beyond the
  * core ones. An index row carries a flag only once its path is declared in
@@ -285,6 +359,7 @@ export function byCookbookId(type, id, { original = false, prefer = null } = {})
  */
 export const LIBRARY_INDEX_FIELDS = Object.freeze({
   Item: Object.freeze([`flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.cookbook.merged`, `flags.${MODULE_ID}.templatePart`]),
+  Actor: Object.freeze([`flags.${MODULE_ID}.cookbook.id`, `flags.${MODULE_ID}.templatePart`, `flags.${MODULE_ID}.extras.types`]),
 });
 
 /**
@@ -395,7 +470,9 @@ const indexReads = new Map();
  * its own, so two readers of a shelf at startup would scan it twice. The shared
  * read is dropped when it settles, a rejection included, and the next caller
  * asks again. The call carries no argument: the declared index fields are the
- * ones a row carries (`declareLibraryIndexFields`).
+ * ones a row carries (`declareLibraryIndexFields`). A read that rejects is
+ * stamped with the clock (`libraryRows` and `libraryHeld` leave that shelf
+ * alone for `HELD_RETRY_MS`).
  *
  * @param {object} pack a compendium collection
  * @returns {Promise<Map<string, object>>}
@@ -405,8 +482,16 @@ export function shelfIndex(pack) {
   if (!read) {
     read = (async () => pack.getIndex())();
     indexReads.set(pack, read);
-    const drop = () => indexReads.delete(pack);
-    read.then(drop, drop);
+    read.then(
+      () => {
+        indexReads.delete(pack);
+        indexFailedAt.delete(pack);
+      },
+      () => {
+        indexReads.delete(pack);
+        indexFailedAt.set(pack, Date.now());
+      },
+    );
   }
   return read;
 }
@@ -480,6 +565,295 @@ export async function loadIds(pack, ids) {
   await Promise.all(waits);
   return wanted.map((id) => pack.get(id)).filter(Boolean);
 }
+
+/**
+ * How long a shelf whose index read failed, and a document whose load failed or
+ * came back empty, is left alone before `libraryRows` and `libraryHeld` ask for
+ * it again: a timing choice of this module, no page value. A redraw re-reads, so
+ * without the pause a read that cannot succeed would redraw its caller forever.
+ */
+export const HELD_RETRY_MS = 30_000;
+
+/** Whether a failure stamped at `at` is still inside the pause. */
+const recently = (at) => at !== undefined && Date.now() - at < HELD_RETRY_MS;
+
+/** When each pack's index read last failed (`shelfIndex` writes it). */
+const indexFailedAt = new WeakMap();
+
+/** When each document's load last failed or came back empty, by pack and then id. */
+const loadFailedAt = new WeakMap();
+
+/** Errors already warned of: concurrent readers share a failed read, and it is reported once. */
+const warnedErrors = new WeakSet();
+
+/** Report a failed read once however many readers shared it. */
+function warnOnce(err, message) {
+  if (err !== null && typeof err === "object") {
+    if (warnedErrors.has(err)) return;
+    warnedErrors.add(err);
+  }
+  console.warn(`${MODULE_ID} | ${message}`, err);
+}
+
+/**
+ * The one shape a reader here is handed for a world document, an index row or a
+ * held shelf document: core fields and module flags, never `system`. A row's
+ * `uuid` is its own where the index gives one, else the pack's.
+ */
+function projectionOf(source, pack = null) {
+  const id = source._id ?? source.id;
+  return {
+    _id: id,
+    id,
+    uuid: source.uuid ?? pack?.getUuid?.(id) ?? (pack ? `Compendium.${pack.collection}.${pack.documentName}.${id}` : null),
+    name: source.name,
+    type: source.type,
+    img: source.img,
+    flags: source.flags,
+    pack: pack?.collection ?? null,
+  };
+}
+
+/**
+ * Start one shelf's index read for a reader that cannot wait, as a promise that
+ * never rejects. A shelf whose read failed within `HELD_RETRY_MS` starts nothing
+ * and answers null, which the caller names on `failed`.
+ */
+function startIndex(pack) {
+  if (recently(indexFailedAt.get(pack))) return null;
+  return shelfIndex(pack).then(
+    () => undefined,
+    (err) => warnOnce(err, `could not read the index of the imported ${pack.documentName} library from ${pack.collection}`),
+  );
+}
+
+/** Whether a pack's rows carry every declared index field. A pack with no flag to say is read as indexed. */
+const isIndexed = (pack) => pack.indexed !== false;
+
+/**
+ * What one shelf gives a held read: the documents it holds that pass `match` and
+ * the ids of the passing rows it does not hold, in index order. Where the shelf
+ * is not indexed its rows cannot test a flag, so a document it holds is tested
+ * itself, and only a row it does not hold is tested as it stands.
+ */
+function scanShelf(pack, match) {
+  const heldPasses = new Map();
+  if (!isIndexed(pack)) for (const doc of pack.contents ?? []) heldPasses.set(doc.id, !!match(projectionOf(doc, pack)));
+  const held = [];
+  const missing = [];
+  for (const entry of pack.index?.values?.() ?? []) {
+    const id = entry._id;
+    if (!(heldPasses.get(id) ?? match(projectionOf(entry, pack)))) continue;
+    const doc = pack.get(id);
+    if (doc) held.push(doc);
+    else missing.push(id);
+  }
+  return { held, missing };
+}
+
+/** The ids of `ids` not inside the pause of a failed or empty load. */
+const askable = (pack, ids) => {
+  const failedAt = loadFailedAt.get(pack);
+  return ids.filter((id) => !recently(failedAt?.get(id)));
+};
+
+/**
+ * Load `ids` of one pack (`loadIds`) as a promise that never rejects. A load
+ * that fails, and an id the pack still does not hold once the load lands (a
+ * document that cannot be instantiated), is left alone for `HELD_RETRY_MS`.
+ */
+function loadHeld(pack, ids) {
+  let failedAt = loadFailedAt.get(pack);
+  if (!failedAt) loadFailedAt.set(pack, (failedAt = new Map()));
+  return loadIds(pack, ids).then(
+    () => {
+      for (const id of ids) {
+        if (pack.get(id)) failedAt.delete(id);
+        else failedAt.set(id, Date.now());
+      }
+    },
+    (err) => {
+      for (const id of ids) failedAt.set(id, Date.now());
+      warnOnce(err, `could not load the imported ${pack.documentName} documents from ${pack.collection}`);
+    },
+  );
+}
+
+/** Give a read's answer its non-enumerable `failed` and `pending`, and wire `redraw`. */
+function heldAnswer(list, reads, failed, redraw) {
+  const pending = reads.length ? Promise.all(reads).then(() => undefined) : null;
+  Object.defineProperties(list, {
+    failed: { value: failed, enumerable: false },
+    pending: { value: pending, enumerable: false },
+  });
+  if (redraw) redrawOnRead(list, redraw);
+  return list;
+}
+
+/**
+ * Every library document of a type that passes `match`, read from what is in
+ * hand and loading no document: the world's documents first, then each shelf this
+ * seat can open (`libraryPacks`), unlined shelf first, as index rows in index
+ * order. It answers projections `{_id, id, uuid, name, type, img, flags, pack}`,
+ * never a document, so no caller can read `system` off one; `match` is handed the
+ * same projection, and reads a flag only where its path is declared
+ * (`LIBRARY_INDEX_FIELDS`). It is synchronous because its callers are sheet
+ * getters and render bodies. It makes no server call but one: a shelf that is not
+ * indexed is answered as it stands, with its startup rows, and its index read is
+ * started (`shelfIndex`, shared by every reader).
+ *
+ * The answer is a plain array that also carries two non-enumerable properties:
+ * `pending`, a promise that never rejects and resolves once every read this ask
+ * started has settled (null when it started none), and `failed`, the collection
+ * ids of the shelves whose index read failed within `HELD_RETRY_MS`, which are
+ * left as they stand and start no read. `redraw` is handed to `redrawOnRead`.
+ *
+ * @param {string} type a document type the importer keeps a shelf for
+ * @param {(row: {_id: string, id: string, uuid: string, name: string, type: string, img: string, flags: object, pack: string|null}) => boolean} match
+ * @param {object} [options]
+ * @param {Function|object|null} [options.redraw] what to re-render when a read this ask started lands
+ * @returns {object[] & {pending: Promise<void>|null, failed: string[]}}
+ */
+export function libraryRows(type, match, { redraw = null } = {}) {
+  const rows = [];
+  for (const doc of worldCollection(type) ?? []) {
+    const row = projectionOf(doc);
+    if (match(row)) rows.push(row);
+  }
+  const reads = [];
+  const failed = [];
+  for (const pack of libraryPacks(type)) {
+    if (!isIndexed(pack)) {
+      const read = startIndex(pack);
+      if (read) reads.push(read);
+      else failed.push(pack.collection);
+    }
+    for (const entry of pack.index?.values?.() ?? []) {
+      const row = projectionOf(entry, pack);
+      if (match(row)) rows.push(row);
+    }
+  }
+  return heldAnswer(rows, reads, failed, redraw);
+}
+
+/**
+ * Every library document of a type that passes `match`, answered from what is
+ * held and synchronous: the world's documents first, then per shelf the
+ * documents it holds among the passing index rows (read through `pack.get`, which
+ * re-arms Foundry's cache lifetime for them). The passing rows it does not hold
+ * go to `loadIds`, one `_id__in` per shelf, and `pending` resolves when they
+ * have landed, so the same ask then answers them. It never loads a whole shelf.
+ *
+ * A shelf that is not indexed cannot test a flag on its rows, so the documents it
+ * holds are tested themselves (a warm page answers what `libraryDocs` answers),
+ * and its index read is chained with the load of the rows that pass once it
+ * lands: one `pending`, one redraw, and the redraw finds them held. A load that
+ * fails, or a document the shelf will not hold, is left alone for
+ * `HELD_RETRY_MS`, so a redraw cannot loop; its shelf is named on `failed`, as a
+ * shelf whose index read failed is. `match` and the answer's extra properties
+ * are `libraryRows`'.
+ *
+ * @param {string} type a document type the importer keeps a shelf for
+ * @param {(row: {_id: string, id: string, uuid: string, name: string, type: string, img: string, flags: object, pack: string|null}) => boolean} match
+ * @param {object} [options]
+ * @param {Function|object|null} [options.redraw] what to re-render when a read this ask started lands
+ * @returns {object[] & {pending: Promise<void>|null, failed: string[]}}
+ */
+export function libraryHeld(type, match, { redraw = null } = {}) {
+  const docs = [];
+  for (const doc of worldCollection(type) ?? []) if (match(projectionOf(doc))) docs.push(doc);
+  const reads = [];
+  const failed = [];
+  for (const pack of libraryPacks(type)) {
+    if (!isIndexed(pack)) {
+      const index = startIndex(pack);
+      if (index) {
+        reads.push(
+          index
+            .then(() => {
+              if (!isIndexed(pack)) return undefined;
+              const ids = askable(pack, scanShelf(pack, match).missing);
+              return ids.length ? loadHeld(pack, ids) : undefined;
+            })
+            .catch((err) => warnOnce(err, `could not read the imported ${type} library from ${pack.collection}`)),
+        );
+      } else {
+        failed.push(pack.collection);
+      }
+    }
+    const { held, missing } = scanShelf(pack, match);
+    docs.push(...held);
+    const ids = askable(pack, missing);
+    if (ids.length < missing.length && !failed.includes(pack.collection)) failed.push(pack.collection);
+    if (ids.length) reads.push(loadHeld(pack, ids));
+  }
+  return heldAnswer(docs, reads, failed, redraw);
+}
+
+/** The redraws waiting, by target: the reads each is waiting on. */
+const redrawQueue = new WeakMap();
+
+/** Re-render one target: a function, an application, or a document's rendered applications. */
+function redrawTarget(target) {
+  const render = (app) => {
+    if (!app?.rendered || typeof app.render !== "function") return;
+    Promise.resolve(app.render()).catch((err) => warnOnce(err, "could not redraw a window after a library read"));
+  };
+  try {
+    if (typeof target === "function") target();
+    else if (typeof target.render === "function") render(target);
+    else for (const app of Object.values(target.apps ?? {})) render(app);
+  } catch (err) {
+    warnOnce(err, "could not redraw after a library read");
+  }
+}
+
+/**
+ * Re-render `target` once a read an answer started has landed, so a surface that
+ * drew short fills in. `target` is a function, an application, or a document
+ * (each of its rendered applications); an application no longer rendered is
+ * skipped. The redraw is once per target however many reads are outstanding for
+ * it: an ask made while one is queued joins it, and it waits for every read
+ * joined, so two asks in one render pass redraw once. A target must be the same
+ * object across asks for that to hold. An answer with nothing pending redraws
+ * nothing.
+ *
+ * @param {{pending?: Promise<void>|null}} answer a `libraryRows` or `libraryHeld` answer
+ * @param {Function|object} target
+ */
+export function redrawOnRead(answer, target) {
+  const pending = answer?.pending;
+  if (!pending || !target) return;
+  const waiting = redrawQueue.get(target);
+  if (waiting) {
+    waiting.add(pending);
+    return;
+  }
+  const reads = new Set([pending]);
+  redrawQueue.set(target, reads);
+  (async () => {
+    let seen;
+    do {
+      seen = reads.size;
+      await Promise.allSettled([...reads]);
+    } while (reads.size !== seen);
+    redrawQueue.delete(target);
+    redrawTarget(target);
+  })();
+}
+
+/**
+ * A redraw target that re-renders every rendered `ApplicationV2` whose document
+ * passes `predicate` (an open actor sheet, say). Hold it and hand the same one
+ * to each ask, since `redrawOnRead` merges asks by target.
+ * @param {(document: object) => boolean} predicate
+ * @returns {() => void}
+ */
+export const redrawOpen = (predicate) => () => {
+  for (const app of globalThis.foundry?.applications?.instances?.values?.() ?? []) {
+    if (app?.rendered && app.document && predicate(app.document)) app.render();
+  }
+};
 
 /** The `performance.mark` set when the warm begins loading whole shelves, read by a timing script. */
 export const WARM_MARK_STARTED = "acks-extras:libraryWarm:started";

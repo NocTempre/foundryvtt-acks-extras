@@ -14,7 +14,7 @@
  * the registry and the roller may both import it.
  */
 import { ITEM_TYPE, resolveLevelValue } from "../lib/vocab.mjs";
-import { cookbookId, openPacks, packDocsWhere } from "../lib/library.mjs";
+import { cookbookId, openPacks, packDocsWhere, redrawOpen } from "../lib/library.mjs";
 
 const ABILITIES_ID = "acks-extras";
 
@@ -80,11 +80,7 @@ const ladderSignature = (map) => JSON.stringify([...map].sort(([a], [b]) => a.lo
  * finished, or before an import changed a ladder, shows a throw borrowed from a
  * skill's ladder as blank, and nothing else draws it again.
  */
-function redrawActorSheets() {
-  for (const app of foundry.applications?.instances?.values?.() ?? []) {
-    if (app?.rendered && app.document?.documentName === "Actor") app.render();
-  }
-}
+const redrawActorSheets = redrawOpen((document) => document.documentName === "Actor");
 
 /** Whether an index row of a world pack is an imported skill definition. */
 const isSkillRow = (row) => row.type === ITEM_TYPE.ability && cookbookId(row).startsWith(SKILL_PREFIX);

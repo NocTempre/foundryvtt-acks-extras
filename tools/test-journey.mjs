@@ -1271,19 +1271,10 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   assert.equal(open.result, open.chat.at(-1), "the card hands back the message it created");
 
   // A creature held only on a shelf that has not loaded yet is still linked: the
-  // posted card never redraws, so it waits for the shelf.
-  const shelf = {
-    metadata: { packageType: "world", label: "ACKS Cookbook — Actor" },
-    documentName: "Actor",
-    index: { size: 1 },
-    size: 0,
-    contents: [],
-    async getDocuments() {
-      await new Promise((resolve) => setTimeout(resolve, 5));
-      this.size = 1;
-      this.contents = [{ id: "inv1", name: "Invented Beast", uuid: "Compendium.invented.Actor.inv1" }];
-    },
-  };
+  // posted card never redraws, so it links from the shelf's index rows and waits
+  // for no load.
+  const { shelfMock, sourceDoc } = await import("./lib-shelf-mock.mjs");
+  const shelf = shelfMock({ type: "Actor", docs: [sourceDoc("inv1", "Invented Beast", "monster")] });
   const hadPacks = game.packs;
   const hadActors = game.actors;
   game.packs = [shelf];
@@ -1294,7 +1285,8 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
       ...thrown,
       creature: { ok: true, name: "Invented Beast", roll: 4, rarity: "common" },
     }, { terrain: "grassland", activity: "travel", night: false }));
-    assert.match(cold.cards.at(-1).creature.link, /Compendium\.invented\.Actor\.inv1/, "a cold shelf is loaded before the creature is read");
+    assert.match(cold.cards.at(-1).creature.link, /@UUID\[Compendium\.inv1\]/, "a creature on a cold shelf is linked from its index row");
+    assert.equal(shelf.calls.getDocuments.length, 0, "the card makes no load and waits for none");
   } finally {
     game.packs = hadPacks;
     game.actors = hadActors;

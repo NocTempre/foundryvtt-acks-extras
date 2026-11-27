@@ -149,9 +149,18 @@ function monster({ id, name = "Knot", type = "monster", encounter = null, stamp 
 }
 
 /** The shelf the importer mints: a world pack of actors. */
-const shelf = { metadata: { packageType: "world", label: "ACKS Cookbook — Actor" }, documentName: "Actor", index: { size: 0 }, size: 0, contents: [] };
+const shelf = {
+  metadata: { packageType: "world", label: "ACKS Cookbook — Actor" }, documentName: "Actor", collection: "world.shelf", index: new Map(), contents: [],
+  get size() { return this.contents.length; },
+  get: (id) => shelf.contents.find((d) => d.id === id),
+};
 game.packs = [shelf];
-const stock = (...actors) => { shelf.contents.push(...actors); };
+const stock = (...actors) => {
+  for (const a of actors) {
+    shelf.contents.push(a);
+    shelf.index.set(a.id, { _id: a.id, name: a.name, type: a.type, flags: a.flags });
+  }
+};
 
 /** A lair place: a location actor holding its roster and its lair flag, writes applied as Foundry applies them. */
 function lairPlace({ of = "zz.beast", name = "Place 7", roster = [], pack = null } = {}) {

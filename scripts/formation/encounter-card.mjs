@@ -24,7 +24,7 @@
 import { MODULE_ID } from "../lib/constants.mjs";
 import { makeLoc, gmIds, fractionLabel, numOrNull } from "../lib/util.mjs";
 import { looseCreatureName, nameKeys } from "../lib/vocab.mjs";
-import { libraryActors, whenReady } from "../lib/library.mjs";
+import { libraryRows } from "../lib/library.mjs";
 import { readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
 import { citeOf } from "../lib/tables.mjs";
 import { DELVE_ENCOUNTER_DOC, importedEncounterCadence } from "./constants.mjs";
@@ -74,8 +74,10 @@ export const encountersOn = () => {
  * library, matched through the name-form fold so "Horse, War" finds "War
  * Horse". A name no actor's keys meet falls to `looseCreatureName` (a family
  * head, a number, an abbreviation, a truncation) over the world's actors and
- * the library together, so an exact match anywhere outranks a loose one.
- * Returns the actor or null — a miss is a book line, not an error.
+ * the library together, so an exact match anywhere outranks a loose one. The
+ * library is read as index rows (`libraryRows`), so a creature resolves with no
+ * shelf loaded. Returns the actor, or a row carrying its `name` and `uuid`, or
+ * null — a miss is a book line, not an error.
  */
 export function resolveCreature(name) {
   const wanted = nameKeys(name);
@@ -87,7 +89,7 @@ export function resolveCreature(name) {
   const world = game.actors?.contents ?? [];
   const worldHit = hits(world);
   if (worldHit) return worldHit;
-  const library = libraryActors() ?? [];
+  const library = libraryRows("Actor", () => true);
   const libraryHit = hits(library);
   if (libraryHit) return libraryHit;
   const pool = [...world, ...library];
@@ -325,9 +327,6 @@ async function drawZoneTable(zones) {
 export async function postEncounterCard(formation, chain, {
   terrain, activity, night, hex = null, travel, zones = null, zoneDraw = null, nights = 0, rng = Math.random,
 } = {}) {
-  // The posted card never redraws, so a creature read from a cold shelf would
-  // stay a book line for the life of the message.
-  await whenReady();
   const outcomeKey = chain.outcome ?? chain.territory?.outcome ?? "none";
   const creature = chain.creature?.ok ? chain.creature : null;
   const actor = creature ? resolveCreature(creature.name) : null;

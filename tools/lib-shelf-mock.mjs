@@ -9,6 +9,8 @@
  * - `getDocuments(query)` answers in the SERVER's order (the reverse of the
  *   index's), takes `_id__in`, instantiates new documents, and sets only the ones
  *   it did not already hold;
+ * - a row carries `img` when its document has one (core's Actor and Item index fields hold it), and the
+ *   shelf answers `getUuid(id)`, which an instance's `uuid` equals; a row has no `uuid` of its own;
  * - `indexed` is true once the first `getIndex()` has run with every declared
  *   field (or when nothing beyond core fields is declared), as core's is;
  * - `size` counts held documents and `index.size` every row, which is how the
@@ -39,11 +41,13 @@ const putPath = (obj, path, value) => {
  * @param {string} type
  * @param {string|null} [mint] the cookbook id the importer would stamp
  * @param {object} [system]
+ * @param {string|null} [img] the picture, which the core index fields carry
  */
-export const sourceDoc = (id, name, type, mint = null, system = { marker: `body of ${id}` }) => ({
+export const sourceDoc = (id, name, type, mint = null, system = { marker: `body of ${id}` }, img = null) => ({
   _id: id,
   name,
   type,
+  ...(img ? { img } : {}),
   flags: mint ? { "acks-extras": { cookbook: { id: mint } } } : {},
   system,
 });
@@ -65,8 +69,8 @@ export const sourceDoc = (id, name, type, mint = null, system = { marker: `body 
 export function shelfMock({ line = null, docs, held = [], visible = true, failIndex = false, failLoad = false, extraIndex = {}, type = "Item" }) {
   const stored = new Map();
   const calls = { getIndex: [], getDocuments: [] };
-  const instance = (d) => ({ id: d._id, name: d.name, type: d.type, flags: structuredClone(d.flags), system: structuredClone(d.system), uuid: `Compendium.${d._id}` });
-  const coreRow = (d) => ({ _id: d._id, name: d.name, type: d.type });
+  const instance = (d) => ({ id: d._id, name: d.name, type: d.type, ...(d.img ? { img: d.img } : {}), flags: structuredClone(d.flags), system: structuredClone(d.system), uuid: `Compendium.${d._id}` });
+  const coreRow = (d) => ({ _id: d._id, name: d.name, type: d.type, ...(d.img ? { img: d.img } : {}) });
   let indexed = false;
   let indexedFields = new Set(CORE_FIELDS);
   const label = libraryPackLabel(type, line);
@@ -84,6 +88,7 @@ export function shelfMock({ line = null, docs, held = [], visible = true, failIn
     get indexed() {
       return (globalThis.CONFIG?.[type]?.compendiumIndexFields ?? []).every((field) => indexedFields.has(field));
     },
+    getUuid: (id) => `Compendium.${id}`,
     has: (id) => stored.has(id),
     get: (id) => stored.get(id),
     get size() {

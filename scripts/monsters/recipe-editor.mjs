@@ -19,7 +19,7 @@
  * Rulings: docs/monsters/MODEL.md, "The encounter recipe".
  */
 import { ANIMAL_TYPE } from "../lib/constants.mjs";
-import { libraryActors, whenReady } from "../lib/library.mjs";
+import { libraryRows } from "../lib/library.mjs";
 import { hostGenOf, unitsOf } from "../lib/org.mjs";
 import { templateOf } from "../lib/org-chart-ui-logic.mjs";
 import { MODULE_ID } from "./constants.mjs";
@@ -153,10 +153,13 @@ export class RecipeEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     return sentenceMarks(read.paragraphs, recipe, read.sentences);
   }
 
-  /** The library's monsters and animals, as the Roll builds the index its mount and beast words resolve against. */
-  async #library() {
-    await whenReady();
-    return libraryActors().filter((a) => a.type === "monster" || a.type === ANIMAL_TYPE).map((a) => ({ name: a.name, uuid: a.uuid }));
+  /**
+   * The library's monsters and animals, as the Roll builds the index its mount and beast words resolve against.
+   * They are index rows tested on the core `type` field, which a shelf's startup rows already carry, so the list is
+   * whole before any index read and the window needs no redraw.
+   */
+  #library() {
+    return libraryRows("Actor", (a) => a.type === "monster" || a.type === ANIMAL_TYPE).map((a) => ({ name: a.name, uuid: a.uuid }));
   }
 
   /** @override */
@@ -166,7 +169,7 @@ export class RecipeEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     const readCopy = readCopyAt(doc, this.#target);
     const edited = recipe.find((p) => p?.key === this.#editKey);
     const role = this.#draft?.values?.role ?? edited?.role;
-    const library = this.#editKey && LINKED_ROLES.includes(role) ? await this.#library() : [];
+    const library = this.#editKey && LINKED_ROLES.includes(role) ? this.#library() : [];
     const cite = readCopy.find((p) => p?.cite)?.cite || recipe.find((p) => p?.cite)?.cite || "";
     const ctx = buildContext({
       recipe, readCopy, state: this.#state, place: this.#place, editKey: edited ? this.#editKey : "", draft: this.#draft,
