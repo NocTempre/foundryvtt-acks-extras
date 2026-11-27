@@ -24,7 +24,7 @@ function tableOf() {
 }
 
 /** Every dash a band's two edges are printed between. */
-const DASH = "[-‐-―−]";
+const DASH = `[-${String.fromCodePoint(0x2010)}-${String.fromCodePoint(0x2015)}${String.fromCodePoint(0x2212)}]`;
 const OR_LESS = /^(\d+(?:\.\d+)?)\s*or\s*(?:less|fewer|lower)$/i;
 const OR_MORE = /^(\d+(?:\.\d+)?)\s*or\s*(?:more|higher|greater)$/i;
 const SPAN = new RegExp(`^(\\d+(?:\\.\\d+)?)\\s*${DASH}\\s*(\\d+(?:\\.\\d+)?)$`);
