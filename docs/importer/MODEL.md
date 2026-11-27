@@ -48,6 +48,12 @@ definition, built as `bindAbility` builds it; else the namesake
 (`stats-map.mjs` `namesakeAbility`). A name is matched as printed, then as a
 power's printed name (`refForPrintedName`); an authored `ref` wins outright.
 
+That `ref` is the row a name reads from its register table (`executor.mjs`
+`lookup`): found as printed, else under the conversion table's rename, else,
+where the rename names alternatives ("A or B C"), under each one as
+`alternativesHeld` completes it. One held gives that row; more than one gives
+no row and lists them as `alternatives`, so nothing is chosen for the Judge.
+
 The first two carry the definition's own `extras`, category included. The
 namesake has no definition behind it and writes `extras.category: ""`, and a
 blank category reads as unknown everywhere (`docs/abilities/MODEL.md`). A

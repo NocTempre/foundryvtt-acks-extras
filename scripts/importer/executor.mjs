@@ -22,6 +22,7 @@ import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { ceilingOf } from "../equipment/armour-limits.mjs";
 import { SIZES } from "../monsters/config.mjs";
 import { effectsOriginOf } from "./effects-origin.mjs";
+import { alternativesHeld } from "./character-binding.mjs";
 
 /** Monster description sections that no mechanics scan reads (see `executeEntry`). */
 const UNSCANNED_MONSTER_SECTIONS = new Set(["encounter", "lair", "notes"]);
@@ -193,18 +194,26 @@ export function convertName(registers, token) {
  * Exact-match table lookup: token -> {text, key?, ref?}; miss -> {text}.
  *
  * On a miss the token may be a legacy or foreign (OGL/OSR) name, so the
- * conversion table is consulted and the ACKS II equivalent retried. A name the
+ * conversion table is consulted and the ACKS II equivalent retried, each
+ * alternative of a target that names several (`alternativesHeld`). A name the
  * guide marks "deleted"/"absent" resolves to a conversion status rather than a
  * silent miss.
  */
-function lookup(registers, tableName, token, misses) {
+export function lookup(registers, tableName, token, misses) {
   const row = registers?.tables?.[tableName]?.[token];
   if (row) return { text: token, ...row };
 
   const conv = convertName(registers, token);
   if (conv?.status === "renamed" && conv.to) {
-    const renamed = registers?.tables?.[tableName]?.[conv.to];
+    const rows = registers?.tables?.[tableName];
+    const renamed = rows?.[conv.to];
     if (renamed) return { text: token, ...renamed, convertedFrom: conv.from, convertedTo: conv.to };
+    // A target naming two alternatives ("A or B C") resolves to the one the
+    // table holds; with more than one held the rename is left unresolved and
+    // names them, since nothing here can choose between them.
+    const held = alternativesHeld(conv.to, (name) => rows?.[name]);
+    if (held.length === 1) return { text: token, ...rows[held[0]], convertedFrom: conv.from, convertedTo: held[0] };
+    if (held.length > 1) return { text: token, conversion: conv.status, convertedTo: conv.to, alternatives: held };
   }
   if (conv) return { text: token, conversion: conv.status, ...(conv.to ? { convertedTo: conv.to } : {}) };
 

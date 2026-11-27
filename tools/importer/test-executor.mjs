@@ -18,7 +18,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { CLAUSE_FIELDS, effectScan, executeEntry, locateCondition, materializeEffects, materializeRolls } from "../../scripts/importer/executor.mjs";
+import { CLAUSE_FIELDS, effectScan, executeEntry, locateCondition, lookup, materializeEffects, materializeRolls } from "../../scripts/importer/executor.mjs";
 import {
   CONDITION_LABELS, CONSEQUENCE_LABELS, RESTRICTION_LABELS, bareLabel, citeLabel, conditionProblem, fieldProblem, isConditionLabel, isLabel, noteProblem,
 } from "../../scripts/importer/condition-labels.mjs";
@@ -1396,6 +1396,34 @@ t("the first label wins over a later one", () => {
 
 t("the labels are told with the whitespace extraction welds away", () => {
   assert.deepEqual(magicFigures("BaseCost 70gp: x. ApparentValue 3gp."), { baseCostGp: 70, apparentValueGp: 3 });
+});
+
+/* A conversion rename to two alternatives, looked up in a table (invented names). */
+const renaming = (rows) => ({
+  tables: {
+    conversion: { "Old Glimmer": { category: "monster", status: "renamed", to: "Glimmer or Hush Ward" }, "Old Lantern": { category: "monster", status: "renamed", to: "Lantern Ward" } },
+    creature: rows,
+  },
+});
+
+t("a two-alternative rename takes the one alternative the table holds, completed with the shared words", () => {
+  const row = lookup(renaming({ "Glimmer Ward": { ref: "mm.glimmerWard" } }), "creature", "Old Glimmer", []);
+  assert.deepEqual(row, { text: "Old Glimmer", ref: "mm.glimmerWard", convertedFrom: "Old Glimmer", convertedTo: "Glimmer Ward" });
+  const last = lookup(renaming({ "Hush Ward": { ref: "mm.hushWard" } }), "creature", "Old Glimmer", []);
+  assert.equal(last.ref, "mm.hushWard");
+  assert.equal(last.convertedTo, "Hush Ward");
+});
+
+t("with both alternatives held the rename is left unresolved and names them", () => {
+  const row = lookup(renaming({ "Glimmer Ward": { ref: "mm.glimmerWard" }, "Hush Ward": { ref: "mm.hushWard" } }), "creature", "Old Glimmer", []);
+  assert.deepEqual(row, { text: "Old Glimmer", conversion: "renamed", convertedTo: "Glimmer or Hush Ward", alternatives: ["Glimmer Ward", "Hush Ward"] });
+});
+
+t("with neither alternative held the rename resolves to its status, and a whole target still wins", () => {
+  assert.deepEqual(lookup(renaming({}), "creature", "Old Glimmer", []), { text: "Old Glimmer", conversion: "renamed", convertedTo: "Glimmer or Hush Ward" });
+  const whole = lookup(renaming({ "Glimmer or Hush Ward": { ref: "mm.both" }, "Hush Ward": { ref: "mm.hushWard" } }), "creature", "Old Glimmer", []);
+  assert.equal(whole.ref, "mm.both");
+  assert.equal(lookup(renaming({ "Lantern Ward": { ref: "mm.lantern" } }), "creature", "Old Lantern", []).ref, "mm.lantern");
 });
 
 console.log(`\n${n} tests passed`);
