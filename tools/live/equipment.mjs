@@ -535,7 +535,8 @@ try {
     if (formationId) { try { note("party deleted", await run(gm, P.deleteParty, { formationId })); } catch (err) { console.error("deleteParty:", err?.message ?? err); } }
     try { note("closed (gm)", await run(gm, P.closeAll)); } catch (err) { console.error("closeAll:", err?.message ?? err); }
     // The reset deleted the readied torch; the sweep reports it as not found, which is the record.
-    try { note("sweep", await gm.sweepTracked()); } catch (err) { console.error("sweep:", err?.message ?? err); }
+    // The marked fixtures stay for the next walk; only what this run made without a marker goes.
+    try { note("sweep", await gm.sweepTracked({ only: gm.tracked().filter((e) => !e.marker).map((e) => e.uuid) })); } catch (err) { console.error("sweep:", err?.message ?? err); }
   }
   for (const api of Object.values(seats)) { try { await api.close(); } catch {} }
   section("summary");

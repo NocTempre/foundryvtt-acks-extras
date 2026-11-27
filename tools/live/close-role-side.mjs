@@ -648,7 +648,8 @@ try {
   for (const [key, api] of Object.entries(seats)) {
     try { await run(api, P.restore); } catch (err) { console.error(`restore ${key}:`, err?.message ?? err); }
   }
-  try { if (seats.gm) note("swept", await seats.gm.sweepTracked()); } catch (err) { console.error("sweep:", err?.message ?? err); }
+  // The marked fixtures stay for the next walk; only what this run made without a marker goes.
+  try { if (seats.gm) note("swept", await seats.gm.sweepTracked({ only: seats.gm.tracked().filter((e) => !e.marker).map((e) => e.uuid) })); } catch (err) { console.error("sweep:", err?.message ?? err); }
   for (const api of Object.values(seats)) {
     try { await api.close(); } catch { /* closed */ }
   }
