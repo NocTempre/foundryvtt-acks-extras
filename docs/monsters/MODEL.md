@@ -500,9 +500,13 @@ nothing where none is imported. A blank attribute stays blank on the Classificat
 tab and shows `defaultScore()` as its placeholder, or none. A blank is the
 default specimen and gives no modifier. An entered score gives the acks
 system's modifier for it (`lib/actor-read.mjs` `abilityMod`, `enteredScore`),
-and every module throw that reads an ability modifier takes it for a monster:
-the swim breath, the squeeze push, a door bash, a night's Endurance, an
-ability's score term. The system's own monster rolls add none.
+and the module's throws take it for a monster: the swim breath, the squeeze
+push, a door bash, a night's Endurance, an ability's score term, the Wisdom
+part of a throw against magic (`lib/saves.mjs` `saveSpec`), and a jump's
+Dexterity, in place of the creature's assumed score. A monster's armour class,
+the henchman allowance and the follower card's attack figure read none, and the
+system's own monster rolls add none. The rules MM ch. 3 gives a monster's
+scores apart from a character's are not applied (ROADMAP).
 
 **Natural weapons and extraordinary damage.** Two more `monsters` tables, from
 the Damage entry of the Monster Overview (MM p. 12), read by

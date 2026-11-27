@@ -918,6 +918,24 @@ await ok("a jump row is canClear's answer for the member, with a blank gap showi
   assert.equal(out.ok, false, "a jump has no throw on this surface");
 });
 
+await ok("a monster jumps on the DEX a Judge entered, and on the creature's assumed score while the field is blank", async () => {
+  reset();
+  load();
+  const wolf = person("Wolf", { type: "monster", entered: { dex: 16 } });
+  const fox = person("Fox", { type: "monster" });
+  // The system's monster model holds no ability scores.
+  for (const beast of [wolf, fox]) delete beast.system.scores;
+  const { formation } = world([wolf, fox]);
+  await beginCrossing(formation, "jump");
+  await applyCrossingForm(formation, { gap: "3", runUp: true });
+  const entry = (actor) => crossing.rowFor(formation, readCrossing(formation), { member: { actorId: actor.id }, actor }, { judge: true });
+  assert.equal(entry(wolf).options.dex, 16, "the entered score");
+  assert.equal(entry(fox).options.dex, undefined, "none written, so the jump reads the creature's assumed score");
+  const { jumpDistance } = await import("../scripts/formation/jumping.mjs");
+  assert.equal(jumpDistance(entry(fox).options).dex, JUMPING.creatureDex, "the imported assumed score");
+  assert.equal(jumpDistance(entry(wolf).options).dex, 16);
+});
+
 await ok("a setup form writes the keys it changes and unsets a blank number", async () => {
   reset();
   load();

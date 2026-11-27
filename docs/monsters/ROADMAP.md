@@ -17,3 +17,12 @@ Work that is designed but absent, deliberately. How the feature behaves now is
   figure or percentage; a Judge cannot set or change the others by hand, and cannot
   turn a plain count into a for-every one. A control for them needs a design board
   first ("Design before build", `.claude/rules/ui-layout.md`).
+- **The rules MM ch. 3 gives a monster's ability scores apart from a character's
+  are not applied.** An entered score feeds the module's own throws through the
+  system's table (the default-score paragraph, `docs/monsters/MODEL.md`); the
+  chapter's own figures for a monster are not imported or read: Strength on
+  attack throws and damage against the natural attack's average damage (an owner
+  question, DECISIONS 2026-11-27) and on maximum load, Dexterity on a
+  non-humanoid's speeds, Constitution on each Hit Die roll, Charisma on its
+  morale and its followers', and Intelligence on a sapient monster's
+  proficiencies, languages and spell repertoire or a bestial one's tricks.

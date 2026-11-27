@@ -2719,7 +2719,9 @@ told, unapplied one until a roller names the occasion.
 save, {magical, conditions, situational, parts, values, against, bearerToken,
 rollMods, damage, defenses})` is pure: the stored
 target, the roll's parts (a character's own modifier and Wisdom modifier when the
-throw is against magic, a situational figure, the caller's parts), and the
+throw is against magic, and there a monster's Wisdom modifier where a Judge
+entered the score, `actor-read.mjs` `enteredScore`; a situational figure; the
+caller's parts), and the
 creature's conditions through `rollMath("save", …)`, which lower the target as the
 conditions' own wrapper does. A part is `{key, label, value, side}`; a target
 part's value is the figure that lowers the number to roll. The saver's records'

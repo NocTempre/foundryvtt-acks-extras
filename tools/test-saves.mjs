@@ -33,6 +33,24 @@ const monster = ({ saves = { blast: { value: 14 } }, statuses = [] } = {}) => ({
   system: { saves },
 });
 
+await ok("a monster's Wisdom joins a throw against magic only where a Judge entered the score", () => {
+  const had = globalThis.CONFIG;
+  globalThis.CONFIG = { Actor: { dataModels: { character: { getAttributeModifier: (score) => ({ 16: 2, 5: -1 })[score] ?? 0 } } } };
+  try {
+    const entered = (scores) => ({ ...monster(), getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? { scores } : undefined) });
+    const wise = saveSpec(entered({ wis: 16 }), "blast");
+    assert.deepEqual(wise.parts.map((p) => [p.key, p.value, p.side]), [["wis", 2, "roll"]]);
+    assert.equal(wise.formula, "1d20 + 2");
+    assert.equal(saveSpec(entered({ wis: 5 }), "blast").formula, "1d20 - 1");
+    assert.deepEqual(saveSpec(entered({ wis: 16 }), "blast", { magical: false }).parts, [], "not on a throw that is not against magic");
+    assert.deepEqual(saveSpec(entered({ wis: null }), "blast").parts, [], "a blank field is the default specimen and adds nothing");
+    assert.deepEqual(saveSpec(monster(), "blast").parts, [], "nor does a monster with no scores at all");
+  } finally {
+    if (had === undefined) delete globalThis.CONFIG;
+    else globalThis.CONFIG = had;
+  }
+});
+
 await ok("a character's roll adds its own modifier and its Wisdom modifier against magic, as one signed term", () => {
   const spec = saveSpec(character({ mod: 2, wis: 1 }), "blast", { values: VALUES });
   assert.equal(spec.formula, "1d20 + 3");

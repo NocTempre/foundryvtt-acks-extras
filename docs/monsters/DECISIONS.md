@@ -776,7 +776,7 @@ beside the printed keys, and a creature whose bodies are split could mean one
 kind by it. A split creature's page names the kind (`archers`, `warriors`), which
 keeps its own key, so the reserved word only ever means all of them.
 
-## 2026-11-27 — A monster's ability scores are optional and feed the module's throws; a blank gives no modifier (T-0906)
+## 2026-11-27 — A monster's ability scores are optional and feed the module's throws; a blank gives no modifier (T-0906) — SUPERSEDED IN PART 2026-11-27
 
 The owner, 2026-11-27: "optional raw monsters can have scores with bonuses
 default assumes flat 9s".
@@ -841,3 +841,41 @@ carries and which counts attacks, not weapons.
 Strongest counter-argument (weak): a natural weapon is never stacked, so the
 count serves only carried arms. Those are the rows the report was about, and a
 natural weapon of Quantity 1 draws nothing.
+
+## 2026-11-27 — An entered score reaches the jump and a throw against magic; the rules MM ch. 3 gives a monster's scores wait (T-0906)
+
+New evidence: the entry "A monster's ability scores are optional" was built from
+the owner's words and the callers of `abilityMod`, before MM ch. 3's section on
+a monster's ability scores was read. That section gives a monster's score the
+character's bonus or penalty on the rolls and throws its ability governs, except
+where it says otherwise. Two module throws read an ability without `abilityMod`
+and are such throws: the jump's Dexterity and the Wisdom part of a throw against
+magic. Both now read an entered score (`crossing.mjs`, the jump row's options;
+`lib/saves.mjs` `saveSpec`). A monster with Wisdom 16 entered throws against
+magic with the system table's modifier for 16 as a Wisdom part, and with the
+field blank it has none; a jump with Dexterity blank still takes the creature's
+assumed score.
+
+Superseded in part: that entry's reason for leaving attacks alone. The same
+section gives a monster's Strength on attack throws and damage a figure of its
+own, read from a table against the natural attack's average damage, not the
+character's modifier. No module change to attacks follows from the character
+table, and whether the module builds the monster's own is put to the owner. The
+section's other departures from the character rules each rest on a printed
+figure or table and are ROADMAP: Strength on maximum load, Dexterity on a
+non-humanoid's speeds, Constitution on each Hit Die roll, Charisma on morale,
+and Intelligence on a sapient monster's proficiencies, languages and
+repertoire or a bestial one's tricks.
+
+Unchanged: a monster's armour class (its printed figure is the creature's;
+`roll-mods.mjs` `armourLift` takes Dexterity out of a character's alone), the
+henchman allowance (`henchmen/acks-adapter.mjs` `chaScoreMod`, null for a
+monster), and the follower card's attack figure, which mirrors the system's own
+monster attack roll.
+
+Strongest counter-argument (medium): the departures for Strength, Constitution
+and Charisma touch the figures a fight shows (attacks, hit points, morale), so
+applying the character table to a swim breath while leaving those out can read
+as half a rule. The throws changed are the module's own and take the
+character's bonus as the section says; the departures need tables the importer
+does not read yet, and the ROADMAP row names each.

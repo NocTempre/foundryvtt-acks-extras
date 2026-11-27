@@ -1015,7 +1015,11 @@ whatever the last walk wrote.
 **Drive mechanics.** No party fixture holds a monster member, and none is
 needed: `crossing.mjs` `rowFor(party, {kind}, {member: {actorId}, actor})`
 builds the row for any actor without writing a crossing, so the rows are read
-in page context on a synthetic member of the kept party.
+in page context on a synthetic member of the kept party. The Constitution part
+is in the swim row's `drown.parts`, not its `parts`. A score typed into the
+Classification tab's field and changed takes from under one to about five
+seconds to reach the flag: poll the flag for the value, re-querying the input
+for each write, never a fixed wait. A cleared field stores `null`.
 
 **Steps.**
 
@@ -1026,14 +1030,22 @@ in page context on a synthetic member of the kept party.
    its score; a blank, a `0` and an empty string read `enteredScore` null and
    `abilityMod` 0. A character's `abilityMod` still equals its sheet's `mod`.
 2. With Constitution and Strength blank, read the swim and squeeze rows.
-   *Observable:* the swim row's parts hold the `breath` and no `conMod`; the
-   squeeze row holds no `strength` part.
+   *Observable:* the swim row's `drown.parts` hold the `breath` and no
+   `conMod`; the squeeze row holds no `strength` part.
 3. Enter Constitution 16 and Strength 16 on the Classification tab's
    Attributes, then read both rows again.
-   *Observable:* the swim row gains `conMod` with the table's figure for 16;
-   the squeeze row's `strength` part carries the same figure as its `mod`.
-4. Clear both fields.
-   *Observable:* the parts of step 2 return.
+   *Observable:* the swim row gains `conMod` with the table's figure for 16 and
+   its breath rounds rise by it; the squeeze row's `strength` part carries the
+   same figure as its `mod`.
+4. Enter Wisdom 16 and Dexterity 16 the same way, then read
+   `saveSpec(actor, "spells")`, the same with `{magical: false}`, and the jump
+   row's `options.dex`.
+   *Observable:* the magical save's parts are one `wis` roll part with the
+   table's figure; the other save has none; the jump's `dex` is 16.
+5. Clear the four fields.
+   *Observable:* each stored score is `null`, the parts of step 2 return, the
+   save has no parts and the jump's `dex` is undefined, so the jump takes the
+   creature's assumed score.
 
 **Teardown.** The fixture stays, blank.
 

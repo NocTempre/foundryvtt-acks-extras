@@ -3498,7 +3498,8 @@ imported page. A held effect refuses a hand-delete under the label
 through `resolveCheck(actor, CLIMB_CHECK)`, whether the member holds Climbing
 (the capability or an ability of that name, the union `swimming.mjs`
 `holdsSwimming` reads), the party's own standing (left behind, detached, down)
-and, for a jump, the actor's Dexterity score, level, Acrobatics and carried
+and, for a jump, the actor's Dexterity score (a monster's entered one, or none,
+so the jump takes the creature's assumed score), level, Acrobatics and carried
 stone (`carriedLoad`'s share for a Carrier, else the member's own encumbrance;
 a Carrier's base is a character's encumbrance and a monster's own pack, items
 and coin, through lib's `loadStone`).

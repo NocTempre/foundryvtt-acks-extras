@@ -26,6 +26,7 @@ import { actorDefenses, defenseFigures, defenseSaveParts } from "./defenses.mjs"
 import { CONDITION_STEP_KEYS, conditionSteps, ownSaveParts, saveModParts, stepLabel, sumSteps } from "./roll-mods.mjs";
 import { locOr } from "./util.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
+import { abilityMod, enteredScore } from "./actor-read.mjs";
 
 /** A finite number from a number or numeric text, else null. */
 const figure = (v) => {
@@ -58,7 +59,7 @@ const word = (key, fallback) => locOr(`${LANG_PREFIX}.saves.part.${key}`, fallba
  * @param {Actor} actor
  * @param {string} save  the system's key for the throw
  * @param {object} [options]
- * @param {boolean} [options.magical=true]  the throw is against magic: a character's own modifier (less the steps its condition effects make, which join every save) and Wisdom modifier join the roll
+ * @param {boolean} [options.magical=true]  the throw is against magic: a character's own modifier (less the steps its condition effects make, which join every save) and Wisdom modifier join the roll, and a monster's Wisdom modifier where a Judge entered the score
  * @param {boolean} [options.conditions=true]  the creature's conditions lower the target, and the steps its condition effects make to the save modifier join the throw: a character's as roll parts, a non-character's as target parts
  * @param {number|string|null} [options.situational]  a figure for this one throw
  * @param {Array<{key: string, label: string, value: number|string}>} [options.parts]  the caller's parts on the roll
@@ -98,6 +99,10 @@ export function saveSpec(
   if (magical && character) {
     rollParts.push({ key: "saveMod", label: word("saveMod", "Save modifier"), value: (actor.system?.save?.mod ?? 0) - stepTotal, side: "roll" });
     rollParts.push({ key: "wis", label: word("wis", "Wisdom"), value: actor.system?.scores?.wis?.mod ?? 0, side: "roll" });
+  }
+  // A monster's Wisdom joins a throw against magic only where a Judge entered the score; a blank is the default specimen, which has none.
+  if (magical && !character && enteredScore(actor, "wis") !== null) {
+    rollParts.push({ key: "wis", label: word("wis", "Wisdom"), value: abilityMod(actor, "wis"), side: "roll" });
   }
   if (character) {
     for (const step of steps) rollParts.push({ key: step.condition, label: stepLabel(step.effect, step.condition, step.type), value: step.value, side: "roll" });

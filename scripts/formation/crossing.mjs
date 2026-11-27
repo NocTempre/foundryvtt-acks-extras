@@ -451,7 +451,8 @@ function rowOf(formation, crossing, { member, actor }, { judge = game.user.isGM,
   if (crossing.kind === JUMP_KIND) {
     const level = Number(actor.system?.details?.level) || 0;
     const options = {
-      dex: actor.system?.scores?.dex?.value,
+      // A monster's DEX is the one a Judge entered; blank, the jump takes the creature's assumed score.
+      dex: enteredScore(actor, "dex") ?? actor.system?.scores?.dex?.value,
       encumbrance: carriedBy(actor, load ?? carriedLoad(formation)),
       acrobatics: holdsAcrobatics(actor),
       level,
