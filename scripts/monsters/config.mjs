@@ -112,10 +112,11 @@ export const AGE_CATEGORIES = {
  * What an encounter recipe part is made of (`extras.encounter.recipe`): the
  * unit's own bodies, the unit a body count is made of, a leader, young or
  * dependants of the bodies, guards, captives, a caster, and a mount or a beast
- * a Judge adds (a part of these two names its creature by `source.uuid`, its
- * figures read from that creature's own entry). The importer writes the first
- * eight (`importer/ecology-recipe.mjs`); the vocabulary is shared by the data
- * model, the reader and the recipe editor.
+ * (a part of these two names its creature by `source.uuid`, its figures read
+ * from that creature's own entry). The importer (`importer/ecology-recipe.mjs`)
+ * writes every role here except `young`, `mount` and `beast`, which a Judge
+ * adds; the vocabulary is shared by the data model, the reader and the recipe
+ * editor.
  */
 export const RECIPE_ROLES = {
   body: { label: "Body" },
