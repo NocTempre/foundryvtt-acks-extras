@@ -588,3 +588,26 @@ restores it, and the hand grant is indistinguishable from the one the hire made.
 **Rejected.** Leaving ownership as it stood: the row's controls would name the
 wrong seat. Adding the new employer's owners without removing the old: the old
 player keeps controls over a hireling no longer theirs.
+
+## 2026-11-27 — Henchmen by level stays, and stays the Judge's: a preview of hirelings yet to arrive is a Judge-only case (T-0854)
+
+Asked whether the Judge's level filter on the henchman search should stay, the
+owner, 2026-11-27: "Yes preview of future actions like pre-rolled yet to arrive
+henchmen are one of the explicit judge-only cases". The 2026-11-25 entry above
+kept the level-only kind on a GM seat as the release hub's call, and left open
+whether a search the book does not list ships at all under "no house rules
+ship" (owner 2026-11-11). This answers both. The kind stays, and its GM-seat
+gate is now the owner's ruling, not the hub's: a look at hirelings who have not
+yet arrived previews what the table has not reached, and the owner names such
+previews beside Judge secrets as a case where the module reads the role.
+
+No code changed. The dialog offers the kind on a GM seat only, the dialog and
+`createPosting` refuse it from a player (`criteria-required`), and a Judge's
+submit raises `ACKS-HENCHMEN.posting.levelOnlyJudge`.
+
+**Supersedes:** nothing. The 2026-11-25 entry's level-only bullet stands as
+written; this entry moves who made the call.
+
+**Counter (weak).** A search no table lists is a house rule, and "no house rules
+ship". *Answer:* the owner ruled on this kind by name, and a player never meets
+it: it is a Judge's preview, not a rule the automation applies to the table.
