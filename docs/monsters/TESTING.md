@@ -1087,7 +1087,9 @@ formula step 2 sets, an unmarked `Slam`, a `Sword` marked `weapon`, a `Spear`
 marked `weapon` with Thrown ticked beside Melee, an unmarked `Quill` with
 Missile ticked and Melee not, and an unmarked `Maul` whose damage formula is
 "By weapon". A step asserts the formulas, marks and kinds at its start: the
-fixture keeps whatever the last walk wrote.
+fixture keeps whatever the last walk wrote. `monsters/str-character`: a
+`character` built with `api.fixture`, its Strength score one the system gives a
+non-zero modifier, carrying a melee `Club` with a plain dice formula.
 
 **Drive mechanics.** Roll one attack from the Attacks tab of a sheet built as in
 "Core drive mechanics", so the dialog opens: the item's icon
@@ -1105,7 +1107,15 @@ only while an attack is in flight, so probe `attackThrowModifiersFor` and
 `damageModifiersFor` from inside a roll, never from the console alone. The
 importer's API (`acksExtras.importer`) is set only once its `ready` handler has
 loaded the cookbook, after the driver's `connect` resolves: wait for it before
-calling `cookbookImportTables(["monsters"])`.
+calling `cookbookImportTables(["monsters"])`. The seam drops the row of a
+contributor that throws and reports it on `console.error`, so a missing row
+proves nothing without a recorder: wrap `console.error`, `console.warn` and
+`ui.notifications`' `error` and `warn` in page before the rolls of steps 6, 8
+and 9. The Ruledata Browser opens with `openRuledataBrowser({focus:
+["monsters"]})` (`location/ruledata-browser.mjs`); the table's row is
+`[data-entry-key="monsters.strengthAttack"]`, its Edit control opens a dialog
+whose `textarea.ruledata-editor` holds the table as JSON, header row included,
+and whose OK button saves the override, and its Revert control clears it.
 
 **Steps.**
 
@@ -1120,10 +1130,10 @@ calling `cookbookImportTables(["monsters"])`.
    at the table's cell for that score in the band holding the average, appears
    once on the throw and once on the damage.
    Then set the Bite's formula to one whose `formulaAverage` lies between the
-   top of one band and the bottom of the next in `strengthBands()`, and roll it.
+   top of one band and the bottom of the next in `strengthBands()`, choosing a
+   gap whose two cells differ at 14, and roll it.
    *Observable:* `strengthAttackBonus(14, average)` names the lower of the two
-   bands, and the Bite's row, present where that band's cell is not zero,
-   carries that cell.
+   bands, and the Bite's row carries that band's cell, not the upper one's.
 3. Roll the unmarked Slam.
    *Observable:* the same kind of row, so an unmarked weapon counts as natural.
 4. Roll the Sword.
@@ -1133,7 +1143,9 @@ calling `cookbookImportTables(["monsters"])`.
    *Observable:* the thrown throw has no Strength row and its damage has one; the
    missile attack has neither.
 6. Roll the Maul.
-   *Observable:* no Strength row, no console error and no notification.
+   *Observable:* no Strength row and no error; the one notification is lib's
+   warning that the damage is not a dice formula (`ACKS-LIB.attack.badDamage`),
+   which a "By weapon" weapon raises with or without a Strength.
 7. Post a Claw attack and read the card.
    *Observable:* the posted card's modifier rows include the Strength row, and
    the Attacks tab's own throw and damage boxes do not (ROADMAP).
@@ -1148,9 +1160,9 @@ calling `cookbookImportTables(["monsters"])`.
     *Observable:* the row carries the override's figure and its label ends in
     "(MM ch. 3)" in place of a page; after clearing, the imported cell and its
     page return.
-11. Open a character with a Strength score and roll a melee attack.
-    *Observable:* the dialog carries the system's own Strength row and none from
-    this feature.
+11. Roll the `monsters/str-character` Club as a melee attack.
+    *Observable:* the throw and the damage each carry the system's own Strength
+    row at the character's modifier, and none from this feature.
 
 **Teardown.** The fixture stays, with its Strength blank, and the override of
 step 10 is cleared. The cards the run posted are swept by their own ids with
