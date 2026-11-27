@@ -2506,13 +2506,36 @@ order and dealt out, and only a pool that cannot cover everyone puts anybody
 short. Food and water are dealt independently, because well fed and parched is
 a real day and in a desert it is the usual one.
 
-**One supply reader, `daysCarried`.** It counts items whose NAME says what they
-are and items this module FLAGGED when it put them there, so foraged food and
-hunted game feed the order exactly as rations do. A second reader is a second
-answer to "how much food is there", and the two disagree the moment something
-arrives by a path the other does not know about — which is not hypothetical:
-foraging shipped depositing items the ration pattern did not match, and the
-forecast read zero while the packs were full.
+**One supply reader, `provisionOf`.** It answers what ONE item is as a
+provision, null or `{kind, units, perUnit, days, source}` (kind `food`, `water`
+or `hunt`; `units` the stack count; `perUnit` the days a unit holds; `days` what
+the item still holds; `source` how it was read). `daysCarried` sums it over an
+actor's items by kind, and the camp's forecast, the day's meal
+(`runProvisionDay`) and the Supplies press (`consumeRations`) all ask it, so
+no two of them can disagree about what is carried. The first step that answers
+wins:
+
+1. **Declared.** `flags["acks-extras"].provision = {kind, perUnit}` is a
+   Judge's word. `kind: "none"` declares the item no provision and nothing
+   below is asked; an unknown kind, or a `perUnit` that is no positive number,
+   is ignored (the unit then comes from the name).
+2. **Foraged.** The flag foraging writes on what it deposits (`food`, `water`
+   or `hunt`), one day a unit.
+3. **Imported.** The importer's identity on the item: `cookbook.id` on an
+   entry made from its described row, `skin.base` on a class-kit item cut from
+   one. The two food entries read as food and the vessel entry as water, except
+   that a vessel whose own name says wine and not water holds none.
+4. **Name.** A hand-made item with no identity, by WHOLE WORD only: the word
+   ration, or a waterskin or canteen. A fragment of another word (the
+   letters of "Regeneration", "Restoration") and a word that only sounds
+   wet ("holy water", "Water Walking", "Eelskin") read as nothing.
+
+A name containing "week" is seven days a unit and any other one, except where a
+declaration states its `perUnit`. A unit part eaten holds fewer days: the
+press keeps a `uses` count on a multi-day unit and `provisionOf` takes it off
+the first unit, so a week's ration with three used holds four days of it. The
+press spends only from an item `provisionOf` calls food, the unit worth the
+fewest days first.
 
 HOW a shortfall is spread is a Judge's call, not the book's — it prices what
 hunger does to a body, never who a captain chooses to feed — so both honest

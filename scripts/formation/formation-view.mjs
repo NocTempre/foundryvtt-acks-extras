@@ -109,8 +109,8 @@ import { planView } from "./turn-plan.mjs";
 import { buildCrossingView, canCross } from "./crossing.mjs";
 import { formatTurns, parseSpellTurns, turnDistance } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
-import { provisionForecast, daysCarried } from "./provisions.mjs";
-import { survivalStateOf, FOOD_SOURCES, WATER_SOURCES } from "./provision-day.mjs";
+import { provisionForecast } from "./provisions.mjs";
+import { survivalStateOf, foodDaysOf, waterDaysOf } from "./provision-day.mjs";
 import {
   NOURISHMENT, HYDRATION, EXPOSURE, heatBurden, exposureBites,
 } from "../lib/survival.mjs";
@@ -1410,8 +1410,8 @@ function buildSettlementView(formation, t) {
 function campSupplies(formation, t) {
   const actors = realMembers(formation ?? {}).map(getMemberActor).filter(Boolean);
   const mouths = actors.length;
-  const food = actors.reduce((n, a) => n + daysCarried(a, FOOD_SOURCES) + daysCarried(a, { foraged: "hunt" }), 0);
-  const water = actors.reduce((n, a) => n + daysCarried(a, WATER_SOURCES), 0);
+  const food = actors.reduce((n, a) => n + foodDaysOf(a), 0);
+  const water = actors.reduce((n, a) => n + waterDaysOf(a), 0);
   const burden = heatBurden({ band: t.weather?.temperature ?? "" });
   const forecast = provisionForecast({ mouths, food, water, waterNeed: burden.waterNeed });
   return {

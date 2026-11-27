@@ -8,21 +8,106 @@
  * to the caller. See docs/formation/MODEL.md, "Provisions".
  */
 import { stackCountOf } from "../lib/item-model.mjs";
+import { MODULE_ID, RATION_PATTERN, WATER_PATTERN } from "./constants.mjs";
+
+/** The kinds of provision an item can be. */
+const PROVISION_KINDS = Object.freeze(["food", "water", "hunt"]);
+
+/** Cookbook ids of the imported entries that are food, structure the importer stamps on what it makes. */
+const FOOD_IDENTITIES = Object.freeze(["def.equip.rationsIron", "def.equip.rationsStandard"]);
+
+/** Cookbook id of the imported vessel entry (a waterskin, or a wineskin by another name). */
+const VESSEL_IDENTITY = "def.equip.waterskinWineskin";
+
+/** One module flag, read through the document API or the raw flags a plain object carries. */
+const flagOf = (item, key) => item?.getFlag?.(MODULE_ID, key) ?? item?.flags?.[MODULE_ID]?.[key];
+
+/** A vessel named for wine and not for water holds no water. */
+const holdsOnlyWine = (name) => /wine/i.test(name) && !/water/i.test(name);
 
 /**
- * Days of a provision an actor is carrying: items whose NAME matches `pattern`
- * plus items this module flagged `foraged` with the given kind; a week's worth
- * counts as seven. The ONE reader of supply; nothing else counts it.
+ * What an item is as a provision, or null when it is none.
+ *
+ * The ONE reader of supply: the camp's forecast, the day's meal and the
+ * Supplies press all ask it, so they can never disagree about what is carried.
+ * The first step that answers wins:
+ *
+ * 1. `declared`: `flags["acks-extras"].provision = {kind, perUnit}`, a Judge's
+ *    word. `kind: "none"` declares the item no provision and ends the search;
+ *    a kind this reader does not know, or a missing `perUnit`, is ignored.
+ * 2. `foraged`: the flag foraging writes, one day a unit.
+ * 3. `imported`: the importer's identity on the item, `cookbook.id` for an
+ *    entry made from its described row and `skin.base` for a class-kit item
+ *    cut from one; a vessel whose own name says wine and not water is no water.
+ * 4. `name`: a hand-made item with no identity, by whole word only.
+ *
+ * A week is seven days a unit by name, anything else one. A unit part eaten
+ * (`flags["acks-extras"].uses`, which the press keeps on a multi-day unit)
+ * holds that many days fewer, so the forecast and the press agree.
+ *
+ * @returns {{kind: "food"|"water"|"hunt", units: number, perUnit: number,
+ *   days: number, source: "declared"|"foraged"|"imported"|"name"}|null}
+ *   `units` is the stack count, `perUnit` the days one unit holds, `days` what
+ *   the item still holds.
  */
-export function daysCarried(actor, { pattern, foraged = null } = {}) {
+export function provisionOf(item) {
+  if (!item) return null;
+  const name = String(item.name ?? "");
+  const nameUnit = /week/i.test(name) ? 7 : 1;
+
+  let kind = null;
+  let perUnit = nameUnit;
+  let source = null;
+
+  const declared = flagOf(item, "provision");
+  if (declared?.kind === "none") return null;
+  const foraged = flagOf(item, "foraged");
+  const stamps = [flagOf(item, "cookbook")?.id, flagOf(item, "skin")?.base];
+
+  if (PROVISION_KINDS.includes(declared?.kind)) {
+    kind = declared.kind;
+    const given = Number(declared.perUnit);
+    perUnit = Number.isFinite(given) && given > 0 ? given : nameUnit;
+    source = "declared";
+  } else if (PROVISION_KINDS.includes(foraged)) {
+    kind = foraged;
+    perUnit = 1;
+    source = "foraged";
+  } else if (stamps.some((id) => FOOD_IDENTITIES.includes(id))) {
+    kind = "food";
+    source = "imported";
+  } else if (stamps.includes(VESSEL_IDENTITY) && !holdsOnlyWine(name)) {
+    kind = "water";
+    source = "imported";
+  } else if (RATION_PATTERN.test(name)) {
+    kind = "food";
+    source = "name";
+  } else if (WATER_PATTERN.test(name)) {
+    kind = "water";
+    source = "name";
+  }
+  if (!kind) return null;
+
+  const held = stackCountOf(item) ?? 0;
+  const units = Number.isFinite(held) && held > 0 ? held : 0;
+  const eaten = perUnit > 1 ? Math.min(Math.max(0, Math.floor(Number(flagOf(item, "uses")) || 0)), perUnit - 1) : 0;
+  const days = units > 0 ? units * perUnit - eaten : 0;
+  return { kind, units, perUnit, days, source };
+}
+
+/**
+ * Days of provision an actor carries, over the kinds named: `kind` is one of
+ * `food`, `water`, `hunt` or a list of them (`foraged` is the older spelling
+ * of the same option). Answers `provisionOf` item by item; the retired name
+ * `pattern` is no longer read.
+ */
+export function daysCarried(actor, { kind = null, foraged = null } = {}) {
+  const wanted = [].concat(kind ?? foraged ?? []);
+  if (!wanted.length) return 0;
   let days = 0;
   for (const item of actor?.items ?? []) {
-    const named = pattern ? pattern.test(item.name ?? "") : false;
-    const tagged = foraged ? item.getFlag?.("acks-extras", "foraged") === foraged : false;
-    if (!named && !tagged) continue;
-    const qty = stackCountOf(item) ?? 0;
-    if (!Number.isFinite(qty) || qty <= 0) continue;
-    days += qty * (/week/i.test(item.name ?? "") ? 7 : 1);
+    const provision = provisionOf(item);
+    if (provision && wanted.includes(provision.kind)) days += provision.days;
   }
   return days;
 }

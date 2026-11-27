@@ -7968,6 +7968,36 @@ await scenario("a party save and the rations take an `only` predicate: an actor 
   }
 });
 
+await scenario("the Supplies press spends only what the supply reader calls food: items named for a ration's letters are never decremented, and a member holding nothing else goes hungry", async () => {
+  const actor = await ActorMock.create(pressData("Press Lookalike", { owned: true }));
+  actor.statuses = new Set();
+  const [ring, potion, flask, hunted] = await actor.createEmbeddedDocuments("Item", [
+    { name: "Ring of Regeneration", type: "item", system: { quantity: 1 } },
+    { name: "Potion of Brilliant Restoration", type: "item", system: { quantity: 2 } },
+    { name: "1 flask of holy water", type: "item", system: { quantity: 3 } },
+    { name: "Fresh Game", type: "item", system: { quantity: 4 }, flags: { "acks-extras": { foraged: "hunt" } } },
+  ]);
+  const quantities = () => [ring, potion, flask, hunted].map((i) => i.system.quantity);
+  const party = { name: "Lookalike Party", members: [{ actorId: actor.id }] };
+  try {
+    const before = chat.length;
+    await engine.consumeRations(party);
+    assert.deepEqual(quantities(), [1, 2, 3, 4], "no lookalike and no hunted game is decremented");
+    const card = String(chat.at(before).content);
+    assert.ok(card.includes("Press Lookalike") && card.includes("chat.rationsMissing"), "the member is reported hungry");
+
+    const [stamped] = await actor.createEmbeddedDocuments("Item", [{
+      name: "Rations, Iron", type: "item", system: { quantity: 2 },
+      flags: { "acks-extras": { cookbook: { id: "def.equip.rationsIron" } } },
+    }]);
+    await engine.consumeRations(party);
+    assert.equal(stamped.system.quantity, 1, "an imported ration is the item the press spends");
+    assert.deepEqual(quantities(), [1, 2, 3, 4], "and still nothing else");
+  } finally {
+    await actor.delete();
+  }
+});
+
 await scenario("a member's owner forms the party up through the relay: applied and announced once, and a forged or refused request writes nothing", async () => {
   const { saveTemplate, deleteTemplate } = await import("../scripts/formation/marching-templates.mjs");
   const party = await fightingParty("Relay Form Party", pressData("Form Owner", { owned: true }), "Form Other");

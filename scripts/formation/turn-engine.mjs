@@ -11,7 +11,6 @@ import {
   importedEncounterCadence,
   LIGHT_SOURCES,
   MODULE_ID,
-  RATION_PATTERN,
   restEnforced,
   restInterval,
   WINDED_EFFECT_NAME,
@@ -26,6 +25,7 @@ import { roadDistance } from "../battlemap/roads.mjs";
 import { feetPerUnit, isExpeditionScale, sceneFeetPerCell, sceneMilesPerCell } from "../lib/distance-units.mjs";
 import { lightFigures, prepareToLight } from "../lib/light.mjs";
 import { stackCountOf } from "../lib/item-model.mjs";
+import { provisionOf } from "./provisions.mjs";
 import { quantityOf } from "../lib/storage-logic.mjs";
 import { citeOf } from "../lib/tables.mjs";
 import { tokenCentre } from "../lib/token-centre.mjs";
@@ -287,24 +287,28 @@ export async function encounterCheck(formation, { manual = false, params = null 
 /*  Rations                                     */
 /* -------------------------------------------- */
 
+/**
+ * The item the Supplies press spends from: among the actor's items that
+ * `provisionOf` reads as food and that still hold some, the unit worth the
+ * fewest days, so a day's ration goes before a week's. Never anything else.
+ *
+ * @returns {{item: object, provision: object}|null} the item and its reading
+ */
 function findRationItem(actor) {
-  const rations = actor.items.filter(
-    (i) => RATION_PATTERN.test(i.name) && (stackCountOf(i) ?? 0) > 0,
-  );
-  if (!rations.length) return null;
-  // Prefer day rations over week rations, standard over iron.
-  rations.sort((a, b) => {
-    const dayA = /day/i.test(a.name) ? 0 : 1;
-    const dayB = /day/i.test(b.name) ? 0 : 1;
-    return dayA - dayB;
-  });
-  return rations[0];
+  const rations = [];
+  for (const item of actor.items) {
+    const provision = provisionOf(item);
+    if (provision?.kind === "food" && provision.units > 0) rations.push({ item, provision });
+  }
+  rations.sort((a, b) => a.provision.perUnit - b.provision.perUnit);
+  return rations[0] ?? null;
 }
 
 /**
  * Decrement one ration per member; report who consumed what and who is out.
- * Week rations are consumed as 7 uses (tracked in an item flag) before the
- * item quantity itself decrements.
+ * A unit worth several days is consumed as that many uses (tracked in an item
+ * flag, which `provisionOf` folds into the days it holds) before the item
+ * quantity itself decrements.
  *
  * `only` is a predicate over a member's actor: one it refuses is neither fed
  * nor reported, so a seat feeds just the members whose packs it may write.
@@ -316,11 +320,12 @@ export async function consumeRations(formation, { only = null } = {}) {
     const actor = getMemberActor(member);
     if (!actor) continue;
     if (only && !only(actor)) continue;
-    const ration = findRationItem(actor);
-    if (ration) {
-      if (/week/i.test(ration.name)) {
+    const found = findRationItem(actor);
+    if (found) {
+      const { item: ration, provision } = found;
+      if (provision.perUnit > 1) {
         const uses = (ration.getFlag(MODULE_ID, "uses") ?? 0) + 1;
-        if (uses >= 7) {
+        if (uses >= provision.perUnit) {
           await ration.update({
             [quantityOf(ration).path]: stackCountOf(ration) - 1,
             [`flags.${MODULE_ID}.uses`]: 0,
@@ -328,7 +333,7 @@ export async function consumeRations(formation, { only = null } = {}) {
         } else {
           await ration.setFlag(MODULE_ID, "uses", uses);
         }
-        fed.push({ name: actor.name, ration: `${ration.name} (${Math.min(uses, 7)}/7)` });
+        fed.push({ name: actor.name, ration: `${ration.name} (${Math.min(uses, provision.perUnit)}/${provision.perUnit})` });
       } else {
         await ration.update({ [quantityOf(ration).path]: stackCountOf(ration) - 1 });
         fed.push({ name: actor.name, ration: ration.name });

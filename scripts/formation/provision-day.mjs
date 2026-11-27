@@ -15,7 +15,7 @@
  * Only the journey calls this; a dungeon delve keeps its own ration bookkeeping.
  * See docs/formation/MODEL.md, "The weather's toll".
  */
-import { MODULE_ID, RATION_PATTERN } from "./constants.mjs";
+import { MODULE_ID, WATER_PATTERN } from "./constants.mjs";
 import { getMemberActor, hasAbility, patchFormation, realMembers } from "./formation-model.mjs";
 import { provisionDay, daysCarried, SETTING_SHARE_POLICY } from "./provisions.mjs";
 import {
@@ -40,18 +40,22 @@ const loc = makeLoc("ACKS-FORMATION");
 /** The actor flag holding a body's hunger state: it travels with the actor, not the party. */
 export const SURVIVAL_FLAG = "survival";
 
-/** Water is carried, not eaten; its items are named for the vessel. */
-export const WATER_PATTERN = /water|skin|canteen/i;
+export { WATER_PATTERN };
 
-/** What counts as food: named provisions and anything foraging deposited. */
-export const FOOD_SOURCES = Object.freeze({ pattern: RATION_PATTERN, foraged: "food" });
+/** What counts as food: whatever `provisionOf` reads as food, foraged deposits included. */
+export const FOOD_SOURCES = Object.freeze({ kind: "food" });
 
-/** What counts as water: named vessels and anything foraging deposited. */
-export const WATER_SOURCES = Object.freeze({ pattern: WATER_PATTERN, foraged: "water" });
+/** What counts as water: whatever `provisionOf` reads as water, foraged deposits included. */
+export const WATER_SOURCES = Object.freeze({ kind: "water" });
 
-/** Food days carried: provisions plus hunted game, which has its own flag. */
-function foodDays(actor) {
-  return daysCarried(actor, FOOD_SOURCES) + daysCarried(actor, { foraged: "hunt" });
+/** Food days an actor carries: provisions plus hunted game, which is its own kind. */
+export function foodDaysOf(actor) {
+  return daysCarried(actor, FOOD_SOURCES) + daysCarried(actor, { kind: "hunt" });
+}
+
+/** Water days an actor carries. */
+export function waterDaysOf(actor) {
+  return daysCarried(actor, WATER_SOURCES);
 }
 
 /** The sharing policy this world uses, `even` when unset or unreadable. */
@@ -257,8 +261,8 @@ export async function runProvisionDay(formation) {
   const actors = members.map(getMemberActor).filter(Boolean);
   if (!actors.length) return null;
 
-  const food = actors.reduce((n, a) => n + foodDays(a), 0);
-  const water = actors.reduce((n, a) => n + daysCarried(a, WATER_SOURCES), 0);
+  const food = actors.reduce((n, a) => n + foodDaysOf(a), 0);
+  const water = actors.reduce((n, a) => n + waterDaysOf(a), 0);
   // The band comes from the day's own weather.
   const burden = heatBurden({ band: travelOf(formation).weather?.temperature ?? "" });
   const day = provisionDay({

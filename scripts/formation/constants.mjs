@@ -251,8 +251,20 @@ export const carriedBody = () => ({
   gearShare: formationValue("carriedGearShare"),
 });
 
-/** Inventory name matcher for ration items (1-day preferred over 1-week). */
-export const RATION_PATTERN = /ration/i;
+/**
+ * The name a hand-made food item carries when it has no imported identity and
+ * no declaration: the WORD "ration", never a fragment of another ("Regeneration",
+ * "Restoration"). [provisions.mjs](./provisions.mjs) `provisionOf` is the only
+ * reader that applies it, and only as its last step.
+ */
+export const RATION_PATTERN = /\brations?\b/i;
+
+/**
+ * The name a hand-made water vessel carries with no identity and no
+ * declaration: a waterskin or a canteen as words, never "holy water",
+ * "Water Walking" or "Eelskin". Applied by `provisionOf` as its last step.
+ */
+export const WATER_PATTERN = /\b(?:water ?skins?|canteens?)\b/i;
 
 /** Default image used for the party token / party actor. */
 export const DEFAULT_PARTY_IMAGE = "icons/environment/people/group.webp";
