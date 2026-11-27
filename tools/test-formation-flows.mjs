@@ -289,7 +289,12 @@ class ItemMock {
     return this;
   }
   async update(changes) {
-    for (const [k, v] of Object.entries(changes)) setProp(this, k, v);
+    for (const [k, v] of Object.entries(changes)) {
+      // Core's forced deletion removes the key, as the actor's update does.
+      const at = k.lastIndexOf(".");
+      if (v instanceof foundry.data.operators.ForcedDeletion) delete foundry.utils.getProperty(this, k.slice(0, at))?.[k.slice(at + 1)];
+      else setProp(this, k, v);
+    }
     await sleep();
     Hooks.call("updateItem", this, changes, {}, "GM1");
     return this;
@@ -8006,6 +8011,221 @@ await scenario("the Supplies press spends only what the supply reader calls food
     assert.ok(String(chat.at(heard).content).includes("chat.rationsMissing"), "and the member is reported without one");
   } finally {
     await actor.delete();
+  }
+});
+
+/* -------------------------------------------- */
+/*  End day spends what it deals                */
+/* -------------------------------------------- */
+
+const { runProvisionDay, refillVessels, SURVIVAL_FLAG } = await import("../scripts/formation/provision-day.mjs");
+
+/** An invented unit of food, sized by hand on the item. */
+const loafItem = (qty, perUnit = 1) => ({
+  name: "Trail Loaf", type: "item", system: { quantity: qty },
+  flags: { "acks-extras": { provision: { kind: "food", perUnit } } },
+});
+/** An invented water vessel, sized by hand: `perUnit` days a vessel. */
+const flaskItem = (qty, perUnit) => ({
+  name: "Trail Flask", type: "item", system: { quantity: qty },
+  flags: { "acks-extras": { provision: { kind: "water", perUnit } } },
+});
+/** An item that reads as food and has no size. */
+const unsizedLoaf = (qty) => ({
+  name: "Trail Loaf", type: "item", system: { quantity: qty },
+  flags: { "acks-extras": { provision: { kind: "food" } } },
+});
+
+/** A party of members carrying the item data given, one list per member; the Judge's seat is taken for the run. */
+async function provisionParty(name, packs) {
+  const { id, actors } = await isolatedParty(name, ...packs.map((_, i) => `${name} ${i}`));
+  const items = [];
+  for (const [i, specs] of packs.entries()) items.push(await actors[i].createEmbeddedDocuments("Item", specs));
+  return { id, actors, items };
+}
+const disbandProvisioned = async ({ id, actors }) => {
+  const formation = model.getFormation(id);
+  if (formation) await model.disband(formation);
+  await drain();
+  for (const actor of actors) await actor.delete();
+  await drain();
+};
+const heldCards = () => chat.filter((m) => String(m.content).includes("toll.held.title"));
+
+await scenario("the Supplies press spends through the shared consumer: a part-day unit is kept, a member fed is marked for the day, and one with an unsized ration is reported hungry", async () => {
+  const party = await provisionParty("Spend Press", [[loafItem(1, 3)], [unsizedLoaf(2)]]);
+  const prior = game.user;
+  game.user = game.users.get("GM1");
+  try {
+    const [[loaf], [bare]] = party.items;
+    const formation = () => model.getFormation(party.id);
+    await engine.consumeRations(formation());
+    assert.deepEqual([loaf.system.quantity, loaf.flags["acks-extras"].uses], [1, 1], "a day eaten of a three-day unit");
+    const card = String(chat.at(-1).content);
+    assert.ok(card.includes("Trail Loaf (1/3)"), "the card says how far into the unit");
+    assert.ok(card.includes("chat.rationsMissing") && card.includes("Spend Press 1"), "the member with an unsized ration is hungry");
+    assert.equal(bare.system.quantity, 2, "and the unsized ration is untouched");
+    const dayKey = formation().travel?.dayCount ?? 0;
+    assert.equal(party.actors[0].getFlag(MODULE_ID, "fedOn"), dayKey, "the member fed is marked with the formation's End-day counter");
+    assert.equal(party.actors[1].getFlag(MODULE_ID, "fedOn"), undefined, "the hungry one is not");
+    await engine.consumeRations(formation());
+    await engine.consumeRations(formation());
+    assert.deepEqual([loaf.system.quantity, loaf.flags["acks-extras"].uses], [0, 0], "the third day finishes the unit; the stack stays");
+    assert.ok(String(chat.at(-1).content).includes("Trail Loaf (3/3)"));
+    await engine.consumeRations(formation());
+    assert.equal(party.actors[0].getFlag(MODULE_ID, "fedOn"), dayKey, "an empty pack leaves the earlier mark as it was");
+  } finally {
+    game.user = prior;
+    await disbandProvisioned(party);
+  }
+});
+
+await scenario("End day spends exactly what it dealt: even half portions draw each share from the member's own pack, then the order's, and vessels go down to what is left and stay", async () => {
+  const party = await provisionParty("Spend Even", [
+    [loafItem(2), flaskItem(4, 0.25)], [flaskItem(2, 0.5)], [], [],
+  ]);
+  const prior = game.user;
+  game.user = game.users.get("GM1");
+  try {
+    await game.settings.set(MODULE_ID, "provisionSharing", "even");
+    const [[loaves, skins], [flasks]] = party.items;
+    const day = await runProvisionDay(model.getFormation(party.id));
+    assert.deepEqual(day.pooled, { food: 2, water: 2 });
+    assert.equal(day.food.short && day.water.short, true);
+    assert.deepEqual(day.report.map((r) => r.meal), Array(4).fill({ food: "half", water: "half" }), "four mouths on two days of each: half portions");
+    assert.deepEqual(day.spent, { food: 2, water: 2 }, "what was dealt is what was drawn");
+    assert.equal(day.pooled.food - day.food.remaining, day.spent.food);
+    assert.equal(day.pooled.water - day.water.remaining, day.spent.water);
+    assert.equal(loaves.system.quantity, 0, "the loaves are gone, the stack still in the pack");
+    assert.deepEqual([skins.system.quantity, flasks.system.quantity], [4, 2], "no vessel is removed");
+    assert.deepEqual([skins.flags["acks-extras"].provision.left, flasks.flags["acks-extras"].provision.left], [0, 0], "both are empty");
+    assert.deepEqual([skins.flags["acks-extras"].provision.kind, flasks.flags["acks-extras"].provision.perUnit], ["water", 0.5], "and keep what was declared");
+    const [first, second, third] = day.report;
+    assert.deepEqual(first.spent.food.from.map((f) => [f.owner, f.days]), [["Spend Even 0", 0.5]], "the first member ate from their own pack");
+    assert.deepEqual(second.spent.food.from.map((f) => [f.owner, f.days]), [["Spend Even 0", 0.5]], "the second had none, and ate from the first's");
+    assert.deepEqual(first.spent.water.from.map((f) => [f.owner, f.days]), [["Spend Even 0", 0.5]]);
+    assert.deepEqual(third.spent.water.from.map((f) => [f.owner, f.days]), [["Spend Even 0", 0.5]], "the third drank from the first's vessels, which still had it");
+    assert.equal(day.report[3].spent.water.from[0].owner, "Spend Even 1", "and the fourth from the second's, the first being empty");
+    assert.equal(second.spent.water.days, 0.5, "the second's own vessels gave their own share");
+    assert.equal(party.actors[2].getFlag(MODULE_ID, SURVIVAL_FLAG).shortFoodRun, 1, "half a day's food starts the short clock");
+
+    // A second day with nothing left is dealt nothing and draws nothing.
+    const bare = await runProvisionDay(model.getFormation(party.id));
+    assert.deepEqual(bare.spent, { food: 0, water: 0 });
+    assert.deepEqual([skins.flags["acks-extras"].provision.left, loaves.system.quantity], [0, 0], "never below empty");
+    assert.equal(party.actors[2].getFlag(MODULE_ID, SURVIVAL_FLAG).noFoodRun, 1, "and the ladder takes its step");
+  } finally {
+    game.user = prior;
+    await disbandProvisioned(party);
+  }
+});
+
+await scenario("End day under triage feeds whole days to as many as the pool allows and draws just those", async () => {
+  const party = await provisionParty("Spend Triage", [[loafItem(2)], [], [], []]);
+  const prior = game.user;
+  game.user = game.users.get("GM1");
+  try {
+    await game.settings.set(MODULE_ID, "provisionSharing", "triage");
+    const day = await runProvisionDay(model.getFormation(party.id));
+    assert.deepEqual(day.report.map((r) => r.meal.food), ["full", "full", "none", "none"]);
+    assert.equal(day.spent.food, 2);
+    assert.equal(party.items[0][0].system.quantity, 0);
+    assert.equal(party.actors[2].getFlag(MODULE_ID, SURVIVAL_FLAG).noFoodRun, 1);
+  } finally {
+    await game.settings.set(MODULE_ID, "provisionSharing", "even");
+    game.user = prior;
+    await disbandProvisioned(party);
+  }
+});
+
+await scenario("a member the press fed for the day is neither dealt food nor spent for by End day, and is spent for again on the next day", async () => {
+  const party = await provisionParty("Spend Marked", [[loafItem(3)], [loafItem(3)]]);
+  const prior = game.user;
+  game.user = game.users.get("GM1");
+  try {
+    const [[a], [b]] = party.items;
+    await engine.consumeRations(model.getFormation(party.id), { only: (actor) => actor.id === party.actors[0].id });
+    assert.equal(a.system.quantity, 2, "the press fed the first member");
+    const day = await runProvisionDay(model.getFormation(party.id));
+    assert.deepEqual(day.report.map((r) => r.meal.food), ["full", "full"], "the fed member counts full");
+    assert.deepEqual([a.system.quantity, b.system.quantity], [2, 2], "End day took one day, from the member the press had not fed");
+    assert.equal(day.spent.food, 1);
+    assert.equal(day.report[0].spent.food.days, 0, "nothing was spent for the fed member");
+    assert.equal(party.actors[0].getFlag(MODULE_ID, SURVIVAL_FLAG).shortFoodRun, 0);
+
+    // The mark is the counter alone: a clock that crosses midnight before End day does not make it stale.
+    const clock = game.time.worldTime;
+    game.time.worldTime = (clock ?? 0) + 86400;
+    const late = await runProvisionDay(model.getFormation(party.id));
+    game.time.worldTime = clock;
+    assert.equal(late.report[0].spent.food.days, 0, "still fed for the day being ended");
+    assert.equal(b.system.quantity, 1, "and End day drew the day from the other member again, as it would on any run");
+
+    // The day ended: the counter moved, so the mark no longer names the day.
+    await model.patchFormation(party.id, (rec) => { rec.travel = { ...(rec.travel ?? {}), dayCount: 1 }; });
+    const next = await runProvisionDay(model.getFormation(party.id));
+    assert.equal(next.spent.food, 2, "both are spent for on the next day");
+    assert.deepEqual([a.system.quantity, b.system.quantity], [1, 0]);
+  } finally {
+    game.user = prior;
+    await disbandProvisioned(party);
+  }
+});
+
+await scenario("a member short of a day who carries only an item with no size keeps the ladder as it was, and the toll card names them and the item; setting a size brings them back", async () => {
+  const party = await provisionParty("Spend Held", [[unsizedLoaf(2)], []]);
+  const prior = game.user;
+  game.user = game.users.get("GM1");
+  try {
+    const before = heldCards().length;
+    const day = await runProvisionDay(model.getFormation(party.id));
+    assert.deepEqual(day.report.map((r) => r.meal.food), ["none", "none"], "nothing sized was dealt");
+    const [holder, empty] = party.actors;
+    assert.equal(holder.getFlag(MODULE_ID, SURVIVAL_FLAG).noFoodRun, 0, "the ladder was left as it was");
+    assert.equal(empty.getFlag(MODULE_ID, SURVIVAL_FLAG).noFoodRun, 1, "while a member with no food at all takes the step");
+    assert.deepEqual(day.report[0].held, { food: ["Trail Loaf ×2"] });
+    assert.equal(day.report[1].held, undefined);
+    assert.equal(heldCards().length, before + 1, "one card");
+    const card = String(heldCards().at(-1).content);
+    assert.ok(card.includes("Spend Held 0") && card.includes("Trail Loaf ×2"), "it names the member and the item");
+    assert.ok(card.includes("ACKS-EQUIPMENT.itemSheet.provision.cite.food"), "and carries the page reference");
+    assert.ok(!card.includes("Spend Held 1"), "and not the member who simply has none");
+    assert.equal(party.items[0][0].system.quantity, 2, "the unsized item was not spent");
+
+    // A size set by hand brings them back into the count.
+    await party.items[0][0].update({ "flags.acks-extras.provision.perUnit": 1 });
+    const again = await runProvisionDay(model.getFormation(party.id));
+    assert.equal(again.report[0].held, undefined, "sized, nothing is held");
+    assert.equal(again.pooled.food, 2);
+    assert.deepEqual(again.report.map((r) => r.meal.food), ["full", "full"], "two days between two mouths, a day each");
+    assert.equal(again.spent.food, 2);
+    assert.equal(party.items[0][0].system.quantity, 0, "and the item is spent from now on");
+  } finally {
+    game.user = prior;
+    await disbandProvisioned(party);
+  }
+});
+
+await scenario("a refill fills the vessels of the members `only` accepts, leaves an unsized one and is no Judge-only press", async () => {
+  const party = await provisionParty("Spend Refill", [[flaskItem(2, 0.5), { name: "Trail Skin", type: "item", system: { quantity: 1 }, flags: { "acks-extras": { provision: { kind: "water" } } } }], [flaskItem(1, 0.5)]]);
+  const prior = game.user;
+  game.user = game.users.get("PL1");
+  try {
+    const [[mine, unsized], [theirs]] = party.items;
+    await mine.update({ "flags.acks-extras.provision.left": 0.25 });
+    await theirs.update({ "flags.acks-extras.provision.left": 0.25 });
+    const own = (actor) => actor.id === party.actors[0].id;
+    const result = await refillVessels(model.getFormation(party.id), { only: own });
+    assert.deepEqual(result.filled.map((f) => [f.actor.name, f.item.id]), [["Spend Refill 0", mine.id]]);
+    assert.deepEqual(result.skipped.map((f) => [f.actor.name, f.item.id]), [["Spend Refill 0", unsized.id]], "an unsized vessel is reported, not filled");
+    assert.equal(mine.flags["acks-extras"].provision.left, undefined, "full, by unsetting");
+    assert.equal(theirs.flags["acks-extras"].provision.left, 0.25, "a member `only` refused is not touched");
+    const all = await refillVessels(model.getFormation(party.id));
+    assert.equal(all.filled.length, 2, "with no predicate every member's vessels fill, whoever is seated");
+    assert.equal(theirs.flags["acks-extras"].provision.left, undefined);
+  } finally {
+    game.user = prior;
+    await disbandProvisioned(party);
   }
 });
 

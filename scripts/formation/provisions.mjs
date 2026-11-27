@@ -22,8 +22,21 @@ export const VESSEL_IDENTITY = "def.equip.waterskinWineskin";
 /** Days in a week: a calendar concept an item's name may count in, not a printed value. */
 const DAYS_PER_WEEK = 7;
 
+/**
+ * The width below which two pooled figures are the same: a sum of fractions
+ * (five fifths of a day) is compared to a need, floored and dealt with it, so
+ * float dust never reads as a shortfall.
+ */
+export const EPSILON = 1e-9;
+
+/** A pooled figure with its float dust rounded off, and never a negative zero. */
+export const tidy = (n) => {
+  const r = Math.round(Number(n) * 1e9) / 1e9;
+  return r === 0 ? 0 : r;
+};
+
 /** One module flag, read through the document API or the raw flags a plain object carries. */
-const flagOf = (item, key) => item?.getFlag?.(MODULE_ID, key) ?? item?.flags?.[MODULE_ID]?.[key];
+export const flagOf = (item, key) => item?.getFlag?.(MODULE_ID, key) ?? item?.flags?.[MODULE_ID]?.[key];
 
 /** A vessel named for wine and not for water holds no water. */
 const holdsOnlyWine = (name) => /wine/i.test(name) && !/water/i.test(name);
@@ -100,10 +113,11 @@ export function pageDays(item, kind) {
  * own name. Where none answers the item is UNSIZED: `perUnit` and `days` are
  * null and no figure stands in, so the count leaves it out.
  *
- * A food unit part eaten (`flags["acks-extras"].uses`, which the press keeps
- * on a multi-day unit) holds that many days fewer, so the forecast and the
- * press agree. Water is kept as what is left (`provision.left`, days across
- * the stack), clamped to what the stack holds and full where never set.
+ * A food unit part eaten (`flags["acks-extras"].uses`, days, which `spendFood`
+ * keeps) holds that many days fewer, so the forecast and the spend agree. A
+ * count at or past the unit's size is stale and leaves its last day.
+ * Water is kept as what is left (`provision.left`, days across the stack),
+ * clamped to what the stack holds and full where never set.
  *
  * @returns {{kind: "food"|"water"|"hunt", units: number, perUnit: number|null,
  *   days: number|null, source: "declared"|"foraged"|"imported"|"name",
@@ -166,13 +180,18 @@ export function provisionOf(item) {
   if (perUnit === null) return { kind, units, perUnit: null, days: null, source, sized: false, sizeSource: null, left: null };
 
   if (kind === "water") {
-    const full = units * perUnit;
+    const full = tidy(units * perUnit);
     const stored = figureOf(declared?.left);
     const left = stored === null ? full : Math.min(Math.max(stored, 0), full);
     return { kind, units, perUnit, days: left, source, sized: true, sizeSource, left };
   }
-  const eaten = perUnit > 1 ? Math.min(Math.max(0, Math.floor(Number(flagOf(item, "uses")) || 0)), perUnit - 1) : 0;
-  const days = units > 0 ? units * perUnit - eaten : 0;
+  // Days eaten of the first unit. A figure inside the unit is kept as written,
+  // so a part-day portion (what `spendFood` writes) may leave it holding less
+  // than a day; one at or past the unit's size is a stale count, and never
+  // takes the unit's last day away.
+  const used = Math.max(0, Number(flagOf(item, "uses")) || 0);
+  const eaten = used < perUnit ? used : Math.max(0, perUnit - 1);
+  const days = units > 0 ? tidy(units * perUnit - eaten) : 0;
   return { kind, units, perUnit, days, source, sized: true, sizeSource, left: null };
 }
 
@@ -191,7 +210,7 @@ export function daysCarried(actor, { kind = null, foraged = null } = {}) {
     const provision = provisionOf(item);
     if (provision?.sized && wanted.includes(provision.kind)) days += provision.days;
   }
-  return days;
+  return tidy(days);
 }
 
 /**
@@ -225,45 +244,56 @@ export const SETTING_SHARE_POLICY = "provisionSharing";
  * Returns a ration level per mouth in the order given, plus what the pool has
  * left. Levels are survival's own vocabulary, so the result feeds straight into
  * `advanceSurvival`. `even` deals full, half or nothing, the ladder's three
- * levels.
+ * levels. A pool within `EPSILON` of a need meets it, so five fifths of a day
+ * are a whole day.
  */
 export function dealProvisions({ mouths = 0, supply = 0, policy = "even", need = 1 } = {}) {
   const n = Math.max(0, Math.floor(Number(mouths) || 0));
-  const have = Math.max(0, Number(supply) || 0);
+  const have = tidy(Math.max(0, Number(supply) || 0));
   if (!n) return { levels: [], remaining: have, short: false };
 
   // `need` is what ONE mouth costs today.
   const per = Number(need) > 0 ? Number(need) : 1;
   const wanted = n * per;
 
-  if (have >= wanted) {
-    return { levels: Array(n).fill("full"), remaining: have - wanted, short: false };
+  if (have >= wanted - EPSILON) {
+    return { levels: Array(n).fill("full"), remaining: tidy(Math.max(0, have - wanted)), short: false };
   }
 
   if (policy === "triage") {
     // Feed as many as can be fed properly; the rest get nothing.
-    const fed = Math.floor(have / per);
+    const fed = Math.floor(have / per + EPSILON);
     const levels = Array.from({ length: n }, (_, i) => (i < fed ? "full" : "none"));
-    return { levels, remaining: have - (fed * per), short: true, fed };
+    return { levels, remaining: tidy(Math.max(0, have - (fed * per))), short: true, fed };
   }
 
   // Even: everyone takes the same cut, rounded DOWN to a level the ladder recognises.
   const each = have / n / per;
-  const level = each >= 1 ? "full" : each >= 0.5 ? "half" : "none";
+  const level = each >= 1 - EPSILON ? "full" : each >= 0.5 - EPSILON ? "half" : "none";
   const spent = level === "full" ? wanted : level === "half" ? wanted * 0.5 : 0;
-  return { levels: Array(n).fill(level), remaining: Math.max(0, have - spent), short: true, level };
+  return { levels: Array(n).fill(level), remaining: tidy(Math.max(0, have - spent)), short: true, level };
 }
+
+/** The share of a full day's need a dealt level stands for. */
+export const LEVEL_SHARE = Object.freeze({ full: 1, half: 0.5, none: 0 });
 
 /**
  * A day's provisioning for the whole order, both provisions at once.
  *
  * Food and water are dealt independently, each with its own pool and shortfall.
+ * `foodMouths` is how many of the `mouths` are dealt food (all, by default);
+ * the rest were fed already and take no share of it. `food.levels` is then for
+ * those mouths only, in order, while `water.levels` is for all of them;
+ * `meals` pairs the two lists by position, so it is by mouth only where every
+ * mouth is dealt food.
  */
-export function provisionDay({ mouths = 0, food = 0, water = 0, policy = "even", waterNeed = 1 } = {}) {
-  const f = dealProvisions({ mouths, supply: food, policy });
+export function provisionDay({ mouths = 0, foodMouths = mouths, food = 0, water = 0, policy = "even", waterNeed = 1 } = {}) {
+  const f = dealProvisions({ mouths: foodMouths, supply: food, policy });
   const w = dealProvisions({ mouths, supply: water, policy, need: waterNeed });
   return {
-    meals: f.levels.map((level, i) => ({ food: level, water: w.levels[i] ?? "none" })),
+    meals: Array.from({ length: Math.max(f.levels.length, w.levels.length) }, (_, i) => ({
+      food: f.levels[i] ?? "none", water: w.levels[i] ?? "none",
+    })),
     food: f,
     water: w,
     short: f.short || w.short,
@@ -271,15 +301,16 @@ export function provisionDay({ mouths = 0, food = 0, water = 0, policy = "even",
 }
 
 /**
- * How many days the order's food and water cover, for the forecast.
+ * How many days the order's food and water cover, for the forecast: whole days,
+ * a pool within `EPSILON` of a whole day counting as it.
  */
 export function provisionForecast({ mouths = 0, food = 0, water = 0, waterNeed = 1 } = {}) {
   const n = Math.max(0, Math.floor(Number(mouths) || 0));
   const per = Number(waterNeed) > 0 ? Number(waterNeed) : 1;
   return {
     mouths: n,
-    foodDays: n > 0 ? Math.floor(Number(food) / n) : null,
-    waterDays: n > 0 ? Math.floor(Number(water) / (n * per)) : null,
+    foodDays: n > 0 ? Math.floor(Number(food) / n + EPSILON) : null,
+    waterDays: n > 0 ? Math.floor(Number(water) / (n * per) + EPSILON) : null,
     waterNeed: per,
   };
 }

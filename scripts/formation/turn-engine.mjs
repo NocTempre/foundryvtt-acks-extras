@@ -24,9 +24,8 @@ import { sceneBlockFeet } from "../battlemap/scene-setup.mjs";
 import { roadDistance } from "../battlemap/roads.mjs";
 import { feetPerUnit, isExpeditionScale, sceneFeetPerCell, sceneMilesPerCell } from "../lib/distance-units.mjs";
 import { lightFigures, prepareToLight } from "../lib/light.mjs";
-import { stackCountOf } from "../lib/item-model.mjs";
-import { provisionOf } from "./provisions.mjs";
-import { quantityOf } from "../lib/storage-logic.mjs";
+import { EPSILON } from "./provisions.mjs";
+import { FED_FLAG, fedDayOf, spendFood } from "./provision-spend.mjs";
 import { citeOf } from "../lib/tables.mjs";
 import { tokenCentre } from "../lib/token-centre.mjs";
 import { equipForLight } from "./judge-override.mjs";
@@ -288,60 +287,30 @@ export async function encounterCheck(formation, { manual = false, params = null 
 /* -------------------------------------------- */
 
 /**
- * The item the Supplies press spends from: among the actor's items that
- * `provisionOf` reads as food, that have a size and that still hold some, the
- * unit worth the fewest days, so a day's ration goes before a week's. An
- * unsized item is never spent. Never anything else.
- *
- * @returns {{item: object, provision: object}|null} the item and its reading
- */
-function findRationItem(actor) {
-  const rations = [];
-  for (const item of actor.items) {
-    const provision = provisionOf(item);
-    if (provision?.kind === "food" && provision.sized && provision.units > 0) rations.push({ item, provision });
-  }
-  rations.sort((a, b) => a.provision.perUnit - b.provision.perUnit);
-  return rations[0] ?? null;
-}
-
-/**
- * Decrement one ration per member; report who consumed what and who is out.
- * A unit worth several days is consumed as that many uses (tracked in an item
- * flag, which `provisionOf` folds into the days it holds) before the item
- * quantity itself decrements.
+ * Spend one day of food per member through `spendFood`, the consumer End day
+ * shares, and report who ate what and who is out. A member fed a whole day is
+ * marked with the formation's End-day counter (`FED_FLAG`), so End day, which spends
+ * for the same day, does not feed them again. Only food is spent, never hunted
+ * game, and never an item with no size.
  *
  * `only` is a predicate over a member's actor: one it refuses is neither fed
  * nor reported, so a seat feeds just the members whose packs it may write.
  */
 export async function consumeRations(formation, { only = null } = {}) {
+  const day = fedDayOf(formation);
   const fed = [];
   const hungry = [];
   for (const member of formation.members) {
     const actor = getMemberActor(member);
     if (!actor) continue;
     if (only && !only(actor)) continue;
-    const found = findRationItem(actor);
-    if (found) {
-      const { item: ration, provision } = found;
-      if (provision.perUnit > 1) {
-        const uses = (ration.getFlag(MODULE_ID, "uses") ?? 0) + 1;
-        if (uses >= provision.perUnit) {
-          await ration.update({
-            [quantityOf(ration).path]: stackCountOf(ration) - 1,
-            [`flags.${MODULE_ID}.uses`]: 0,
-          });
-        } else {
-          await ration.setFlag(MODULE_ID, "uses", uses);
-        }
-        fed.push({ name: actor.name, ration: `${ration.name} (${Math.min(uses, provision.perUnit)}/${provision.perUnit})` });
-      } else {
-        await ration.update({ [quantityOf(ration).path]: stackCountOf(ration) - 1 });
-        fed.push({ name: actor.name, ration: ration.name });
-      }
-    } else {
-      hungry.push(actor.name);
+    const got = await spendFood(actor, 1);
+    if (got.spent > EPSILON) {
+      const ration = got.from.map((f) => (f.perUnit > 1 ? `${f.name} (${f.eaten || f.perUnit}/${f.perUnit})` : f.name));
+      fed.push({ name: actor.name, ration: ration.join(", ") });
     }
+    if (got.short > EPSILON) hungry.push(actor.name);
+    else await actor.setFlag(MODULE_ID, FED_FLAG, day);
   }
   let content = `<div class="acks-formation-card"><strong>${foundry.utils.escapeHTML(formation.name)}</strong> — ${loc("chat.rationsTitle")}<ul>`;
   for (const f of fed) content += `<li>${foundry.utils.escapeHTML(f.name)}: ${foundry.utils.escapeHTML(f.ration)}</li>`;

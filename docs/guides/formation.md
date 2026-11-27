@@ -400,7 +400,8 @@ list stays empty, and nothing is charged. Each card that pays one
 of these penalties names the weather on its own line.
 
 **End day**, at the head of the Wilderness tab, closes the day: it feeds the
-order, walks every body's hunger, thirst and exposure one step, writes the
+order and takes what it fed out of the packs (see The camp), walks every body's
+hunger, thirst and exposure one step, writes the
 miles and hours
 actually walked into the log, and moves the calendar to the next dawn. It owes
 an encounter throw for each batch of traps managed and carries the odd traps to
@@ -439,6 +440,27 @@ strip shows the days of food and water to the players too.
 
 *The Camp section: the days of food and water, the hours in the weather with
 At a fire and Got wet, and the three declarations.*
+
+**End day** spends what it deals. Each member's share comes out of their own
+pack first and then out of the rest of the order's, in the order of the
+marching grid. Food leaves a pack as units: a ration worth several days is
+eaten a day at a time, and an emptied stack stays on the sheet at zero. Water
+leaves the vessels: each keeps what is left in it, an emptied vessel stays in
+the pack, and the days of water in the Camp section are what the vessels hold
+now. What is left in a vessel can be typed on the item (the **Left, days**
+field under **Provision** on its **Details** tab). Water found by foraging
+is added to what is left in the item it lands in. The **Supplies**
+press and End day spend through one routine and the press marks the member it
+fed, so a member the press fed for the day is not fed again when you end it
+(Actors sidebar tab → a party actor → its sheet → the Supplies press in the
+frame, or **End day** on the Wilderness tab).
+
+A member short of a day who carries food or water that has no size has that
+ladder left as it was, not advanced: **The weather's toll** card names them, the
+items and the page that prints the size. Set the item's **Days per unit**
+(Actors sidebar tab → the member → its sheet → the **Inventory** tab → the
+item's row → its sheet, armed with the pencil → **Details** tab →
+**Provision**) and End day counts it from then on.
 
 Only the suffering are listed. Someone who is hungry, thirsty, hypothermic or
 losing Constitution appears with what it has cost them; the well-fed do not,

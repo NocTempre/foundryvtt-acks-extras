@@ -10,10 +10,26 @@ import assert from "node:assert/strict";
 import {
   SHARE_POLICIES, dealProvisions, provisionDay, provisionForecast, daysCarried, unsizedProvisions, provisionOf,
 } from "../scripts/formation/provisions.mjs";
+import {
+  FOOD_AND_GAME, refillActor, spendFood, spendShares, spendWater,
+} from "../scripts/formation/provision-spend.mjs";
 import { RATION_LEVELS, advanceSurvival, freshSurvival } from "../scripts/lib/survival.mjs";
 
 let passed = 0;
-const ok = (name, fn) => { fn(); passed++; console.log("ok   " + name); };
+// A check may be async: the checks run one after another, and the first failure stops the run.
+let chain = Promise.resolve();
+const ok = (name, fn) => {
+  chain = chain.then(async () => {
+    try {
+      await fn();
+    } catch (err) {
+      console.error("FAIL " + name);
+      throw err;
+    }
+    passed++;
+    console.log("ok   " + name);
+  });
+};
 
 ok("the policies are structural and the levels are survival's own", () => {
   assert.deepEqual(Object.keys(SHARE_POLICIES), ["even", "triage"]);
@@ -342,4 +358,168 @@ ok("the forecast shortens in the heat without anyone drinking faster", () => {
   assert.equal(hot.waterNeed, 2, "and it says why");
 });
 
+/* --- spending: one consumer, fractional and multi-day ---------------------
+   Invented names and figures throughout: the sizes are declared by hand on the
+   item, as a Judge would, so nothing here reads a page. */
+globalThis.foundry = { data: { operators: { ForcedDeletion: class ForcedDeletion {} } } };
+const setAt = (obj, path, value) => {
+  const keys = path.split(".");
+  const last = keys.pop();
+  keys.reduce((o, k) => (o[k] ??= {}), obj)[last] = value;
+};
+/** An item that takes writes the way a document does: dotted paths, a forced deletion, setFlag. */
+const held = (name, qty, flags = {}) => {
+  const it = item(name, qty, null, flags);
+  it.writes = [];
+  it.update = async (patch) => {
+    it.writes.push(patch);
+    for (const [path, value] of Object.entries(patch)) {
+      if (value instanceof globalThis.foundry.data.operators.ForcedDeletion) {
+        const keys = path.split(".");
+        const last = keys.pop();
+        delete keys.reduce((o, k) => o?.[k], it)?.[last];
+      } else setAt(it, path, value);
+    }
+  };
+  it.setFlag = async (scope, key, value) => { (it.flags[scope] ??= {})[key] = structuredClone(value); };
+  return it;
+};
+const loaf = (qty, perUnit, flags = {}) => held("Trail Loaf", qty, { provision: { kind: "food", perUnit }, ...flags });
+const flask = (qty, perUnit, flags = {}) => held("Trail Flask", qty, { provision: { kind: "water", perUnit, ...flags } });
+const usesOf = (it) => it.flags["acks-extras"].uses;
+const daysOf = (it) => provisionOf(it).days;
+
+ok("a part-day portion is a fraction of the unit, kept in the item's uses", async () => {
+  const day = held("Day Rations", 3);
+  assert.equal(daysOf(held("Day Rations", 3, { uses: 0.5 })), 2.5, "a day's ration half eaten holds half a day");
+  const a = carrying(day);
+  assert.deepEqual(await spendFood(a, 0.5).then((r) => [r.spent, r.short]), [0.5, 0]);
+  assert.deepEqual([day.system.quantity, usesOf(day), daysOf(day)], [3, 0.5, 2.5]);
+  await spendFood(a, 0.5);
+  assert.deepEqual([day.system.quantity, usesOf(day), daysOf(day)], [2, 0, 2], "two halves are a ration, and the stack drops");
+});
+
+ok("a multi-day unit is eaten a day at a time and across units, and an emptied stack stays", async () => {
+  const bread = loaf(2, 3);
+  const a = carrying(bread);
+  await spendFood(a, 1);
+  assert.deepEqual([bread.system.quantity, usesOf(bread), daysOf(bread)], [2, 1, 5]);
+  const r = await spendFood(a, 2.5);
+  assert.deepEqual([r.spent, bread.system.quantity, usesOf(bread), daysOf(bread)], [2.5, 1, 0.5, 2.5], "the first unit finished and the second half-way into its last day");
+  assert.deepEqual(r.from.map((f) => [f.name, f.days]), [["Trail Loaf", 2.5]], "and it says what it drew on");
+  const last = await spendFood(a, 9);
+  assert.deepEqual([last.spent, last.short], [2.5, 6.5], "asked for more than is held: it gives what there is and says what is owed");
+  assert.deepEqual([bread.system.quantity, usesOf(bread), daysOf(bread)], [0, 0, 0], "the emptied stack stays in the pack");
+  assert.equal(await spendFood(a, 1).then((x) => x.spent), 0, "an empty stack gives nothing");
+});
+
+ok("the unit worth the fewest days goes first, and an item with no size is never touched", async () => {
+  const week = loaf(1, 7);
+  const dayUnit = held("Day Rations", 2);
+  const bare = held("Rations", 5);
+  const game = held("Fresh Game", 3, { foraged: "hunt" });
+  const a = carrying(week, bare, dayUnit, game);
+  const r = await spendFood(a, 2.5);
+  assert.deepEqual(r.from.map((f) => f.name), ["Day Rations", "Trail Loaf"], "a day's ration before a week's");
+  assert.deepEqual([dayUnit.system.quantity, daysOf(week)], [0, 6.5], "the day units went and the week was cut into");
+  assert.equal(bare.system.quantity, 5, "a ration with no size is left as it is");
+  assert.deepEqual(bare.writes, []);
+  assert.equal(game.system.quantity, 3, "the press's food never takes game");
+  const both = await spendFood(a, 2, { kinds: FOOD_AND_GAME });
+  assert.equal(both.from[0].name, "Fresh Game", "End day's food does, a day a unit, before the week's seven");
+  assert.equal(game.system.quantity, 1);
+});
+
+ok("a unit of more than a day keeps a part-day portion, and a stale count at or past the unit leaves its last day", async () => {
+  const stew = loaf(2, 1.5);
+  await spendFood(carrying(stew), 1);
+  assert.deepEqual([stew.system.quantity, usesOf(stew), daysOf(stew)], [2, 1, 2], "one day of two one-and-a-half-day units leaves two days");
+  assert.equal(provisionOf(loaf(1, 3, { uses: 3 })).days, 1, "a count the size of the unit is stale");
+  assert.equal(provisionOf(loaf(1, 3, { uses: 2.5 })).days, 0.5, "inside the unit it stands");
+});
+
+ok("a vessel is drawn down to what is left, never below empty, and stays in the pack with its declared kind and size", async () => {
+  const skin = flask(4, 0.25);
+  const a = carrying(skin);
+  assert.deepEqual(await spendWater(a, 0.4).then((r) => [r.spent, r.short]), [0.4, 0]);
+  assert.equal(skin.flags["acks-extras"].provision.left, 0.6);
+  assert.deepEqual([skin.flags["acks-extras"].provision.kind, skin.flags["acks-extras"].provision.perUnit], ["water", 0.25], "the declared kind and size are kept");
+  assert.equal(daysCarried(a, WATER), 0.6, "the camp counts what is left");
+  const r = await spendWater(a, 1);
+  assert.deepEqual([r.spent, r.short], [0.6, 0.4], "it gives what is left and says what is owed");
+  assert.deepEqual([skin.flags["acks-extras"].provision.left, skin.system.quantity], [0, 4], "emptied, and still four vessels");
+  assert.equal(provisionOf(skin).days, 0);
+  assert.equal(await spendWater(a, 1).then((x) => x.spent), 0);
+  const second = held("Trail Skin", 1, { provision: { kind: "water", perUnit: 0.5 } });
+  const stacks = carrying(second, flask(2, 0.5));
+  assert.deepEqual(await spendWater(stacks, 1.25).then((r) => r.from.map((f) => [f.name, f.days])), [["Trail Skin", 0.5], ["Trail Flask", 0.75]], "vessel by vessel, in the pack's order");
+  const bare = held("Waterskin", 1);
+  assert.equal(await spendWater(carrying(bare), 1).then((r) => r.spent), 0, "an unsized vessel gives none");
+  assert.deepEqual(bare.writes, []);
+  const foraged = held("Foraged Water", 5, { foraged: "water" });
+  assert.equal(await spendWater(carrying(foraged), 2).then((r) => r.spent), 2, "foraged water is a person-day a unit");
+  assert.equal(provisionOf(foraged).left, 3);
+});
+
+ok("a share is drawn from the member's own pack first, then from the rest of the order's, in member order", async () => {
+  const ownA = loaf(1, 1);
+  const ownB = loaf(3, 1);
+  const ownC = loaf(0, 1);
+  const [a, b, c] = [carrying(ownA), carrying(ownB), carrying(ownC)].map((x, i) => ({ ...x, name: "ABC"[i] }));
+  const rows = await spendShares([a, b, c], [2, 0, 1], spendFood);
+  assert.deepEqual(rows.map((r) => r.days), [2, 0, 1]);
+  assert.deepEqual(rows[0].from, [{ name: "Trail Loaf", owner: "A", days: 1 }, { name: "Trail Loaf", owner: "B", days: 1 }], "A ate its own day and then one of B's");
+  assert.deepEqual(rows[2].from, [{ name: "Trail Loaf", owner: "B", days: 1 }]);
+  assert.deepEqual([ownA.system.quantity, ownB.system.quantity, ownC.system.quantity], [0, 1, 0]);
+  const short = await spendShares([a, b], [1, 2], spendFood);
+  assert.deepEqual(short.map((r) => [r.days, r.short]), [[0, 1], [1, 1]], "what no pack can give stays owing");
+});
+
+ok("what is dealt is what is spent: even half portions and triage take exactly the pool dealt", async () => {
+  const mk = (n) => Array.from({ length: n }, (_, i) => ({ ...carrying(loaf(1, 1)), name: "M" + i }));
+  for (const policy of ["even", "triage"]) {
+    const order = mk(4);
+    const supply = 3;
+    const day = provisionDay({ mouths: 4, food: supply, policy });
+    const shares = day.food.levels.map((l) => ({ full: 1, half: 0.5, none: 0 })[l]);
+    const rows = await spendShares(order, shares, spendFood);
+    const spent = rows.reduce((n, r) => n + r.days, 0);
+    assert.equal(spent, supply - day.food.remaining, policy);
+  }
+  const even = provisionDay({ mouths: 4, food: 2, policy: "even" });
+  assert.deepEqual(even.food.levels, ["half", "half", "half", "half"]);
+  assert.equal(even.food.remaining, 0, "half portions of four mouths are the whole two days");
+});
+
+ok("a sum of fractions that is one day reads as one day, by the pool, the deal and the forecast", () => {
+  const tenths = Array(10).fill(0.1).reduce((n, x) => n + x, 0);
+  assert.ok(tenths < 1, "float dust leaves ten tenths just under a day");
+  assert.equal(provisionForecast({ mouths: 1, water: tenths }).waterDays, 1);
+  assert.equal(provisionForecast({ mouths: 1, food: tenths }).foodDays, 1);
+  const deal = dealProvisions({ mouths: 1, supply: tenths });
+  assert.deepEqual([deal.levels, deal.short, deal.remaining], [["full"], false, 0]);
+  assert.deepEqual(dealProvisions({ mouths: 2, supply: tenths * 2, policy: "triage" }).levels, ["full", "full"]);
+  assert.deepEqual(dealProvisions({ mouths: 4, supply: 2 * tenths, policy: "even" }).levels, ["half", "half", "half", "half"]);
+  const vessels = carrying(...[0.7, 0.1, 0.1, 0.1].map((p) => flask(1, p)));
+  assert.equal(daysCarried(vessels, WATER), 1, "four vessels that make a day read as a day");
+  assert.equal(provisionForecast({ mouths: 1, water: daysCarried(vessels, WATER) }).waterDays, 1);
+});
+
+ok("a refill sets every sized vessel to full by unsetting what is left, and skips a vessel with no size", async () => {
+  const half = flask(2, 0.5, { left: 0.25 });
+  const never = flask(1, 0.5);
+  const bare = held("Waterskin", 2);
+  const none = flask(0, 0.5, { left: 0 });
+  const a = carrying(half, never, bare, none, loaf(1, 1));
+  const r = await refillActor(a);
+  assert.deepEqual(r.filled, [half, never]);
+  assert.deepEqual(r.skipped, [bare], "an unsized vessel is reported and left");
+  assert.equal("left" in half.flags["acks-extras"].provision, false, "unset reads as full");
+  assert.equal(provisionOf(half).left, 1);
+  assert.deepEqual(never.writes, [], "a vessel never drawn on is not written");
+  assert.equal(half.flags["acks-extras"].provision.perUnit, 0.5, "the declared size stays");
+  assert.deepEqual(bare.writes, []);
+});
+
+await chain;
 console.log("\ntest-provisions: all " + passed + " checks passed");

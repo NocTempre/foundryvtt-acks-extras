@@ -8,6 +8,7 @@
 import { MODULE_ID, RATION_PATTERN } from "./constants.mjs";
 import { makeLoc, gmIds } from "./../lib/util.mjs";
 import { quantityOf } from "../lib/storage-logic.mjs";
+import { figureOf, tidy } from "./provisions.mjs";
 import { getMemberActor, realMembers, hasAbility } from "./formation-model.mjs";
 import { travelOf } from "./travel.mjs";
 import { forageSpec, huntSpec, forageYield, partyThrows, standingWaterOf, FORAGE_KINDS } from "./foraging.mjs";
@@ -50,7 +51,12 @@ async function deposit(actor, kind, days) {
   const existing = actor.items.find((i) => i.name === name);
   if (existing) {
     const held = quantityOf(existing);
-    await existing.update({ [held?.path ?? "system.quantity"]: (held?.value ?? 0) + days });
+    const patch = { [held?.path ?? "system.quantity"]: (held?.value ?? 0) + days };
+    // A water deposit End day has drawn on keeps what is left; what is found
+    // adds to it, or the larger stack would still read as drawn down.
+    const left = kind === "water" ? figureOf(existing.getFlag(MODULE_ID, "provision")?.left) : null;
+    if (left !== null) patch[`flags.${MODULE_ID}.provision.left`] = tidy(Math.max(0, left) + days);
+    await existing.update(patch);
     return existing;
   }
   const [made] = await actor.createEmbeddedDocuments("Item", [{

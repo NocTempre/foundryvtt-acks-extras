@@ -2558,10 +2558,18 @@ hand (docs/equipment/MODEL.md, "Provision fields").
 A water item is kept as what is left (`provision.left`, days across the whole
 stack): clamped to what the stack holds, full where never set, and a null or
 blank `left` is never set. `days` for water is that figure. A food unit part
-eaten holds fewer days: the press keeps a `uses` count on a multi-day unit and
-`provisionOf` takes it off the first unit, so a week's ration with three used
-holds four days of it. The press spends only from a sized item `provisionOf`
-calls food, the unit worth the fewest days first.
+eaten holds fewer days: `spendFood` keeps the days eaten in the `uses` flag and
+`provisionOf` takes them off the first unit, so a week's ration with three used
+holds four days of it. A `uses` inside the unit is kept as written, so a half
+portion may leave a unit holding less than a day; one at or past the unit's
+size is stale and leaves the unit's last day.
+
+Pooled figures are compared with `EPSILON` (1e-9) wherever they meet a need or
+are floored (`dealProvisions`, `provisionForecast`, `daysCarried`), so five
+fifths of a day read as a whole day. Every surface that warns of short food or
+water (the Camp section's `short`, the strip's supplies line) reads the
+forecast, which reads `foodDaysOf` and `waterDaysOf`, which read the items'
+`days`: a vessel's `left`.
 
 HOW a shortfall is spread is a Judge's call, not the book's — it prices what
 hunger does to a body, never who a captain chooses to feed — so both honest
@@ -2574,6 +2582,59 @@ is `even`.
 each feeds nobody rather than pretending a sip is a meal, and does not spend
 itself on the fiction. That coarseness is the ladder's — it knows three levels
 and no more.
+
+### Spending
+
+[provision-spend.mjs](../../scripts/formation/provision-spend.mjs) is the one
+consumer of what a pack holds, so the Supplies press and End day cannot spend
+the same day twice.
+
+- **`spendFood(actor, days, {kinds})`** takes `days` (fractional where a half
+  portion is dealt) from the actor's SIZED food, the unit worth the fewest days
+  first, so a day's ration goes before a week's. A unit part eaten keeps `uses`
+  in days; the stack's quantity drops when a unit is used up, and an emptied
+  stack stays in the pack. An unsized item is never touched. It returns what it
+  spent, what it could not give, and the items drawn on. `kinds` is `food` for
+  the press; End day adds `hunt`, which its pool counts.
+- **`spendWater(actor, days)`** draws from the vessels' `provision.left`, never
+  below empty. A vessel emptied stays in the pack, its quantity unchanged; the
+  write merges into the item's own `provision` flag, so a declared kind or size
+  is kept. `left` is across the whole stack.
+- **`spendShares(actors, shares, spend)`** draws each member's share from their
+  own pack first and what is left owing from the rest of the order's, in member
+  order.
+- **The press** (`consumeRations`) spends one day a member through `spendFood`
+  and reports who ate what and who is out. A member fed a whole day is marked
+  `flags["acks-extras"].fedOn` with the formation's End-day counter
+  (`fedDayOf`: `travel.dayCount`, which only `endDay` advances). The press
+  repeats on request; only End day reads the mark.
+- **End day** (`runProvisionDay`) deals the pooled food and water and spends
+  what it dealt through `spendShares`: the food spent is the supply less what
+  remained, the water likewise. A member whose `fedOn` equals the formation's
+  counter (`fedDayOf`) is counted fed in full for food, is
+  dealt none and is spent nothing for; End day advances the counter, so the
+  mark is stale on the next day and is never cleared. The counter is the
+  End-day count alone, so a clock moved ahead with no End day leaves a mark
+  matching, which errs toward not charging. The result carries `spent: {food, water}` and, per
+  member, what was drawn and from whose pack.
+- **A held ladder.** A member dealt less than full of a kind while carrying an
+  unsized item of that kind (`unsizedProvisions`) has that ladder passed to
+  `advanceSurvival` as `HELD`: the runs and the rung do not move, and the
+  ladder charges and recovers nothing. `HELD` is no member of `RATION_LEVELS`.
+  The toll card names each such member, the items (`name ×count`) and the
+  page reference, and a size set on the item brings the member back into the
+  next day's count.
+- **Refill** (`refillVessels(formation, {only})`, `provision-day.mjs`) sets
+  every sized vessel of each member `only` accepts to full by unsetting its
+  `left`, which reads as full and follows the stack's size. It returns
+  `{filled, skipped}` as `{actor, item}` rows, `skipped` being the unsized
+  vessels. It carries no Judge-only gate: who may press it is the caller's
+  `only`, by Foundry ownership of the actor holding the vessel.
+- **Found water.** A forage deposit of water that lands on a deposit End day
+  has drawn on raises its `left` by the days found as well as its quantity
+  (`forage-run.mjs` `deposit`), so what is found is counted.
+
+The rulings behind these are in [DECISIONS](DECISIONS.md), 2026-11-27.
 
 ## The weather's toll
 

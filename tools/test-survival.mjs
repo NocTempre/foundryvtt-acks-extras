@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import { registerTable, unregisterTable, PRIORITY } from "../scripts/lib/tables.mjs";
 import {
-  SURVIVAL_DOC, NOURISHMENT, HYDRATION, EXPOSURE, RATION_LEVELS,
+  SURVIVAL_DOC, NOURISHMENT, HYDRATION, EXPOSURE, RATION_LEVELS, HELD,
   freshSurvival, survivalOf, forbidden, draining,
   hungerRung, thirstRung, advanceSurvival, survivalReady,
   exposureRung, advanceExposureHour, heatBurden, animalNeeds, simplifiedSupply,
@@ -386,6 +386,39 @@ ok("an unimported subsystem neither charges nor claims a missing roll", () => {
   assert.equal(step.drain, 0);
   assert.equal(step.unrolled, false, "nothing was owed, so nothing is outstanding");
   assert.equal(step.unpriced, true, "the absent import is what gets reported");
+});
+
+ok("a held ladder keeps its runs and rung, charges nothing and recovers nothing, and the other ladder still walks", () => {
+  unregisterTable(SURVIVAL_DOC); load();
+  assert.deepEqual(RATION_LEVELS, ["full", "half", "none"], "the dealt levels do not gain a fourth");
+  const thin = run(2, { food: "none", water: "none" });
+  assert.equal(thin.hydration, "dehydrated");
+  const held = advanceSurvival(thin, { food: HELD, water: HELD, thirstRoll: null });
+  assert.deepEqual(
+    [held.state.noFoodRun, held.state.shortFoodRun, held.state.nourishment],
+    [thin.noFoodRun, thin.shortFoodRun, thin.nourishment], "the hunger ladder is as it was",
+  );
+  assert.deepEqual(
+    [held.state.noWaterRun, held.state.shortWaterRun, held.state.hydration],
+    [thin.noWaterRun, thin.shortWaterRun, thin.hydration], "so is the thirst ladder, dehydrated and all",
+  );
+  assert.equal(held.drain, 0, "no toll is charged for a day nobody knows");
+  assert.equal(held.state.conLost, thin.conLost);
+  assert.equal(held.worsened || held.eased, false);
+
+  const starving = run(7, { food: "none" });
+  assert.equal(starving.nourishment, "starving");
+  const spared = advanceSurvival(starving, { food: HELD });
+  assert.equal(spared.drain, 0, "a starving body's toll waits too");
+  assert.equal(spared.state.nourishment, "starving");
+  const charged = advanceSurvival(starving, { food: "none" });
+  assert.equal(charged.drain, 1, "where the day is known it is charged as before");
+
+  const mixed = advanceSurvival(freshSurvival(), { food: HELD, water: "none" });
+  assert.equal(mixed.state.noFoodRun, 0, "held food starts no clock");
+  assert.equal(mixed.state.noWaterRun, 1, "while water, dealt none, does");
+  const owing = advanceSurvival({ ...freshSurvival(), conLost: 4 }, { food: "full", water: HELD });
+  assert.equal(owing.recovered, 1, "a held ladder adds nothing to what a full one gives back");
 });
 
 console.log("\ntest-survival: all " + passed + " checks passed");

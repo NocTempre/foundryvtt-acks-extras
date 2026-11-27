@@ -20,6 +20,13 @@ export const SURVIVAL_DOC = "survival";
 export const RATION_LEVELS = Object.freeze(["full", "half", "none"]);
 
 /**
+ * A fourth thing a caller may pass `advanceSurvival` for food or water, apart
+ * from `RATION_LEVELS`: the day is not known, so that ladder is left as it was.
+ * Its runs and rung do not move, and it charges and recovers nothing.
+ */
+export const HELD = "held";
+
+/**
  * The hunger ladder, in order. `forbids` is what the rung takes away — the
  * kind of the effect is structural; its size is not.
  */
@@ -187,8 +194,8 @@ export function coldDie() {
  * hunger charges a flat one".
  *
  * @param {object} opts
- * @param {"full"|"half"|"none"} opts.food  what this body ate
- * @param {"full"|"half"|"none"} opts.water what it drank
+ * @param {"full"|"half"|"none"|"held"} opts.food  what this body ate, or `HELD`
+ * @param {"full"|"half"|"none"|"held"} opts.water what it drank, or `HELD`
  * @param {number|null} opts.thirstRoll  a roll of the registry's thirst die
  * @param {number} opts.heat  the band's multiplier on a thirst toll (heatBurden)
  */
@@ -198,32 +205,40 @@ export function advanceSurvival(state, {
   const s = survivalOf(state);
   const next = { ...s };
   const before = { nourishment: s.nourishment, hydration: s.hydration };
+  const foodHeld = food === HELD;
+  const waterHeld = water === HELD;
 
   // --- the clocks ---
-  next.noFoodRun = food === "none" ? s.noFoodRun + 1 : 0;
-  next.shortFoodRun = food === "full" ? 0 : s.shortFoodRun + 1;
-  next.noWaterRun = water === "none" ? s.noWaterRun + 1 : 0;
-  next.shortWaterRun = water === "full" ? 0 : s.shortWaterRun + 1;
+  if (!foodHeld) {
+    next.noFoodRun = food === "none" ? s.noFoodRun + 1 : 0;
+    next.shortFoodRun = food === "full" ? 0 : s.shortFoodRun + 1;
+  }
+  if (!waterHeld) {
+    next.noWaterRun = water === "none" ? s.noWaterRun + 1 : 0;
+    next.shortWaterRun = water === "full" ? 0 : s.shortWaterRun + 1;
+  }
 
   // --- the rungs ---
+  // A held ladder's rung stays where it was.
   if (food === "full") {
     next.nourishment = s.nourishment === "starving" ? "underfed" : "fed";
-  } else {
+  } else if (!foodHeld) {
     const climbed = hungerRung(next);
     // Short rations never step a body down a rung: the clocks only climb.
     next.nourishment = NOURISHMENT[climbed].rung >= NOURISHMENT[s.nourishment].rung
       ? climbed : s.nourishment;
   }
 
-  next.hydration = water === "full" ? "watered" : thirstRung(next);
+  if (!waterHeld) next.hydration = water === "full" ? "watered" : thirstRung(next);
 
   // --- the cost, and the debt coming back ---
-  const foodDrain = next.nourishment === "starving" ? numOrNull(table("food")?.conPerDay) : null;
+  // A held ladder charges nothing: the day it would charge for is not known.
+  const foodDrain = !foodHeld && next.nourishment === "starving" ? numOrNull(table("food")?.conPerDay) : null;
 
   // Thirst's toll is registered flat or as a die; a die needs the caller's roll.
   let waterDrain = null;
   let unrolled = false;
-  if (next.hydration === "dehydrated") {
+  if (!waterHeld && next.hydration === "dehydrated") {
     const cost = table("water")?.conPerDay;
     const flat = numOrNull(cost);
     const mult = Number.isFinite(Number(heat)) && Number(heat) > 0 ? Number(heat) : 1;

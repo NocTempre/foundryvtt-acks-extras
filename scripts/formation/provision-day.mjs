@@ -17,9 +17,14 @@
  */
 import { MODULE_ID, WATER_PATTERN } from "./constants.mjs";
 import { getMemberActor, hasAbility, patchFormation, realMembers } from "./formation-model.mjs";
-import { provisionDay, daysCarried, SETTING_SHARE_POLICY } from "./provisions.mjs";
 import {
-  advanceSurvival, advanceExposureHour, survivalOf, freshSurvival,
+  LEVEL_SHARE, SETTING_SHARE_POLICY, daysCarried, provisionDay, provisionOf, tidy, unsizedProvisions,
+} from "./provisions.mjs";
+import {
+  FED_FLAG, FOOD_AND_GAME, fedDayOf, refillActor, spendFood, spendShares, spendWater,
+} from "./provision-spend.mjs";
+import {
+  HELD, advanceSurvival, advanceExposureHour, survivalOf, freshSurvival,
   heatBurden, thirstDie, coldDie, isDiceExpression,
 } from "../lib/survival.mjs";
 import { travelOf } from "./travel.mjs";
@@ -224,7 +229,46 @@ function tollSections(report) {
     outcome: loc(t.caught ? "toll.disease.caught" : "toll.disease.escaped"),
     emphasis: t.caught ? "failure" : "success",
   }))));
+  add("held", report.filter((r) => r.held).map((r) => ({
+    name: r.name,
+    total: "",
+    detail: Object.entries(r.held).map(([ladder, names]) => loc("toll.held.item", {
+      kind: game.i18n.localize(`ACKS-EQUIPMENT.itemSheet.provision.kind.${ladder}`),
+      items: names.join(", "),
+      cite: game.i18n.localize(`ACKS-EQUIPMENT.itemSheet.provision.cite.${ladder}`),
+    })).join(" · "),
+    outcome: loc("toll.held.outcome"),
+    outcomeTooltip: loc("toll.held.hint"),
+    emphasis: "neutral",
+  })));
   return sections;
+}
+
+/** `Name ×count` for each item of the kinds named that an actor holds with no size. */
+function unsizedNames(actor, kinds) {
+  return unsizedProvisions(actor, { kind: kinds }).map(({ item }) => `${item.name} ×${provisionOf(item)?.units ?? 0}`);
+}
+
+/**
+ * Fill every sized water vessel the members carry, for the members `only`
+ * accepts (a predicate over a member's actor; every member where null). What
+ * is left is unset on each vessel, which reads as full. There is no Judge-only
+ * gate: who may press it is the caller's `only`, by Foundry ownership.
+ *
+ * @returns {Promise<{filled: Array<{actor: object, item: object}>, skipped: Array<{actor: object, item: object}>}>}
+ *   the vessels filled, and the unsized ones skipped.
+ */
+export async function refillVessels(formation, { only = null } = {}) {
+  const filled = [];
+  const skipped = [];
+  for (const member of realMembers(formation ?? {})) {
+    const actor = getMemberActor(member);
+    if (!actor || (only && !only(actor))) continue;
+    const got = await refillActor(actor);
+    filled.push(...got.filled.map((item) => ({ actor, item })));
+    skipped.push(...got.skipped.map((item) => ({ actor, item })));
+  }
+  return { filled, skipped };
 }
 
 /**
@@ -250,10 +294,28 @@ async function walkExposure(state, { hours, band, protectedFrom, atHeatSource, w
 }
 
 /**
- * Feed the order for one day and walk every ladder one step.
+ * Feed the order for one day, spend what was dealt and walk every ladder one
+ * step.
  *
- * Returns a per-member report: what they got, where it left them, and what it
- * cost. Nothing is written when there is nobody to feed.
+ * The pool is every member's sized food and water. It is dealt under the
+ * sharing policy, then taken out of the packs through `spendShares`: each
+ * member's share from their own pack first, then from the rest of the order's,
+ * in member order, so the food and water spent are exactly what was dealt. A
+ * member the Supplies press fed for the day being ended (`FED_FLAG` holds the
+ * formation's End-day counter, `fedDayOf`) is counted fed in full and neither
+ * dealt nor spent for.
+ * A member dealt less than full of a kind while carrying an item of that kind
+ * with no size has that ladder held: left as it was, and named on the card.
+ *
+ * Returns a per-member report: what they got, what was drawn for them, where
+ * it left them, and what it cost. Nothing is written when there is nobody to
+ * feed.
+ *
+ * @returns {Promise<object|null>} `{report, weatherRuns, short, food, water,
+ *   pooled, spent: {food, water}, exposure}`; `spent` is the days drawn, and
+ *   each report row's `spent` is `{food: {days, from}, water: {days, from}}`,
+ *   `from` listing `{name, owner, days}`. A row's `held` is `{food?, water?}`,
+ *   the unsized items named, where a ladder was held.
  */
 export async function runProvisionDay(formation) {
   if (!game.user?.isGM) return null;
@@ -261,20 +323,41 @@ export async function runProvisionDay(formation) {
   const actors = members.map(getMemberActor).filter(Boolean);
   if (!actors.length) return null;
 
+  const travel = travelOf(formation);
+  const closing = fedDayOf(formation);
+  const fedToday = actors.map((a) => a.getFlag(MODULE_ID, FED_FLAG) === closing);
+
   const food = actors.reduce((n, a) => n + foodDaysOf(a), 0);
   const water = actors.reduce((n, a) => n + waterDaysOf(a), 0);
   // The band comes from the day's own weather.
-  const burden = heatBurden({ band: travelOf(formation).weather?.temperature ?? "" });
+  const burden = heatBurden({ band: travel.weather?.temperature ?? "" });
   const day = provisionDay({
-    mouths: actors.length, food, water, policy: policy(), waterNeed: burden.waterNeed,
+    mouths: actors.length,
+    foodMouths: fedToday.filter((fed) => !fed).length,
+    food, water, policy: policy(), waterNeed: burden.waterNeed,
   });
+
+  // The levels dealt, by member: a member fed already is full and takes no share.
+  let nextFood = 0;
+  const meals = actors.map((_, i) => ({
+    food: fedToday[i] ? "full" : (day.food.levels[nextFood++] ?? "none"),
+    water: day.water.levels[i] ?? "none",
+  }));
+
+  // What the levels cost, drawn from the packs and vessels.
+  const foodDrawn = await spendShares(
+    actors,
+    meals.map((m, i) => (fedToday[i] ? 0 : LEVEL_SHARE[m.food])),
+    (actor, days) => spendFood(actor, days, { kinds: FOOD_AND_GAME }),
+  );
+  const waterDrawn = await spendShares(actors, meals.map((m) => LEVEL_SHARE[m.water] * burden.waterNeed), spendWater);
+  const sum = (rows) => tidy(rows.reduce((n, r) => n + r.days, 0));
 
   // The ladder is pure, so the dice are thrown here, one per body.
   const die = thirstDie();
   const cold = coldDie();
 
   // The exposure hours are declared, not inferred from the march.
-  const travel = travelOf(formation);
   const band = travel.weather?.temperature ?? "";
   const exposure = travel.exposure ?? { hours: 0, atHeatSource: false, wet: false };
   const hours = Math.min(24, Math.max(0, Math.floor(Number(exposure.hours) || 0)));
@@ -292,11 +375,21 @@ export async function runProvisionDay(formation) {
 
   const report = [];
   for (const [i, actor] of actors.entries()) {
-    const meal = day.meals[i] ?? { food: "none", water: "none" };
+    const meal = meals[i];
     const before = survivalOf(actor.getFlag(MODULE_ID, SURVIVAL_FLAG) ?? freshSurvival());
     const thirstRoll = die ? (await new Roll(die).evaluate()).total : null;
+    // A ladder short of its day, with food or water on the body that has no
+    // size, is held: the day it would count is not known.
+    const held = {};
+    const foodUnsized = meal.food === "full" ? [] : unsizedNames(actor, FOOD_AND_GAME);
+    const waterUnsized = meal.water === "full" ? [] : unsizedNames(actor, "water");
+    if (foodUnsized.length) held.food = foodUnsized;
+    if (waterUnsized.length) held.water = waterUnsized;
     const step = advanceSurvival(before, {
-      ...meal, thirstRoll, heat: burden.dehydrationDrain,
+      food: held.food ? HELD : meal.food,
+      water: held.water ? HELD : meal.water,
+      thirstRoll,
+      heat: burden.dehydrationDrain,
     });
 
     // The cold runs on its own clock, walked after the day's meal.
@@ -322,6 +415,11 @@ export async function runProvisionDay(formation) {
       actorId: actor.id,
       name: actor.name,
       meal,
+      spent: {
+        food: { days: foodDrawn[i].days, from: foodDrawn[i].from },
+        water: { days: waterDrawn[i].days, from: waterDrawn[i].from },
+      },
+      ...(Object.keys(held).length ? { held } : {}),
       nourishment: state.nourishment,
       hydration: state.hydration,
       exposure: state.exposure,
@@ -358,6 +456,7 @@ export async function runProvisionDay(formation) {
     food: day.food,
     water: day.water,
     pooled: { food, water },
+    spent: { food: sum(foodDrawn), water: sum(waterDrawn) },
     exposure: { hours, band, atHeatSource: !!exposure.atHeatSource, wet: !!exposure.wet },
   };
 }
