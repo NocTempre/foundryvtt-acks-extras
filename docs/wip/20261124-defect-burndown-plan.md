@@ -87,14 +87,23 @@ If more remain, it writes their batch into the map and its start prompt here.
 Only an owner's turn can open a session, so B21 then puts the next start to
 the owner as a card.
 
+**The release follows the queue.** The owner was asked on 2026-11-27, "Cut a
+release of the seven pushed fixes now, ahead of the queue?", and answered
+"After the queue". So once no defect row remains, the last batch cuts one
+release of everything on `main` with `acks-release`. That answer is the
+owner's go-ahead for the release's tag and push. Every gate the skill names
+still applies, and a red gate stops the release and goes to the owner.
+
 ## What every batch session does
 
 One fresh session per batch, on a model its start names, working about ten
 rows and no more. It follows `acks-bug-triage` §3 to §5 with these limits:
 
 - **It stops at `fixed-unreleased`.** No release is cut, nothing is pushed,
-  and no report asks about a release; the owner calls releases. The
-  skill's default that a fix ships as a hotfix does not apply here.
+  and no report asks about a release; the owner calls releases. The one
+  exception is the release that ends the queue ("When the queue ends",
+  above). The skill's default that a fix ships as a hotfix does not apply
+  here.
 - **It is the one ledger writer for its own rows.** It re-reads the ledger
   before every write and writes no other batch's rows. A finding outside its
   rows is registered `new` and left for the batch map.
