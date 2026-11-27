@@ -13,7 +13,7 @@ import {
 import { printedNameOf } from "../printed-name.mjs";
 import {
   GRID_SCENE_PADDING, zoneMovedBy, isSceneRecipe, sceneFrame, sceneData, districtRegionData, placeTokenAt,
-  worldCopySource, placementMatches, afterDarkShift, bandOfSection, isZoneRow, gridScale, ringToScene,
+  worldCopySource, placementMatches, afterDarkShift, OPEN_REACH, bandOfSection, isZoneRow, gridScale, ringToScene,
   offsetsInside, zoneRegionData, coversCrop, wallSources, isRegionRecipe, storeyCrops, storeyLevelId, isLinkRow,
   linkBoxOnFirstStorey, linkEndKey, linkRect, linkRegionData, compassOf, spanOf, linkQuestion,
 } from "../scene-binding.mjs";
@@ -162,9 +162,6 @@ export async function cookbookImportRollTables({ books = null, repair = null } =
   ui.notifications.info(`${MODULE_ID} | roll tables: ${made} created, ${skipped} already present, in "${packLabel("RollTable")}".`);
   return { made, skipped };
 }
-
-/** How far past a printed bound a widened result's range reaches; the sheet shows it as the open end. */
-const OPEN_REACH = 999;
 
 /**
  * A result's `[lo, hi]` widened on the side its die leaves open: `below` takes

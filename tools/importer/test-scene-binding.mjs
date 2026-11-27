@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import {
   SCENE_KIND, PLACE_TOKEN_SIZE, isSceneRecipe, sceneFrame, ringToScene, pointInRing, bandOfSection, formulaMax,
-  afterDarkShift, placementMatches, placementHolding, recipeContext, recipeProblems, sceneData, districtRegionData,
+  afterDarkShift, OPEN_REACH, placementMatches, placementHolding, recipeContext, recipeProblems, sceneData, districtRegionData,
   placeTokenAt, worldCopySource, turnMatrix, pictureKey, storeyCrops, storeyLevelId, cellScale,
   SCENE_ZONE_KIND, isZoneRow, gridScale, recipeFeetPerPoint, offsetsInside, zoneProblems, zoneRegionData, coversCrop, inCropOf,
   GRID_SCENE_PADDING, SCENE_LINK_KIND, isLinkRow, linkBoxOnFirstStorey, linkEndKey, linkRect, compassOf, spanOf, COMPASS, linkRegionData, LINK_ASK, linkQuestion,
@@ -108,6 +108,9 @@ check("a list that runs past its die says how far", afterDarkShift([[1, 4], [127
 check("a list its die covers adds nothing", afterDarkShift([[1, 50], [51, 100]], "1d100"), 0);
 check("an unreadable formula adds nothing", afterDarkShift([[1, 130]], "see text"), 0);
 check("no rows adds nothing", afterDarkShift([], "1d100"), 0);
+check("a row widened to the reach above adds nothing", afterDarkShift([[1, 19], [20, OPEN_REACH]], "1d20"), 0);
+check("a widened row past its die counts from its low", afterDarkShift([[1, 20], [23, OPEN_REACH]], "1d20"), 3);
+check("a row widened below keeps its printed top", afterDarkShift([[-OPEN_REACH, 1], [2, 20]], "1d20"), 0);
 
 /* ---------------- the anchor ---------------- */
 

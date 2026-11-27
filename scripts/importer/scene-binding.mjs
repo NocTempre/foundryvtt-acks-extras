@@ -305,16 +305,28 @@ export function formulaMax(formula) {
 }
 
 /**
+ * How far past a printed bound a widened result's range reaches. The import
+ * widens a row its die leaves open to this reach, and the sheet shows it as the
+ * open end.
+ */
+export const OPEN_REACH = 999;
+
+/**
  * What a list adds once it is dark, read from its own shape: a list whose rows
  * run past what its die can throw can only reach them by an addition, and that
  * addition is how far past they run. Zero for a list its die covers, or whose
- * formula is not a plain throw.
+ * formula is not a plain throw. A row widened to `OPEN_REACH` above counts as
+ * its low, since the reach is the import's open end and no printed bound.
  * @param {number[][]} ranges each row's `[low, high]`
  */
 export function afterDarkShift(ranges, formula) {
   const top = formulaMax(formula);
   if (top == null) return 0;
-  const highest = Math.max(0, ...(ranges ?? []).map((r) => Number(r?.[1]) || 0));
+  const printedTop = (r) => {
+    const hi = Number(r?.[1]) || 0;
+    return hi >= OPEN_REACH ? Number(r?.[0]) || 0 : hi;
+  };
+  const highest = Math.max(0, ...(ranges ?? []).map(printedTop));
   return Math.max(0, highest - top);
 }
 
