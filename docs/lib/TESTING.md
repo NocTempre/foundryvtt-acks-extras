@@ -105,6 +105,18 @@ report the same symptom.
 2. Groups: drop a monster on the group sheet.
    *Observable:* a stack row appears naming it, with a headcount and the
    Individuate / Record casualties controls; `system.stacks` holds it.
+
+   **A labelled stack's printed hit points.** Fixtures, kept and found by
+   marker: `lib/labelled-hp-group`, an `acks-extras.group` actor, brought to no
+   stacks at the start; `lib/org-monster` (below). Call
+   `groups.addLabelledStack(group, {label, count: 2, fixedHp})` with a figure
+   above the monster's hit dice's top, press the row's Individuate control on
+   the sheet, then `groups.setStackPrototype(group, key, monster)` and
+   `groups.materializeMember(group, key)`, with a `createActor` observer armed
+   throughout. *Observable:* the stack stores `fixedHp`; the press adds no
+   roster record; after the drop the one record's delta holds that figure as
+   `hp.value` and `hp.max`, which no roll of the monster's dice reaches; the
+   observer records no actor. Teardown: the fixtures stay.
 3. Templates: import a table into the template and materialize it.
    *Observable:* the sheet stops saying it has no materialized tables and
    generates a document from them.
