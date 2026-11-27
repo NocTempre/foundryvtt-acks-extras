@@ -155,6 +155,33 @@ await ok("a held key is told by the item's own uuid, the uuid it was made from, 
   assert.equal(containers.holdsKey(carrier([{ id: "k", name: "Brass Key" }]), lockedBox([])), false, "a lock listing no key has none to hold");
 });
 
+await ok("a key listed from a compendium is told by its link, never by a shared name", async () => {
+  const COMP = "Compendium.world.keys.Item.k1";
+  const box = lockedBox([{ uuid: COMP, name: "Brass Key", source: COMP }]);
+  assert.equal(containers.holdsKey(carrier([{ id: "k", name: "Brass Key" }]), box), false, "an unrelated item sharing only the name");
+  assert.equal(containers.holdsKey(carrier([{ id: "k", name: "Renamed", source: COMP }]), box), true, "a copy whose compendiumSource is the key");
+  const oldBox = lockedBox([{ uuid: COMP, name: "Brass Key" }]);
+  assert.equal(containers.holdsKey(carrier([{ id: "k", name: "Brass Key" }]), oldBox), false, "a key listed with no source is a compendium key by its uuid");
+  const world = lockedBox([{ uuid: "Item.abc", name: "Brass Key", source: null }]);
+  assert.equal(containers.holdsKey(carrier([{ id: "k", name: "brass key" }]), world), true, "a world key is still held by a same-named unlinked copy");
+  const viaWorldSource = lockedBox([{ uuid: "Item.abc", name: "Brass Key", source: COMP }]);
+  assert.equal(containers.holdsKey(carrier([{ id: "k", name: "Brass Key" }]), viaWorldSource), false, "a key whose own origin is a compendium is not told by name");
+});
+
+await ok("one key dropped from its compendium and from an inventory is the same key", async () => {
+  const COMP = "Compendium.world.keys.Item.k1";
+  const entry = { uuid: COMP, name: "Brass Key", source: COMP };
+  const imported = { uuid: "Actor.ch1.Item.x", name: "Brass Key", _stats: { compendiumSource: COMP }, flags: {} };
+  assert.equal(containers.sameKey(entry, imported), true, "an imported copy carries the compendium uuid");
+  assert.equal(containers.sameKey(entry, { uuid: COMP, name: "Brass Key", _stats: {}, flags: {} }), true, "the compendium document again");
+  assert.equal(containers.sameKey(entry, { uuid: "Actor.ch1.Item.y", name: "Brass Key", _stats: {}, flags: {} }), false, "a same-named item with no link is another item");
+  const fromActor = { uuid: "Actor.ch1.Item.x", name: "Brass Key", source: COMP };
+  const twin = { uuid: "Actor.ch2.Item.z", name: "Brass Key", _stats: { duplicateSource: "Actor.ch1.Item.x" }, flags: {} };
+  assert.equal(containers.sameKey(fromActor, twin), true, "a duplicate of a listed copy");
+  const viaFlag = { uuid: "Actor.ch3.Item.q", name: "Brass Key", _stats: {}, flags: { core: { sourceId: COMP } } };
+  assert.equal(containers.sameKey(entry, viaFlag), true, "a copy linked by core's sourceId flag");
+});
+
 await ok("an owner holding the key unlocks; with none a Player is blocked and a Judge goes ahead warned", async () => {
   const keyHolder = carrier([{ id: "k", name: "Brass Key" }]);
   const bare = carrier();

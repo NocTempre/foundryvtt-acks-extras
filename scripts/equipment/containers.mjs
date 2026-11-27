@@ -81,20 +81,41 @@ export function canSeeInside(item, user = game.user) {
   return false;
 }
 
+/** Every uuid an item answers to: its own and the three links a copy keeps to what it was made from. */
+const keyIdentities = (item) => [item?.uuid, item?._stats?.compendiumSource, item?._stats?.duplicateSource, item?.flags?.core?.sourceId].filter(Boolean);
+
+/** The origin a dropped key is recorded with: the link it carries to what it was made from, or null for a document made from nothing. */
+export const keySourceOf = (item) => item?._stats?.compendiumSource ?? item?._stats?.duplicateSource ?? item?.flags?.core?.sourceId ?? null;
+
+/**
+ * Is this item the key a lock's record lists? A listed key is
+ * `{uuid, name, source}`, and an item is that key when any uuid it answers to
+ * (its own, or a link to what it was made from) is the entry's `uuid` or its
+ * `source`. The name never decides here: this is what stops one key dropped
+ * twice from being listed twice, and a copy of it is the key it was made from.
+ */
+export function sameKey(entry, item) {
+  const ours = [entry?.uuid, entry?.source].filter(Boolean);
+  return keyIdentities(item).some((u) => ours.includes(u));
+}
+
 /**
  * Does the actor carry one of this container's keys? A key is the document
- * dropped on the lock (`{uuid, name}` in the record), and a carried copy is told
- * by that uuid being the copy's own, the one it was made from, or, for a copy
- * made from a world item, which keeps no link, its name. The container is never
- * its own key.
+ * dropped on the lock (`{uuid, name, source}` in the record), and a carried item
+ * holds it when `sameKey` says so. A copy made from a world item keeps no link,
+ * so a world key is also told by its name; a key whose `uuid` or `source` is a
+ * compendium uuid is not, since a copy of a compendium key always carries that
+ * link and a name alone could only pass an unrelated item. A key listed before
+ * `source` was recorded has none and is tested by its `uuid`. The container is
+ * never its own key.
  */
 export function holdsKey(actor, container) {
   const keys = containerOf(container)?.keys;
   if (!Array.isArray(keys) || !keys.length) return false;
-  const uuids = new Set(keys.map((k) => k?.uuid).filter(Boolean));
   const named = (s) => String(s ?? "").trim().toLowerCase();
-  const names = new Set(keys.map((k) => named(k?.name)).filter(Boolean));
-  const held = (i) => [i.uuid, i._stats?.compendiumSource, i._stats?.duplicateSource, i.flags?.core?.sourceId].some((u) => u && uuids.has(u)) || names.has(named(i.name));
+  const fromCompendium = (k) => [k?.uuid, k?.source].some((u) => typeof u === "string" && u.startsWith("Compendium."));
+  const names = new Set(keys.filter((k) => !fromCompendium(k)).map((k) => named(k?.name)).filter(Boolean));
+  const held = (i) => keys.some((k) => sameKey(k, i)) || names.has(named(i.name));
   return !!actor?.items?.some?.((i) => i.id !== container.id && held(i));
 }
 

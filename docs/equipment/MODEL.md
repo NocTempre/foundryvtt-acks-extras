@@ -115,7 +115,7 @@ truth behind the code enums; local-only, never in the repo).
 | Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. On a weapon it means "plating bought" and is never read as "is it silver": a weapon is silver when the system's `system.special.silver` says so (lib `silverOf`; the Construction tab's Silver control writes both, see below). On ammunition, which has no such field, it is the answer: `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
 | Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
 | Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access, holds, capacity, relief, loaded6}` — where this gear MAY sit, where it sits now, the RAW cost of drawing from it, whether it is a container, how much it holds (the figure its price row states, written at import, or typed on its Details tab) and, on a harness, how much it secures (the item's own figure, read from its text by Annotate or typed on its Construction tab). The model and its read path are the lib subsystem's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`: slots, access, `holds`, relief, `loaded6`; `access` is the side the imported retrieval list (RR p. 294) gives the carrier's name, blank where it lists none and with nothing imported, and no profile carries one) and stamps them (Annotate Equipment, and the importer on every gear and price row it makes), each key only where the item leaves it blank. `capacity` is never inferred; see "Figures the book prints" below. An item that declares no `slots` is read through `wearableSlots` — its inferred places — by every Wear control this feature draws, and `actions.mjs` `wearItem` declares them in the write that puts it on. |
-| Item flag (container) | `flags.acks-extras.container.{quality,lockMod,keys,accepts,refusal}` | The lock's quality text and pick modifier, the keys that open it (`[{uuid,name}]`), the kinds it will accept (`item-sheet/accept-kinds.mjs`) and the refusal it gives a wrong drop. Beside the `locked/opened/concealed/fragile` fields `containers.mjs` already holds. |
+| Item flag (container) | `flags.acks-extras.container.{quality,lockMod,keys,accepts,refusal}` | The lock's quality text and pick modifier, the keys that open it (`[{uuid,name,source}]`, `source` the dropped key's own origin), the kinds it will accept (`item-sheet/accept-kinds.mjs`) and the refusal it gives a wrong drop. Beside the `locked/opened/concealed/fragile` fields `containers.mjs` already holds. |
 | Item flag | `flags.acks-extras.pins` | Roll ids the item pins to its art, oldest first, at most two. |
 | Item flag | `flags.acks-extras.valueMode` | `priced` \| `unknown` \| `na` — what the value badge reads (`item-sheet/view-model.mjs` `valueBadge`). |
 | Item flag | `flags.acks-extras.disguisable` | The Appearance tab offers the disguise drop target. The disguise itself stays `flags.acks-extras.disguise`. |
@@ -697,8 +697,8 @@ Judge should not have to re-describe the lock to shut it again.
 
 **The key, and the Judge, open it in one click.** A locked container's Unlock,
 Empty and Unmake come to an owner who carries one of the container's keys
-(`holdsKey`: the key document listed on the lock, a copy made from it, or an item
-of its name), and to a Judge, whose press without the key is warned of what a
+(`holdsKey`: the key document listed on the lock or a copy linked to it, by
+`sameKey`; for a key with no compendium link, an item of its name), and to a Judge, whose press without the key is warned of what a
 Player would have been refused (`lockBypass`, `passLock`). A Player with no key
 is offered none of the three and has pick and bash, which roll.
 

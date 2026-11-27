@@ -26,7 +26,7 @@ import { applyVariation, isVariationItem, removeVariation, revealVariation, conc
 import { containerFieldsOnlyWhenFired, disguiseItem, revealItem, setGearHolds, prepareTorch, readiedWeaponData, wearItem, removeItem, setDestroyed } from "../actions.mjs";
 import { restoreItemLoss } from "../item-loss-flow.mjs";
 import { PRISTINE, recomputeItemFields, layerDeltas, baseForTyped } from "../properties.mjs";
-import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "../containers.mjs";
+import { containerOf, setLocked, storeIn, takeOut, setContainerRecord, sameKey, keySourceOf } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
 import * as named from "../overlays/named.mjs";
 import { containedIn, siblingsOf, isEquippable, isWorn, markIdentified, toggleDetected, toggleCursed, toggleCurseKnown } from "../../lib/item-model.mjs";
@@ -476,7 +476,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
         if (locked()) return;
         const rec = containerOf(this.item) ?? {};
         const keys = [...(rec.keys ?? [])];
-        if (!keys.some((k) => k.uuid === dropped.uuid)) keys.push({ uuid: dropped.uuid, name: dropped.name });
+        if (dropped.uuid !== this.item.uuid && !keys.some((k) => sameKey(k, dropped))) keys.push({ uuid: dropped.uuid, name: dropped.name, source: keySourceOf(dropped) });
         await setContainerRecord(this.item, { keys });
         return this.render();
       }

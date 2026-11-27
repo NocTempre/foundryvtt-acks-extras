@@ -438,7 +438,7 @@ stack and an emptied stack is no longer the shot's.
 Rejected: the combat clock (the page counts turns, not rounds); counting from
 the Save press.
 
-## 2026-11-26 — A lock's key opens it, and a Judge without the key is warned (T-0820)
+## 2026-11-26 — A lock's key opens it, and a Judge without the key is warned (T-0820) — SUPERSEDED IN PART 2026-11-26
 
 The 2026-11-13 entry "The lock is the Judge's, and a player has to beat it" gave
 Unlock, Empty and Unmake to the GM seat alone, on the ground that "there is no
@@ -492,3 +492,28 @@ disguise. Keeping it Judge-only: the invented role gate the owner ruled out.
 one, so the cell appears when an item is identified. The press still reads
 `_stats.compendiumSource` directly and has no second gate, since a concealing
 item's cell is not drawn.
+
+## 2026-11-26 — A compendium key is told by its link, and one key dropped twice is listed once (T-0891)
+
+Supersedes the name match in "A lock's key opens it" (T-0820). New evidence: a
+copy of a compendium key always carries `_stats.compendiumSource`, so that
+entry's own reason for the name match ("a copy made from a world item keeps no
+link") does not reach a compendium key, and a name-only match against one can
+only pass an unrelated item. The double listing was found fixing T-0820: the
+drop deduped by the dropped uuid alone, so the same key dropped from its
+compendium and from a character's inventory (an import of it) was listed twice.
+
+**Ruled.** A listed key is `{uuid, name, source}`, `source` being the dropped
+item's own origin (`compendiumSource`, else `duplicateSource`, else
+`flags.core.sourceId`, else null). `sameKey` in `containers.mjs` says an item is
+that key when any uuid it answers to (its own and those three links) is the
+entry's `uuid` or `source`; the drop and `holdsKey` both use it. The name still
+tells a world key's unlinked copy, and is not consulted for a key whose `uuid`
+or `source` is a compendium uuid. A key listed before `source` existed has none
+and is tested by its uuid, and by name unless that uuid is a compendium's.
+
+**Rejected.** Re-reading every listed key's document to find its source: the
+document may be gone, and the record stays self-contained.
+
+**Cost.** A key dropped from a world item that was itself imported from a
+compendium is then told by that link and no longer by name. Not walked live.
