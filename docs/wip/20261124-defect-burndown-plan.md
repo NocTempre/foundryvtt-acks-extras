@@ -573,3 +573,112 @@ https://claude.ai/artifact/SxK4Y3zRJxXnw7sXJjnJsF):
   roads.
 - The rounding at the end of a burst row's Damage tooltip, a wording no board
   drew: Chat tab → a fuse's burst card → the Damage figure of a row.
+
+### 2026-11-27, B14
+
+Eight rows held under the claim `burn-B14`, all worked in `main`'s tree, each
+landing through `acks-commit` with its full gate. `main`'s version
+(2026.11.26.1) carried its tag throughout. Nothing pushed.
+
+- Fixed:
+  - T-0909 (2a192aa5).
+  - T-0867 (ae6ad208).
+  - T-0911 in four landings: d81a360b (one reader for what an item
+    provides), 9f4ae46b (sizes from the page or a hand), a526d375 (End day
+    spends what it deals) and 603766e6 (the Camp section's half, and
+    dehydration now ends only on a full day's water). The
+    orchestrator made two calls under the owner's three principles. Water
+    vessels keep what is left and End day draws from them. Food or water
+    with no size holds the ladder and is named on the toll card. Both are
+    quoted in formation DECISIONS (2026-11-27). They rest on a board
+    (https://claude.ai/artifact/Ukr95yfa3ddjdsaCkPGkXb) the orchestrator
+    approved; the Camp artboard gained the vessel list and Refill press from
+    the water call.
+- Released earlier: T-0840, T-0525, T-0573.
+- T-0783: false report.
+- T-0837: docs only.
+- Six findings registered `new`: T-0914 to T-0919 (shelter read off item
+  names, a gear price row's name cell, where the Provision controls show,
+  the Game kind, slow item-sheet saves, a press that feeds only part of a
+  day).
+
+Walked live on `main`, lane A (Gamemaster / Player), kept fixtures:
+
+- T-0909: an official-sheet import onto `character-sheet/b14-hands` held the
+  hands through placement and settled them once; the Player seat owns it.
+- T-0867: the monster entries reimported and their recipes read the new
+  wordings. The organisation chart's Roll panel was not opened.
+- T-0911 slice A: the iron ration and the waterskin reimported through Manage
+  imports → the entry picker. Both library copies then carried their read
+  sizes, and a fresh copy on `formation/b14-provision` read sized from the
+  page. On a hand-made ration's sheet (Details tab, armed) Days per unit
+  wrote the flag through the form, read "set by hand", and cleared with a
+  forced deletion back to unsized with the page reference. A waterskin
+  showed Left with what is left as its placeholder. No console error.
+- T-0911 slice B, on `formation/b14-spend-a` and `formation/b14-spend-b` in
+  a formation-shaped record (no stored formation). The press fed A alone,
+  emptied its one-unit stack (kept at zero) and marked it. End day counted A
+  fed and spent nothing for it. B was dealt none, carried only unsized bread,
+  kept its ladder (no run moved) and was named on the whispered toll card
+  with the page. Each member drew its own day of water; the five-vessel stack
+  read as exactly one day, emptied to zero and kept its quantity. On the
+  Player seat, `refillVessels` with `actor.isOwner` filled B's flask (owned)
+  and left A's stack (not owned).
+- T-0911 slice C, on the party actor `formation/b14-camp-party` (its record
+  made through the party's own path, the two spend characters added with
+  `addMember`, journey picked through the band's mode select). On the GM
+  seat the Food and Water figures carried their parts tooltips: each item
+  with its size and source, the unsized bread with the page alone. Hovered
+  through core's tooltip manager, the water tooltip drew its three lines.
+  Vessels read "empty" and "0.5 of 1 days left". Refill showed, and both rows
+  had menus with their names spoken. At 420 px the section and table did not
+  overflow. On the Player seat, which owns B and observes the party, A's
+  row showed words only and B's row showed menus. Refill filled B's flask
+  (now "1 of 1") and left A's stack empty. B's hunger set to Hungry wrote the
+  rung with runs reset and the mark. The open table redrew it with "set by
+  hand", and so did both seats on a fresh render.
+
+Deleted and kept:
+
+- Kept: `character-sheet/b14-hands`, `formation/b14-provision`,
+  `formation/b14-spend-a`, `formation/b14-spend-b`,
+  `formation/b14-camp-party` (with its formation record). B's thirst was
+  set by hand to Dehydrated and back, so it carries a hand-set mark.
+  `b14-press` was swept earlier in the batch.
+- Slice B's walk swept its two posted cards by id (removed 2, missing 0,
+  failed 0).
+
+Checked offline only:
+
+- The unit suites each landing touched, and each landing's full gate.
+- A part-day `uses` on a multi-day unit, the triage policy's spend, and a
+  water forage deposit raising what is left (no forage was run live).
+
+Not checked:
+
+- End day through the Wilderness tab's own button on a stored formation; the
+  walk called the provisioning on a formation-shaped record.
+- A press that feeds a member only in part. Review found that member is
+  listed both fed and out and gets no mark, so End day deals them again
+  (registered as T-0919).
+- Keyboard reach and a large type size on the new Camp controls. Narrow
+  width was measured.
+- The guide's Camp screenshot still shows the old section; documentation is
+  its own task.
+
+To try (approved by the orchestrator, not the owner; board
+https://claude.ai/artifact/Ukr95yfa3ddjdsaCkPGkXb):
+
+- The import report's Hands line: Actors sidebar tab → a character → its
+  sheet → Import official sheet.
+- An item's Provision controls: Actors sidebar tab → a character → its
+  sheet → Inventory tab → the item → its sheet, armed with the pencil →
+  Details tab → Provision.
+- What End day takes out of packs and vessels, and the toll card's line for
+  food or water with no size: Actors sidebar tab → a party actor → its
+  sheet → Wilderness tab → End day.
+- The Camp section's parts tooltips, Vessels with Refill, and the Going
+  without menus: Actors sidebar tab → a party actor → its sheet →
+  Wilderness tab → Camp.
+- The import report reads oddly when the character carried only an item from
+  before the import: the same Import official sheet path.
