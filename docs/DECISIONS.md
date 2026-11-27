@@ -662,3 +662,40 @@ it throws at load or in a window the smoke walk opens, and otherwise in use
 or by a bug report. Nothing rolls the logs by itself, so `CHANGELOG.md` and
 each DECISIONS file grow until the owner asks for a roll. A screenshot in a
 guide or the gallery goes stale with no check to say so.
+
+## 2026-11-26 — The session board is derived, by a background daemon no session runs by hand
+
+The owner, after an orchestrating session kept a hand-patched board page for a
+day: "Save the session board. It should be a background python script that is
+tied into the work coordination tools so agents don't need to remember to
+update it."
+
+**Ruled.** The board is computed, never written. `tools/session-board/board.py`
+reads what the coordination tools already keep: git (main against the remote's
+main, read with `ls-remote`; topic and parked branches; the version against its
+tag), the landing lease, the edit ledger, the walk runner's results file, the
+intake ledger and each session's task list. The task list is the one source no
+tool kept, so a PostToolUse hook on the plan tools records every call
+(`board.py feed`); an agent already keeps that list for the app, so feeding
+the board costs it nothing it does not already do. A SessionStart hook starts
+the daemon where none is alive.
+
+- The daemon outlives the session that started it. That is the point of it,
+  and it is the one process exempt from `shared-tree.md`'s "what you started,
+  you stop": it holds a lock so one runs per repository, exits after eight
+  hours with no source change, and `board.py stop` ends it.
+- It is Python in a Node toolchain because the owner asked for Python. It uses
+  the standard library alone, and the hooks swallow a missing interpreter, so
+  a machine without Python loses the board and nothing else.
+- The intake ledger is LOCAL-ONLY, so its titles and notes never reach the
+  page: ids, statuses and counts only. The page is served on 127.0.0.1 alone.
+
+**Rejected.** Sessions patching the board by hand. The board went 46 minutes
+without a change while work moved ("No change in 46 min?"), because
+republishing it was a step each agent had to remember. A Node daemon beside the
+other hooks: the owner named Python.
+
+**Cost.** A script cannot publish an Artifact, so the claude.ai copy of the
+board is a snapshot taken whenever a session publishes
+`aia-tmp/session-board.html`, and only the local page is live. A session that
+keeps no task list shows only as its edits.

@@ -1,0 +1,131 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Session Board · {{REPO}}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600&display=swap">
+<style>
+/* Layout: a status strip, then three lanes (working / done / on deck), then today's walks as a table. */
+:root {
+  --bg: #f3f4f6; --panel: #ffffff; --fg: #1b2230; --muted: #5b6474; --line: #d9dde4;
+  --accent: #2f5bd3; --accent-soft: #e6ecfb;
+  --ok: #1e7a4c; --ok-soft: #e3f3ea; --warn: #9a6200; --warn-soft: #fbf0d9; --bad: #b3261e; --bad-soft: #fbe5e3; --idle: #6b7280; --idle-soft: #eceef1;
+  --f-body: "IBM Plex Sans", system-ui, sans-serif; --f-head: "IBM Plex Sans Condensed", "IBM Plex Sans", system-ui, sans-serif; --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12161d; --panel: #1a202a; --fg: #e4e8ef; --muted: #98a1b0; --line: #2c3442;
+  --accent: #7d9cf0; --accent-soft: #1f2a44;
+  --ok: #5cc48d; --ok-soft: #173326; --warn: #e3b25a; --warn-soft: #3a2d12; --bad: #f08a80; --bad-soft: #3d1c1a; --idle: #9aa3b2; --idle-soft: #232a35; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12161d; --panel: #1a202a; --fg: #e4e8ef; --muted: #98a1b0; --line: #2c3442;
+  --accent: #7d9cf0; --accent-soft: #1f2a44;
+  --ok: #5cc48d; --ok-soft: #173326; --warn: #e3b25a; --warn-soft: #3a2d12; --bad: #f08a80; --bad-soft: #3d1c1a; --idle: #9aa3b2; --idle-soft: #232a35; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 0.95rem; line-height: 1.5; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 1.5rem 3rem; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 1.5rem; }
+header { display: grid; gap: .35rem; }
+h1 { font-family: var(--f-head); font-size: 1.7rem; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0; }
+.strip { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; padding: .75rem 1rem; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.stat { display: grid; gap: .1rem; min-width: 0; }
+.stat b { font-family: var(--f-mono); font-weight: 500; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; }
+.lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; align-items: start; }
+@media (max-width: 900px) { .lanes { grid-template-columns: 1fr; } }
+.lane { display: grid; gap: .6rem; min-width: 0; }
+.lane h2 { font-family: var(--f-head); font-size: 1.05rem; margin: 0; display: flex; align-items: center; gap: .5rem; }
+.lane h2 .n { font-family: var(--f-mono); font-size: .8rem; color: var(--muted); font-weight: 400; }
+.dot { width: .6rem; height: .6rem; border-radius: 50%; display: inline-block; }
+.dot.working { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.dot.done { background: var(--ok); }
+.dot.deck { background: var(--idle); }
+.item { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: .7rem .85rem; display: grid; gap: .3rem; min-width: 0; }
+.item.working { border-left: 3px solid var(--accent); }
+.item h3 { font-size: .95rem; margin: 0; font-weight: 600; text-wrap: balance; }
+.item p { margin: 0; color: var(--muted); font-size: .86rem; }
+.item ul { margin: .1rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: .86rem; display: grid; gap: .15rem; }
+.meta { display: flex; flex-wrap: wrap; gap: .3rem; }
+.chip { font-family: var(--f-mono); font-size: .74rem; padding: .05rem .4rem; border-radius: 4px; background: var(--idle-soft); color: var(--fg); white-space: nowrap; }
+.chip.sha { background: var(--accent-soft); color: var(--accent); }
+.chip.ok { background: var(--ok-soft); color: var(--ok); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+section.walks { display: grid; gap: .6rem; }
+section.walks h2 { font-family: var(--f-head); font-size: 1.05rem; margin: 0; }
+.tablebox { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: .86rem; }
+th, td { text-align: left; padding: .45rem .75rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+td code { font-family: var(--f-mono); font-size: .82rem; }
+.note { color: var(--muted); font-size: .82rem; margin: 0; }
+</style>
+<style>
+.live { font-family: var(--f-mono); font-size: .78rem; }
+.live.on { color: var(--ok); }
+.live.off { color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Session Board · {{REPO}}</h1>
+    <p class="sub"><span id="asof"></span> <span id="live" class="live off"></span></p>
+  </header>
+  <div class="strip" id="strip"></div>
+  <div class="lanes" id="lanes"></div>
+  <section class="walks">
+    <h2>Walks today</h2>
+    <div class="tablebox"><table id="walks"><thead><tr><th>Walk</th><th>Scope</th><th>Result</th><th>Pass / fail</th><th>Time</th><th>Ended</th></tr></thead><tbody></tbody></table></div>
+    <p class="note">Built from git, the landing lease, the edit ledger, the walk runner's results, the intake ledger's ids and statuses, and each session's own task list. No session writes this page.</p>
+  </section>
+</div>
+
+<script>
+// The daemon writes the board's data in place of the null below; served live, the page re-reads it every few seconds.
+const BOARD = /*BOARD*/null;
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+const tone = { passed: "ok", failed: "bad", running: "warn", stopped: "warn" };
+function draw(b) {
+  document.getElementById("asof").textContent = `Updated ${b.asof}.`;
+  const strip = document.getElementById("strip");
+  strip.replaceChildren(...b.strip.map(([v, l]) => { const s = el("div", "stat"); s.append(el("b", null, v), el("span", null, l)); return s; }));
+  const lanes = document.getElementById("lanes");
+  lanes.replaceChildren();
+  for (const [key, label] of [["working", "Working now"], ["done", "Done today"], ["deck", "On deck"]]) {
+    const lane = el("div", "lane");
+    const h = el("h2"); h.append(el("span", `dot ${key}`), document.createTextNode(label), el("span", "n", String(b[key].length)));
+    lane.append(h);
+    for (const it of b[key]) {
+      const card = el("article", `item ${key}`);
+      card.append(el("h3", null, it.title));
+      if (it.body) card.append(el("p", null, it.body));
+      if (it.list && it.list.length) { const ul = el("ul"); for (const li of it.list) ul.append(el("li", null, li)); card.append(ul); }
+      if (it.chips && it.chips.length) { const m = el("div", "meta"); for (const [t, c] of it.chips) m.append(el("span", `chip ${c}`, t)); card.append(m); }
+      lane.append(card);
+    }
+    lanes.append(lane);
+  }
+  const tbody = document.querySelector("#walks tbody");
+  tbody.replaceChildren(...b.walks.map(([walk, scope, result, checks, time, ended]) => {
+    const tr = el("tr");
+    const w = el("td"); w.append(el("code", null, walk));
+    const r = el("td"); r.append(el("span", `chip ${tone[result] ?? ""}`, result));
+    tr.append(w, el("td", null, scope), r, el("td", "num", checks), el("td", "num", time), el("td", "num", ended));
+    return tr;
+  }));
+}
+if (BOARD) draw(BOARD);
+if (location.protocol.startsWith("http")) {
+  const live = document.getElementById("live");
+  let last = BOARD && BOARD.asof;
+  const tick = async () => {
+    try {
+      const b = await (await fetch("board.json", { cache: "no-store" })).json();
+      if (b.asof !== last) { last = b.asof; draw(b); }
+      live.textContent = "live"; live.className = "live on";
+    } catch { live.textContent = "daemon not answering"; live.className = "live off"; }
+  };
+  setInterval(tick, 5000);
+  tick();
+}
+</script>

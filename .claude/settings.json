@@ -103,6 +103,17 @@
             "timeout": 20
           }
         ]
+      },
+      {
+        "matcher": "mcp__ccd_turn__update_plan|mcp__ccd_turn__wrap_up|TodoWrite|TaskCreate|TaskUpdate",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"${CLAUDE_PROJECT_DIR:-.}/tools/session-board/board.py\" feed 2>/dev/null || true",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "WorktreeCreate": [
@@ -123,6 +134,16 @@
             "type": "command",
             "shell": "bash",
             "command": "node \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/branch-guard.mjs\" session-start"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "python \"${CLAUDE_PROJECT_DIR:-.}/tools/session-board/board.py\" ensure 2>/dev/null || true",
+            "timeout": 10
           }
         ]
       }

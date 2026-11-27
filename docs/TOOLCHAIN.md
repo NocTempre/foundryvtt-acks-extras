@@ -668,6 +668,21 @@ Full ruling and its corollaries: DECISIONS, 2026-07-19.
     landed and open, unpushed parked branches and any other local
     branch; it reports and never pushes), wired in
     `.claude/settings.json`.
+  - `tools/session-board/` — the session board (`board.py`, Python standard
+    library only): one page of what each session is working on, what landed
+    today and what is on deck. It is derived and never written by a session:
+    from git, the landing lease, the edit ledger, the walk runner's results,
+    the intake ledger (ids, statuses and counts only; no title or note
+    reaches the page) and each session's own task list, which a PostToolUse
+    hook on the plan tools records with `board.py feed`. A SessionStart hook
+    runs `board.py ensure`, which starts the daemon detached and returns. The
+    daemon rebuilds on any change to those sources, serves the page live on
+    127.0.0.1 (`board.py status` gives the address) and writes it whole to
+    `aia-tmp/session-board.html`, the file an Artifact publish takes. It
+    exits after eight hours with no change; `board.py stop` ends it sooner.
+    A machine without Python gets no board and no error. Suite:
+    `tools/toolchain-tests/test-session-board.py`; the ruling is DECISIONS
+    2026-11-26, "The session board is derived".
   - `.claude/agents/` — the model/effort routing tier: `scout` (haiku,
     search), `implementer` (sonnet, scoped changes), `architect` (opus,
     read-only design/diagnosis), `live-tester` (sonnet, drives the test

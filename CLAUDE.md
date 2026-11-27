@@ -87,8 +87,9 @@ How much one agent and one session carry:
   editing them directly is silently undone. Edit `tools/pack-data.mjs`.
 - `tools/` — dev harness. A change to a toolchain tool (`validate.mjs`,
   `ip-scan.mjs`, `ip-quarantine.mjs`, `logs.mjs`, `release-preflight.mjs`,
-  `walk-results.mjs`, `live/_capture.mjs`) runs the suite that covers it,
-  `tools/toolchain-tests/test-<name>.mjs`; those suites stay out of
+  `walk-results.mjs`, `live/_capture.mjs`, `session-board/board.py`) runs
+  the suite that covers it, `tools/toolchain-tests/test-<name>.mjs` (the
+  board's is `test-session-board.py`); those suites stay out of
   `npm test`. `pack-data.mjs` (and the data files it re-exports) holds the
   pack content.
 - `.claude/skills|rules|hooks|agents/` — this repo's own. A change to a hook
