@@ -67,6 +67,13 @@ outlines (a shot).
   `battlemap/hex-rows-wide` from `battlemap/hex-setup-feedback`, a quarter
   wider, so its pointy hexes are stretched on the scene as well. A step resets
   each to gridless at its start.
+- Three kept fixtures for a hand size (step 24): `battlemap/hand-size-auto`,
+  a square scene (2000×1500, 100 px, 5 ft) whose `flags.acks-extras.battlemap`
+  is `{autoScale: true, calibrated: true}`; `battlemap/hand-size-plain`, the
+  same scene with auto-sizing off; and `battlemap/hand-size-monster`, a monster
+  actor with an extras size. Each scene holds one token of the monster, placed
+  from its prototype and then set to 1×2 the way Token Config writes it
+  (`update({width: 1, height: 2}, {animate: false})`, nothing else).
 
 ## Drive mechanics (non-obvious)
 
@@ -467,6 +474,16 @@ outlines (a shot).
     "corner 1", counted among the corners alone. Erase down to two samples
     while the fit is still loose: the warning names none. `session.fit.worst`
     is the box index, or the box count plus the corner index.
+24. **A hand size survives a re-create and a paste.** On
+    `battlemap/hand-size-auto`, assert the monster's token reads 1×2 and set
+    it so if not. Stash it whole (`toObject()`), delete it and create from the
+    stash, as a formation's join, leave and fight do. *Observable:* the new
+    token reads 1×2 and keeps the `sizeStamp` it carried; it is the fixture's
+    token from then on. Paste the 1×2 token of `battlemap/hand-size-plain`
+    (no `sizeStamp`) onto the auto scene: it reads 1×2. Create a copy whose
+    size equals its `sizeStamp`, and place a fresh token from the prototype:
+    each is fitted to the footprint (`keepsCreatedSize`). Delete the pasted
+    token and the two extra tokens by the ids their creates returned.
 
 ## Teardown
 
