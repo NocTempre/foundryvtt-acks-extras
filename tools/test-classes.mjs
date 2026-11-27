@@ -3526,6 +3526,69 @@ await atest("two classes printing one kit link one shared library: the plain bas
   }
 });
 
+await atest("package building loads the roll table shelf itself: the ready warm leaves it cold, and a cold shelf would hide a class's table", async () => {
+  const { shelfMock, sourceDoc } = await import("./lib-shelf-mock.mjs");
+  const { findSource, resolveBaseDoc, detachTemplatePackages, materializeTemplates } = await import("../scripts/classes/template-packages.mjs");
+  const saved = { game: globalThis.game, CONFIG: globalThis.CONFIG, foundry: globalThis.foundry, Item: globalThis.Item, RollTable: globalThis.RollTable, fromUuid: globalThis.fromUuid, fromUuidSync: globalThis.fromUuidSync };
+  const deleted = [];
+  const world = () => {
+    const tablePart = { "acks-extras": { templatePart: { kind: "table", classKey: "kitx" } } };
+    const items = shelfMock({ type: "Item", docs: [sourceDoc("base0", "Kitx base", "item")] });
+    const tables = shelfMock({
+      type: "RollTable",
+      docs: [{ ...sourceDoc("tbl0", "Kitx table", "base"), flags: tablePart }, { ...sourceDoc("tbl1", "Someone else's table", "base"), flags: {} }],
+    });
+    const load = tables.getDocuments.bind(tables);
+    tables.getDocuments = async (query) => {
+      const docs = await load(query);
+      for (const doc of docs) doc.delete ??= async () => deleted.push(doc.name);
+      return docs;
+    };
+    globalThis.game = { user: { isGM: true }, items: [], tables: [], packs: [items, tables] };
+    return { items, tables };
+  };
+  const klass = () => ({
+    uuid: "Item.kitx",
+    name: "Kitx",
+    pack: null,
+    system: { key: "kitx", templates: [{ name: "Kit", rollMin: 3, rollMax: 18, bundle: "", abilities: [], items: [], spells: [] }], templateTable: "", toObject() { return { templates: structuredClone(this.templates) }; } },
+    update: async function (patch) {
+      this.system.templateTable = patch["system.templateTable"] ?? this.system.templateTable;
+    },
+  });
+  globalThis.fromUuidSync = () => null;
+  globalThis.fromUuid = async (uuid) => ({ uuid, results: [], flags: {} });
+  globalThis.CONFIG = { ...saved.CONFIG, Item: { compendiumIndexFields: [] } };
+  globalThis.foundry = { ...saved.foundry, utils: { ...saved.foundry.utils, mergeObject: (a, b) => Object.assign(a, b) } };
+  globalThis.Item = { implementation: { create: async (data) => ({ ...data, id: "made", uuid: "Item.made", name: data.name }) } };
+  globalThis.RollTable = { implementation: { create: async () => ({ uuid: "RollTable.t" }) } };
+  const built = klass();
+  built.system.templates[0].items = [{ name: "Nothing by this name", qty: 1 }];
+  try {
+    for (const [label, run] of [
+      ["findSource", () => findSource({ name: "Nothing by this name" })],
+      ["resolveBaseDoc", () => resolveBaseDoc({ name: "Nothing by this name", ref: "" })],
+      ["materializeTemplates", () => materializeTemplates(built, { folder: "F.a", sharedFolder: "F.s", tableFolder: "F.t" })],
+    ]) {
+      const { items, tables } = world();
+      assert.equal(tables.size, 0, `${label}: the roll table shelf starts cold`);
+      await run();
+      if (label === "materializeTemplates") assert.equal(built.system.templateTable, "Compendium.tbl0", "materialize finds the class's table on the shelf and adopts it");
+      if (label === "materializeTemplates") assert.equal(tables.size, 2, `${label}: loads the roll table shelf whole before its first read`);
+      else assert.equal(tables.size, 0, `${label}: reads only Items, so it leaves the roll table shelf cold`);
+      assert.equal(items.size, 1, `${label}: loads the Item shelf whole before its first read`);
+    }
+    const { tables } = world();
+    const removed = await detachTemplatePackages(klass(), { deleteDocuments: true });
+    assert.deepEqual(removed, ["Kitx table"], "detach finds the class's table on a shelf nothing had loaded");
+    assert.deepEqual(deleted, ["Kitx table"], "and deletes it, and only it");
+    assert.equal(tables.size, 2);
+  } finally {
+    Object.assign(globalThis, saved);
+    for (const key of ["Item", "RollTable", "fromUuid", "fromUuidSync"]) if (saved[key] === undefined) delete globalThis[key];
+  }
+});
+
 /* ---------------------- the race of a class's name ------------------- */
 
 const { raceOfCharacterClass } = await import("../scripts/classes/builder.mjs");

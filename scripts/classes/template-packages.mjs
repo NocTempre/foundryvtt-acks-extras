@@ -39,12 +39,25 @@ import { MODULE_ID, LANG_PREFIX, FLAG_TEMPLATE_PART } from "./constants.mjs";
 import { findByRef, templatePartOf as partOf } from "./registry.mjs";
 import { refOf } from "./grants.mjs";
 import { ITEM_TYPE, selectionVocabFor, nameWithSelections, nameVariants, singularsOf } from "../lib/vocab.mjs";
-import { libraryItems, libraryDocs, libraryPacks, cookbookId, isLibraryPack, lineOfPack, openPacks } from "../lib/library.mjs";
+import { libraryItems, libraryDocs, libraryPacks, loadLibrary, cookbookId, isLibraryPack, lineOfPack, openPacks } from "../lib/library.mjs";
 import { ensureLibraryPack, ensureFolderIn } from "../lib/library-target.mjs";
 import { equipmentClass, isUnidentifiedWeapon } from "../equipment/profiles.mjs";
 import { isOffer } from "./pending-choices.mjs";
 
 const fold = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/**
+ * The shelves building or detaching a package reads whole before its first
+ * library read: the parts and bases are Items, and the class table is looked
+ * up among the roll tables. The roll table shelf is outside the ready warm, so
+ * each entry point that reads it loads it first; one that reads only Items
+ * (`findSource`, `resolveBaseDoc`) loads `SOURCE_SHELVES`.
+ */
+const PACKAGE_SHELVES = ["Item", "RollTable"];
+
+/** The shelves a source or base lookup reads whole: Items only. */
+const SOURCE_SHELVES = ["Item"];
+
 const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Flag key (under `flags["acks-extras"]`) naming what a document is a part of; defined in `constants.mjs`. */
@@ -330,6 +343,7 @@ async function findInPacks({ ref = "", name = "", types = [] }) {
  */
 export async function findSource({ ref = "", name = "", types = [] } = {}) {
   const found = (doc) => ({ doc, linkable: !doc.pack || isLibraryPack(doc.pack) });
+  await loadLibrary(SOURCE_SHELVES);
   if (ref) {
     const byRef = findByRef(ref);
     if (byRef) return found(byRef);
@@ -370,6 +384,7 @@ export function resolveBase(entry) {
  * same way). The system's shipped equipment is never a base; see `importPacks`.
  */
 export async function resolveBaseDoc(entry) {
+  await loadLibrary(SOURCE_SHELVES);
   const world = resolveBase(entry);
   if (world) return world;
   for (const { pack, rows } of await importPacks()) {
@@ -713,6 +728,7 @@ export async function unbindTemplateRow(row) {
 export async function detachTemplatePackages(classItem, { deleteDocuments = false } = {}) {
   const removed = [];
   if (!classItem?.system?.templates?.length) return removed;
+  await loadLibrary(PACKAGE_SHELVES);
   const templates = foundry.utils.deepClone(classItem.system.toObject().templates ?? []);
   for (const row of templates) await unbindTemplateRow(row);
   await classItem.update({ "system.templates": templates, "system.templateTable": "" });
@@ -879,6 +895,7 @@ export async function materializeTemplates(
 ) {
   const report = { created: [], relinked: [], skippedEdited: [], unresolved: [], unidentified: [] };
   if (!game.user?.isGM || !classItem?.system?.templates?.length) return report;
+  await loadLibrary(PACKAGE_SHELVES);
   // A class row in a compendium builds its package on that same shelf. See
   // docs/classes/DECISIONS.md, "a class row in a compendium still builds its package".
   const classKey = classItem.system.key || fold(classItem.name);

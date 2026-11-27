@@ -661,6 +661,39 @@ const sourceWorld = (drop = []) => ({
   for (const key of keys) ok(`lang has ACKS-IMPORTER.${key}`, typeof lang[`ACKS-IMPORTER.${key}`] === "string");
 }
 
+// The wait before core lists what an import would create, run against cold shelves of all four
+// types: the roll table and journal shelves are outside the ready warm, so this wait is what
+// loads them, and a shelf it left cold would read every library document there as missing.
+{
+  const { shelfMock, sourceDoc } = await import("../lib-shelf-mock.mjs");
+  const types = ["Item", "Actor", "JournalEntry", "RollTable"];
+  const shelves = Object.fromEntries(
+    types.map((type) => [type, shelfMock({ type, docs: [sourceDoc(`${type}0`, `${type} 0`, type === "Item" ? "equipment" : "base")] })]),
+  );
+  const prepared = [];
+  globalThis.Hooks = { on() {} };
+  globalThis.CONFIG = {
+    Item: { compendiumIndexFields: [] },
+    Adventure: { documentClass: { prototype: { async prepareImport() { prepared.push("core"); return "core"; } } } },
+  };
+  globalThis.game = { packs: Object.values(shelves), items: [], i18n: { format: (key) => key } };
+  globalThis.ui = { notifications: { info() {}, warn() {} } };
+  const { registerBookAdventureHooks } = await import("../../scripts/importer/book-adventure.mjs");
+  const { libraryCold, LIBRARY_TYPES } = await import("../../scripts/lib/library.mjs");
+  registerBookAdventureHooks();
+  const adventure = { name: "invented", flags: { [MODULE_ID]: { cookbook: { kind: ADVENTURE_KINDS[0] } } } };
+  ok("the library is cold before the wait", libraryCold(LIBRARY_TYPES));
+  const result = await CONFIG.Adventure.documentClass.prototype.prepareImport.call(adventure);
+  ok("core's own prepare still runs after the wait", result === "core" && prepared.length === 1);
+  for (const type of types) {
+    ok(`the wait loads the cold ${type} shelf`, shelves[type].size === 1, `held ${shelves[type].size}`);
+  }
+  ok("no shelf of any of the four types reads cold once the wait is over", !libraryCold(LIBRARY_TYPES));
+  Object.values(shelves).forEach((pack) => pack.evict());
+  await CONFIG.Adventure.documentClass.prototype.prepareImport.call({ name: "not a book", flags: {} });
+  ok("an Adventure that is not a book's waits for nothing", libraryCold(LIBRARY_TYPES));
+}
+
 if (failed) {
   console.error(`\nbook-adventure: ${failed} failure(s)`);
   process.exit(1);

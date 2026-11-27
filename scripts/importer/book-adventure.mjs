@@ -10,7 +10,7 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { mirrorCreatedLinks } from "../location/scene-link.mjs";
-import { byCookbookId, cookbookId, libraryCold, warmLibrary } from "../lib/library.mjs";
+import { LIBRARY_TYPES, byCookbookId, cookbookId, libraryCold, loadLibrary } from "../lib/library.mjs";
 import {
   ADVENTURE_TYPE, ADVENTURE_KINDS, BOOK_ADVENTURE_KIND, fillPlan, includedKeys, applyFill, refsOf,
 } from "./adventure-binding.mjs";
@@ -105,8 +105,8 @@ function steerImport(adventure, options, toCreate, toUpdate) {
   // every library document as missing and create a world twin of each.
   // `warmBeforePrepare` has waited for the library, so a shelf still cold
   // here is one that would not load.
-  if (libraryCold()) {
-    warmLibrary();
+  if (libraryCold(LIBRARY_TYPES)) {
+    loadLibrary(LIBRARY_TYPES);
     ui.notifications.warn(say("libraryLoading"));
     return false;
   }
@@ -174,9 +174,9 @@ const WARM_TRIES = 3;
  * shelf that never loads is left to `steerImport`, which refuses.
  */
 async function warmBeforePrepare(wrapped, ...args) {
-  if (isCookbookAdventure(this) && libraryCold()) {
+  if (isCookbookAdventure(this) && libraryCold(LIBRARY_TYPES)) {
     ui.notifications.info(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.adventure.libraryWarming`, { name: this.name })}`);
-    for (let n = 0; n < WARM_TRIES && libraryCold(); n++) await warmLibrary();
+    for (let n = 0; n < WARM_TRIES && libraryCold(LIBRARY_TYPES); n++) await loadLibrary(LIBRARY_TYPES);
   }
   return wrapped(...args);
 }

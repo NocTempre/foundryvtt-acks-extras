@@ -115,7 +115,19 @@ function fakePack(type) {
     get size() {
       return this.contents.length;
     },
+    /** Core evicts an idle shelf: the documents go, the index stays whole, so the shelf reads cold until a load. */
+    evict() {
+      this.server = [...this.contents];
+      this.contents.length = 0;
+      this.index.size = this.server.length;
+    },
     async getDocuments() {
+      this.loads = (this.loads ?? 0) + 1;
+      if (this.server) {
+        this.contents.push(...this.server);
+        this.server = null;
+      }
+      this.index.size = this.contents.length;
       return [...this.contents];
     },
   };
@@ -323,6 +335,7 @@ const {
   listEntries,
   listMaterializedDocs,
   countMaterializedDocs,
+  removeMaterializedDocs,
   reshapeJson,
   editableData,
   groupEntries,
@@ -458,6 +471,46 @@ await test("removal lists the shelves' documents and the sidebar's both", async 
   assert.equal(folders.length, 2);
   assert.equal(journals.length, 1);
   assert.ok(tables[0].pack && folders[0].pack && journals[0].pack, "each names the shelf it is deleted through");
+});
+
+await test("removal after the shelves were evicted deletes every flagged document, not only those held", async () => {
+  world({ registry: { ...manyRollables(3), wages: { labour: { rows: [1] } } } });
+  await materializeAll();
+  const before = listMaterializedDocs();
+  const total = before.tables.length + before.folders.length + before.journals.length;
+  assert.ok(before.tables.length >= 3, "the fixture holds several flagged tables");
+  shelf("RollTable").evict();
+  shelf("JournalEntry").evict();
+  assert.equal(listMaterializedDocs().tables.length, 0, "an evicted shelf lists no table it does not hold");
+  assert.equal(await removeMaterializedDocs(), total, "every flagged document is counted, held or not");
+  assert.equal(shelf("RollTable").contents.length, 0, "no flagged table is left on the shelf");
+  assert.equal(shelf("RollTable").folders.length, 0);
+  assert.equal(shelf("JournalEntry").contents.length, 0);
+});
+
+await test("a pass over evicted shelves loads them and adopts what they hold, duplicating none", async () => {
+  world({ registry: { ...manyRollables(2), wages: { labour: { rows: [1] } } } });
+  await materializeAll();
+  const held = { tables: shelf("RollTable").contents.length, journals: shelf("JournalEntry").contents.length };
+  shelf("RollTable").evict();
+  shelf("JournalEntry").evict();
+  calls = [];
+  await materializeAll();
+  assert.deepEqual(calls.filter((c) => /create/i.test(c)), [], "nothing is created beside what the evicted shelves hold");
+  assert.equal(shelf("RollTable").contents.length, held.tables, "the tables are the ones that were there, loaded");
+  assert.equal(shelf("JournalEntry").contents.length, held.journals);
+});
+
+await test("removal loads the shelves that exist and opens no shelf that does not", async () => {
+  world({ registry: manyRollables(1) });
+  assert.equal(await removeMaterializedDocs(), 0, "a world with no shelf has nothing to remove");
+  assert.equal(game.packs.size, 0, "and no shelf was made to look");
+  await materializeAll();
+  const tables = shelf("RollTable");
+  const loadsBefore = tables.loads ?? 0;
+  tables.evict();
+  await removeMaterializedDocs();
+  assert.equal(tables.loads, loadsBefore + 1, "one whole load of the cold shelf");
 });
 
 await test("an ampersand in the book's own wording does not rebuild forever", async () => {

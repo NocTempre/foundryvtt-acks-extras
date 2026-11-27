@@ -377,8 +377,11 @@ await ok("registerLibraryWarm sets each type's ended mark and then the overall e
   };
   assert.equal(WARM_MARK_ENDED, "acks-extras:libraryWarm:ended");
   assert.equal(warmMarkEnded("Item"), "acks-extras:libraryWarm:Item:ended");
-  const ended = ["Item", "Actor", "JournalEntry", "RollTable"].map((type) => at(warmMarkEnded(type)));
-  assert.ok(at(WARM_MARK_ENDED) >= Math.max(...ended), "the overall mark follows every type's");
+  const ended = ["Item", "Actor"].map((type) => at(warmMarkEnded(type)));
+  assert.ok(at(WARM_MARK_ENDED) >= Math.max(...ended), "the overall mark follows every warm type's");
+  for (const type of ["JournalEntry", "RollTable"]) {
+    assert.equal(performance.getEntriesByName(warmMarkEnded(type), "mark").length, 0, `${type} is outside the warm, so it sets no mark`);
+  }
   assert.equal(performance.getEntriesByName("acks-extras:libraryWarm:started", "mark").length, 1);
 });
 
@@ -389,6 +392,81 @@ await ok("whenReady and warmLibrary set no ended mark", async () => {
   await lib.warmLibrary();
   assert.equal(performance.getEntriesByName(WARM_MARK_ENDED, "mark").length, 0);
   assert.equal(performance.getEntriesByName(warmMarkEnded("Item"), "mark").length, 0);
+});
+
+/** One shelf per document type, ids `<type><n>`, each type's documents distinct. */
+const fourShelves = () => {
+  const make = (type, n = 2) => shelf({ type, docs: Array.from({ length: n }, (_, i) => source(`${type}${i}`, `${type} ${i}`, type === "Item" ? "equipment" : "base")) });
+  return { Item: make("Item"), Actor: make("Actor"), JournalEntry: make("JournalEntry"), RollTable: make("RollTable") };
+};
+const wholeLoads = (pack) => pack.calls.getDocuments.filter((query) => !query?._id__in).length;
+
+await ok("WARM_TYPES is Item and Actor", () => {
+  assert.deepEqual([...lib.WARM_TYPES].sort(), ["Actor", "Item"]);
+});
+
+await ok("the ready warm loads the Item and Actor shelves whole and no RollTable or JournalEntry shelf", async () => {
+  const shelves = fourShelves();
+  game.packs = Object.values(shelves);
+  await lib.registerLibraryWarm();
+  assert.equal(wholeLoads(shelves.Item), 1);
+  assert.equal(wholeLoads(shelves.Actor), 1);
+  assert.equal(wholeLoads(shelves.RollTable), 0, "the roll table shelf is not warmed");
+  assert.equal(wholeLoads(shelves.JournalEntry), 0, "the journal shelf is not warmed");
+  assert.equal(shelves.RollTable.size, 0);
+});
+
+await ok("whenReady loads Item and Actor only, and warmLibrary is the same load", async () => {
+  const shelves = fourShelves();
+  game.packs = Object.values(shelves);
+  await lib.whenReady();
+  assert.deepEqual(Object.entries(shelves).map(([type, pack]) => [type, wholeLoads(pack)]), [["Item", 1], ["Actor", 1], ["JournalEntry", 0], ["RollTable", 0]]);
+  await lib.warmLibrary();
+  assert.equal(wholeLoads(shelves.Item), 1, "a warm shelf is not loaded again");
+});
+
+await ok("loadLibrary(types) loads only the types it is given", async () => {
+  const shelves = fourShelves();
+  game.packs = Object.values(shelves);
+  await lib.loadLibrary(["RollTable"]);
+  assert.deepEqual(Object.entries(shelves).map(([type, pack]) => [type, wholeLoads(pack)]), [["Item", 0], ["Actor", 0], ["JournalEntry", 0], ["RollTable", 1]]);
+  assert.equal(shelves.RollTable.size, 2);
+});
+
+await ok("loadLibrary() with no types loads every shelf the importer keeps, and a load in flight is shared", async () => {
+  const shelves = fourShelves();
+  game.packs = Object.values(shelves);
+  assert.deepEqual(lib.LIBRARY_TYPES, ["Item", "Actor", "JournalEntry", "RollTable"]);
+  await Promise.all([lib.loadLibrary(), lib.loadLibrary(["JournalEntry"])]);
+  for (const pack of Object.values(shelves)) assert.equal(wholeLoads(pack), 1, `${pack.documentName} loaded once`);
+});
+
+await ok("libraryCold(types) asks only about the types it is given", async () => {
+  const shelves = fourShelves();
+  game.packs = Object.values(shelves);
+  await lib.loadLibrary(["Item", "Actor", "JournalEntry"]);
+  assert.equal(libraryCold(["Item", "Actor", "JournalEntry"]), false);
+  assert.equal(libraryCold(["RollTable"]), true);
+  assert.equal(libraryCold(), true, "the default asks about every type");
+});
+
+await ok("a synchronous read of a cold RollTable or JournalEntry shelf answers what is held and starts no load", async () => {
+  const shelves = fourShelves();
+  game.packs = Object.values(shelves);
+  assert.deepEqual(lib.libraryDocs("RollTable"), []);
+  assert.deepEqual(lib.libraryDocs("JournalEntry"), []);
+  await sleep(15);
+  assert.equal(wholeLoads(shelves.RollTable), 0);
+  assert.equal(wholeLoads(shelves.JournalEntry), 0);
+  assert.equal(lib.byCookbookId("RollTable", "def.none"), null);
+  await sleep(15);
+  assert.equal(shelves.RollTable.calls.getDocuments.length, 0, "no load of any kind");
+  assert.equal(lib.libraryDocs("Item").length, 0, "a cold Item shelf still answers what is held");
+  await sleep(15);
+  assert.equal(wholeLoads(shelves.Item), 1, "and still starts its own load");
+  assert.equal(lib.libraryDocs("RollTable").length, 0);
+  await lib.loadLibrary(["RollTable"]);
+  assert.equal(lib.libraryDocs("RollTable").length, 2, "an action's load makes the read whole");
 });
 
 await ok("the stand-in shelf reports `indexed` as core does: the declared fields are a subset of those the index was built with", async () => {

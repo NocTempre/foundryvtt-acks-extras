@@ -19,7 +19,7 @@
  * See docs/location/DECISIONS.md, "Materialized tables live on the library's shelves".
  */
 import { MODULE_ID } from "./constants.mjs";
-import { findLibraryPack, whenReady } from "../lib/library.mjs";
+import { findLibraryPack, loadLibrary } from "../lib/library.mjs";
 import { ensureLibraryPack } from "../lib/library-target.mjs";
 import { slug } from "../lib/vocab.mjs";
 import { whenPublished as classesPublished, publicationIncomplete as classesIncomplete } from "../classes/registry.mjs";
@@ -685,7 +685,7 @@ export function parseJsonContent(html) {
  */
 async function openShelf(type) {
   const pack = await ensureLibraryPack(type);
-  if (pack) await whenReady();
+  if (pack) await loadLibrary([type]);
   return pack;
 }
 
@@ -1115,8 +1115,12 @@ export function countMaterializedDocs(options = {}) {
  * in the world store stays registered, so automation keeps its values and the
  * next materialize rebuilds the documents from them. Deleted per collection —
  * a shelf's documents go through their pack, the sidebar's through the world.
+ * The shelves are loaded first, since the listing reads only the documents a
+ * shelf holds and the roll table and journal shelves are outside the ready warm.
  */
 export async function removeMaterializedDocs() {
+  const shelved = ["RollTable", "JournalEntry"].filter((type) => findLibraryPack(type));
+  if (shelved.length) await loadLibrary(shelved);
   const { tables, folders, journals } = listMaterializedDocs();
   const total = tables.length + folders.length + journals.length;
   const perCollection = (docs) => {

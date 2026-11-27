@@ -114,7 +114,7 @@ export const lineOfPack = (collection) =>
   importedPacks().find(({ pack }) => pack.collection === collection)?.line ?? null;
 
 /** Document types the importer keeps a pack for. */
-const LIBRARY_TYPES = ["Item", "Actor", "JournalEntry", "RollTable"];
+export const LIBRARY_TYPES = ["Item", "Actor", "JournalEntry", "RollTable"];
 
 /** The world collection a type's sidebar documents live in. */
 const worldCollection = (type) =>
@@ -190,34 +190,53 @@ function loadPack(type) {
 }
 
 /**
- * Instantiate every library pack, so the synchronous reads below are complete.
+ * The document types the ready warm, `whenReady` and `libraryDocs`' cold kick
+ * load whole: the types a synchronous reader still reads off the shelf. A type
+ * outside it is loaded by the action that needs it (`loadLibrary`) and is never
+ * loaded on a read.
+ */
+export const WARM_TYPES = new Set(["Item", "Actor"]);
+
+/**
+ * Instantiate every shelf of the given types, so the synchronous reads below
+ * are complete for them. It is an action's own whole load, for a type outside
+ * `WARM_TYPES` or for a caller that wants the whole library; a pack already
+ * loading is awaited rather than loaded twice.
  *
  * A pack that fails to load is reported and skipped — a partial library reads
  * as a smaller one, never as a broken sheet.
+ *
+ * @param {string[]} [types] document types, every type the importer keeps a shelf for by default
  */
-export const warmLibrary = () => Promise.all(LIBRARY_TYPES.map(loadPack));
+export const loadLibrary = (types = LIBRARY_TYPES) => Promise.all(types.map(loadPack));
 
-/** Resolves once the library is loaded — for callers that can await. */
+/** Instantiate every shelf of `WARM_TYPES`. */
+export const warmLibrary = () => loadLibrary([...WARM_TYPES]);
+
+/** Resolves once the `WARM_TYPES` shelves are loaded — for callers that can await. */
 export const whenReady = () => warmLibrary();
 
 /**
- * Whether any shelf holds rows not yet instantiated, so that a synchronous
- * read below would answer with less than the library holds.
+ * Whether any shelf of the given types holds rows not yet instantiated, so that
+ * a synchronous read below would answer with less than the library holds.
+ *
+ * @param {string[]} [types] document types, every type the importer keeps a shelf for by default
  */
-export const libraryCold = () => LIBRARY_TYPES.some((type) => libraryPacks(type).some(isCold));
+export const libraryCold = (types = LIBRARY_TYPES) => types.some((type) => libraryPacks(type).some(isCold));
 
 /**
  * Every library document of a type — the sidebar's, then every shelf's.
- * Synchronous by design (see the file header): a cold shelf starts loading in
- * the background and answers with what is in hand. A caller that CANNOT
- * re-render must await `whenReady()` first — see docs/lib/MODEL.md, "The
- * imported library".
+ * Synchronous by design (see the file header): a cold shelf of a `WARM_TYPES`
+ * type starts loading in the background and answers with what is in hand; a
+ * cold shelf of any other type answers with what is held and starts nothing. A
+ * caller that CANNOT re-render must await `whenReady()` (a `WARM_TYPES` type) or
+ * `loadLibrary` (any) first — see docs/lib/MODEL.md, "The imported library".
  */
 export function libraryDocs(type) {
   const docs = [...(worldCollection(type) ?? [])];
   const packs = libraryPacks(type);
   if (!packs.length) return docs;
-  if (packs.some(isCold)) loadPack(type);
+  if (WARM_TYPES.has(type) && packs.some(isCold)) loadPack(type);
   for (const pack of packs) docs.push(...pack.contents);
   return docs;
 }
@@ -472,9 +491,10 @@ export const WARM_MARK_ENDED = "acks-extras:libraryWarm:ended";
 export const warmMarkEnded = (type) => `acks-extras:libraryWarm:${type}:ended`;
 
 /**
- * Warm the library at ready, so a synchronous read is complete once it has run.
- * It starts a macrotask after it is registered, which lets every `ready` hook
- * begin its narrow read (`libraryDocsWhere`) first, and then waits until no
+ * Warm the `WARM_TYPES` shelves at ready, so a synchronous read of them is
+ * complete once it has run. It starts a macrotask after it is registered,
+ * which lets every `ready` hook begin its narrow read (`libraryDocsWhere`)
+ * first, and then waits until no
  * narrow read is in flight, so the whole-shelf loads queue behind the reads the
  * module's own startup needs rather than beside them. A narrow read that never
  * settles holds the warm back, and a synchronous reader still loads its own
@@ -483,8 +503,9 @@ export const warmMarkEnded = (type) => `acks-extras:libraryWarm:${type}:ended`;
  * exercises with no Foundry global in sight, and a top-level `Hooks` call there
  * is a ReferenceError before any test body runs.
  *
- * It sets a mark as each type's load settles (`warmMarkEnded`) and one when all
- * have (`WARM_MARK_ENDED`); `whenReady` and `warmLibrary` set none.
+ * It sets a mark as each warm type's load settles (`warmMarkEnded`) and one when
+ * all have (`WARM_MARK_ENDED`); `whenReady`, `warmLibrary` and `loadLibrary` set
+ * none.
  *
  * @returns {Promise<unknown>} resolves once the whole-shelf loads have settled
  */
@@ -492,7 +513,7 @@ export async function registerLibraryWarm() {
   await new Promise((resolve) => setTimeout(resolve, 0));
   while (narrowReads.size) await Promise.allSettled([...narrowReads]);
   perfMark(WARM_MARK_STARTED);
-  const loaded = await Promise.all(LIBRARY_TYPES.map((type) => loadPack(type).finally(() => perfMark(warmMarkEnded(type)))));
+  const loaded = await Promise.all([...WARM_TYPES].map((type) => loadPack(type).finally(() => perfMark(warmMarkEnded(type)))));
   perfMark(WARM_MARK_ENDED);
   return loaded;
 }

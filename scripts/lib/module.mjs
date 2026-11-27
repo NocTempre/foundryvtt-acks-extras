@@ -205,7 +205,9 @@ const localImpl = Object.freeze({
   /**
    * The imported library, wherever it lives (library.mjs): `libraryItems` /
    * `libraryActors` / `libraryDocs(type)` read the sidebar AND the importer's
-   * world packs, `whenReady()` awaits the warm, and `libraryDocsWhere(type,
+   * world packs, `whenReady()` awaits the Item and Actor shelves,
+   * `loadLibrary(types)` awaits the whole shelves of any types (the roll
+   * table and journal shelves are loaded only by it), and `libraryDocsWhere(type,
    * match)` reads only the documents a test on the index row picks, with no
    * whole-shelf load. Every "what has this world
    * imported?" question goes through it — a bare `game.items` finds an empty
