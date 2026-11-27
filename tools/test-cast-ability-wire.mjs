@@ -377,6 +377,89 @@ await ta("a card's Apply to my targets rolls the new targets' saves with the cas
   assert.equal(update[key].resist.formula, "1d20 - 2");
 });
 
+await ta("an owner of the caster who did not author the card presses Apply to my targets: it asks the GM's client with the presser's tokens, and the GM's client checks the sender's own ownership before it builds the targets", async () => {
+  const caster = { ...casterOf([tideweaver()]), testUserPermission: (user) => user.id === "p1" };
+  const spell = spellOn(caster, [burn()]);
+  const cast = runDeps({ answer: { mode: "normal", picks: {} }, caster });
+  await castSpellRun(spell, () => {}, cast.deps);
+  const updates = [];
+  const message = { id: "m5", author: { id: "gm" }, flags: { "acks-extras": { castCard: cast.calls.posts[0] } }, update: async (u) => void updates.push(u) };
+  const token = tokenOf();
+  game.user.targets = new Set([{ document: token }]);
+  let click;
+  const button = { dataset: { action: "magicCastApplyTargets" }, addEventListener: (_event, fn) => void (click = fn) };
+  emitted.length = 0;
+  hooked.renderChatMessageHTML(message, { nodeType: 1, querySelector: () => ({ innerHTML: "", querySelectorAll: () => [button] }) });
+  click({ preventDefault() {} });
+  for (let i = 0; i < 200 && !emitted.length; i++) await new Promise((resolve) => setImmediate(resolve));
+  game.user.targets = new Set();
+  assert.deepEqual(updates, [], "nothing is written from the presser's own client");
+  assert.deepEqual(emitted.map((e) => [e.action, e.payload]), [["magicCastWrite", { op: "targets", messageId: "m5", tokenUuids: [token.uuid] }]]);
+  const { magicCastWrite } = await import("../scripts/magic/cast-apply.mjs");
+  const savedUsers = game.users;
+  const savedMessages = game.messages;
+  game.messages = { get: (id) => (id === "m5" ? message : undefined) };
+  game.users = { get: (id) => ({ id, isGM: id === "gm" }), activeGM: { id: "gm" } };
+  try {
+    const sent = { op: "targets", messageId: "m5", tokenUuids: [token.uuid] };
+    assert.deepEqual(await magicCastWrite({ ...sent, requestUserId: "p2" }), { ok: false, reason: "notOwner" }, "a user who owns the caster is the only sender");
+    assert.deepEqual(await magicCastWrite({ ...sent, requestUserId: "p1", tokenUuids: [token.uuid, "Scene.s.Token.gone"] }), { ok: false, reason: "badTarget" });
+    assert.deepEqual(await magicCastWrite({ op: "nothing", messageId: "m5", requestUserId: "p1" }), { ok: false, reason: "badOp" });
+    assert.deepEqual(updates, [], "a refused request writes nothing");
+    assert.deepEqual(await magicCastWrite({ ...sent, requestUserId: "p1" }), { ok: true });
+    const key = Object.keys(updates[0]).find((k) => /\.targets\.t\w+$/.test(k));
+    assert.equal(updates[0][key].uuid, token.uuid, "the GM's client wrote the presser's token as a target");
+  } finally {
+    game.users = savedUsers;
+    game.messages = savedMessages;
+  }
+});
+
+await ta("the GM's client writes a relayed Throw from the throw's figures alone: it keeps the instances already resolved, drops what a throw does not write and leaves the card's row as it was", async () => {
+  const caster = { ...casterOf([]), testUserPermission: (user) => user.id === "p1" };
+  const spell = spellOn(caster, [burn({ delivery: "melee" })]);
+  const token = tokenOf();
+  const resolved = { state: "pending", rolled: 3, critical: false, throw: { total: 15, target: 10, hit: true, critical: false } };
+  const card = {
+    castId: "castY",
+    spellUuid: spell.uuid,
+    casterUuid: caster.uuid,
+    mode: "normal",
+    picks: {},
+    save: null,
+    casterLevel: { value: 7, source: "class" },
+    duration: { none: "noDuration" },
+    rows: { burn: { type: "damage", key: "burn", delivery: "melee", total: null, count: { value: 2 }, conditions: [] } },
+    order: ["burn"],
+    targets: { t1: { uuid: token.uuid, name: token.name, resist: null } },
+    entries: { t1_burn: { state: "throw", instances: [resolved, { state: "throw" }] } },
+  };
+  const updates = [];
+  const message = { id: "m6", author: { id: "gm" }, flags: { "acks-extras": { castCard: card } }, update: async (u) => void updates.push(u) };
+  const { magicCastWrite } = await import("../scripts/magic/cast-apply.mjs");
+  const savedUsers = game.users;
+  const savedMessages = game.messages;
+  game.messages = { get: (id) => (id === "m6" ? message : undefined) };
+  game.users = { get: (id) => ({ id, isGM: id === "gm" }), activeGM: { id: "gm" } };
+  try {
+    const forged = [{ ...resolved, rolled: 99 }, { state: "pending", rolled: 4, critical: true, throw: { total: 18, target: 10, hit: true, critical: true, extra: "x" }, injected: 1 }];
+    assert.deepEqual(await magicCastWrite({ op: "throw", messageId: "m6", requestUserId: "p1", rowKey: "burn", targetKey: "t1", instances: forged, row: {} }), { ok: false, reason: "thrown" }, "a resolved instance that came back changed");
+    assert.deepEqual(updates, [], "and nothing is written");
+    const sent = [resolved, { state: "pending", rolled: 4, critical: true, throw: { total: 18, target: 10, hit: true, critical: true, extra: "x" }, injected: 1 }];
+    assert.deepEqual(await magicCastWrite({ op: "throw", messageId: "m6", requestUserId: "p2", rowKey: "burn", targetKey: "t1", instances: sent, row: {} }), { ok: false, reason: "notOwner" });
+    const done = await magicCastWrite({ op: "throw", messageId: "m6", requestUserId: "p1", rowKey: "burn", targetKey: "t1", instances: sent, row: { formula: "1d4", total: 4, detail: "4", type: "heal", count: { value: 9 } } });
+    assert.deepEqual(done, { ok: true, targetKey: "t1" });
+    const written = updates.find((u) => u["flags.acks-extras.castCard.entries.t1_burn"])["flags.acks-extras.castCard.entries.t1_burn"];
+    assert.equal(written.state, "pending", "recomputed from the instances, not taken from the sender");
+    assert.deepEqual(written.instances, [resolved, { state: "pending", rolled: 4, critical: true, throw: { total: 18, target: 10, hit: true, critical: true } }], "only a throw's own fields are written");
+    const row = updates.find((u) => u["flags.acks-extras.castCard.rows.burn"])["flags.acks-extras.castCard.rows.burn"];
+    assert.deepEqual([row.type, row.count.value, row.formula, row.total, row.detail], ["damage", 2, "1d4", 4, "4"], "the damage roll's figures merge and nothing structural does");
+  } finally {
+    game.users = savedUsers;
+    game.messages = savedMessages;
+  }
+});
+
 /** A cast card for one target, as `worldFor` and a press read it. */
 const cardFor = (caster, spell, token, over = {}) => ({
   castId: "castX",

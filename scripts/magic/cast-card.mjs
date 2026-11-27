@@ -241,17 +241,18 @@ export function undoableEntry(entry) {
 
 /**
  * The buttons one entry offers this seat. A modifier entry's Undo says it takes the whole group off.
- * `canPress` offers Apply, which the GM's client can carry out for any owner of the caster; `canWrite` offers Throw,
- * whose result this seat writes to the card itself, so only a seat that can edit the card has it.
- * `undoBy` is how the seat reaches the Undo: `"target"` where it owns the target's actor, `"apply"` where it is the
- * card's author and owns its caster, null for neither. The apply seat has no Undo for an entry that lifted effects,
+ * `canPress` offers Apply, which the GM's client can carry out for any owner of the caster; `canThrow` offers Throw,
+ * which a seat that owns the caster (or a Judge) makes on its own client, the card's write going through the GM's
+ * client where the seat cannot edit the card.
+ * `undoBy` is how the seat reaches the Undo: `"target"` where it owns the target's actor, `"apply"` where it owns the
+ * card's caster, null for neither. The apply seat has no Undo for an entry that lifted effects,
  * marked a weapon destroyed or timed a life: those are written on a target it does not own.
  */
-function entryActions(entry, ids, { canPress, canWrite = canPress, undoBy }, loc, { group = false, name = "" } = {}) {
+function entryActions(entry, ids, { canPress, canThrow = canPress, undoBy }, loc, { group = false, name = "" } = {}) {
   const out = [];
   const data = { target: ids.targetKey, row: ids.rowKey };
   if (entry?.state === "pending" && canPress) out.push({ action: CARD_ACTIONS.apply, label: loc("button.apply"), icon: "fa-solid fa-check", data });
-  if (entry?.state === "throw" && canWrite) out.push({ action: CARD_ACTIONS.throw, label: loc("button.throw"), icon: "fa-solid fa-dice-d20", data });
+  if (entry?.state === "throw" && canThrow) out.push({ action: CARD_ACTIONS.throw, label: loc("button.throw"), icon: "fa-solid fa-dice-d20", data });
   if (undoBy && undoableEntry(entry) && (undoBy === "target" || !(entry.lifted?.length || entry.destroyed || entry.life))) {
     const tooltip = group ? loc("tip.undoGroup", { name }) : entry.destroyed ? loc("tip.undoDestroyed") : entry.lifted?.length ? loc("tip.undoLifted") : loc("tip.undo");
     out.push({ action: CARD_ACTIONS.undo, label: loc("button.undo"), icon: "fa-solid fa-rotate-left", data, tooltip });
@@ -301,14 +302,14 @@ function summonedLines(summoned, seat, loc) {
  * The roll card a cast card is drawn as, for one seat.
  *
  * @param {object} card  the model
- * @param {{isGM: boolean, canPress: boolean, canWrite?: boolean, ownsCaster?: boolean, ownsTarget?: (target: object) => boolean, opens?: (uuid: string) => boolean}} seat  `canPress` says the seat may press Apply on a target's entry (`canPressCard`); `canWrite` says it can edit the card, which Throw, the Apply that takes the presser's targets, Undo from the apply seat and Revert need (`canWriteCard`), and absent it is `canPress`. `ownsCaster` says whether the seat owns the card's caster; absent, it does not. `ownsTarget` says whether the seat owns a card target's actor; absent, no target is. `opens` says whether the seat can open the creature a summoning's uuid names; absent, none can but a GM
+ * @param {{isGM: boolean, canPress: boolean, ownsCaster?: boolean, ownsTarget?: (target: object) => boolean, opens?: (uuid: string) => boolean}} seat  `canPress` says the seat may press Apply on a target's entry, and the Apply that takes the presser's targets (`canPressCard`). `ownsCaster` says whether the seat owns the card's caster, which Throw (with a Judge), Undo from the apply seat and Revert need; absent, it does not. `ownsTarget` says whether the seat owns a card target's actor; absent, no target is. `opens` says whether the seat can open the creature a summoning's uuid names; absent, none can but a GM
  * @param {(key: string, data?: object) => string} loc  the cast's strings, under the magic root's `cast` branch
  * @returns {object} `renderRollCard`'s argument
  */
 export function castCardView(card, seat, loc) {
   // What the tradition's procedure performed stands above the rows' sections.
   const sections = card.procedure?.section ? [card.procedure.section] : [];
-  const canWrite = seat.canWrite ?? seat.canPress;
+  const canThrow = seat.isGM === true || seat.ownsCaster === true;
   const targets = Object.entries(card.targets ?? {});
   for (const rowKey of card.order ?? []) {
     const row = card.rows?.[rowKey];
@@ -330,8 +331,8 @@ export function castCardView(card, seat, loc) {
       if (card.recur && !entry) continue;
       const mayRoll = seat.isGM === true || seat.ownsCaster === true;
       const maySave = seat.isGM === true || seat.ownsTarget?.(target) === true;
-      // Undo reaches the target's owner, and the card's author who owns the caster; the recur branch below clears `canPress`, so it is read here.
-      const undoBy = seat.ownsTarget?.(target) === true ? "target" : canWrite === true && seat.ownsCaster === true ? "apply" : null;
+      // Undo reaches the target's owner, and an owner of the caster; the recur branch below clears `canPress`, so it is read here.
+      const undoBy = seat.ownsTarget?.(target) === true ? "target" : seat.ownsCaster === true ? "apply" : null;
       const line = isMod
         ? {
             name: target.name,
@@ -339,7 +340,7 @@ export function castCardView(card, seat, loc) {
             tooltipText: exempt || partTip(row, card, targetKey, loc),
             detail: yields ? loc("detail.yields", { name: yields }) : row.mode === "set" ? loc("detail.setFigure") : "",
             ...outcomeOf(entry, loc),
-            actions: entryActions(entry, { targetKey, rowKey }, { canPress: seat.canPress, canWrite, undoBy }, loc, { group: true, name: target.name }),
+            actions: entryActions(entry, { targetKey, rowKey }, { canPress: seat.canPress, canThrow, undoBy }, loc, { group: true, name: target.name }),
           }
         : {
             name: target.name,
@@ -358,8 +359,8 @@ export function castCardView(card, seat, loc) {
             ...outcomeOf(entry, loc),
             // A prompt's entries are pressed through Save and Roll, never Apply; its applied entries keep their Undo.
             actions: card.recur
-              ? [...recurActions(entry, { targetKey, rowKey }, row, { maySave, mayRoll }, loc), ...entryActions(entry, { targetKey, rowKey }, { canPress: false, canWrite: false, undoBy }, loc)]
-              : entryActions(entry, { targetKey, rowKey }, { canPress: seat.canPress, canWrite, undoBy }, loc),
+              ? [...recurActions(entry, { targetKey, rowKey }, row, { maySave, mayRoll }, loc), ...entryActions(entry, { targetKey, rowKey }, { canPress: false, canThrow: false, undoBy }, loc)]
+              : entryActions(entry, { targetKey, rowKey }, { canPress: seat.canPress, canThrow, undoBy }, loc),
           };
       if (resist?.noSave) {
         Object.assign(line, { targetText: loc("save.none"), targetTooltip: gateTip(resist.noSave, loc, { name: target.name, cite: card.cite }), detail: [loc("detail.noSave"), line.detail].filter(Boolean).join(" · ") });
@@ -385,20 +386,20 @@ export function castCardView(card, seat, loc) {
         name: loc("noTarget"),
         total: row.total ?? "—",
         tooltipText: isMod ? partTip(row, card, "", loc) : rollTip(row, card, loc),
-        actions: needsThrow && !row.blank && canWrite ? [{ action: CARD_ACTIONS.throw, label: loc("button.throw"), icon: "fa-solid fa-dice-d20", data: { row: rowKey } }] : [],
+        actions: needsThrow && !row.blank && canThrow ? [{ action: CARD_ACTIONS.throw, label: loc("button.throw"), icon: "fa-solid fa-dice-d20", data: { row: rowKey } }] : [],
       });
     }
     const cite = card.cite ? loc("tip.cite", { cite: card.cite }) : "";
     sections.push({ title: titleOf(row, loc), titleTooltip: isMod ? cite : rollTip(row, card, loc), rows });
   }
   const loose = !card.recur && !targets.length && (card.order ?? []).some((k) => !card.rows?.[k]?.delivery);
-  const buttons = loose && canWrite ? [{ action: CARD_ACTIONS.applyTargets, label: loc("button.applyTargets"), icon: "fa-solid fa-crosshairs", tooltip: loc("tip.applyTargets") }] : [];
+  const buttons = loose && seat.canPress ? [{ action: CARD_ACTIONS.applyTargets, label: loc("button.applyTargets"), icon: "fa-solid fa-crosshairs", tooltip: loc("tip.applyTargets") }] : [];
   // A cast with a recurring row offers its caster's seat and the Judge the round's prompts by hand, for a cast no fight keeps.
   if (card.recurs && !card.recur && (seat.isGM === true || seat.ownsCaster === true)) {
     buttons.push({ action: CARD_ACTIONS.nextRound, label: loc("button.nextRound"), icon: "fa-solid fa-forward-step", tooltip: loc("tip.nextRound") });
   }
-  // The revert of a performed step, until it has been pressed: the caster's owner who can edit the card.
-  if (canWrite === true && seat.ownsCaster === true && card.procedure && card.procedure.undo != null && card.procedure.reverted !== true) {
+  // The revert of a performed step, until it has been pressed: the caster's owner.
+  if (seat.ownsCaster === true && card.procedure && card.procedure.undo != null && card.procedure.reverted !== true) {
     buttons.push({ action: CARD_ACTIONS.revert, label: loc("button.revert"), icon: "fa-solid fa-rotate-left", tooltip: loc("tip.revert") });
   }
   return {
@@ -473,7 +474,10 @@ export async function addTargets(message, targets, entries) {
   return message.update(update);
 }
 
-/** Can this seat edit the card: a GM, or the user who cast it. Foundry lets no one else write a chat message. */
+/**
+ * Can this seat edit the card: a GM, or the user who cast it. Foundry lets no one else write a chat message, so any
+ * other seat's write to the card goes through the GM's client (`magicCastWrite`).
+ */
 export const canWriteCard = (message) => game.user.isGM || message?.author?.id === game.user.id || message?.isAuthor === true;
 
 /**
@@ -502,7 +506,7 @@ function onRender(message, html) {
   if (!card || !root) return;
   const body = root.querySelector?.(".message-content");
   if (!body) return;
-  const seat = { isGM: game.user.isGM, canPress: canPressCard(message), canWrite: canWriteCard(message), ownsTarget: ownsCardTarget, opens: opensCreature, ownsCaster: docOf(card.casterUuid)?.testUserPermission?.(game.user, "OWNER") === true };
+  const seat = { isGM: game.user.isGM, canPress: canPressCard(message), ownsTarget: ownsCardTarget, opens: opensCreature, ownsCaster: docOf(card.casterUuid)?.testUserPermission?.(game.user, "OWNER") === true };
   body.innerHTML = renderRollCard(castCardView(card, seat, cardLoc));
   body.querySelectorAll("[data-action^='magicCast']").forEach((button) => {
     button.addEventListener("click", (event) => {

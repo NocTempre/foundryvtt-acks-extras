@@ -1042,12 +1042,24 @@ rolls and an Apply that takes the presser's targets; a thrown row waits on a
 Throw press. Apply on a target's entry (`canPressCard`) is for a GM, the user who
 cast, and any user who owns the caster: a seat that cannot edit the card asks the
 GM's client, whose `checkApplyRequest` tests the asking user's ownership of the
-caster and not the card's author. Throw and the Apply that takes the presser's
-targets write the card from the pressing seat, so they stay with a GM and the user
-who cast (`canWriteCard`); an owner who did not cast is drawn neither.
+caster and not the card's author. Throw is drawn to a GM and to a seat that owns
+the caster, and the Apply that takes the presser's targets to `canPress`. A press
+runs on the presser's client (a Throw opens its dialog there), and the card's write
+goes there too where the seat can edit the card (`canWriteCard`: a GM or the user
+who cast). Any other seat asks the GM's client through `magicCastWrite`, one
+handler whose payload's `op` is `throw` `{messageId, rowKey, targetKey | null,
+tokenUuid, instances, row}`, `targets` `{messageId, tokenUuids}` or `revert`
+`{messageId}`. Its pure checks (`checkThrowRequest`, `checkTargetsRequest`,
+`checkRevertRequest`) read the caster, rows and gate from the documents and the
+sender's ownership from the asking user, and the write takes only a throw's own
+figures. A seat asks first whether a GM is connected (`gmReachable`), since a throw
+and a revert are spent before their write is asked for, and a second press of the
+same entry on that client passes while the first is open. The refusals are in
+DECISIONS, "A cast card's Throw, Apply to my targets, Undo and Revert follow the
+caster's ownership through the GM's client".
 
 *Undo* (`entryActions`, `undoBy`) is offered to a seat that owns the target's
-actor (`"target"`) and to the card's author who owns the caster (`"apply"`), and
+actor (`"target"`) and to a seat that owns the caster (`"apply"`), and
 a GM is both: the hit points return to what they were, the records the entry made
 are deleted, lifted effects are recreated and a destroyed mark is cleared. The
 apply seat is drawn none for an entry that lifted effects, marked a weapon
@@ -1271,11 +1283,14 @@ above the rows' sections, `rolls` ride the message and `undo` is data on
 `card.procedure {kind, section, undo}`. `proceed: false` posts a card with only the
 section, with no row, record or application, and a throw posts a card with no
 section and a line saying the step did not complete. A Revert button
-(`magicCastRevert`, shown to the card's author or a GM who owns the caster, for a card with
+(`magicCastRevert`, shown to a seat that owns the caster, for a card with
 `undo` not yet reverted) calls `revert(ctx, undo)` with that data and marks
-`card.procedure.reverted`. The press runs on the seat and is never relayed:
-`runRevert` takes the seat's two answers (`ownsCaster`, `ownsCard`) and refuses
-`notOwner` unless both hold, before the procedure runs, and does not pass them on.
+`card.procedure.reverted`. The procedure's revert runs on the presser's client,
+which owns the caster it writes: `runRevert` takes the seat's answer
+(`ownsCaster`) and refuses `notOwner` unless it holds, before the procedure runs,
+and does not pass it on. The stamp is written there where the seat can edit the
+card, and by the GM's client through `magicCastWrite` `{op: "revert"}` where it
+cannot.
 
 **The Invocation band** (`apps/cast-dialog-model.mjs`, `apps/cast-dialog.mjs`,
 `templates/magic/cast-dialog.hbs`). One band between the spell and the saves, headed

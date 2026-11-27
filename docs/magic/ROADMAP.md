@@ -224,9 +224,6 @@ questions, ruled"): 2 and 4a before 1b.
 - **A card that stores an inventory answer.** A declared cast drops an item that leaves its holder; no chat card stores a bucket
   answer yet, so nothing drops one from a card. A value set by hand in a bucket is not in the stored answer, so re-reading a
   stored answer loses it.
-- **A relayed Throw, and Apply to the presser's targets.** An owner of the caster who did not cast is offered Apply and not
-  Throw: a thrown row on a card the Judge cast for a Player's character waits for the Judge (DECISIONS 2026-11-26, "A cast
-  card's Apply is an owner of the caster's, not the card's author's").
 - **Tooltips that stop short of their source.** An unaffected target row's reason is in its tooltip only; the invocation cap's
   tooltip names the ladder and the class level, and the ladder carries no page reference; the workshop research project's level
   tooltip cites the library's page for every kind; a chip under a table set by hand shows an empty citation; the save and damage
@@ -247,7 +244,6 @@ questions, ruled"): 2 and 4a before 1b.
 - **A spell on two lists reads its first list in two places.** A cast pressed under a list's heading spends that list's slot, but the tradition's procedure (`cast-procedure.mjs`) and a declaration's lost-procedure check (`cast-declare.mjs` `procedureLost`) still resolve the first of the class's lists the spell stands on. A class whose two lists are of different kinds would find the first list's procedure for a cast pressed under the second.
 - **The system's own sheet has no row gate.** The Magic tab's rows show the cast's verdict before the press; on the system's sheet a Player learns of a refused cast from the notification (`cast-gate.mjs`) or the cast window's foot.
 - **The cast window reads the system's one slot grid where no list's slot row answers.** A spell with effect rows that names no list, or whose list has no slot row at the character's level, is judged in the cast window by the system's count at its level (`castCapacity`'s `core` source), which on a class with two lists is the first list's maxima against every list's casts. The Magic tab's row and the gate claimant no longer read it (`listGate`).
-- **A card the Judge cast for a Player's character offers that Player no Revert.** Revert is offered to a seat that owns the caster and can edit the card (MODEL, "A tradition's procedure"), and a Player cannot edit a card the GM authored. Offering it would take a relay that runs the procedure's `revert` under a seat's ownership of the caster alone, or a card the Player may write; neither is built, and a procedure's revert writes under the seat's own permissions today.
 - **Three Research presses the owner has not ruled on.** Actors sidebar → a place's sheet → Research tab →
   Post days…, a Player's post on a day other than today, and the Common check stay the Judge's as built
   (DECISIONS 2026-11-25, "The spell's audit mark, the Research tab's figures and a ritual's charge item follow

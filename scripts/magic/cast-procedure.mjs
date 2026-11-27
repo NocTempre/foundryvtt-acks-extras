@@ -351,19 +351,20 @@ export async function runPerform(procedure, ctx, answer) {
 }
 
 /**
- * The revert of a performed step. Only a seat that owns the caster and can edit
- * the card reverts, only a card that carries undo data, and only once. The two
- * ownership answers are the caller's (`ownsCaster`, `ownsCard`); they gate the
- * revert here and are not handed on, so a procedure's `ctx` carries no seat.
+ * The revert of a performed step. Only a seat that owns the caster reverts, only
+ * a card that carries undo data, and only once. The ownership answer is the
+ * caller's (`ownsCaster`); it gates the revert here and is not handed on, so a
+ * procedure's `ctx` carries no seat. The revert writes the caster, never the
+ * card: stamping the card reverted is the caller's, on whichever client can.
  *
  * @param {{procedure?: {kind: string, undo: *, reverted?: boolean}}} card
- * @param {object} ctx  a procedure's ctx, with `ownsCaster` (the seat owns the caster) and `ownsCard` (the seat can edit the card)
+ * @param {object} ctx  a procedure's ctx, with `ownsCaster` (the seat owns the caster)
  * @returns {Promise<{ok: boolean, reason?: "notOwner"|"nothing"|"noRevert"|"threw"}>}
  */
 export async function runRevert(card, ctx) {
   const done = card?.procedure;
-  const { ownsCaster, ownsCard, ...rest } = ctx ?? {};
-  if (ownsCaster !== true || ownsCard !== true) return { ok: false, reason: "notOwner" };
+  const { ownsCaster, ...rest } = ctx ?? {};
+  if (ownsCaster !== true) return { ok: false, reason: "notOwner" };
   if (!done || done.undo === null || done.undo === undefined || done.reverted === true) return { ok: false, reason: "nothing" };
   const procedure = procedureOfKind(done.kind);
   if (!procedure?.revert) return { ok: false, reason: "noRevert" };

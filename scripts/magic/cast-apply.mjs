@@ -1,4 +1,4 @@
-/* global game, fromUuid, fromUuidSync, Roll */
+/* global game, ui, fromUuid, fromUuidSync, Roll */
 /**
  * Applying a cast: what one rolled amount does to one target, whichever client
  * writes it. The amount is the roll, the save's fraction, the target's defenses
@@ -77,6 +77,12 @@ export const CAST_APPLY_HANDLER = "magicCastApply";
 
 /** The undo relay's handler name on lib's socket transport. */
 export const CAST_UNDO_HANDLER = "magicCastUndo";
+
+/** The write relay's handler name on lib's socket transport: a card write a seat that cannot edit the card asks the GM's client for. */
+export const CAST_WRITE_HANDLER = "magicCastWrite";
+
+/** The ops the write relay carries, in its payload's `op`. */
+export const WRITE_OPS = Object.freeze({ throw: "throw", targets: "targets", revert: "revert" });
 
 /** The id of one entry of the card: a target's key and a row's key. */
 export const entryId = (targetKey, rowKey) => `${targetKey}_${rowKey}`;
@@ -359,8 +365,8 @@ function entryReach(entry, keyed, world) {
 
 /**
  * Check a relayed Undo before the GM's client writes anything. Pure: the world's
- * answers arrive in `world`. The seat that owns the target is let through. The
- * card's author who owns the caster is let through only for what the card's own
+ * answers arrive in `world`. The seat that owns the target is let through. A
+ * seat that owns the caster is let through only for what the card's own
  * figures bound: the entry holds no lifted effect, destroyed mark or timed life,
  * the target's hit points stand where the entry left them, and the entry's change
  * lies in the direction of its row and within that row's reach.
@@ -383,7 +389,8 @@ export function checkUndoRequest(req, world) {
   const entry = card.entries?.[entryId(req.targetKey, req.rowKey)];
   if (!undoableEntry(entry)) return { refused: "notUndoable" };
   if (world.ownsTarget === true) return { ok: true };
-  if (!(message.authorId === req.requestUserId && world.ownsCaster === true)) return { refused: "notOwner" };
+  // The sender's own ownership of the caster is the second authority, never the card's author.
+  if (world.ownsCaster !== true) return { refused: "notOwner" };
   if (entry.lifted?.length || entry.destroyed || entry.life) return { refused: "needsOwner" };
   const changes = Number.isFinite(entry.before) && Number.isFinite(entry.after) && entry.before !== entry.after;
   if (!changes) return { ok: true };
@@ -394,6 +401,105 @@ export function checkUndoRequest(req, world) {
   const heals = keyed.row.type === "heal";
   if (heals ? entry.after < entry.before : entry.after > entry.before) return { refused: "overBound" };
   if (Math.abs(entry.before - entry.after) > reach) return { refused: "overBound" };
+  return { ok: true };
+}
+
+/** The states a throw leaves an instance in: waiting, hit, or missed. Nothing a throw makes is applied. */
+const THROW_STATES = Object.freeze(["throw", "pending", "missed"]);
+
+/** An instance as an order-free string, so two copies of one throw compare equal whatever order their keys came back in. */
+const canonical = (value) => JSON.stringify(value, (_key, v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, v[k]])) : v));
+
+/** The instances an entry stores: its own, or the one throw an entry written before instances waits for. */
+function storedInstances(entry) {
+  if (Array.isArray(entry?.instances)) return entry.instances;
+  return entry?.state === "throw" ? [{ state: "throw" }] : [];
+}
+
+/**
+ * Check a relayed Throw's write before the GM's client writes the card. Pure:
+ * the world's answers arrive in `world`. The throw itself was made on the
+ * sender's client, as every owner's throw of their own is; what is checked is
+ * that the card has such a throw waiting and the write leaves everything else of
+ * the card as it was. For an existing target the stored entry must still wait
+ * (an instance in state `throw`), hold as many instances as the payload and
+ * agree with it on every instance already resolved. With no target the row must
+ * hold no allocation yet, the presser's token must resolve to an actor the row's
+ * gate does not exempt, and the payload must carry one instance for each of the
+ * row's throws.
+ *
+ * @param {object} req  `{requestUserId, messageId, rowKey, targetKey, tokenUuid, instances}`; `targetKey` is null where the card has no target for the row
+ * @param {object} world
+ * @param {{authorId: string}|null} world.message
+ * @param {object|null} world.card  the message's cast card
+ * @param {boolean} world.ownsCaster  the requesting user owns the card's caster
+ * @param {Array<{row: object, key: string}>} world.rows  the spell's rows for the card's mode and picks
+ * @param {{actor: object|null}|null} [world.token]  the token `req.tokenUuid` names, read here
+ * @param {((row: object) => {affected: boolean}|null)|null} [world.newGateOf]  the row's gate on that token's actor, recomputed here
+ * @returns {{ok: true}|{refused: "noCard"|"notOwner"|"badRow"|"badTarget"|"thrown"|"hasTarget"|"exempt"|"badCount"}}
+ */
+export function checkThrowRequest(req, world) {
+  const { card, message } = world;
+  if (!message || !card?.castId) return { refused: "noCard" };
+  if (req.requestUserId && !world.ownsCaster) return { refused: "notOwner" };
+  const keyed = world.rows?.find((r) => r.key === req.rowKey);
+  if (!keyed || !rowNeedsThrow(keyed.row) || !card.rows?.[req.rowKey]) return { refused: "badRow" };
+  const asked = Array.isArray(req.instances) ? req.instances : null;
+  if (req.targetKey) {
+    if (!card.targets?.[req.targetKey]) return { refused: "badTarget" };
+    const stored = storedInstances(card.entries?.[entryId(req.targetKey, req.rowKey)]);
+    if (!asked || !stored.some((i) => i?.state === "throw") || asked.length !== stored.length) return { refused: "thrown" };
+    const holds = stored.every((was, i) => (was?.state === "throw" ? THROW_STATES.includes(asked[i]?.state) : canonical(was) === canonical(asked[i])));
+    return holds ? { ok: true } : { refused: "thrown" };
+  }
+  if (Object.keys(card.allocation?.[req.rowKey] ?? {}).length) return { refused: "hasTarget" };
+  if (!world.token?.actor) return { refused: "badTarget" };
+  if (world.newGateOf?.(keyed.row)?.affected === false) return { refused: "exempt" };
+  const count = Math.max(1, Number(card.rows[req.rowKey].count?.value ?? 1) || 1);
+  if (!asked || asked.length !== count || asked.some((i) => !THROW_STATES.includes(i?.state))) return { refused: "badCount" };
+  return { ok: true };
+}
+
+/**
+ * Check a relayed "Apply to my targets" before the GM's client builds the card's
+ * targets. Pure. The tokens are the presser's targeted ones, read here from the
+ * uuids the payload names (targets are per client).
+ *
+ * @param {object} req  `{requestUserId, messageId, tokenUuids}`
+ * @param {object} world
+ * @param {{authorId: string}|null} world.message
+ * @param {object|null} world.card  the message's cast card
+ * @param {boolean} world.ownsCaster  the requesting user owns the card's caster
+ * @param {Array<{actor: object|null}|null>} world.tokens  what each uuid resolved to
+ * @returns {{ok: true}|{refused: "noCard"|"notOwner"|"hasTargets"|"badTarget"}}
+ */
+export function checkTargetsRequest(req, world) {
+  const { card, message } = world;
+  if (!message || !card?.castId) return { refused: "noCard" };
+  if (req.requestUserId && !world.ownsCaster) return { refused: "notOwner" };
+  if (Object.keys(card.targets ?? {}).length) return { refused: "hasTargets" };
+  if (!world.tokens?.length || world.tokens.some((t) => !t?.actor)) return { refused: "badTarget" };
+  return { ok: true };
+}
+
+/**
+ * Check a relayed Revert's stamp before the GM's client marks the card
+ * reverted. Pure. The revert itself ran on the sender's client, which owns the
+ * caster it wrote.
+ *
+ * @param {object} req  `{requestUserId, messageId}`
+ * @param {object} world
+ * @param {{authorId: string}|null} world.message
+ * @param {object|null} world.card  the message's cast card
+ * @param {boolean} world.ownsCaster  the requesting user owns the card's caster
+ * @returns {{ok: true}|{refused: "noCard"|"notOwner"|"nothing"}}
+ */
+export function checkRevertRequest(req, world) {
+  const { card, message } = world;
+  if (!message || !card?.castId) return { refused: "noCard" };
+  if (req.requestUserId && !world.ownsCaster) return { refused: "notOwner" };
+  const done = card.procedure;
+  if (!done || done.undo === null || done.undo === undefined || done.reverted === true) return { refused: "nothing" };
   return { ok: true };
 }
 
@@ -1116,6 +1222,115 @@ export async function requestUndo(message, targetKey, rowKey) {
   return answer?.ok ? { ok: true } : { ok: false, reason: answer === undefined ? "noGm" : (answer.reason ?? "noAnswer") };
 }
 
+/** One instance as a throw leaves it, only the fields a throw writes: the sender's word is never carried further than that. */
+function instanceOfThrow(i) {
+  if (i?.state === "throw") return { state: "throw" };
+  const figures = { total: Number(i?.throw?.total), target: Number(i?.throw?.target), hit: i?.throw?.hit === true, critical: i?.throw?.critical === true };
+  if (i?.state === "missed") return { state: "missed", throw: figures };
+  return { state: "pending", rolled: Number(i?.rolled), critical: i?.critical === true, throw: figures };
+}
+
+/** The damage figures a throw adds to the card's row: the three it writes, of the type it writes them as. */
+function rowOfThrow(row) {
+  const out = {};
+  if (typeof row?.formula === "string") out.formula = row.formula;
+  if (Number.isFinite(row?.total)) out.total = row.total;
+  if (typeof row?.detail === "string") out.detail = row.detail;
+  return out;
+}
+
+/**
+ * The write relay's Throw, on the GM's client: check, then write what the
+ * throw left. The caster, the row and the gate come from the documents, and the
+ * sender's word is only the throw's instances and the damage roll it made. An
+ * existing target keeps every instance already resolved as the card holds it.
+ */
+async function writeThrow(payload, message) {
+  const world = await worldFor(payload, message);
+  const doc = !payload.targetKey && typeof payload.tokenUuid === "string" ? await fromUuid(payload.tokenUuid) : null;
+  const token = doc?.documentName === "Token" ? doc : null;
+  const verdict = checkThrowRequest(payload, { ...world, token, newGateOf: token?.actor ? (row) => world.inputs.gate(token.actor, row) : null });
+  if (verdict.refused) return { ok: false, reason: verdict.refused };
+  const stored = payload.targetKey ? storedInstances(world.card.entries?.[entryId(payload.targetKey, payload.rowKey)]) : [];
+  const instances = payload.instances.map((i, n) => (stored[n] && stored[n].state !== "throw" ? stored[n] : instanceOfThrow(i)));
+  const { writeThrown } = await import("./cast-spell.mjs");
+  const wrote = await writeThrown(message, { targetKey: payload.targetKey || null, rowKey: payload.rowKey, token, instances, row: rowOfThrow(payload.row) });
+  return { ok: true, targetKey: wrote.targetKey };
+}
+
+/** The write relay's "Apply to my targets", on the GM's client: check, then build the card's targets from the presser's tokens and apply what is pending. */
+async function writeTargets(payload, message) {
+  const world = await worldFor(payload, message);
+  const uuids = Array.isArray(payload.tokenUuids) ? payload.tokenUuids : [];
+  const tokens = await Promise.all(uuids.map(async (uuid) => {
+    const doc = typeof uuid === "string" ? await fromUuid(uuid) : null;
+    return doc?.documentName === "Token" ? doc : null;
+  }));
+  const verdict = checkTargetsRequest(payload, { ...world, tokens });
+  if (verdict.refused) return { ok: false, reason: verdict.refused };
+  const { applyTargetsFrom } = await import("./cast-spell.mjs");
+  return applyTargetsFrom(message, tokens);
+}
+
+/** The write relay's Revert stamp, on the GM's client: check, then mark the card reverted. */
+async function writeRevert(payload, message) {
+  const world = await worldFor(payload, message);
+  const verdict = checkRevertRequest(payload, world);
+  if (verdict.refused) return { ok: false, reason: verdict.refused };
+  const { markReverted } = await import("./cast-card.mjs");
+  await markReverted(message);
+  return { ok: true };
+}
+
+const WRITERS = { [WRITE_OPS.throw]: writeThrow, [WRITE_OPS.targets]: writeTargets, [WRITE_OPS.revert]: writeRevert };
+
+/**
+ * The write relay's handler, on the GM's client: the card writes a seat that
+ * owns the caster but cannot edit the card asks for (`WRITE_OPS`). The op's
+ * claim is taken before anything is read, so a second request for the same
+ * entry, or the same card, passes while the first is under way. Answers `{ok}`
+ * or `{ok: false, reason}`; a throw's answer carries the entry's `targetKey`.
+ * @param {object} payload  `{requestUserId, op, messageId, ...the op's fields}`
+ */
+export async function magicCastWrite(payload = {}) {
+  const writer = Object.hasOwn(WRITERS, payload.op) ? WRITERS[payload.op] : null;
+  if (!writer) return { ok: false, reason: "badOp" };
+  const key = payload.op === WRITE_OPS.throw ? `throw:${payload.messageId}:${payload.targetKey ? entryId(payload.targetKey, payload.rowKey) : payload.rowKey}` : `${payload.op}:${payload.messageId}`;
+  if (inFlight.has(key)) return { ok: false, reason: "inFlight" };
+  inFlight.add(key);
+  try {
+    return await writer(payload, game.messages.get(payload.messageId));
+  } finally {
+    inFlight.delete(key);
+  }
+}
+
+/**
+ * Is a GM connected to take this seat's card write? True for a GM. With none, the
+ * transport's own notice says so and the answer is false, so a press asks before
+ * it spends a throw or a revert whose write could not follow.
+ */
+export function gmReachable() {
+  if (game.user.isGM || game.users.activeGM) return true;
+  ui.notifications?.warn(game.i18n.localize("ACKS-LIB.socket.noGm"));
+  return false;
+}
+
+/**
+ * Ask the GM's client for one card write. Answers the handler's `{ok, ...}`, or
+ * `{ok: false, reason}` where it refused, nobody answered (`noAnswer`) or none is
+ * connected (`noGm`).
+ * @param {string} op  one of `WRITE_OPS`
+ * @param {object} message  the cast card's chat message
+ * @param {object} [fields]  the op's payload
+ */
+export async function requestWrite(op, message, fields = {}) {
+  const { executeAsGM } = await import("../lib/sockets.mjs");
+  const answer = await executeAsGM(CAST_WRITE_HANDLER, { op, messageId: message.id, ...fields });
+  if (answer?.ok) return answer;
+  return { ok: false, reason: answer === undefined ? "noGm" : (answer.reason ?? "noAnswer") };
+}
+
 let registered = false;
 
 /** Register the relay's handlers on lib's socket transport. Once, at `init`. */
@@ -1125,4 +1340,5 @@ export async function registerCastRelay() {
   const { registerHandler } = await import("../lib/sockets.mjs");
   registerHandler(CAST_APPLY_HANDLER, magicCastRelay);
   registerHandler(CAST_UNDO_HANDLER, magicCastUndo);
+  registerHandler(CAST_WRITE_HANDLER, magicCastWrite);
 }

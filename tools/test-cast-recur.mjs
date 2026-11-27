@@ -167,7 +167,8 @@ t("a Roll row of a bearer is the caster's; a pressed entry offers Undo to the be
   const done = { ...model, entries: { tk1_sear: { state: "applied", applied: 3, rolled: 3, recordIds: [] } } };
   assert.deepEqual(labels(lines(castCardView(done, { ...seat, isGM: true, canPress: true }, loc))), ["magicCastUndo"]);
   assert.deepEqual(labels(lines(castCardView(done, seat, loc))), ["magicCastUndo"], "the bearer's owner, whatever the role and whoever authored the prompt");
-  assert.deepEqual(labels(lines(castCardView(done, { ...seat, ownsTarget: () => false }, loc))), [], "the caster's owner who did not author the prompt and owns no bearer");
+  assert.deepEqual(labels(lines(castCardView(done, { ...seat, ownsTarget: () => false }, loc))), ["magicCastUndo"], "the caster's owner who did not author the prompt and owns no bearer");
+  assert.deepEqual(labels(lines(castCardView(done, { ...seat, ownsTarget: () => false, ownsCaster: false }, loc))), [], "a seat that owns neither");
   assert.deepEqual(labels(lines(castCardView(done, { ...seat, ownsTarget: () => false, canPress: true }, loc))), ["magicCastUndo"], "the author who owns the caster, for a bearer it does not own");
   assert.deepEqual(labels(lines(castCardView(done, { isGM: true, canPress: true, ownsTarget: () => false, ownsCaster: false }, loc))), [], "a role alone is no owner");
 });

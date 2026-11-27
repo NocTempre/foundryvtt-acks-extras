@@ -973,13 +973,54 @@ R1. **A registered procedure's Revert, for the author who owns the caster.** A
    casts a spell of that tradition. *Observable:* the card carries
    `procedure.undo`, the Player's rendering draws Revert, and pressing it calls
    the procedure's `revert` once with the card's data, the recorded `ctx`
-   holding no `isGM`, `ownsCaster` or `ownsCard`, and the card reads `reverted`;
+   holding no `isGM` or `ownsCaster`, and the card reads `reverted`;
    Revert is then no longer drawn.
-R2. **A GM-cast card for the Player's character offers no Revert.** The GM's seat
+R2. **A Revert on a GM-cast card for the Player's character.** The GM's seat
    casts the same spell as that character. *Observable:* the Player's rendering
-   draws no Revert; the card's `magicCastRevert` action driven from the Player's
-   seat answers `notOwner` and the procedure's `revert` is not called; the
-   Judge's rendering draws Revert.
+   draws Revert; pressing it calls the procedure's `revert` once on the Player's
+   client and the card reads `reverted`, stamped by the GM's client through
+   `magicCastWrite`. A seat that owns neither the caster nor the target draws no
+   Revert, and a `magicCastWrite` `{op: "revert"}` request sent from it answers
+   `notOwner`.
+
+### The relayed card writes (Throw, Apply to my targets, Undo, Revert)
+
+A card the Judge's seat authored, cast as a character the Player seat owns. Fixtures
+(markers `magic/relay-class`, `magic/relay-caster`, `magic/relay-bolt`,
+`magic/relay-burst`, `magic/relay-scene`, `magic/relay-foe`): a character the Player
+owns, shaped by the kit's `shapeCaster` on that class, carrying two spells written by
+`writeSpell` (one thrown damage row; one damage row with no delivery), and a monster
+the Player does not own, both placed as tokens on the scene for the run (the tokens
+are tracked and swept). The Player's throw answers core's attack-throw dialog
+(`.attack-throw-dialog`, its submit button), and the dice rig on the Player seat makes
+it a hit. The Judge's seat casts the spell as the character with no target and again with
+the monster targeted (two cards, found by cast id). A third seat owning neither is
+needed for W5.
+
+W1. **Throw on a card with a target.** The Player presses Throw on the monster's
+   entry. *Observable:* the throw dialog opens on the Player's seat; once it is
+   answered the roll posts as the Player's message in the Player's roll mode, the
+   entry reads its instances resolved, written by the Judge's client (the entry is
+   not written from the Player's client), and a hit entry is applied.
+W2. **Throw and Apply to my targets on the card with no target.** On the first card
+   the Player targets the monster and presses the row-level Throw, then, on a card
+   with a non-throw row, Apply to my targets. *Observable:* the card gains the
+   monster as a target with its allocation and entry, and the pending entries apply
+   with no Judge's seat pressing.
+W3. **Undo from the apply seat.** The Player presses Undo on an applied hit point
+   entry within reach. *Observable:* the monster's hit points return, the press
+   relays and the entry is no longer applied. After the Judge's seat lowers the
+   monster's hit points, the same press is kept (`undoKept`).
+W4. **Revert on a card with a procedure.** As R2.
+W5. **A seat that owns neither is drawn none.** *Observable:* no Throw, Apply to my
+   targets, Undo or Revert is drawn on the third seat's rendering, and a
+   `magicCastWrite` request sent from it for each op answers `notOwner` and writes
+   nothing.
+W6. **A second press passes.** The Player presses Throw on an entry and, with the
+   dialog still open, presses it again. *Observable:* one dialog.
+   With no GM connected a press does not spend the throw: the transport's notice
+   shows and the entry still waits. Cleanup: every card the steps made is swept by
+   the run's ledger.
 
 ### The declaration steps
 

@@ -60,7 +60,7 @@ import { heldRecordData, endCasterHeld } from "./cast-held.mjs";
 import { liveDeclare, answerFromPending, ANSWER_FIELDS } from "./cast-declare.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { describeSpellEffect } from "./describe.mjs";
-import { requestApply, requestUndo, registerCastRelay, entryId } from "./cast-apply.mjs";
+import { requestApply, requestUndo, requestWrite, gmReachable, WRITE_OPS, registerCastRelay, entryId } from "./cast-apply.mjs";
 import { cardOf, postCastCard, updateEntry, addTargets, newTargetKey, registerCastCardHooks, CARD_ACTIONS, canPressCard, canWriteCard, markReverted } from "./cast-card.mjs";
 import { isModRow, modParts, needsBearer, dryYields, modifierFigure, ownSaveRows, spellSaveParts, saveModifierOf, ROW_ON } from "./cast-mods.mjs";
 import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
@@ -1310,17 +1310,73 @@ async function pressApply(message, { target, row }) {
   }
 }
 
-/** Apply with no target on the card: the presser's targets take the rolled rows. */
-async function pressApplyTargets(message) {
-  const card = cardOf(message);
-  const tokens = [...(game.user.targets ?? [])].map((t) => t.document ?? t).filter((t) => t?.actor);
-  // The press writes the card's targets and entries itself, so it is the card's writer's.
-  if (!canWriteCard(message) || !tokens.length) {
-    ui.notifications?.warn(loc("notice.noTargets"));
-    return;
+/** Presses under way on this client, by message and what each acts on: a second press of the same thing passes while the first is open. */
+const pressing = new Set();
+
+/** Run `fn` as the one press of `key` on this client; a press that finds it taken does nothing. */
+async function once(key, fn) {
+  if (pressing.has(key)) return undefined;
+  pressing.add(key);
+  try {
+    return await fn();
+  } finally {
+    pressing.delete(key);
   }
+}
+
+/**
+ * Tell the presser why the GM's client did not write the card, by the reason it
+ * answered. A missing GM was told by the transport, and a press already under way
+ * needs no word. `revert` words an ownership refusal as a Revert's.
+ */
+function tellWrite(result, { name = "", revert = false } = {}) {
+  const reason = result?.reason;
+  if (reason === "noGm" || reason === "inFlight") return;
+  const key = reason === "notOwner" ? (revert ? "notice.revert.notOwner" : "notice.writeNotOwner") : reason === "badTarget" ? "notice.noTargets" : reason === "exempt" ? "notice.exempt" : reason === "nothing" ? "notice.revert.nothing" : "notice.writeStale";
+  ui.notifications?.warn(loc(key, { name }));
+}
+
+/**
+ * Write a throw's result to the card: a target the card did not have yet is added
+ * with the row's throws allocated to it, and the entry and the card row's figures
+ * follow. Run on the client that can edit the card, for its own throw or, from the
+ * write relay, for a seat's.
+ *
+ * @param {object} message  the cast card's chat message
+ * @param {object} o
+ * @param {string|null} [o.targetKey]  the card's target, or null to add the token as a new one
+ * @param {string} o.rowKey
+ * @param {object} o.token  the token a new target is made from
+ * @param {object[]} o.instances  the instances as the throws left them
+ * @param {object} [o.row]  the damage roll's figures to merge into the card's row
+ * @returns {Promise<{targetKey: string, entry: object}>}
+ */
+export async function writeThrown(message, { targetKey = null, rowKey, token, instances, row = {} }) {
+  const key = targetKey || newTargetKey();
+  if (!targetKey) {
+    await addTargets(message, { [key]: { ...targetOf(token), resist: null } }, {});
+    await message.update({ [`flags.${MODULE_ID}.castCard.allocation.${rowKey}.${key}`]: instances.length });
+  }
+  const entry = { state: instancesState(instances), instances };
+  await updateEntry(message, entryId(key, rowKey), entry);
+  if (Object.keys(row).length) await message.update({ [`flags.${MODULE_ID}.castCard.rows.${rowKey}`]: { ...cardOf(message).rows[rowKey], ...row } });
+  return { targetKey: key, entry };
+}
+
+/**
+ * Build a card's targets from the given tokens and apply what is pending on them.
+ * Run on the client that can edit the card: the card's own, or the GM's for a seat
+ * that owns the caster (`magicCastWrite`), with the presser's tokens as the
+ * argument since targets are per client.
+ *
+ * @param {object} message  the cast card's chat message
+ * @param {object[]} tokens  token documents with an actor
+ * @returns {Promise<{ok: boolean, reason?: string}>}
+ */
+export async function applyTargetsFrom(message, tokens) {
+  const card = cardOf(message);
   const { spell, caster } = rowOfCard(card, "");
-  if (!spell || !caster) return;
+  if (!spell || !caster) return { ok: false, reason: "noCard" };
   const kept = rowsForMode(rowsOf(spell, worldLookups()).rows, card.mode, card.picks, castAt(card));
   const built = await buildTargets({ tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: actorToken(caster), extras: castGateExtrasOf(spell, worldLookups(), castAt(card)), saveParts: [...castSaveParts(castAbilitiesOf(caster, spell, worldLookups())), ...spellSaveParts(flagOf(spell).save, { level: card.casterLevel?.value ?? null, applied: card.saveMod === true, label: card.spellName })] });
   await addTargets(message, built.targets, built.entries);
@@ -1329,20 +1385,45 @@ async function pressApplyTargets(message) {
     const requests = pendingRequests(fresh, targetKey);
     if (requests.length) await requestApply(message, targetKey, requests);
   }
+  return { ok: true };
+}
+
+/**
+ * Apply with no target on the card: the presser's targets take the rolled rows.
+ * The card is built here where this seat can edit it, and by the GM's client
+ * (`magicCastWrite`) where it cannot, from the uuids of the presser's tokens.
+ */
+async function pressApplyTargets(message) {
+  const tokens = [...(game.user.targets ?? [])].map((t) => t.document ?? t).filter((t) => t?.actor);
+  if (!tokens.length) {
+    ui.notifications?.warn(loc("notice.noTargets"));
+    return;
+  }
+  if (!canPressCard(message)) return;
+  await once(`targets:${message.id}`, async () => {
+    if (canWriteCard(message)) {
+      await applyTargetsFrom(message, tokens);
+      return;
+    }
+    if (!gmReachable()) return;
+    const answer = await requestWrite(WRITE_OPS.targets, message, { tokenUuids: tokens.map((t) => t.uuid) });
+    if (!answer.ok) tellWrite(answer);
+  });
 }
 
 /**
  * A Throw press: the instances still waiting at the target are thrown, each at
  * that one token, and the hits apply once none waits. With no target on the card
  * the presser's first target takes all the row's throws, and the card keeps that
- * split.
+ * split. The throw is made here, on the seat of an owner of the caster, and its
+ * result is written here where this seat can edit the card and by the GM's client
+ * (`magicCastWrite`) where it cannot.
  */
 async function pressThrow(message, { target, row }) {
   const card = cardOf(message);
   const { spell, caster, keyed } = rowOfCard(card, row);
   const token = target ? fromUuidSync(card.targets[target]?.uuid) : ([...(game.user.targets ?? [])][0]?.document ?? null);
-  // The throw's result is written to the card from this seat, so it is the card's writer's.
-  if (!canWriteCard(message) || !spell || !caster?.isOwner || !keyed || !token?.actor) {
+  if (!spell || !caster?.isOwner || !keyed || !token?.actor) {
     ui.notifications?.warn(loc("notice.noTargets"));
     return;
   }
@@ -1351,18 +1432,29 @@ async function pressThrow(message, { target, row }) {
     ui.notifications?.warn(loc("notice.exempt", { name: token.name ?? token.actor.name }));
     return;
   }
-  const targetKey = target || newTargetKey();
-  const held = target ? card.entries?.[entryId(target, row)] : null;
-  // An entry from before instances held one throw waiting; a row with no target yet takes all its throws at the presser's token.
-  const instances = Array.isArray(held?.instances) ? held.instances : waitingInstances(held ? 1 : (card.rows[row]?.count?.value ?? 1));
-  const made = await throwEntry({ caster, spell, card, keyed, deps: liveDeps(), skipDialog: false, token, instances });
-  if (!target) {
-    await addTargets(message, { [targetKey]: { ...targetOf(token), resist: null } }, {});
-    await message.update({ [`flags.${MODULE_ID}.castCard.allocation.${row}.${targetKey}`]: instances.length });
-  }
-  await updateEntry(message, entryId(targetKey, row), made.entry);
-  if (Object.keys(made.row).length) await message.update({ [`flags.${MODULE_ID}.castCard.rows.${row}`]: { ...card.rows[row], ...made.row } });
-  if (made.entry.state === "pending") await requestApply(message, targetKey, [requestOf(row, made.entry, card)]);
+  const writes = canWriteCard(message);
+  await once(`throw:${message.id}:${target ? entryId(target, row) : row}`, async () => {
+    // The throw is spent before its write is asked for, so a seat that cannot write the card asks first whether a GM is there to.
+    if (!writes && !gmReachable()) return;
+    const held = target ? card.entries?.[entryId(target, row)] : null;
+    // An entry from before instances held one throw waiting; a row with no target yet takes all its throws at the presser's token.
+    const instances = Array.isArray(held?.instances) ? held.instances : waitingInstances(held ? 1 : (card.rows[row]?.count?.value ?? 1));
+    const made = await throwEntry({ caster, spell, card, keyed, deps: liveDeps(), skipDialog: false, token, instances });
+    let targetKey = target;
+    if (writes) {
+      targetKey = (await writeThrown(message, { targetKey: target || null, rowKey: row, token, instances: made.entry.instances, row: made.row })).targetKey;
+    } else {
+      const answer = await requestWrite(WRITE_OPS.throw, message, { rowKey: row, targetKey: target || null, ...(target ? {} : { tokenUuid: token.uuid }), instances: made.entry.instances, row: made.row });
+      if (!answer.ok) {
+        tellWrite(answer, { name: token.name ?? token.actor.name });
+        return;
+      }
+      targetKey = answer.targetKey;
+      // The GM's write reaches this client as an update of the message, and the apply reads the target from it.
+      for (let n = 0; n < 20 && !cardOf(message)?.targets?.[targetKey]; n++) await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    if (made.entry.state === "pending") await requestApply(message, targetKey, [requestOf(row, made.entry, card)]);
+  });
 }
 
 /**
@@ -1380,22 +1472,39 @@ async function pressUndo(message, { target, row }) {
   ui.notifications?.warn(loc(kept ? "notice.undoKept" : "notice.undoRefused", { name }));
 }
 
-/** A Revert press, for a seat that owns the caster and can edit the card. The tradition's procedure puts back what its performed step did, once. */
+/**
+ * A Revert press, for a seat that owns the caster. The tradition's procedure puts
+ * back what its performed step did, once, here on the caster's owner's client; the
+ * card is then stamped here where this seat can edit it and by the GM's client
+ * (`magicCastWrite`) where it cannot.
+ */
 async function pressRevert(message) {
   const card = cardOf(message);
   const actor = fromUuidSync(card?.casterUuid);
-  const done = await runRevert(card, {
-    actor,
-    spell: fromUuidSync(card?.spellUuid),
-    ownsCaster: actor?.isOwner === true,
-    ownsCard: message.isOwner === true,
-    kind: card?.procedure?.kind,
-    castId: card?.castId,
-    now: () => game.time.worldTime,
-    roll: (formula) => new Roll(formula).evaluateSync().total,
+  const writes = canWriteCard(message);
+  await once(`revert:${message.id}`, async () => {
+    // The revert is spent before its stamp is asked for, so a seat that cannot stamp the card asks first whether a GM is there to.
+    if (!writes && !gmReachable()) return;
+    const done = await runRevert(card, {
+      actor,
+      spell: fromUuidSync(card?.spellUuid),
+      ownsCaster: actor?.isOwner === true,
+      kind: card?.procedure?.kind,
+      castId: card?.castId,
+      now: () => game.time.worldTime,
+      roll: (formula) => new Roll(formula).evaluateSync().total,
+    });
+    if (!done.ok) {
+      ui.notifications?.warn(loc(`notice.revert.${done.reason}`));
+      return;
+    }
+    if (writes) {
+      await markReverted(message);
+      return;
+    }
+    const answer = await requestWrite(WRITE_OPS.revert, message);
+    if (!answer.ok) tellWrite(answer, { revert: true });
   });
-  if (done.ok) await markReverted(message);
-  else ui.notifications?.warn(loc(`notice.revert.${done.reason}`));
 }
 
 let unregister = null;

@@ -366,7 +366,7 @@ t("the card says how many throws hit, tells each in the tooltip, and names a cou
   assert.match(line.tooltipText, /detail\.throw\|\{"total":4,"target":10\}/);
   assert.match(line.tooltipText, /tip\.appliedTotal\|\{"applied":8\}/);
   assert.match(view.sections[0].titleTooltip, /tip\.instances\|.*"count":3/);
-  const waiting = castCardView({ ...card, entries: { t1_bolt: { state: "throw", instances: [{ state: "throw" }] } } }, { isGM: false, canPress: true }, loc);
+  const waiting = castCardView({ ...card, entries: { t1_bolt: { state: "throw", instances: [{ state: "throw" }] } } }, { isGM: false, canPress: true, ownsCaster: true }, loc);
   assert.deepEqual(waiting.sections[0].rows[0].actions.map((a) => a.action), ["magicCastThrow"]);
   const blank = castCardView({ ...card, targets: {}, entries: {}, rows: { bolt: { type: "damage", key: "bolt", delivery: "missile", total: null, blank: true, count: instanceCount({ unread: ["value"] }, 3), types: [] } } }, { isGM: false, canPress: true }, loc);
   assert.deepEqual(blank.sections[0].rows[0].actions, [], "no count, no throw to press");
