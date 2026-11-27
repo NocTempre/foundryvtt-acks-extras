@@ -9,6 +9,10 @@
  *                         legal RAW end-state, with a warning.
  *   veto              — cancel the equip in preUpdate with an explanatory notice.
  *   advisory          — never block or change; just flag the illegal loadout.
+ *
+ * None of the modes acts on a hand overflow of an actor whose hands an import
+ * holds (`handsHeld`, hands-settle.mjs): the import settles the hands once
+ * instead. Every other violation is enforced as usual meanwhile.
  */
 import { MODULE_ID, SETTINGS, ENFORCE, HOOKS } from "./constants.mjs";
 import { getLoadout, VIOLATION, heldHandsClause } from "./loadout.mjs";
@@ -20,6 +24,7 @@ import { isPrimaryGM } from "../lib/util.mjs";
 import { isLeadClient } from "../lib/automation-client.mjs";
 import { divertsEquip, takeOneToEquip, holdsWrite, afterTurn, holdWhile } from "./item-sheet/stack.mjs";
 import { unstowOnUse } from "./containers.mjs";
+import { handsHeld } from "./hands-settle.mjs";
 
 /**
  * Is this an equip-state change on a wearable item of a character?
@@ -57,9 +62,14 @@ export function primaryResponder(actor) {
  */
 export const managesLoadout = (actor) => actor?.type === ACTOR_TYPE.character;
 
-/** Blocking (non-advisory) violations of a loadout. */
-function blockingViolations(loadout) {
-  return loadout.violations.filter((v) => !v.advisory);
+/**
+ * Blocking (non-advisory) violations of a loadout. A hand overflow is left out
+ * while an import holds the actor's hands: that import settles them once, after
+ * its last placement.
+ */
+function blockingViolations(loadout, actor = null) {
+  const held = handsHeld(actor);
+  return loadout.violations.filter((v) => !v.advisory && !(held && v.type === VIOLATION.HAND_OVERFLOW));
 }
 
 function violationMessage(v) {
@@ -87,7 +97,7 @@ export function onPreUpdateItem(item, changes) {
 
   const overrides = new Map([[item.id, true]]);
   const loadout = getLoadout(item.parent, { overrides });
-  const blocking = blockingViolations(loadout);
+  const blocking = blockingViolations(loadout, item.parent);
   if (!blocking.length) return true;
 
   const reason = blocking.map(violationMessage).join(" ");
@@ -155,7 +165,9 @@ export async function onUpdateItem(item, changes) {
   return queueSync(actor, async () => {
     await rowsSettled();
     const loadout = getLoadout(actor);
-    const blocking = blockingViolations(loadout);
+    // The hold is read on the responder's own copy of the actor: the flag is
+    // stored, so it arrives here ahead of the placements it holds.
+    const blocking = blockingViolations(loadout, actor);
 
     if (blocking.length && mode() === ENFORCE.RESOLVE) {
       await autoResolve(actor, loadout, blocking);

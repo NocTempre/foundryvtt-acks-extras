@@ -724,6 +724,12 @@ what was added, what to check and what was not found.
   character's container whose name carries that word; with none, the item
   stays loose and is a check. Hidden gear lands and is named in the notes.
   A stack whose count differs from the sheet's is a check, never changed.
+  The placements run with the character's hands held and are settled once
+  after the last (`docs/equipment/MODEL.md`, "An import holds the hands"), so
+  no placement raises a hand-overflow notice. When the settle carried
+  anything, `report.hands` is `{used, budget, carried}` (carried items labelled
+  `Name ×count`), and the window shows it as a *Hands* section after the
+  counts line (`handsText` in `app.mjs`, `pdf.hbs`).
 - **Coin** is credited only up to each box's count (`creditCoin`), copied
   from the character's own coin of that metal, else the world's coin named
   for it. A box with neither is *not found*: no coin is built from a rate. A

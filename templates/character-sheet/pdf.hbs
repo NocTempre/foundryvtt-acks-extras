@@ -40,6 +40,12 @@
     </h3>
     <p class="acks-extras-sheetpdf-hint">{{report.counts}}</p>
 
+    {{#if report.handsText}}
+    <h4>{{localize "ACKS-CHARACTER.pdf.report.hands"}}</h4>
+    <p>{{report.handsText}}</p>
+    <p class="acks-extras-sheetpdf-hint">{{localize "ACKS-CHARACTER.pdf.report.handsHint"}}</p>
+    {{/if}}
+
     {{#if report.checks.length}}
     <h4>{{localize "ACKS-CHARACTER.pdf.report.checks"}}</h4>
     <p class="acks-extras-sheetpdf-hint">{{localize "ACKS-CHARACTER.pdf.report.checksHint"}}</p>

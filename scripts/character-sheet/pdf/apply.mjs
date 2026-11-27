@@ -32,6 +32,7 @@ import { rankedCopies } from "../../classes/grants.mjs";
 import { ensureLanguage } from "../../classes/languages.mjs";
 import { buildGearData } from "../../classes/template-packages.mjs";
 import { HAND_PLACES, placeItem } from "../../equipment/placement.mjs";
+import { handsLabel, holdHands, settleHands } from "../../equipment/hands-settle.mjs";
 import { wearLocation } from "../../equipment/wear.mjs";
 import { containedIn, isContainer, storeIn } from "../../equipment/containers.mjs";
 import { isInUse, isStackable } from "../../lib/storage-logic.mjs";
@@ -88,10 +89,12 @@ export function fieldLabel(key) {
  * still be written over the class's, by the reader's choice, and `effect`
  * where an Active Effect holds the value and writing it would double it.
  * `domain` says where the domain page went: `{outcome, name, uuid}`, null for
- * a sheet whose page is blank.
+ * a sheet whose page is blank. `hands` is `{used, budget, carried}` when the
+ * gear's placements asked for more hands than the character has and some were
+ * carried instead (`landGear`), null otherwise.
  */
 function newReport(actor) {
-  return { actor, created: false, written: [], checks: [], unmatched: [], notes: [], henchmen: [], granted: [], domain: null };
+  return { actor, created: false, written: [], checks: [], unmatched: [], notes: [], henchmen: [], granted: [], domain: null, hands: null };
 }
 
 /* -------------------------------------------- */
@@ -218,12 +221,18 @@ function unitFor(actor, item, used, there) {
  * so each line reads the rows only once the actor's queued divides and folds
  * have landed (`oneAtATime`).
  * A name carried as separate copies places each line's own row.
+ * While the lines are put on the body the actor's hands are held and then
+ * settled once (`hands-settle.mjs`): where they overflow, the sheet's placements
+ * are kept in the sheet's order, first fit, then what was held before the
+ * import, and the rest is carried. `report.hands` says so
+ * (`{used, budget, carried}`); an import raises no notification of its own.
  *
  * @param {Actor} actor
  * @param {{name: string, qty: number, place: string}[]} gear the sheet's gear lines
  * @param {object} report the import report the checks and notes are appended to
  * @param {object} [deps] stand-ins for the writes (`placeItem`, `storeIn`,
- *   `deliverItems`, `buildGearData`, `wearLocation`, `settle`), for the unit suite
+ *   `deliverItems`, `buildGearData`, `wearLocation`, `settle`, `holdHands`,
+ *   `settleHands`, plus `settleHands`'s own `loadoutOf`), for the unit suite
  */
 export async function landGear(actor, gear, report, deps = {}) {
   const place = deps.placeItem ?? placeItem;
@@ -248,23 +257,37 @@ export async function landGear(actor, gear, report, deps = {}) {
     if (item) placed.push({ line, item });
   }
   // Everything is put on the body before anything is packed, so a backpack
-  // on the back is there to take the backpack's list.
-  for (const { line, item: answered } of placed) {
-    const slot = line.place === "worn" ? (wearableSlots(answered)[0] ?? PLACE_SLOT.worn) : PLACE_SLOT[line.place];
-    if (!slot) continue;
-    // A weapon is drawn only into a hand; one listed elsewhere stays carried.
-    if (answered.type === ITEM_TYPE.weapon && !HAND_PLACES.includes(slot)) continue;
-    await settle(actor);
-    const item = unitFor(actor, answered, used, (row) => wearAt(actor, row) === slot);
-    if (!item) {
-      report.checks.push({ label: answered.name, sheet: loc(`pdf.place.${line.place}`), inForce: loc("pdf.check.notWorn") });
-      continue;
+  // on the back is there to take the backpack's list. The actor's hands are
+  // held while it is (`holdHands`), and settled once after the last placement:
+  // a placement that stays in hand and one carried instead are decided together
+  // (`settleHands`), never by the overflow each placement alone would cause. The
+  // sheet's order is recorded before the already-there test, so a re-import
+  // ranks the placements it did not need to write the same as it did the first time.
+  const sheetPlaced = [];
+  const putOnBody = async () => {
+    for (const { line, item: answered } of placed) {
+      const slot = line.place === "worn" ? (wearableSlots(answered)[0] ?? PLACE_SLOT.worn) : PLACE_SLOT[line.place];
+      if (!slot) continue;
+      // A weapon is drawn only into a hand; one listed elsewhere stays carried.
+      if (answered.type === ITEM_TYPE.weapon && !HAND_PLACES.includes(slot)) continue;
+      await settle(actor);
+      const item = unitFor(actor, answered, used, (row) => wearAt(actor, row) === slot);
+      if (!item) {
+        report.checks.push({ label: answered.name, sheet: loc(`pdf.place.${line.place}`), inForce: loc("pdf.check.notWorn") });
+        continue;
+      }
+      used.add(item.id);
+      sheetPlaced.push({ item, label: handsLabel(item.name, line.qty) });
+      // Already there: a wear that writes nothing answers false, which is not a refusal.
+      if (wearAt(actor, item) === slot) continue;
+      if (!(await place(actor, item, slot))) report.checks.push({ label: item.name, sheet: loc(`pdf.place.${line.place}`), inForce: loc("pdf.check.notWorn") });
     }
-    used.add(item.id);
-    // Already there: a wear that writes nothing answers false, which is not a refusal.
-    if (wearAt(actor, item) === slot) continue;
-    if (!(await place(actor, item, slot))) report.checks.push({ label: item.name, sheet: loc(`pdf.place.${line.place}`), inForce: loc("pdf.check.notWorn") });
-  }
+    await settle(actor);
+    const hands = await (deps.settleHands ?? settleHands)(actor, sheetPlaced, deps);
+    if (hands) report.hands = hands;
+  };
+  // A sheet that puts nothing at a place needs no hold, and a henchman's loose gear writes nothing here.
+  if (placed.some(({ line }) => PLACE_SLOT[line.place])) await (deps.holdHands ?? holdHands)(actor, putOnBody);
   for (const { line, item: answered } of placed) {
     if (!PLACE_CONTAINER[line.place]) continue;
     const box = containerFor(actor, line.place);
@@ -700,7 +723,7 @@ async function landDomain(character, plan, report, { writeDomain, previous }) {
  *   false leaves all three to the caller, which reads the notes rows off `report.noted`
  * @param {boolean} [options.fixedAwards] with a class bound, also grant the class's fixed awards at
  *   the held level, after the sheet's own abilities so none the sheet names is doubled
- * @returns {Promise<object>} the report: `{actor, created, written, checks, unmatched, notes, henchmen, granted, domain}`,
+ * @returns {Promise<object>} the report: `{actor, created, written, checks, unmatched, notes, henchmen, granted, domain, hands}`,
  *   with `noted` (the notes rows besides the unmatched) when `record` is false
  */
 export async function importSheet({ actor = null, values, createHenchmen = false, writeDomain = true, unattended = false, record = true, fixedAwards = false } = {}) {

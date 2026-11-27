@@ -144,6 +144,7 @@ export const ACTOR_FLAGS = Object.freeze({
   WEAPON_PROF: "weaponProficiency", // "all" | CSV of categories/weapon keys the actor is proficient with
   ARMOR_MAX: "armorMax", // highest armour category the actor is proficient in (default heavy)
   UNARMED_DIE: "unarmedDie", // the one NdM die this character's Unarmed Strike rolls, written by its owner from the strike's prompt
+  HANDS_SETTLING: "handsSettling", // true while an import places gear; hand enforcement stands aside until it settles the hands once (hands-settle.mjs)
 });
 
 /** World/client settings keys. */

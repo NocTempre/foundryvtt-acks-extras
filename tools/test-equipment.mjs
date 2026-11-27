@@ -4456,3 +4456,140 @@ console.log("test-equipment: OK (mounted economy, vehicle mirror, save triggers,
   globalThis.acksExtras.formation = priorFormation;
   console.log("test-equipment: OK (a light burns in the hand that holds it; the kit is listed at the hands)");
 }
+
+// An import holds the actor's hands: enforcement stands aside while it places gear, then the hands are settled once.
+{
+  const { onPreUpdateItem, onUpdateItem } = await import(new URL("enforce.mjs", S));
+  const { settleHands, holdHands, handsHeld, handsLabel, clearStrandedHolds } = await import(new URL("hands-settle.mjs", S));
+  const saved = { ui: globalThis.ui, Hooks: globalThis.Hooks, mode: SETTINGS_STATE.enforceMode };
+  const warned = [];
+  globalThis.ui = { notifications: { warn: (m) => warned.push(m), info: (m) => warned.push(m) } };
+  globalThis.Hooks = { on() {}, once() {}, callAll() {} };
+
+  // An actor whose items carry their real state; each write is recorded, and applied so a second settle reads the result.
+  const rig = (items, flags = {}) => {
+    const a = withItems(items, { flags });
+    a.documentName = "Actor";
+    a.writes = [];
+    a.updateEmbeddedDocuments = async (_kind, rows) => {
+      a.writes.push(rows);
+      for (const row of rows) items.find((i) => i.id === row._id).system.equipped = row["system.equipped"];
+    };
+    // The loadout effect a sync creates once nothing is left to resolve.
+    a.createEmbeddedDocuments = async (_kind, rows) => rows;
+    for (const item of items) item.parent = a;
+    return a;
+  };
+  const sw = () => weapon("Sword", { melee: true, id: "sw" });
+  const shield = () => armor("Shield", "shield", { ac: 1, id: "sh" });
+  const bow = (over = {}) => weapon("Short Bow", { missile: true, melee: false, id: "bow", ...over });
+  const javelin = () => weapon("Javelin", { melee: true, id: "jv" });
+  const at = (item, label = item.name) => ({ item, label });
+  const equip = (item) => ({ _id: item.id, system: { equipped: true } });
+
+  // Enforcement: the same overflowing actor, held and not, in each mode that acts.
+  {
+    const free = rig([sw(), shield(), bow()]);
+    const held = rig([sw(), shield(), bow()], { handsSettling: true });
+    check("the flag is read off the actor", handsHeld(held) && !handsHeld(free));
+
+    SETTINGS_STATE.enforceMode = "veto";
+    check("veto: the equip that overflows the hands is refused when the actor is not held", onPreUpdateItem(free.items[2], equip(free.items[2])) === false);
+    warned.length = 0;
+    check("veto: the same equip passes on a held actor, with no notice", onPreUpdateItem(held.items[2], equip(held.items[2])) === true && warned.length === 0);
+
+    SETTINGS_STATE.enforceMode = "resolve";
+    await onUpdateItem(free.items[2], equip(free.items[2]));
+    check("resolve: an overflowing actor not held has something unequipped and a warning raised", free.writes.length === 1 && warned.length === 1);
+    warned.length = 0;
+    await onUpdateItem(held.items[2], equip(held.items[2]));
+    check("resolve: a held actor has nothing unequipped and no warning raised", held.writes.length === 0 && warned.length === 0);
+    check("and its items stay equipped", held.items.every((i) => i.system.equipped));
+
+    // The hold reaches hand overflow alone: a second shield on a held actor is still resolved.
+    const shields = rig([armor("Shield", "shield", { ac: 1, id: "s1" }), armor("Shield", "shield", { ac: 1, id: "s2" })], { handsSettling: "u1" });
+    warned.length = 0;
+    await onUpdateItem(shields.items[1], equip(shields.items[1]));
+    check("resolve: a held actor with two shields equipped still has one unequipped", shields.writes.length === 1 && shields.items.filter((i) => i.system.equipped).length === 1);
+    SETTINGS_STATE.enforceMode = saved.mode;
+  }
+
+  // The settle's order.
+  {
+    const items = [sw(), shield(), bow(), javelin()];
+    const a = rig(items);
+    const result = await settleHands(a, [at(items[0]), at(items[1]), at(items[2]), at(items[3], handsLabel("Javelin", 3))]);
+    check("the board's case: Sword and Shield stay in hand, Short Bow and Javelin ×3 are carried", JSON.stringify(result.carried) === JSON.stringify(["Short Bow", "Javelin ×3"]));
+    check("the report's figures are the hands the sheet asked for and the hands the character has", result.used === 5 && result.budget === 2);
+    check("one write carries both, unequipped with the hand cleared", a.writes.length === 1 && a.writes[0].map((r) => r._id).join() === "bow,jv" && a.writes[0].every((r) => r["system.equipped"] === false && "flags.acks-extras.hand" in r));
+    check("Sword and Shield are still equipped", items[0].system.equipped && items[1].system.equipped && !items[2].system.equipped && !items[3].system.equipped);
+    check("importing the same sheet again settles nothing further", (await settleHands(a, [at(items[0]), at(items[1]), at(items[2]), at(items[3])])) === null && a.writes.length === 1);
+  }
+  {
+    const dagger1 = weapon("Dagger", { melee: true, id: "d1" });
+    const dagger2 = weapon("Dagger", { melee: true, id: "d2" });
+    const long = weapon("Long Bow", { missile: true, melee: false, id: "lb" });
+    const a = rig([dagger1, long, dagger2]);
+    const result = await settleHands(a, [at(dagger1), at(long), at(dagger2)]);
+    check("first fit: a placement that does not fit is carried and a later one that does is still held", JSON.stringify(result.carried) === JSON.stringify(["Long Bow"]) && dagger2.system.equipped && dagger1.system.equipped);
+  }
+  {
+    const old = weapon("Long Bow", { missile: true, melee: false, id: "old" });
+    const items = [old, sw(), shield()];
+    const a = rig(items);
+    const result = await settleHands(a, [at(items[2]), at(items[1])]);
+    check("a re-import: what was held before and the sheet did not place is carried first", JSON.stringify(result.carried) === JSON.stringify(["Long Bow"]) && !old.system.equipped);
+    check("the sheet's placements stand, whatever the order the actor lists them in", items[1].system.equipped && items[2].system.equipped);
+  }
+  {
+    const old = weapon("Long Bow", { missile: true, melee: false, id: "old" });
+    const items = [old, sw(), shield()];
+    const a = rig(items);
+    const result = await settleHands(a, []);
+    check("with nothing placed, what was held keeps in the reverse of the release order: the shield and the newest weapon go first", JSON.stringify(result.carried) === JSON.stringify(["Sword", "Shield"]) && old.system.equipped && !items[1].system.equipped && !items[2].system.equipped);
+  }
+  {
+    const items = [sw(), shield()];
+    const a = rig(items);
+    check("hands that fit carry nothing and write nothing", (await settleHands(a, [at(items[0]), at(items[1])])) === null && a.writes.length === 0);
+  }
+
+  // The hold itself.
+  {
+    const flags = {};
+    const a = { flags, getFlag: (_m, k) => flags[k], setFlag: async (_m, k, v) => void (flags[k] = v), unsetFlag: async (_m, k) => void delete flags[k] };
+    let during = null;
+    await holdHands(a, async () => { during = handsHeld(a); });
+    check("the hold is a stored flag, set while the run goes and cleared when it returns", during === true && !handsHeld(a) && !("handsSettling" in flags));
+    let thrown = null;
+    try { await holdHands(a, async () => { throw new Error("import failed"); }); } catch (err) { thrown = err; }
+    check("a run that throws still clears the flag, and its error is the caller's", thrown?.message === "import failed" && !handsHeld(a));
+    flags.handsSettling = "gone";
+    let taken = null;
+    await holdHands(a, async () => { taken = flags.handsSettling; });
+    check("a hold another run left standing is taken over and cleared like this run's own", taken === true && !handsHeld(a));
+  }
+
+  // A hold whose import no longer runs is cleared at load.
+  {
+    const savedUsers = globalThis.game.users;
+    const savedUser = globalThis.game.user;
+    const people = { me: { id: "me", active: true }, away: { id: "away", active: false }, here: { id: "here", active: true } };
+    globalThis.game.users = { activeGM: null, get: (id) => people[id] };
+    globalThis.game.user = people.me;
+    const holding = (holder) => {
+      const flags = holder === undefined ? {} : { handsSettling: holder };
+      return { flags, getFlag: (_m, k) => flags[k], unsetFlag: async (_m, k) => void delete flags[k] };
+    };
+    const [mine, away, here, legacy, none] = [holding("me"), holding("away"), holding("here"), holding(true), holding(undefined)];
+    const cleared = await clearStrandedHolds([mine, away, here, legacy, none]);
+    check("a hold set by a user who is not logged in, by this user's earlier window, or by no named user is cleared", cleared === 3 && !handsHeld(mine) && !handsHeld(away) && !handsHeld(legacy));
+    check("a hold set by another user who is logged in is left to that user's import", handsHeld(here));
+    globalThis.game.users = savedUsers;
+    globalThis.game.user = savedUser;
+  }
+
+  globalThis.ui = saved.ui;
+  globalThis.Hooks = saved.Hooks;
+  console.log("test-equipment: OK (an import holds the hands and settles them once)");
+}

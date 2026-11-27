@@ -363,6 +363,44 @@ On core's inventory the both-hands bucket is headed by the two hands it spans,
 with the grip as the header's note; the character sheet folds the place
 (`docs/character-sheet/MODEL.md`).
 
+### An import holds the hands (`hands-settle.mjs`)
+
+An official-sheet import places gear one item at a time, and the draw of each
+leaves the hand's current occupant where it is, so each placement alone can
+overflow the hands and each overflow would be ruled on before the next
+placement arrives. The import therefore holds the actor: `holdHands` stores
+`flags["acks-extras"].handsSettling` on it, set to the importing user's id, for
+the length of the placements and clears it in a `finally`, so a thrown import
+never leaves the actor unguarded. The hold is a stored flag because the client
+that resolves an overflow is the active GM's, and only a stored flag reaches it.
+While it stands, `blockingViolations` leaves the actor's hand overflow out, so
+neither `onPreUpdateItem` (veto, on the writing client) nor `onUpdateItem`
+(resolve and advise, on the responder) vetoes, unequips or notifies for it. A
+second armour suit or shield is enforced as usual meanwhile. The flag's write
+and its clearing are actor updates, so the `updateActor` hook that rebuilds the
+loadout on any change to the actor's module flags is also what rebuilds it once
+the hold ends.
+
+A hold outlives its import only when the importing window closes mid-import.
+The next import onto the actor takes it over and clears it, and the primary
+GM's window clears it when it loads (`clearStrandedHolds`, from the equipment
+`ready` hook) wherever the holder is not logged in or is that GM, whose window
+has only just loaded. A hold set by another user who is logged in is left to
+that user's import.
+
+`settleHands` runs once after the last placement, before the flag clears. If
+the hands overflow it keeps held items in this order, each only where the
+loadout (`getLoadout` with the item drawn and the later ones put away) still
+fits: the sheet's placements in the sheet's order, first fit, so a placement
+that does not fit is carried and a later one that does is still held; then the
+items held before the import that the sheet did not place, in the reverse of
+`releaseOrder`. Whatever is not kept is carried in one `updateEmbeddedDocuments`
+call (`system.equipped` false, the hand flag cleared) and comes back as
+`{used, budget, carried}` for the import's report, which is the character
+sheet's (`docs/character-sheet/MODEL.md`, "The official sheet (PDF)"). A
+stack's label carries its count as the report's other gear lists do
+(`Javelin ×3`).
+
 ### The shield and its style
 
 Core's `computeAC` adds the AC of every equipped shield unconditionally. Two

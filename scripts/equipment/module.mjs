@@ -17,6 +17,7 @@ import { buildApi } from "./api.mjs";
 import VariationData from "./data/variation-data.mjs";
 import { registerVariationSheet } from "./variation-sheet.mjs";
 import { onPreUpdateEquip, foldOnUnequip, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
+import { clearStrandedHolds } from "./hands-settle.mjs";
 import { releaseContents } from "./containers.mjs";
 import { registerClothingDeclaration } from "./clothing-declaration.mjs";
 import { registerEncumbranceWrap, registerRollWrap } from "./roll-wrap.mjs";
@@ -208,6 +209,12 @@ Hooks.once("ready", async () => {
   const owned = game.actors.filter((a) => a.type === ACTOR_TYPE.character && a.isOwner);
   for (const actor of owned) {
     refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | initial loadout sync failed for ${actor.name}`, err));
+  }
+
+  // A hand hold an import left standing when its window closed (hands-settle.mjs).
+  // Clearing one rebuilds that actor's loadout through the actor-flag hook.
+  if (isPrimaryGM()) {
+    clearStrandedHolds().catch((err) => console.warn(`${MODULE_ID} | could not clear stranded hand holds`, err));
   }
 
   // One-time hygiene: removes any managed loadout effect stranded on a

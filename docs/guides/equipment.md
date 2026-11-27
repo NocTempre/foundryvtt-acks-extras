@@ -21,6 +21,14 @@ Hands are counted. A two-handed weapon needs both; a lit torch occupies one, and
 you cannot light one with no hand free. The controls sit in their own box beside
 core's own.
 
+**"Not enough hands"** means the gear drawn asks for more hands than the
+character has. With the default setting the sheet makes room by putting
+something away, shields first and then weapons, newest first, and the
+notification names what it took. The **Equip-limit enforcement** setting, in
+**Settings tab → Game Settings → ACKS II — Extras**, changes this: *Block the
+equip* refuses the draw instead, and *Advisory only (never block)* leaves the
+gear as it is and only says so.
+
 A weapon held in both hands has no bucket of its own: it is listed under
 **Main hand · Off hand**, the two places it spans. A versatile weapon drawn
 alone takes the two-handed grip by itself only when the character is trained

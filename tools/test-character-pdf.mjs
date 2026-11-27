@@ -568,13 +568,24 @@ section("official sheet: one name on two lines places two units");
  * row beside it for the rest), since the real path is core's and the live walk's.
  */
 function gearBench(rows) {
-  const actor = { items: rows };
-  const calls = { placed: [], stored: [], delivered: 0 };
+  // The actor's flags are real writes, as the hands hold is a stored flag; `held` records what the flag read at each placement.
+  const flags = {};
+  const actor = {
+    items: rows,
+    flags,
+    getFlag: (_m, k) => flags[k],
+    setFlag: async (_m, k, v) => void (flags[k] = v),
+    unsetFlag: async (_m, k) => void delete flags[k],
+  };
+  const calls = { placed: [], stored: [], delivered: 0, held: [] };
   const holder = (row) => row.flags?.["acks-extras"]?.containedIn ?? null;
   const deps = {
+    // The hands settle reads a loadout this bench has none of; the suites below that exercise it replace this.
+    settleHands: async () => null,
     wearLocation: (_actor, row) => (holder(row) ? "stowed" : (row.slot ?? "carried")),
     placeItem: async (_actor, row, slot) => {
       calls.placed.push({ id: row.id, slot });
+      calls.held.push(!!flags.handsSettling);
       const count = row.system.quantity;
       if (count > 1) {
         row.system.quantity = 1;
@@ -693,6 +704,49 @@ test("a name carried as separate copies places each line's own copy", async () =
   const bench = gearBench([daggerRow("a", 1, { effects: [{ id: "e" }] }), daggerRow("b", 1, { effects: [{ id: "e" }] })]);
   await bench.land([mainLine, offLine]);
   assert.deepEqual(bench.calls.placed, [{ id: "a", slot: "mainHand" }, { id: "b", slot: "offHand" }]);
+});
+
+section("official sheet: the hands are held while gear is placed, then settled once");
+test("every placement is made with the actor's hands held, the settle runs before the hold ends, and the hold ends", async () => {
+  const bench = gearBench([daggerRow("a", 1, { effects: [{ id: "e" }] }), daggerRow("b", 1, { effects: [{ id: "e" }] })]);
+  let atSettle = null;
+  bench.deps.settleHands = async () => {
+    atSettle = !!bench.actor.flags.handsSettling;
+    return null;
+  };
+  await bench.land([mainLine, offLine]);
+  assert.deepEqual(bench.calls.held, [true, true], "the flag is a stored flag on the actor, set before the first placement");
+  assert.equal(atSettle, true, "the hands are settled while the flag still stands");
+  assert.equal("handsSettling" in bench.actor.flags, false, "and cleared after");
+});
+test("a placement that throws still clears the hold, and the error reaches the caller", async () => {
+  const bench = gearBench([daggerRow("a", 1)]);
+  bench.deps.placeItem = async () => {
+    throw new Error("equip failed");
+  };
+  await assert.rejects(bench.land([mainLine]), /equip failed/);
+  assert.equal("handsSettling" in bench.actor.flags, false, "the actor is not left unguarded");
+});
+test("a sheet that puts nothing at a place sets no flag", async () => {
+  const bench = gearBench([daggerRow("a", 1)]);
+  let set = 0;
+  bench.actor.setFlag = async () => void set++;
+  await bench.land([{ name: "Dagger", qty: 1, place: "hidden" }]);
+  assert.equal(set, 0);
+});
+test("the settle is handed the sheet's placements in the sheet's order, the ones already in place included, and its answer is the report's hands", async () => {
+  const bench = gearBench([daggerRow("a", 1, { effects: [{ id: "e" }] }), daggerRow("b", 1, { effects: [{ id: "e" }] })]);
+  const handed = [];
+  bench.deps.settleHands = async (_actor, placements) => {
+    handed.push(placements.map((p) => `${p.item.id}:${p.label}`));
+    return { used: 3, budget: 2, carried: ["Dagger"] };
+  };
+  await bench.land([mainLine, { name: "Dagger", qty: 2, place: "offHand" }]);
+  assert.deepEqual(handed[0], ["a:Dagger", "b:Dagger ×2"], "the label carries the sheet's count");
+  assert.deepEqual(bench.report.hands, { used: 3, budget: 2, carried: ["Dagger"] });
+  await bench.land([mainLine, { name: "Dagger", qty: 2, place: "offHand" }]);
+  assert.deepEqual(handed[1], handed[0], "a re-import that writes nothing hands over the same placements in the same order");
+  assert.equal(bench.calls.placed.length, 2, "and moved nothing");
 });
 
 for (const [name, fn] of tests) {

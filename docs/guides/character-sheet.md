@@ -332,7 +332,8 @@ import from a player's seat, and the page stays in the character's notes.
 and level found, how much of each list this world holds, and the henchmen box.*
 
 The report says what was written and what was added, and lists two more
-things:
+things (and a third, **Hands**, when the sheet puts more in hand than the
+character has hands, explained under *Where gear goes* below):
 
 - **To check**: where the sheet and the character disagree. Nothing in this
   list was written. A value the class decides (saves, the attack throw) has
@@ -353,7 +354,12 @@ it, in which case the new one is added beside it.
 are wielded. The backpack, sack and pouch lists go into a container of that
 name, which must be on the character, so list the backpack itself on the
 back. A weapon at the belt or on the back is carried, not drawn. Hidden items
-are carried and named in the notes.
+are carried and named in the notes. The import does not raise "Not enough
+hands" notifications while it places gear. Where the sheet asks for more hands
+than the character has, the report's **Hands** section lists what was carried
+instead: the sheet's lists are kept in the sheet's order until the hands are
+full, then whatever was held before and the sheet did not place. Swap a
+carried item into a hand from the character sheet's Equipment tab.
 
 **Exporting.** Export writes into the official sheet from **Your Books**, the
 same window your rulebooks are connected in (the *Your ACKS Books (this seat)*

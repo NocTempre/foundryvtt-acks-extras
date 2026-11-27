@@ -179,6 +179,7 @@ export class SheetPdfApp extends HandlebarsApplicationMixin(ApplicationV2) {
         checks: report.checks.map((c, index) => ({ ...c, index, canKeep: !!c.keep && !this.#kept.has(index), kept: this.#kept.has(index) })),
         unmatched: report.unmatched.map((u) => ({ kind: loc(`pdf.unmatched.${u.kind}`), name: u.name })),
         henchmen: report.henchmen.map((h) => ({ ...h, outcome: loc(`pdf.henchOutcome.${h.outcome}`) })),
+        handsText: report.hands && loc("pdf.report.handsText", { used: report.hands.used, name: report.actor.name, budget: report.hands.budget, items: report.hands.carried.join(", ") }),
         domain: report.domain && {
           ...report.domain,
           name: report.domain.name || loc("pdf.preview.domain"),
