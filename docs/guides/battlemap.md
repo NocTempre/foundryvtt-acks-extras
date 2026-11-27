@@ -135,10 +135,12 @@ actually writes. Leave it empty and one Foundry square is one drawn map
 square. On a coarse map — a wilderness sheet drawn at 100' per square, say —
 you can instead ask for 5' squares, and each drawn box carries a neat 20×20
 of them. A warning appears if the two grids cannot share lines. **Square
-size (px)** sets how many pixels a Foundry square takes after applying; it
+size (canvas px)** sets how many pixels a Foundry square takes after applying; it
 defaults to keeping the map the size it is now. A hex map has no second
-choice: one drawn hex is one Foundry hex, and **Hex size (px)** sets how
-many pixels it takes after applying.
+choice: one drawn hex is one Foundry hex, and **Hex size (canvas px)** sets how
+many pixels it takes after applying. Figures read off the picture itself (the
+fit card's cell, its boxes and the scale bar) say *image px*; the sizes the
+scene is given say *canvas px*.
 
 ## Applying
 
@@ -315,12 +317,12 @@ came from, and the Judge tab overrides any of them (see the formation guide,
 ## Rivers and coasts
 
 A river or a coastline is a line you draw, not a hex you paint. The group's
-**River** and **Coastline** presets arm core's wall tool and hand it to you,
+**River** and **Coast** presets arm core's wall tool and hand it to you,
 so the next walls you draw are that water — the same way the road presets
 work ([Streets, and quarters](formation.md#streets-and-quarters)). For walls
 that already exist, the **Walls** control carries **Mark the selected walls as
 water**, which marks each selected wall as the water the wall tool
-is set to draw: with the **Coastline** preset armed, a coast, and with **River**
+is set to draw: with the **Coast** preset armed, a coast, and with **River**
 armed, or any other wall type, a river. A water
 line blocks nothing; if a wall you marked still restricts movement, the
 notification says so, because the party cannot travel along it.

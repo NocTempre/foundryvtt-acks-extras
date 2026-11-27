@@ -95,6 +95,7 @@ const {
 } = await import("../scripts/battlemap/water.mjs");
 const {
   roadWallsOf, roadSegmentsOf, invalidateRoadGraph, roadWallData, wallRoad, installRoadControls,
+  armRoadPreset, armAlleyPreset,
 } = await import("../scripts/battlemap/roads.mjs");
 
 /* -------------------------------------------- */
@@ -370,6 +371,24 @@ await okAsync("the road tool marks the road preset in hand, and the first surfac
   await pressTool(installRoadControls, "acksRoadFromSelection");
   assert.deepEqual(wallRoad(settings.get("core.wallPreset")), { surface: "paved", street: "alley", name: "" });
   settings.delete("core.wallPreset");
+});
+
+await okAsync("the armed notice names the street kind the preset carries, and the mark tool wears its own glyph", async () => {
+  palette = { SETTING_KEY: "wallPreset" };
+  notes.length = 0;
+  await armRoadPreset({ surface: "paved", street: null });
+  assert.deepEqual(notes.at(-1), ["info", `ACKS-BATTLEMAP.routes.presetArmed ${JSON.stringify({ road: "paved" })}`],
+    "a road with no street names its surface alone");
+  await armAlleyPreset();
+  assert.deepEqual(notes.at(-1), ["info", `ACKS-BATTLEMAP.routes.presetArmedStreet ${JSON.stringify({ road: "paved", street: "alley" })}`],
+    "the alley names the surface it keeps and the street");
+  settings.delete("core.wallPreset");
+
+  installRoadControls();
+  const keyed = { walls: { tools: {} } };
+  hooks.get("getSceneControlButtons").at(-1)(keyed);
+  assert.equal(keyed.walls.tools.acksRoadFromSelection.icon, "fa-solid fa-road-circle-check");
+  assert.equal(keyed.walls.tools.acksRoadFromSelection.title, "ACKS-BATTLEMAP.routes.toolMark", "the glyph changed and the name did not");
 });
 
 /* -------------------------------------------- */

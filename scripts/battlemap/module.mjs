@@ -301,11 +301,14 @@ export function installSceneControls() {
     // Roads are drawn as WALLS with core's own wall tool. Each of these is a
     // PRESET (arms what the next wall is created as), so they are buttons, not
     // canvas modes — the "one is live" pip belongs to the wall tool, not here.
+    // Each surface wears a glyph of its own, so no preset shares the walls
+    // control's mark tool's.
+    const roadIcon = { earth: "fa-mound", gravel: "fa-braille", paved: "fa-road" };
     ROAD_SURFACES.forEach((kind, i) => {
       tools[`route-${kind}`] = {
         name: `route-${kind}`,
         title: game.i18n.localize(`${LANG_PREFIX}.routes.${kind}`),
-        icon: "fa-solid fa-road",
+        icon: `fa-solid ${roadIcon[kind] ?? "fa-road"}`,
         order: CAPTURE_MODES.length + 2 + i,
         button: true,
         // ONE handler: v13+ calls BOTH `onChange` and `onClick` on a

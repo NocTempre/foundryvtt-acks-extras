@@ -272,13 +272,18 @@ export function roadDistance(scene, from, to) {
  */
 export async function armRoadPreset({ surface = ROAD_SURFACES[0], street = undefined, name = "" } = {}) {
   const scene = canvas?.scene;
-  const armed = await armWallPreset(
-    roadWallData({ surface, street: street === undefined ? defaultStreet(scene) : street, name }),
-  );
-  const label = roadSurfaceLabel(surface);
-  if (armed) ui.notifications?.info(loc("routes.presetArmed", { road: label }));
+  const kind = street === undefined ? defaultStreet(scene) : street;
+  const armed = await armWallPreset(roadWallData({ surface, street: kind, name }));
+  if (armed) ui.notifications?.info(presetArmedLine(surface, kind));
   else ui.notifications?.warn(loc("routes.presetUnavailable"));
   return armed;
+}
+
+/** The armed notice: the surface, and the street kind where the preset carries one. */
+function presetArmedLine(surface, street) {
+  const road = roadSurfaceLabel(surface);
+  if (!ROAD_STREETS.includes(street)) return loc("routes.presetArmed", { road });
+  return loc("routes.presetArmedStreet", { road, street: locOr(`${LANG_PREFIX}.routes.street.${street}`, street) });
 }
 
 /**
@@ -448,7 +453,7 @@ export function installRoadControls() {
     const tool = {
       name: "acksRoadFromSelection",
       title: loc("routes.toolMark"),
-      icon: "fa-solid fa-road",
+      icon: "fa-solid fa-road-circle-check",
       order: 22,
       button: true,
       visible: game.user.isGM,

@@ -309,7 +309,7 @@ outlines (a shot).
     offers none.
 13. **Scale only, on the gridless scene.** Choose "Scale only — no grid", drag
     along the scale bar, and type what it reads on the bar's own row.
-    *Observable:* the card reads "Measured: N px per <unit>" and NOT "no scale
+    *Observable:* the card reads "Measured: N canvas px per <unit>" and NOT "no scale
     yet"; the ruler-cell field defaults to a round number at a comfortable px
     size (no clamp warning); the footer says the scene keeps no grid. Apply and
     confirm: `grid.size`/`grid.distance`/`grid.units` change, **`grid.type`
@@ -633,7 +633,11 @@ as a permission leak.
    the road flag with `surface: "paved"`.
 2. Press **Alley** without pressing a surface again.
    *Observable:* the armed preset keeps `surface: "paved"` and gains
-   `street: "alley"` — the alley is a modifier, not a road kind.
+   `street: "alley"` — the alley is a modifier, not a road kind; the
+   notification names both, "Paved road, Alley". The three surface presets
+   each wear a glyph of their own (earthen a mound, gravel dots, paved a road)
+   and the Walls control's mark tool a road with a check, each keeping its
+   name as its tooltip.
 3. Press the trap line tool on the Walls control, then a road preset again.
    *Observable:* each press replaces the other's preset. There is one slot;
    the notifications are the only way to tell which is live. **This is the
@@ -771,7 +775,7 @@ bubbling `change`.
    the repaint moves the hex between territory regions, and a region left with
    no hex is deleted.
 4. Press the **River** preset in the Battlemap group and drag a line across two
-   hexes; press **Coastline** and drag another.
+   hexes; press **Coast** and drag another.
    *Observable:* the notification names what is armed; core's wall preset holds
    all-NONE restrictions, `door: 0` and `flags["acks-extras"].water` (`kind`
    river and `navigable` true, then coast and false); one Wall per line carries
@@ -786,7 +790,7 @@ bubbling `change`.
    restrictions do not change, and a warning says the party cannot cross it.
    Untick the river line's boat tick, select that line and press the tool
    again: `updated` 1 and `navigable` still false.
-   Press the **Coastline** preset, select a second ordinary wall and press
+   Press the **Coast** preset, select a second ordinary wall and press
    the tool: that wall's flag reads `kind` coast, the armed kind; with core's
    ordinary wall armed instead, the tool marks a river. Press **Paved road**,
    then **Alley (of the armed road)**, select a third ordinary wall and press
