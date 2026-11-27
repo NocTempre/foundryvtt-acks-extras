@@ -6672,6 +6672,11 @@
       "implements": "Implements",
       "spell": "Spells"
     },
+    "strength": {
+      "natural": "Strength {score}, {average} average damage ({cite})",
+      "wielded": "Strength {score}, wielded ({cite})",
+      "page": "MM ch. 3"
+    },
     "enc": {
       "carried": "Carried",
       "speed": "speed",

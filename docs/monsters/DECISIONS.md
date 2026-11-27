@@ -879,3 +879,55 @@ applying the character table to a swim breath while leaving those out can read
 as half a rule. The throws changed are the module's own and take the
 character's bonus as the section says; the departures need tables the importer
 does not read yet, and the ROADMAP row names each.
+
+## 2026-11-27 — A monster's entered Strength adjusts its attacks through the MM ch. 3 table (T-0907)
+
+The owner was asked: "Should a monster's entered Strength adjust its attacks and
+damage, using the MM table?" and answered: "Yes, build it".
+
+Read: a Judge who enters a monster's Strength on the Classification tab sees the
+attack throw and the damage roll of that monster's attacks carry one more
+labelled row, the table's cell for the score and the attack's average damage.
+For invented figures, a monster with Strength 11 whose claw deals 1d6+2 (average
+5.5) takes the cell of row 11 in the column whose band holds 5.5, and the row
+reads "Strength 11, 5.5 average damage (page)". A monster with the field blank
+takes no row, and a monster that wields a sword marked `weapon` takes the
+modifier the system gives a character of Strength 11.
+
+Built: `monsters/strength-contributor.mjs` joins lib's attack seam. It acts only
+for a `monster` with an entered Strength, adds the throw row for a melee attack
+and the damage row for a melee or thrown one (the system's character model's
+own split, never missile, never a spell carrier), and picks the figure by the
+weapon's `naturalWeapon` mark: `weapon` takes `abilityMod`, anything else or no
+mark takes `strengthAttackBonus` at the average of the weapon's base damage
+formula. The average is lib `dice-bounds.mjs` `formulaAverage`, the minimized
+and maximized `Roll` that cast-apply's private `foundryBounds` held, moved so
+two features read one evaluator; cast-apply keeps a local wrapper that throws
+where `formulaBounds` answers null, as its callers expect, and a formula whose
+total is no finite number now throws there where it used to pass the figure on.
+A formula with no average, an absent table or a blank cell adds nothing and
+reports nothing.
+
+Gap ruling: an average between two printed bands falls in the lower band
+(slice 1's `strengthBandFor`), on the basis that the same section rounds a
+positive half down for its load adjustment, so a half beyond a band's edge stays
+in the band it passed.
+
+Rejected: requiring the mark for the table, which would send every unmarked
+natural attack (the system's own monster pack and older imports carry no mark)
+to no row, so the rule would fail on the commonest case; a second dice parser in
+the monsters feature, when `Roll` already reads every formula the system rolls;
+reading the damage mode, which never reaches the attack's context (`ctx` carries
+the weapon, and the base formula is the weapon's own).
+
+Cost: a monster sheet's own attack figures do not show the row, because the seam
+asks its contributors only with an attack in flight; the dialog's modifier list
+and the posted card show it (ROADMAP). A wielded arm the Judge left unmarked
+takes the table's cell, and the Judge corrects it by marking the weapon
+`weapon`.
+
+Strongest counter-argument (medium): an unmarked weapon counts as natural, so a
+monster's carried sword the Judge never marked takes a figure from the natural
+table where the chapter intends the character's. The mark is one select on the
+weapon's ACKS Monster group, and the label names the average damage it was read
+at, so the Judge sees which rule was applied.

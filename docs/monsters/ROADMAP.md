@@ -19,10 +19,17 @@ Work that is designed but absent, deliberately. How the feature behaves now is
   first ("Design before build", `.claude/rules/ui-layout.md`).
 - **The rules MM ch. 3 gives a monster's ability scores apart from a character's
   are not applied.** An entered score feeds the module's own throws through the
-  system's table (the default-score paragraph, `docs/monsters/MODEL.md`); the
-  chapter's own figures for a monster are not imported or read: Strength on
-  attack throws and damage against the natural attack's average damage (an owner
-  question, DECISIONS 2026-11-27) and on maximum load, Dexterity on a
-  non-humanoid's speeds, Constitution on each Hit Die roll, Charisma on its
-  morale and its followers', and Intelligence on a sapient monster's
-  proficiencies, languages and spell repertoire or a bestial one's tricks.
+  system's table (the default-score paragraph, `docs/monsters/MODEL.md`) and
+  Strength adjusts a monster's attacks (the Strength paragraph beside it); the
+  chapter's other figures for a monster are not imported or read: Strength on
+  maximum load, Dexterity on a non-humanoid's speeds, Constitution on each Hit
+  Die roll, Charisma on its morale and its followers', and Intelligence on a
+  sapient monster's proficiencies, languages and spell repertoire or a bestial
+  one's tricks.
+- **A monster sheet's attack figures do not include the Strength row.** The
+  Attacks tab's throw and damage boxes are the system's own answer with no
+  attack in flight, and the module's Strength rows join only an attack being
+  rolled, so the dialog and the card show them and the sheet does not. Showing
+  them on the sheet needs a seam question that answers with no attack, and a
+  design board for the figure ("Design before build",
+  `.claude/rules/ui-layout.md`).

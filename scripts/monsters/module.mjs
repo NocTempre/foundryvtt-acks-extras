@@ -37,6 +37,7 @@ import { libraryItems } from "../lib/library.mjs";
 import { setProficiencyReader } from "../lib/item-run.mjs";
 import { readBearerProficiency } from "./fuse-proficiency.mjs";
 import { installGrogBreakage } from "./grog-breakage.mjs";
+import { registerStrengthContributor } from "./strength-contributor.mjs";
 
 const loc = makeLoc("ACKS-MONSTERS");
 
@@ -125,6 +126,8 @@ Hooks.once("init", () => {
   registerStackRowControl(carryRowControls);
   // A beastman defeated or dead loses its grog (the defeated status, on the primary GM's window).
   installGrogBreakage();
+  // A monster's entered Strength, as rows on the attack throw and the damage roll of an attack it makes (lib's attack seam asks the contributor).
+  registerStrengthContributor();
 
   // The figures a leader and a ladder row are worked out from are imported;
   // the import names these tables as missing until the Judge's books supply

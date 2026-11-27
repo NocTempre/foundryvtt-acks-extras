@@ -506,7 +506,8 @@ part of a throw against magic (`lib/saves.mjs` `saveSpec`), and a jump's
 Dexterity, in place of the creature's assumed score. A monster's armour class,
 the henchman allowance and the follower card's attack figure read none, and the
 system's own monster rolls add none. The rules MM ch. 3 gives a monster's
-scores apart from a character's are not applied (ROADMAP).
+scores apart from a character's are not applied (ROADMAP), except Strength on
+a monster's attacks (below).
 
 **The Strength modifier of a natural attack.** One more `monsters` table,
 `strengthAttack` (MM p. 349, Attributes for Monsters), read by
@@ -522,6 +523,30 @@ band or past the last is in none. `strengthAttackBonus(score, average)` answers
 the table is absent, the score has no row, the average is no finite number or in
 no band, or the cell is blank or not a number. A Judge's override wins, and
 carries no page, so its `cite` is null.
+
+`scripts/monsters/strength-contributor.mjs` puts the figure on the attacks a
+monster makes, as a contributor to lib's attack seam
+(`lib/patches/attack-throw.mjs`, registered at `init` and answering to no
+setting). It acts for an attacker that is a `monster` with a Strength entered
+(`enteredScore`); a blank Strength, a character and every other actor type get
+no row. The kinds follow the system's character model: the throw takes a row
+for a `melee` attack, the damage roll for a `melee` or `thrown` one, a missile
+attack neither, and a spell carrier's attack is never asked. The weapon's
+`flags["acks-extras"].naturalWeapon` mark picks the figure. A weapon marked
+`weapon` is a wielded arm and takes `abilityMod(actor, "str")`, the system's
+modifier for the score. Any other mark, or none, is a natural attack, since the
+system's own monster pack and older imports carry no mark: it takes
+`strengthAttackBonus(score, average)`, the average read from the weapon's base
+damage formula (`system.damage.base.formula`) by lib `formulaAverage`, whatever
+grip the damage dialog opens on. Where the formula has no average (a "By weapon"
+text) or the table answers null, no row is added and nothing is reported. The
+row is the system's own `{label, value}`, added whenever the value is a finite
+number, a zero included. Its label, `ACKS-MONSTERS.strength.natural` or
+`.wielded`, names the score, the natural attack's average damage and the page
+the table was read from, or the shipped reference where a Judge's override gives
+none; the system's dialog and card have no tooltip slot, so the label is the
+provenance. A monster sheet's own attack figures do not show the row, because
+the seam asks its contributors only while an attack is in flight.
 
 **Natural weapons and extraordinary damage.** Two more `monsters` tables, from
 the Damage entry of the Monster Overview (MM p. 12), read by

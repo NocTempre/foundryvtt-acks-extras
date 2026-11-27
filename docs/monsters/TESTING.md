@@ -1071,6 +1071,77 @@ Quantity 1. A step asserts both quantities at its start.
 
 **Teardown.** The fixture stays, at Quantities 3 and 1.
 
+## A monster's Strength on its attacks
+
+MODEL, the Strength paragraph: a monster with a Strength entered adds a labelled
+row to the throw and the damage of an attack it makes, from the Strength table
+(a natural or unmarked weapon) or the system's modifier (a weapon marked
+`weapon`). Needs the Monstrous Manual connected on a GM seat and the Rules
+tables import run (Settings tab → Game Settings → ACKS II — Extras → Manage
+imports → Rules tables).
+
+**Fixtures.** `monsters/str-attacks`: a `monster` actor built with `api.fixture`,
+carrying five weapons with plain dice formulas except the last: a `Claw` whose
+ACKS Monster group `naturalWeapon` is `claw`, an unmarked `Slam`, a `Sword`
+marked `weapon`, a `Spear` marked `weapon` with Thrown ticked beside Melee, and
+an unmarked `Maul` whose damage formula is "By weapon". A step asserts the
+formulas, marks and kinds at its start: the fixture keeps whatever the last
+walk wrote.
+
+**Drive mechanics.** Roll each attack from the Attacks tab of a sheet built as in
+"Core drive mechanics", so the dialog opens. Rig the die with
+`CONFIG.Dice.randomUniform` (0.975 reads a top face on core 14) so the total is
+known, and read the modifier rows from the dialog's list and from the posted
+card, never the total alone. A score typed into the Classification tab's field
+takes from under one to about five seconds to reach the flag: poll the flag for
+the value. The seam's rows exist only while an attack is in flight, so probe
+`attackThrowModifiersFor` and `damageModifiersFor` from inside a roll, never
+from the console alone.
+
+**Steps.**
+
+1. Re-import the Monstrous Manual's rules tables, then open the Ruledata Browser
+   on `monsters`.
+   *Observable:* `strengthAttack` lists a header row of bands and a row per score,
+   and cites MM p. 349.
+2. Enter Strength 14 on the Classification tab's Attributes. Roll the Claw's
+   attack from the sheet and read the dialog's rows.
+   *Observable:* a row labelled "Strength 14, <average> average damage (<page>)",
+   whose average is the figure `formulaAverage` gives the Claw's formula, valued
+   at the table's cell for that score in the band holding the average, appears
+   once on the throw and once on the damage.
+3. Roll the unmarked Slam.
+   *Observable:* the same kind of row, so an unmarked weapon counts as natural.
+4. Roll the Sword.
+   *Observable:* a row labelled "Strength 14, wielded (<page>)" on the throw and
+   on the damage, valued at `getAttributeModifier(14)`.
+5. Roll the Spear as a thrown attack, then the Claw as a missile attack if the
+   weapon offers one.
+   *Observable:* the thrown throw has no Strength row and its damage has one; a
+   missile attack has neither.
+6. Roll the Maul.
+   *Observable:* no Strength row, no console error and no notification.
+7. Post a Claw attack and read the card.
+   *Observable:* the posted card's modifier rows include the Strength row, and
+   the Attacks tab's own throw and damage boxes do not (ROADMAP).
+8. Clear the Strength field and roll the Claw and the Sword.
+   *Observable:* no Strength row on either; the stored score is `null`.
+9. Enter a score the table has no row for and roll the Claw.
+   *Observable:* no Strength row on the natural attack; the Sword, wielded, still
+   shows the system's modifier.
+10. In the Ruledata Browser, override one cell of `strengthAttack` with a
+    distinctive figure, enter that row's score and roll an attack whose average
+    falls in that cell's band. Then clear the override.
+    *Observable:* the row carries the override's figure and its label ends in
+    "(MM ch. 3)" in place of a page; after clearing, the imported cell and its
+    page return.
+11. Open a character with a Strength score and roll a melee attack.
+    *Observable:* the dialog carries the system's own Strength row and none from
+    this feature.
+
+**Teardown.** The fixture stays, with its Strength blank, and the override of
+step 10 is cleared; `api.sweepTracked()` for anything the run built.
+
 ## The ACKS Monster group on an item sheet
 
 The group injected into the sheet of a monster-owned weapon, ability or
