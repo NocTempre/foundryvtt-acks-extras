@@ -666,6 +666,7 @@ class El {
   setAttribute(k, v) { this.attrs[k] = String(v); }
   append(...nodes) { this.children.push(...nodes); }
   addEventListener(type, fn) { this.listeners[type] = fn; }
+  focus() { this.focused = (this.focused ?? 0) + 1; }
   get nodeType() { return 1; }
 }
 const cardHtml = ({ line = true } = {}) => {
@@ -711,6 +712,38 @@ t("the select is built when the card is bound, from the flag, so a card posted b
   assert.equal(drawn(theirs.root), null, "one creature it does not own and it is drawn no select");
   delete globalThis.game.user;
   delete globalThis.fromUuidSync;
+});
+
+t("a pick's card takes keyboard focus back on every redraw while the pick is in flight and for a moment after its answer, and another card never does", () => {
+  globalThis.game.user = { id: "p1", isGM: false };
+  globalThis.fromUuidSync = (uuid) => ({ "Actor.c": doc("me"), "Scene.s1.Token.t1": { actor: doc("me") }, "Scene.s1.Token.t2": { actor: doc("me") } })[uuid] ?? null;
+  const raf = globalThis.requestAnimationFrame;
+  globalThis.requestAnimationFrame = (fn) => fn();
+  const message = { id: "m1", flags: { "acks-extras": { castHeldEnd: { ...FLAG(), summons: SUMMONS().slice(0, 2), outcome: "stays" } } } };
+  const where = { key: "castHeldEnd", root: ".acks-extras-cast-held", anchor: ".acks-extras-cast-held__foot" };
+  const redraw = (msg = message) => {
+    const card = cardHtml();
+    hand.bindControlSelect(msg, card.html, where);
+    return drawn(card.root).children[0].children[1];
+  };
+  try {
+    hand.controlFocus.ask("m1");
+    assert.equal(redraw().focused, 1, "the record's write redraws the card while the pick is in flight");
+    hand.controlFocus.settle("m1");
+    assert.equal(redraw().focused, 1, "a second redraw, after the answer, takes the focus back too");
+    assert.equal(redraw({ ...message, id: "m2" }).focused, undefined, "another card's redraw does not");
+    hand.controlFocus.settle("m1", Date.now() - 60000);
+    assert.equal(redraw().focused, undefined, "past the hold a redraw leaves the focus where it is");
+    assert.equal(hand.controlFocus.pending, null, "and the expired hold is closed");
+    hand.controlFocus.ask("m1");
+    hand.controlFocus.drop();
+    assert.equal(redraw().focused, undefined, "a refused pick drops the hold");
+  } finally {
+    hand.controlFocus.drop();
+    globalThis.requestAnimationFrame = raf;
+    delete globalThis.game.user;
+    delete globalThis.fromUuidSync;
+  }
 });
 
 /** A card message in a world of tokens, with the lib call stubbed. */

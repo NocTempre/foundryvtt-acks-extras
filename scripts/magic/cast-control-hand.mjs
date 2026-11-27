@@ -250,8 +250,34 @@ export async function setControlOnCard({ message, key, outcome, sender = null, b
 /** The refusals this file's lang group words; any other reason reads as `refused`. */
 const REFUSALS = Object.freeze(["gone", "notOwner", "noCard", "badOutcome", "noUser", "notGm", "noCast", "refused"]);
 
-/** The message a pick has asked to hold focus once its card is redrawn. */
-let focusPending = null;
+/** How long after a pick's answer a redraw of its card still takes keyboard focus (a timing choice of the module). */
+const FOCUS_HOLD_MS = 1500;
+
+/**
+ * The card a pick asked to keep keyboard focus on. One pick can redraw its card
+ * more than once (the record's write, then the creatures' own updates), so the
+ * hold is not spent by the first redraw: it stays open while the pick is in
+ * flight and for `FOCUS_HOLD_MS` after its answer, and every redraw of that
+ * card inside it puts the focus back on the select.
+ */
+export const controlFocus = {
+  pending: null,
+  /** Open the hold for a card whose pick is in flight. */
+  ask(id) { this.pending = { id, until: Infinity }; },
+  /** Start the hold's tail once the pick is answered. */
+  settle(id, now = Date.now()) { if (this.pending?.id === id) this.pending.until = now + FOCUS_HOLD_MS; },
+  /** Close the hold, for a pick that was refused or failed. */
+  drop() { this.pending = null; },
+  /** Whether a redraw of this card at `now` takes the focus; an expired hold is closed. */
+  wants(id, now = Date.now()) {
+    if (this.pending?.id !== id) return false;
+    if (now > this.pending.until) {
+      this.pending = null;
+      return false;
+    }
+    return true;
+  },
+};
 
 /**
  * A pick, from this seat: asked of the GM's client as `{op: "setControl",
@@ -328,23 +354,25 @@ export function bindControlSelect(message, html, { key, root, anchor, live = fal
   select.addEventListener("change", () => {
     if (!select.value || select.value === view.value) return;
     select.disabled = true;
-    focusPending = message.id;
+    controlFocus.ask(message.id);
     pressControl(message, select.value)
       .then((answer) => {
-        if (answer?.ok) return;
-        focusPending = null;
+        if (answer?.ok) {
+          controlFocus.settle(message.id);
+          return;
+        }
+        controlFocus.drop();
         select.value = view.value;
         select.disabled = false;
         select.focus?.();
       })
       .catch((err) => {
         console.error(`${MODULE_ID} | a control end could not be set`, err);
-        focusPending = null;
+        controlFocus.drop();
         select.disabled = false;
       });
   });
-  if (focusPending === message.id) {
-    focusPending = null;
+  if (controlFocus.wants(message.id)) {
     (globalThis.requestAnimationFrame ?? ((fn) => setTimeout(fn, 0)))(() => select.focus?.());
   }
 }

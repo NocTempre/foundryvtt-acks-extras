@@ -4290,9 +4290,12 @@ visible and not a darkness source, its Daylight radius blank.
    `dark`. Show it; give it an activation range that excludes darkness 1 and
    read again: the same. *Observable:* in neither case does the reading name the
    light.
-6. **A new light.** Place a new light and open its configuration before
-   saving. *Observable:* the field is there, and a radius typed before pressing
-   Create Ambient Light is written to the flag on the created light.
+6. **A new light.** Place a new light with the lighting tool, then open its
+   configuration. Core 14 creates a placed light on the drop and opens no
+   configuration for a light not yet created ("Document creation from
+   AmbientLightConfig is not supported"), so a radius cannot be typed before
+   the light exists. *Observable:* the field is there and blank, and a radius
+   saved from it lands on the flag with bright and dim as typed.
 
 Teardown: restore the fixture's shape from the run's start; delete any light
 the run created, by the ledger. The fixtures stay.
