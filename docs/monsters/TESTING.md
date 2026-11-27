@@ -1081,22 +1081,31 @@ tables import run (Settings tab → Game Settings → ACKS II — Extras → Man
 imports → Rules tables).
 
 **Fixtures.** `monsters/str-attacks`: a `monster` actor built with `api.fixture`,
-carrying five weapons with plain dice formulas except the last: a `Claw` whose
-ACKS Monster group `naturalWeapon` is `claw`, an unmarked `Slam`, a `Sword`
-marked `weapon`, a `Spear` marked `weapon` with Thrown ticked beside Melee, and
-an unmarked `Maul` whose damage formula is "By weapon". A step asserts the
-formulas, marks and kinds at its start: the fixture keeps whatever the last
-walk wrote.
+carrying seven weapons, each with a plain dice formula unless named: a `Claw`
+whose ACKS Monster group `naturalWeapon` is `claw`, a `Bite` marked `bite` whose
+formula step 2 sets, an unmarked `Slam`, a `Sword` marked `weapon`, a `Spear`
+marked `weapon` with Thrown ticked beside Melee, an unmarked `Quill` with
+Missile ticked and Melee not, and an unmarked `Maul` whose damage formula is
+"By weapon". A step asserts the formulas, marks and kinds at its start: the
+fixture keeps whatever the last walk wrote.
 
-**Drive mechanics.** Roll each attack from the Attacks tab of a sheet built as in
-"Core drive mechanics", so the dialog opens. Rig the die with
-`CONFIG.Dice.randomUniform` (0.975 reads a top face on core 14) so the total is
-known, and read the modifier rows from the dialog's list and from the posted
-card, never the total alone. A score typed into the Classification tab's field
-takes from under one to about five seconds to reach the flag: poll the flag for
-the value. The seam's rows exist only while an attack is in flight, so probe
-`attackThrowModifiersFor` and `damageModifiersFor` from inside a roll, never
-from the console alone.
+**Drive mechanics.** Roll one attack from the Attacks tab of a sheet built as in
+"Core drive mechanics", so the dialog opens: the item's icon
+(`data-action="itemUse"`) opens the system's attack dialog, whose Roll button
+posts the card. The other rolls may go through
+`actor.makeAttackThrow({item, attackType, skipDialog: true})`, which builds the
+same rows and posts the same card. Core resolves an attack type the weapon does
+not offer to the weapon's first (`normalizeChoices`), so a missile roll of a
+melee-only Claw is a melee roll; the Quill is the missile case. Rig the die with
+`CONFIG.Dice.randomUniform` so the total is known, and read the modifier rows
+from the dialog's list and from the posted card, never the total alone. A score
+typed into the Classification tab's field takes from under one to about five
+seconds to reach the flag: poll the flag for the value. The seam's rows exist
+only while an attack is in flight, so probe `attackThrowModifiersFor` and
+`damageModifiersFor` from inside a roll, never from the console alone. The
+importer's API (`acksExtras.importer`) is set only once its `ready` handler has
+loaded the cookbook, after the driver's `connect` resolves: wait for it before
+calling `cookbookImportTables(["monsters"])`.
 
 **Steps.**
 
@@ -1110,14 +1119,18 @@ from the console alone.
    whose average is the figure `formulaAverage` gives the Claw's formula, valued
    at the table's cell for that score in the band holding the average, appears
    once on the throw and once on the damage.
+   Then set the Bite's formula to one whose `formulaAverage` lies between the
+   top of one band and the bottom of the next in `strengthBands()`, and roll it.
+   *Observable:* `strengthAttackBonus(14, average)` names the lower of the two
+   bands, and the Bite's row, present where that band's cell is not zero,
+   carries that cell.
 3. Roll the unmarked Slam.
    *Observable:* the same kind of row, so an unmarked weapon counts as natural.
 4. Roll the Sword.
    *Observable:* a row labelled "Strength 14, wielded (<page>)" on the throw and
    on the damage, valued at `getAttributeModifier(14)`.
-5. Roll the Spear as a thrown attack, then the Claw as a missile attack if the
-   weapon offers one.
-   *Observable:* the thrown throw has no Strength row and its damage has one; a
+5. Roll the Spear as a thrown attack, then the Quill as a missile attack.
+   *Observable:* the thrown throw has no Strength row and its damage has one; the
    missile attack has neither.
 6. Roll the Maul.
    *Observable:* no Strength row, no console error and no notification.
@@ -1140,7 +1153,9 @@ from the console alone.
     this feature.
 
 **Teardown.** The fixture stays, with its Strength blank, and the override of
-step 10 is cleared; `api.sweepTracked()` for anything the run built.
+step 10 is cleared. The cards the run posted are swept by their own ids with
+`api.sweepTracked({only: cards})`: a run that built the fixture holds it on the
+ledger as well, and a bare `sweepTracked()` deletes it with the cards.
 
 ## The ACKS Monster group on an item sheet
 
