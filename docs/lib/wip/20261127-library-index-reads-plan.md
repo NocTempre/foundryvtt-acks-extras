@@ -51,9 +51,41 @@ file when the last slice lands (`.claude/rules/docs-doctrine.md`, wip lifecycle)
 > You are phase 2 of the acks-extras work "Library reads off the index". Read `CLAUDE.md`,
 > `.claude/rules/shared-tree.md`, `.claude/rules/live-testing.md` and
 > `docs/lib/wip/20261127-library-index-reads-plan.md`, including phase 1's results. Sync
-> `topic/library-index-reads` with `acks-branch sync`. Build S5a to S10 in order, landing and walking each
-> on `main`. Append results to the plan, then do section 11's docs, close the topic, delete the plan, set
-> ledger rows, and report to the owner. Push nothing.
+> `topic/library-index-reads` with `acks-branch sync`: `main` gained the summon-name fix `d42c2bb3`, which
+> touches `lib/library.mjs` `cookbookRow`, `lib/summon-list.mjs`, `magic/spell-sheet.mjs` and
+> `lib/apps/effect-row-editor.mjs`, after S4b. Build S5a, S5b-1, S5b-2, S6, S7a to S7d, S8a to S8c, S9 and
+> S10 in order, `implementer` per slice. S2c is not built, because S0 measured an `_id__in` of 40 at 360 ms.
+> S6 is built, because S0 counted 76% of Item rows outside the five sub-types. Land and walk each slice on
+> `main`; never land one before the previous one's walk passes.
+>
+> - **Measuring.** The census is the untracked `tools/live/perf-leads.mjs` in `main`'s tree (ruling 1;
+>   listed in `.git/info/exclude`, never staged). Run it as
+>   `PERF_LEADS=1 PERF_SET=census PERF_LABEL=<label> WALK_WALL_MS=2700000 node tools/live/perf-leads.mjs`,
+>   with the browser, origin and seat variables `TEST_ENVIRONMENT.md` gives. `PERF_ONLY=<lead,…>` runs
+>   single leads. `PERF_IDLE_MS` shortens the idle for a smoke run, and is never used for a slice's walk. Its
+>   output is `aia-tmp/20261127-perf-timings-<label>.json`, and `aia-tmp/20261127-perf-sum.mjs` sums it by
+>   seat and caller. The census leads are `loadCensus`, `quietQueries`, `afterEviction`, `encounterEarly`,
+>   `t0824`, `summonEarly`, `shelfMaterialize`, `shelfAdventure` and the four firsts. Phase 1's moved
+>   readers are observables inside `loadCensus` and `afterEviction` (`P.readers`, `P.sidebarEdit`,
+>   `P.actorReaders`). Each S5 to S8 reader gets one there before its slice is walked. The kept fixtures are
+>   `perf/sidebar-item`, `perf/s2-package-class` and `perf/s2-flask`.
+> - **What is left to remove.** Every remaining whole load is Item's: the warm at `ready`, the `whenReady`
+>   awaiters (the first cast, 7.3 s on the GM seat and 6.4 s on the Player's) and `classItems`' cold kick
+>   after an idle (5.3 to 5.5 s on the character sheet).
+> - **Build-ahead.** `acks-branch land` refuses a dirty worktree and lands the whole tip. A slice committed
+>   in the worktree while the previous one is walked is set aside as a patch (`git diff --binary`, then
+>   `git apply -R`) and put back after the land. The landing lease is shared with peers, and a land may wait
+>   up to 20 minutes for it.
+> - **Walks.** `docs/magic/TESTING.md` names `tools/live/magic-cast-summon.mjs`, which does not exist; a
+>   Player summoning cast is `formation-summons`, and summon names are `magic-summon-list`. Run
+>   `formation-summons` with `FIXTURE_OWN=libidx` while a peer's twin of `summons/spike-source`
+>   (`Actor.z4L9ENrfSvN7Rzye`) stands; it is that peer's to retire.
+> - **Section 11.** Among the docs: `docs/lib/MODEL.md` still describes the Actor warm and `whenReady`;
+>   `docs/lib/PLACES.md` says a pack place reads an "already-loaded index"; lib DECISIONS needs S4b's entry
+>   (T-0824 decided lazy; the `parentUuid` exception to 2026-11-24).
+>
+> Append results to the plan, then do section 11's docs, close the topic, delete the plan, set ledger rows,
+> and report to the owner. Push nothing.
 
 ## 1. Goal
 
@@ -795,3 +827,73 @@ Twelve boots, each reaching `ready` with no error in init, setup or ready.
   called); token art's Apply was not driven (it needs a third-party monster compendium and writes the library's
   monsters); the walk's summon rows name their creature by uuid, so the stamp path ran in the census alone; the
   lair's read was not counted apart from the summon ref's.
+
+### S4b. Actor names on sheets, T-0824, and Actor comes off the warm (phase 1, 2026-11-27)
+
+Commit `6dd4b8f0`, landed with the full gate green. It also declares the token-art flag on the Actor index at
+the importer's `init`, so the restore offer reads index rows (core rebuilds a row from `_source` on every create
+and update, `client/documents/abstract/client-document.mjs` `_onCreate` and `_onUpdate`, so the flag follows
+writes). Walked on `main` at `6dd4b8f0`, same world and seats. The census gains two leads:
+- `t0824`: on a fresh GM page with the pack unindexed, a place held in a Judge's Actor shelf with 167
+  sub-places is picked and its family read. The place is the shelf's own, read only, so no fixture was built.
+- `summonEarly`: on a fresh Player page, the census's summon spell's sheet is rendered and read until it
+  names its creature or shows the neutral label.
+
+Output: `aia-tmp/20261127-perf-timings-s4b.json`; the before reading is `…-s4a-pre4b.json`, taken on S4a's
+`main`. Fifteen boots, each reaching `ready` with no error in init, setup or ready.
+
+- **Load (ready+60 s).** GM: 2 whole loads (Item 4,474), 4 `_id__in`, 2 index passes, **4,590 documents**,
+  ready to warm end 11.9 s (the Item load 7.0 s). Player: 1 whole, 4 `_id__in`, 1 index, **4,589 documents**,
+  13.9 s (Item 7.8 s). Actor holds 0 on both seats (S3: 6,128 and 4,963).
+- **S4a's readers without the Actor warm, at ready+60 s:** the companion candidates by one `_id__in` of 45
+  (693 and 667 ms), the summon ref by one `_id__in` of 1, the restore's subjects by two `_id__in` of 591
+  documents (3.6 s).
+- **After the 310 s idle** (310,009 ms measured, every shelf at 0): the cast window stood in 139 ms (GM) and
+  155 ms (Player) with **no server pass**, where S3's `whenReady` loaded the Actor shelves whole (7.4 and
+  3.3 s). The summon-row spell sheet made no pass. Total after the idle: GM 2 whole loads and 4,475 documents,
+  Player 1 and 4,474: this is `classItems`' cold kick on the character sheet alone (5.5 and 5.3 s), which phase
+  2 takes.
+- **Firsts.** Cast window: GM 7.3 s (S3 16.5 s), Player 6.4 s (S3 9.5 s), each loading the Item shelf alone.
+  Unequip: 0.22 s, 0.16 s.
+- **T-0824:** the Judge's shelf place shows 167 content rows, and its sub-place's breadcrumb is 2 deep. One
+  index pass, from `packPlaces`, 1,104 ms. On S4a's `main` the same pick showed 0 and 0.
+- **Summon names: a finding, fixed on `main` as `d42c2bb3`.** On a fresh Player page, the census's summon
+  spell read the neutral label after its redraw, on S4a's `main` and on S4b's alike, so it predates this slice.
+  - The probe (`…-s4b-summon-probe.json`) found the spell's stamp carried by one world actor the Player does
+    not observe and one actor on a shelf the Player opens.
+  - `cookbookRow` took the world's carrier first, while the cast summons the copy the seat can read.
+  - The fix: `cookbookRow` takes `prefer`, and the stamp lookup in `summon-list` passes `creatureOpens` for the
+    seat. The spell sheet's Mechanics tab and the effect row window now name the shelf copy.
+  - Walked live (`…-s4b-fix.json`): named after one redraw, 2 renders, one Actor index pass from the spell
+    sheet, no document loaded.
+  - Unit cases: `test-library-held` 36 checks, `test-summon-list` 18.
+- **`magic-summon-list` walk:** 50 passed, 0 failed, no console error on either seat (recorders attached after
+  `ready`).
+- **Encounter card before the warm ends:** linked in 289 ms. **Template packages, rules-table pass:** as in
+  S2 (0 duplicate keys). **Adventure prepare:** it now loads the Actor shelves too (6 whole loads, 1,971
+  documents, 16.7 s), since its explicit load names all four types.
+- **Quiet queries:** `_id__in` of 40 478 ms, index 572 ms, whole 4,986 ms.
+- **Offline only:** `test-library-where` 38, `test-library-held` 35, `test-summon-list` 17, `test-token-art`
+  55, `test-lib` 314, `test-summons` 120, `test-region-place-row` 80, `test-magic-summon-rows` 22,
+  `test-magic` 108, `test-magic-cast` 156, `test-import-manager` 43, `test-companions` 7, `test-lair` 23
+  checks. `test-judge-shelf`, the location suites, the domains and factions suites and the book-adventure
+  suite passed. Then the land's full gate.
+- **Not checked:**
+  - Restore being offered after token art's Apply (it needs a third-party source).
+  - A place's providers, which were not counted apart from its children.
+  - Domains' and factions' synchronous `allPlaces({pack})`. It is not awaited, so its first draw on an
+    unindexed pack shows the startup rows (section 9's named risk). It is registered as a finding.
+
+**The decision point (ruling 4).** Phase 1's census, baseline to S4b:
+
+| | Baseline | S4b |
+|---|---|---|
+| GM at ready+60 s | 6,447 documents | 4,590 |
+| Player at ready+60 s | 5,228 | 4,589 |
+| GM after a 310 s idle | 6,446 | 4,475 |
+| Player after a 310 s idle | 5,228 | 4,474 |
+| First cast, GM | 14.9 s | 7.3 s |
+| First cast, Player | 11.5 s | 6.4 s |
+
+The Item warm is not under 1 s per seat. It loads the whole Item shelf in 7.0 s (GM) and 7.8 s (Player) at
+load. After an idle, the first Item reader reloads the shelf whole (5.3 to 5.5 s). **Phase 2 goes ahead.**
