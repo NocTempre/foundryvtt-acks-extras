@@ -309,6 +309,8 @@ export function createFullMonsterSheet(Base) {
       context.carriedItems = items.filter((i) => !i.getFlag(MODULE_ID, "spoil"));
       // Each carried row's count view by item id: a row prints `×N` only above one.
       context.carriedCounts = Object.fromEntries(context.carriedItems.map((i) => [i._id, countView(i)]));
+      // The Attacks tab's weapon rows take the same count view: a stack of several weapons prints `×N` beside its name.
+      context.weaponCounts = Object.fromEntries((context.owned?.weapons ?? []).map((i) => [i._id, countView(i)]));
       // Each inventory row's run state by item id: the tag, the line and, for an owner, the presses (`item-run-row-view.mjs`).
       const runRows = [...context.carriedItems, ...(context.owned?.armors ?? []), ...(context.owned?.clothes ?? [])];
       context.carriedRuns = Object.fromEntries(runRows.map((i) => [i._id, itemRunRowFor(i)]).filter(([, row]) => row));

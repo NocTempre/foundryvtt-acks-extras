@@ -36,7 +36,7 @@ behavior.
 | **HD / save ranges** | extras | `.hd.countMax`, `.saveAs.levelMax` (e.g. hydra "5 to 12") |
 | **Related stat lines** | extras | `.variants[]` = `{label, uuid}` |
 | **Entry prose** | extras | `.description.{appearance,combat,ecology,encounterText,lore,notes}` |
-| **Attacks** | items | `weapon` items (`system.damage`, `counter`) + flags below |
+| **Attacks** | items | `weapon` items (`system.damage`, `counter`) + flags below; a stack above one prints `×N` beside its name, from lib `countView` as on the Inventory tab |
 | **Proficiencies / special abilities** | items | `ability` items (`rollTarget`, `proficiencytype`) + flags below |
 | **Spoils / harvestable parts** | items | `item` items (`weight6` = N/6 stone, `cost` = gp) + flags below |
 | **Active effects** | core | actor `ActiveEffect`s |

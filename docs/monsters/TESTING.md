@@ -1037,6 +1037,28 @@ in page context on a synthetic member of the kept party.
 
 **Teardown.** The fixture stays, blank.
 
+## An attack row's count
+
+MODEL, the Attacks row: a weapon stack above one prints `×N` from lib
+`countView`. The Inventory tab's count is the same rule and is walked with the
+storage lists.
+
+**Fixture.** `monsters/attack-count`: a `monster` actor built with
+`api.fixture`, carrying a weapon `Spear` of Quantity 3 and a weapon `Claw` of
+Quantity 1. A step asserts both quantities at its start.
+
+**Steps.**
+
+1. Build `FullMonsterSheet` on the fixture (Core drive mechanics, above) and
+   read each `[data-tab="attacks"] li.item`.
+   *Observable:* the Spear's `.item__text` holds a span reading `×3` whose
+   `data-tooltip-text` names 3 and the item's Quantity; the Claw's holds no
+   span.
+2. Set the Claw's Quantity to 2 on its item sheet and read again.
+   *Observable:* the Claw row reads `×2`. Set it back to 1.
+
+**Teardown.** The fixture stays, at Quantities 3 and 1.
+
 ## The ACKS Monster group on an item sheet
 
 The group injected into the sheet of a monster-owned weapon, ability or

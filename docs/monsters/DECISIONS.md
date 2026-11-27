@@ -818,3 +818,26 @@ Strongest counter-argument (medium): the system declares that monsters have no
 ability scores, so a module reading one for a monster departs from the system's
 model. The score lives in this module's own flag and is read only by this
 module's throws, none of which the system makes for a monster.
+
+## 2026-11-27 — An attack row shows its stack's count (T-0905)
+
+The owner, 2026-11-27: "show count".
+
+Read: a monster carrying several of one weapon (three spears as one item of
+Quantity 3) shows the figure on the Attacks tab, where it is used, as the
+Inventory tab already shows it. A Spear row of Quantity 3 reads `Spear ×3`; a
+Claw of Quantity 1 reads `Claw`.
+
+Built: the sheet's context carries `weaponCounts` from lib `countView`, the one
+list rule S11 made for every count, and the Attacks row draws it as the
+Inventory row does, with the provenance tooltip. No design board: the count
+reuses the approved S11 look on one more list.
+
+Rejected: a count control on the row (the Inventory tab and the item sheet
+already edit the Quantity, and `offersCount` is a separate question); reading
+the count into the round's attack counter, which the Attacks tab already
+carries and which counts attacks, not weapons.
+
+Strongest counter-argument (weak): a natural weapon is never stacked, so the
+count serves only carried arms. Those are the rows the report was about, and a
+natural weapon of Quantity 1 draws nothing.
