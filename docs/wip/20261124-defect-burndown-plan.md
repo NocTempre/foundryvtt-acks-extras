@@ -507,11 +507,15 @@ kept fixtures:
   GM seat and on the Player seat that owned it. The stored entry kept the
   stage. The tooltip stood after Apply and after the defense was taken off;
   undefended rows named none, and no cell carried a `title`. The same probe
-  with a resistance (the world holds the imported figures) passed 13 of 13
-  but read "1 to 0.5" beside a figure of 0: the stored rounding step was not
-  named. After the follow-up a second run passed 13 of 13 and read "then
-  Rounded 0.5 to 0" before the page, on both seats and on the applied row.
-  Both probes wrote the defense flag directly, not through the Defenses tab.
+  with a resistance (the world holds the imported figures) passed 13 of 13,
+  but its tooltip ended on the defense's fractional figure beside a rounded
+  one: the stored rounding step was not named. After the follow-up a second
+  run passed 13 of 13 and named the rounding before the page, on both seats
+  and on the applied row. Both probes wrote the defense flag directly, not
+  through the Defenses tab. lib-aura-fuse passed again on a350a77b (83 pass,
+  0 fail), its passed-save rows among them; it checks their amounts and no
+  tooltip's tail, so a passed save's rounding, which the same change names,
+  is pinned offline only.
 - A one-off driver for T-0852, through the group sheet's Individuate press.
   The labelled stack stored its figure, the press added no record, and one
   body took the figure once a monster was dropped on the row; a `createActor`
@@ -567,3 +571,5 @@ https://claude.ai/artifact/SxK4Y3zRJxXnw7sXJjnJsF):
   Battlemap scene control.
 - The mark tool's glyph: Walls scene control → Mark the selected walls as
   roads.
+- The rounding at the end of a burst row's Damage tooltip, a wording no board
+  drew: Chat tab → a fuse's burst card → the Damage figure of a row.

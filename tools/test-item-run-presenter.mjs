@@ -1035,12 +1035,12 @@ await t("an applied burst row's Damage tooltip reads the stages its Apply stored
     const unnamed = presenter.stagePart([stage], false);
     assert.ok(!/Fire resistance|Ring/.test(unnamed) && unnamed.includes("11 to 5"), `a seat that may not name the defense reads its figures alone: ${unnamed}`);
     assert.equal(presenter.stagePart([{ key: "round", before: 5, after: 5 }, { key: "fraction", before: 11, after: 5 }], true), "", "no defense stage and no rounding that moved the figure is no part");
-    const halved = { ...stage, label: "Resistant", before: 1, after: 0.5 };
-    assert.equal(presenter.stagePart([halved, { key: "round", before: 0.5, after: 0 }], true), "then Resistant (Ring) 1 to 0.5, then Rounded 0.5 to 0", "a rounding that moved the figure follows the defense, so the parts end on the figure");
-    assert.equal(presenter.stagePart([{ key: "fraction", before: 5, after: 2.5 }, { key: "round", before: 2.5, after: 2 }], true), "then Rounded 2.5 to 2", "a passed save's share rounded down is named with no defense");
-    entries["S~a"] = { ...entries["S~a"], amount: 0, steps: [halved, { key: "round", before: 0.5, after: 0 }] };
-    const rounded = bodyFor("burstBody", "f1", users[0]).match(/data-tooltip-text="(0: 3d6[^"]*)"/)?.[1] ?? "";
-    assert.ok(rounded.includes("1 to 0.5, then Rounded 0.5 to 0 ("), `the applied row's tooltip names the rounding before the page: ${rounded}`);
+    const fractional = { ...stage, label: "Resistant", before: 12, after: 4.8 };
+    assert.equal(presenter.stagePart([fractional, { key: "round", before: 4.8, after: 5 }], true), "then Resistant (Ring) 12 to 4.8, then Rounded 4.8 to 5", "a rounding that moved the figure follows the defense, so the parts end on the figure");
+    assert.equal(presenter.stagePart([{ key: "fraction", before: 9, after: 3.6 }, { key: "round", before: 3.6, after: 4 }], true), "then Rounded 3.6 to 4", "a passed save's share left fractional is named with no defense");
+    entries["S~a"] = { ...entries["S~a"], amount: 5, steps: [fractional, { key: "round", before: 4.8, after: 5 }] };
+    const rounded = tipOf(users[0]);
+    assert.ok(rounded.includes("12 to 4.8, then Rounded 4.8 to 5 ("), `the applied row's tooltip names the rounding before the page: ${rounded}`);
     entries["S~a"] = { ...entries["S~a"], amount: 5, steps: [stage, { key: "round", before: 5, after: 5 }] };
     entries["S~a"].steps = [];
     assert.ok(!/then /.test(tipOf(users[0])), "an applied row whose stored steps hold no defense names none, whatever the body holds now");
