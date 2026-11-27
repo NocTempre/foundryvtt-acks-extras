@@ -411,6 +411,14 @@ export async function buildGearData(entry, { base: given } = {}) {
     // `toObject` carries the importer stamp, which would make the skin answer
     // ref lookups meant for the base. Only the importer's keys under
     // `flags[MODULE_ID]` (`cookbook`, `minted`) are stripped.
+    // The sizes the import read off the page (`read.days`, `read.holds`,
+    // `read.daily`, `read.perDay`) ride the copy under `skin`, which the
+    // provision reader takes where the copy has no stamp of its own.
+    const sizes = {};
+    for (const key of ["days", "holds", "daily", "perDay"]) {
+      const figure = data.flags?.[MODULE_ID]?.cookbook?.read?.[key];
+      if (figure !== undefined) sizes[key] = figure;
+    }
     if (data.flags?.[MODULE_ID]) {
       delete data.flags[MODULE_ID].cookbook;
       delete data.flags[MODULE_ID].minted;
@@ -430,6 +438,7 @@ export async function buildGearData(entry, { base: given } = {}) {
           baseName: base.name,
           descriptor: entry.name,
           ...(embellishment ? { embellishment } : {}),
+          ...(Object.keys(sizes).length ? { read: sizes } : {}),
         },
       },
     };

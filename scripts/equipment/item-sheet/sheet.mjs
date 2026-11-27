@@ -36,6 +36,7 @@ import { wearableSlots } from "../profiles.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 import { quantityOf } from "../../lib/storage-logic.mjs";
 import { snapshotItem, SHEET_FLAGS, PER_STONE_PATH } from "./snapshot.mjs";
+import { foldProvisionForm } from "./provision-fields.mjs";
 import { buildItemSheetModel, togglePin, KNOW_STEPS, VALUE_MODES } from "./view-model.mjs";
 import { rollById, rollIds } from "./rolls.mjs";
 import { bindScene, unbindScene, updateFromExploration, chartScene } from "./chart.mjs";
@@ -224,6 +225,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
       descriptionPath: model.band.nameMasked ? `flags.${MODULE_ID}.${ITEM_FLAGS.DISGUISE}.true.description` : "system.description",
       containerPath: `flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINER}`,
       capacityPath: `flags.${MODULE_ID}.gear.capacity`,
+      provisionPath: `flags.${MODULE_ID}.provision`,
       spellbookText: isSpellbook(item) ? formatSpellList(spellbookSpells(item)) : null,
       canSplit: canSplit(item),
       worldItem: !item.parent,
@@ -261,6 +263,8 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
     if (cap === "" || cap === null) {
       foundry.utils.setProperty(data, `flags.${MODULE_ID}.gear.capacity`, null);
     }
+    // The Provision fields: a blank control clears its key, the last one clears the flag.
+    foldProvisionForm(data, this.item.getFlag(MODULE_ID, "provision"));
     // The listed price is the PRISTINE cost: with layers applied it lives in
     // the snapshot and the document's cost is recomputed from it; with none,
     // the document's cost is the listed price itself. Two controls type it,

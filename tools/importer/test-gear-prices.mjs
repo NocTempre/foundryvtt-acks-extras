@@ -3,7 +3,7 @@ import assert from "node:assert";
 import fs from "node:fs";
 import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
 import { FILES, referenceComplete } from "./reference-lib.mjs";
-import { extractPriceMapFromDoc, extractPriceRowsFromDoc, extractPrices, priceFor, parseCost, labelCapacity, capacityFor, PRICE_TABLES } from "../../scripts/importer/gear-prices.mjs";
+import { extractPriceMapFromDoc, extractPriceRowsFromDoc, extractPrices, priceFor, parseCost, labelCapacity, capacityFor, labelDays, daysFor, PRICE_TABLES } from "../../scripts/importer/gear-prices.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -48,6 +48,23 @@ check("a figure in a parenthesis that does not open with holds is no capacity", 
   check("a row that IS the entry states its capacity", capacityFor(exact, "Crate") === 9);
   check("a variant the prefix lookup fell back to does not state the entry's", capacityFor(variant, "Crate") === null);
   check("a row with no stated capacity, or no row, states none", capacityFor({ name: "Rope", capacity: null }, "Rope") === null && capacityFor(null, "Rope") === null);
+}
+
+// Unit: the days a unit lasts that a row's own label states. The figures are INVENTED.
+check("labelDays reads a word count of weeks, a week being seven days", labelDays("Loaf, Dry (two weeks)") === 14 && labelDays("Loaf, Dry (one week)") === 7);
+check("labelDays reads digits, and days", labelDays("Loaf, Dry (3 days)") === 3 && labelDays("Loaf, Dry (1 day)") === 1 && labelDays("Loaf, Dry (2 weeks)") === 14);
+check("labelDays reads a hyphenated count and any case", labelDays("Loaf (Three-Day)") === 3 && labelDays("Loaf (TWELVE WEEKS)") === 84);
+check("a label with no duration reads none", labelDays("Crate (holds 9 stone)") === null && labelDays("Loaf") === null && labelDays("Loaf (dry)") === null);
+check("a parenthetical that is not a whole count of weeks or days reads none", labelDays("Loaf (several days)") === null && labelDays("Loaf (a week)") === null && labelDays("Loaf (0 days)") === null && labelDays("Loaf (2.5 days)") === null && labelDays("Loaf (a week or two)") === null);
+check("a name outside a parenthesis states no duration", labelDays("One Week Loaf") === null && labelDays(null) === null);
+{
+  const R = { rowTol: 3, sides: [{ nameX0: 40, nameX1: 240, costX: 250, encX: 300 }] };
+  const run = (str, x, y) => ({ str, x, y });
+  const rows = extractPrices([run("Loaf, Dry (two weeks)", 40, 10), run("1gp", 250, 10), run("1", 300, 10), run("Rope", 40, 20), run("1gp", 250, 20), run("1", 300, 20)], R);
+  check("an extracted row carries the days its label states, and none otherwise", rows.find((r) => r.name.startsWith("Loaf"))?.days === 14 && rows.find((r) => r.name === "Rope")?.days === null);
+  const exact = { name: "Loaf, Dry (two weeks)", days: 14 };
+  check("a row that IS the entry states its days, and a variant's are not the entry's", daysFor(exact, "Loaf, Dry") === 14 && daysFor({ name: "Loaf, Dry, Spiced (two weeks)", days: 14 }, "Loaf, Dry") === null && daysFor(null, "Loaf") === null);
+  check("a price bled into the text after the duration does not make the row another's", daysFor({ name: "Loaf, Dry (two weeks) 9cp –", days: 14 }, "Loaf, Dry") === 14);
 }
 
 // Unit: a grid that stacks SECTIONS. One recipe reads the second price page,
@@ -121,6 +138,10 @@ check("the gear section is not the clothing one", sectionOf(backpackRow) !== sec
 // count is the page's, the figures are not asserted.
 check(`${priced.filter((r) => r.capacity != null).length} price rows state a capacity (7 expected)`, priced.filter((r) => r.capacity != null).length === 7);
 check("every row that states one is on the gear page", priced.filter((r) => r.capacity != null).every((r) => r.table === "gear"));
+// Two provision rows state how long a unit lasts in their own label, and the
+// lookup for each entry reaches its row; the count is the page's, the figures are not asserted.
+check(`${priced.filter((r) => r.days != null).length} price rows state a duration (2 expected)`, priced.filter((r) => r.days != null).length === 2);
+check("both provision entries read a size from their rows", ["Rations, Iron", "Rations, Standard"].every((n) => daysFor(priceFor(map, n), n) > 0));
 // The subtype lookup is CONFIG's, not ours — but the heading it is asked about
 // has to be the word the system's own vocabulary knows, or nothing matches and
 // every clothing row silently stays plain inventory.

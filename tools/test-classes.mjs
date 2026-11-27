@@ -1229,6 +1229,7 @@ const {
   sharedPartKey,
   skinNameKey,
   planKitEntry,
+  buildGearData,
 } = await import("../scripts/classes/template-packages.mjs");
 
 const { pathGroups, pathOptions, chosenOption, pathTrainingChanges, unansweredGroups, templateSelection, templateOptionKey } =
@@ -1367,6 +1368,36 @@ test("the embellishment is the descriptor minus the base", () => {
   assert.equal(parseEmbellishment("Crudely-crafted shortbow", "Short Bow"), "Crudely-crafted");
   assert.equal(parseEmbellishment("Staff tipped with glass gemstone", "Staff"), "tipped with glass gemstone");
 });
+
+await (async () => {
+  // A kit copy sheds the importer's stamp; the sizes the import read ride the copy's skin.
+  const baseDoc = (read) => ({
+    name: "Loaf", uuid: "Item.loaf",
+    toObject: () => ({ _id: "x", name: "Loaf", type: "item", system: { quantity: 1 }, flags: { "acks-extras": { cookbook: { id: "def.test", read }, minted: true, gear: {} } } }),
+  });
+  const saved = globalThis.foundry;
+  globalThis.foundry = {
+    utils: {
+      setProperty(obj, path, value) {
+        const keys = path.split(".");
+        const last = keys.pop();
+        const parent = keys.reduce((o, k) => (o[k] ??= {}), obj);
+        parent[last] = value;
+      },
+    },
+  };
+  try {
+    const copy = await buildGearData({ name: "Loaf", qty: 1, ref: "def.test" }, { base: baseDoc({ days: 3, holds: { amount: 2, unit: "u" }, daily: 5, capacity: 9 }) });
+    const flags = copy.data.flags["acks-extras"];
+    assert.deepEqual(flags.skin.read, { days: 3, holds: { amount: 2, unit: "u" }, daily: 5 }, "only the three size keys");
+    assert.ok(!flags.cookbook && !flags.minted, "the importer's own stamp is still shed");
+    const none = await buildGearData({ name: "Loaf", qty: 1, ref: "def.test" }, { base: baseDoc({ capacity: 9 }) });
+    assert.ok(!("read" in none.data.flags["acks-extras"].skin), "a base that read no size leaves the skin as it was");
+  } finally {
+    globalThis.foundry = saved;
+  }
+  passed++;
+})();
 
 test("the Intellect shortfall drops the LAST ability and the SECOND spell", () => {
   // RR Ch. 2 §II.1 names the entries to remove; on a bundle the positions are

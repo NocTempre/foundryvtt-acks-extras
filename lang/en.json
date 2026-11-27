@@ -2943,6 +2943,43 @@
         "magicHint": "Judge only — adds the Appearance tab, where identification and the aura live.",
         "disguisableHint": "Judge only — adds the Appearance tab's disguise drop target."
       },
+      "provision": {
+        "title": "Provision",
+        "provides": {
+          "label": "Provides",
+          "reads": "As it reads",
+          "food": "Food",
+          "water": "Water",
+          "hunt": "Game",
+          "none": "Nothing"
+        },
+        "providesHint": "Which supply this item counts toward. As it reads follows the import, then the name.",
+        "perUnit": "Days per unit",
+        "perUnitHint": "Days one unit lasts. Blank follows the import, then the name.",
+        "left": "Left, days",
+        "leftHint": "Days of water left across the stack. Blank is a full stack.",
+        "fromName": "Read from the name of {name}.",
+        "fromForage": "Set by foraging: one unit counts as one person-day.",
+        "sizeOne": "1 day a unit",
+        "sizeMany": "{n} days a unit",
+        "sourceHand": "set by hand",
+        "sourcePage": "imported ({cite})",
+        "sourceName": "from its name",
+        "sourceForaged": "foraged",
+        "readsSized": "Reads as: {kind}, {size}, {source}",
+        "readsUnsized": "Reads as: {kind} ({cite})",
+        "readsBare": "Reads as: {kind}",
+        "readsNot": "Reads as: not a provision",
+        "kind": {
+          "food": "food",
+          "water": "water",
+          "hunt": "game"
+        },
+        "cite": {
+          "food": "RR p. 129",
+          "water": "RR p. 146"
+        }
+      },
       "price": {
         "title": "Price",
         "final": "Final price"

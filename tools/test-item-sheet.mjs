@@ -566,4 +566,128 @@ console.log("item sheet: a spell book's pages");
   });
 }
 
+console.log("item sheet: the Provision fields");
+{
+  const { provisionView, foldProvisionForm } = await import("../scripts/equipment/item-sheet/provision-fields.mjs");
+  const { default: Handlebars } = await import("handlebars");
+  const { readFileSync } = await import("node:fs");
+  // Keys stand for their strings; a formatted key carries its data.
+  const t = (key, data) => (data && Object.keys(data).length ? `${key}${JSON.stringify(data)}` : key);
+  const M = "acks-extras";
+  const doc = (name, flags = {}, over = {}) => ({ name, type: "item", system: { quantity: 2 }, flags: { [M]: flags }, getFlag(s, k) { return this.flags[s]?.[k]; }, ...over });
+  const vessel = { cookbook: { id: "def.equip.waterskinWineskin", read: { holds: { amount: 10, unit: "unit" }, daily: 40 } } };
+  const ration = { cookbook: { id: "def.equip.rationsIron", read: { days: 3 } } };
+
+  test("an unsized provision shows a blank size, no placeholder, and the page reference alone as its tooltip", () => {
+    const v = provisionView(doc("Rations"), t);
+    assert.deepEqual([v.perUnit, v.placeholder, v.tip, v.showLeft], ["", "", "itemSheet.provision.cite.food", false]);
+    assert.equal(v.readsAs, 'itemSheet.provision.readsUnsized{"kind":"itemSheet.provision.kind.food","cite":"itemSheet.provision.cite.food"}');
+  });
+  test("a size from the page is the placeholder, and its tooltip names the page", () => {
+    const v = provisionView(doc("Rations, Iron", ration), t);
+    assert.deepEqual([v.perUnit, v.placeholder], ["", "3"]);
+    assert.ok(v.tip.startsWith("printed.fromPage") && v.readsAs.includes("sourcePage"));
+  });
+  test("a size set by hand fills the field with no placeholder, and the tooltip says so, and where the page read another figure", () => {
+    const byHand = provisionView(doc("Rations", { provision: { perUnit: 4 } }), t);
+    assert.deepEqual([byHand.perUnit, byHand.placeholder], [4, ""]);
+    assert.ok(byHand.tip.startsWith("printed.byHand") && byHand.readsAs.includes("sourceHand"));
+    const over = provisionView(doc("Rations, Iron", { ...ration, provision: { perUnit: 4 } }), t);
+    assert.ok(over.tip.startsWith("printed.editedByHand"));
+  });
+  test("a size from the name and a foraged one say so", () => {
+    assert.ok(provisionView(doc("Rations (1 week)"), t).tip.startsWith("itemSheet.provision.fromName"));
+    assert.equal(provisionView(doc("Foraged Food", { foraged: "food" }), t).tip, "itemSheet.provision.fromForage");
+    assert.equal(provisionView(doc("Rations (1 week)"), t).placeholder, "7");
+  });
+  test("a water item offers Left, its placeholder the full figure, and food does not", () => {
+    const v = provisionView(doc("Waterskin/Wineskin", vessel, { system: { quantity: 4 } }), t);
+    assert.deepEqual([v.showLeft, v.leftPlaceholder, v.left, v.placeholder], [true, "1", "", "0.25"]);
+    assert.equal(provisionView(doc("Waterskin/Wineskin", { ...vessel, provision: { left: 0.4 } }, { system: { quantity: 4 } }), t).left, 0.4);
+    assert.equal(provisionView(doc("Rations, Iron", ration), t).showLeft, false);
+    const bare = provisionView(doc("Waterskin"), t);
+    assert.deepEqual([bare.showLeft, bare.leftPlaceholder], [true, ""], "an unsized vessel still takes a left figure, with no figure shown for it");
+  });
+  test("Provides marks the declared kind, offers Game only while declared, and an item that is no provision reads so", () => {
+    assert.deepEqual(provisionView(doc("Rope"), t).options.map((o) => [o.value, o.on]), [["", true], ["food", false], ["water", false], ["none", false]]);
+    assert.equal(provisionView(doc("Rope", { provision: { kind: "water" } }), t).options.find((o) => o.on).value, "water");
+    assert.ok(provisionView(doc("Fresh Game", { provision: { kind: "hunt" } }), t).options.some((o) => o.value === "hunt" && o.on));
+    assert.equal(provisionView(doc("Rope"), t).readsAs, "itemSheet.provision.readsNot");
+    assert.equal(provisionView(doc("Rope", { provision: { kind: "none" } }), t).readsAs, "itemSheet.provision.readsNot");
+  });
+  test("the fieldset is offered on an ordinary item and on a weapon only once declared", () => {
+    assert.equal(provisionView(doc("Rope"), t).offered, true);
+    assert.equal(provisionView(doc("Sword", {}, { type: "weapon" }), t).offered, false);
+    assert.equal(provisionView(doc("Sword", { provision: { kind: "food" } }, { type: "weapon" }), t).offered, true);
+    assert.equal(buildItemSheetModel(base({ provision: provisionView(doc("Rope"), t) }), { isGM: true, editable: true }).details.provision.offered, true);
+    assert.equal(buildItemSheetModel(base(), { isGM: true, editable: true }).details.provision, null, "a snapshot with none shows none");
+  });
+
+  // A forced deletion reads back as GONE, so the expectations can be written as plain data.
+  class ForcedDeletion {}
+  globalThis.foundry ??= {};
+  globalThis.foundry.data ??= {};
+  globalThis.foundry.data.operators ??= { ForcedDeletion };
+  const GONE = "<unset>";
+  const plain = (v) => (v instanceof globalThis.foundry.data.operators.ForcedDeletion ? GONE : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, plain(x)])) : v);
+  const fold = (typed, stored) => {
+    const data = { flags: { [M]: { provision: typed } } };
+    foldProvisionForm(data, stored);
+    return plain(data.flags[M]);
+  };
+  test("the form writes the keys that hold a figure and clears the blank ones", () => {
+    assert.deepEqual(fold({ kind: "food", perUnit: "3" }, null).provision, { kind: "food", perUnit: 3 });
+    assert.deepEqual(fold({ kind: "", perUnit: 2 }, null).provision, { perUnit: 2 }, "as it reads is no key");
+    assert.deepEqual(fold({ kind: "food", perUnit: "" }, { kind: "food", perUnit: 3 }).provision, { kind: "food", perUnit: GONE }, "blank unsets a stored key");
+    assert.deepEqual(fold({ kind: "food", perUnit: null }, { kind: "food" }).provision, { kind: "food" }, "and writes nothing for a key that is not stored");
+    assert.deepEqual(fold({ kind: "water", perUnit: "0", left: "0" }, null).provision, { kind: "water", left: 0 }, "nothing is no size, and an empty vessel is a figure");
+    assert.deepEqual(fold({ kind: "water", perUnit: -1, left: "-3" }, null).provision, { kind: "water" });
+    assert.deepEqual(fold({ kind: "bogus", perUnit: "x" }, null), {}, "junk writes nothing");
+  });
+  test("a control the form did not draw is not a clear", () => {
+    assert.deepEqual(fold({ kind: "food", perUnit: "3" }, { kind: "water", left: 0.3 }).provision, { kind: "food", perUnit: 3, left: 0.3 });
+    assert.deepEqual(fold({ kind: "water", perUnit: "3", left: "" }, { left: 0.3 }).provision, { kind: "water", perUnit: 3, left: GONE });
+  });
+  test("with every control blank the flag is removed whole, and with nothing stored nothing is written", () => {
+    assert.deepEqual(fold({ kind: "", perUnit: "", left: "" }, { kind: "food", perUnit: 3, left: 1 }), { provision: GONE });
+    assert.deepEqual(fold({ kind: "", perUnit: "", left: "" }, null), {});
+    assert.deepEqual(fold({ kind: "", perUnit: "" }, {}), {});
+  });
+  test("a form without the fields is left alone", () => {
+    const data = { name: "Rope", flags: { [M]: { gear: { capacity: 1 } } } };
+    assert.deepEqual(foldProvisionForm(data, { kind: "food" }), { name: "Rope", flags: { [M]: { gear: { capacity: 1 } } } });
+    assert.deepEqual(foldProvisionForm({ name: "x" }, null), { name: "x" });
+  });
+
+  Handlebars.registerHelper("localize", (key, opts) => (opts?.hash?.n != null ? `${key}:${opts.hash.n}` : String(key)));
+  Handlebars.registerHelper("not", (v) => !v);
+  Handlebars.registerHelper("and", (...args) => args.slice(0, -1).every(Boolean));
+  Handlebars.registerHelper("disabled", (v) => (v ? "disabled" : ""));
+  Handlebars.registerHelper("checked", (v) => (v ? "checked" : ""));
+  Handlebars.registerHelper("concat", (...args) => args.slice(0, -1).join(""));
+  Handlebars.registerHelper("eq", (a, b) => a === b);
+  const details = Handlebars.compile(readFileSync("templates/equipment/item-sheet/details.hbs", "utf8"));
+  const render = (item, editing) => {
+    const model = buildItemSheetModel(base({ provision: provisionView(item, t) }), { isGM: true, editable: true });
+    return details({ ...model, editing, provisionPath: `flags.${M}.provision` });
+  };
+  test("the Details tab draws the Provision controls, each a labelled input on the flag, and Left only for water", () => {
+    const html = render(doc("Rations", { provision: { perUnit: 4 } }), true);
+    assert.ok(html.includes('name="flags.acks-extras.provision.kind"') && html.includes('name="flags.acks-extras.provision.perUnit"') && html.includes('value="4"'));
+    assert.ok(!html.includes("provision.left"), "no Left for food");
+    assert.ok(html.includes('data-tooltip-text="printed.byHand'), "the size's tooltip");
+    assert.ok(html.includes("itemSheet.provision.readsSized"), "the Reads as line");
+    const water = render(doc("Waterskin/Wineskin", vessel), true);
+    assert.ok(water.includes('name="flags.acks-extras.provision.left"') && water.includes('step="0.1"'));
+    assert.ok(!/\sid="/.test(html), "no literal id");
+  });
+  test("a sheet that is not armed disables every Provision control, and an item with no fieldset draws none", () => {
+    const locked = render(doc("Rations"), false);
+    const controls = locked.match(/<(?:select|input)[^>]*provision\.[^>]*>/g) ?? [];
+    assert.ok(controls.length === 2 && controls.every((c) => c.includes("disabled")));
+    const none = details({ ...buildItemSheetModel(base(), { isGM: true, editable: true }), editing: true, provisionPath: `flags.${M}.provision` });
+    assert.ok(!none.includes("itemSheet.provision.title"));
+  });
+}
+
 console.log(`item sheet: ${passed} checks passed`);

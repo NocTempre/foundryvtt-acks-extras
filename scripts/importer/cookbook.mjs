@@ -41,7 +41,7 @@ export {
 export {
   bindVehicleRow, rowClaimKey, importVehicles, equipmentTypeOf, locatedValues, bindEquipment, trainingFromName,
   animalSpecies, mountableSpecies, loadsFromText, speedFromText, loadedAnimalEntries, bindAnimal, importEquipment,
-  importAllEquipment, importWeapons, pricedDoc, withCapacity, importPricedGear, importArmor,
+  importAllEquipment, importWeapons, pricedDoc, withCapacity, withDays, withVessel, vesselFigures, importPricedGear, importArmor,
 } from "./cookbook/equipment.mjs";
 export {
   importMerchandise, bindVariation, importVariations, splitTrapTiers, bindTrap, importTraps, bindSpell, importSpells,

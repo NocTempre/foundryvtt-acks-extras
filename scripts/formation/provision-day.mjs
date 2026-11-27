@@ -48,12 +48,12 @@ export const FOOD_SOURCES = Object.freeze({ kind: "food" });
 /** What counts as water: whatever `provisionOf` reads as water, foraged deposits included. */
 export const WATER_SOURCES = Object.freeze({ kind: "water" });
 
-/** Food days an actor carries: provisions plus hunted game, which is its own kind. */
+/** Food days an actor carries: provisions plus hunted game, which is its own kind. An unsized item adds none. */
 export function foodDaysOf(actor) {
   return daysCarried(actor, FOOD_SOURCES) + daysCarried(actor, { kind: "hunt" });
 }
 
-/** Water days an actor carries. */
+/** Water days an actor carries: what its vessels hold now. An unsized vessel adds none. */
 export function waterDaysOf(actor) {
   return daysCarried(actor, WATER_SOURCES);
 }

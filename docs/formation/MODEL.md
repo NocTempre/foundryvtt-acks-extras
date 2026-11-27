@@ -2507,20 +2507,21 @@ short. Food and water are dealt independently, because well fed and parched is
 a real day and in a desert it is the usual one.
 
 **One supply reader, `provisionOf`.** It answers what ONE item is as a
-provision, null or `{kind, units, perUnit, days, source}` (kind `food`, `water`
-or `hunt`; `units` the stack count; `perUnit` the days a unit holds; `days` what
-the item still holds; `source` how it was read). `daysCarried` sums it over an
-actor's items by kind, and the camp's forecast, the day's meal
+provision, null or `{kind, units, perUnit, days, source, sized, sizeSource,
+left}` (kind `food`, `water` or `hunt`; `units` the stack count; `perUnit` the
+days a unit holds; `days` what the item still holds; `source` how the KIND was
+read; `sizeSource` how the SIZE was; `left` a water item's days now). `daysCarried`
+sums it over an actor's items by kind, and the camp's forecast, the day's meal
 (`runProvisionDay`) and the Supplies press (`consumeRations`) all ask it, so
-no two of them can disagree about what is carried. The first step that answers
-wins:
+no two of them can disagree about what is carried.
 
-1. **Declared.** `flags["acks-extras"].provision = {kind, perUnit}` is a
+The KIND is the first step that answers:
+
+1. **Declared.** `flags["acks-extras"].provision = {kind, perUnit, left}` is a
    Judge's word. `kind: "none"` declares the item no provision and nothing
-   below is asked; an unknown kind, or a `perUnit` that is no positive number,
-   is ignored (the unit then comes from the name).
+   below is asked; an unknown kind is ignored.
 2. **Foraged.** The flag foraging writes on what it deposits (`food`, `water`
-   or `hunt`), one day a unit.
+   or `hunt`).
 3. **Imported.** The importer's identity on the item: `cookbook.id` on an
    entry made from its described row, `skin.base` on a class-kit item cut from
    one. The two food entries read as food and the vessel entry as water, except
@@ -2530,12 +2531,37 @@ wins:
    letters of "Regeneration", "Restoration") and a word that only sounds
    wet ("holy water", "Water Walking", "Eelskin") read as nothing.
 
-A name containing "week" is seven days a unit and any other one, except where a
-declaration states its `perUnit`. A unit part eaten holds fewer days: the
-press keeps a `uses` count on a multi-day unit and `provisionOf` takes it off
-the first unit, so a week's ration with three used holds four days of it. The
-press spends only from an item `provisionOf` calls food, the unit worth the
-fewest days first.
+The SIZE, the days one unit holds, is read apart from the kind, from the first
+step that answers, whatever gave the kind:
+
+1. **Declared.** `provision.perUnit`, a positive number. A hand size on an item
+   read as it reads brings it into the count.
+2. **Foraged.** One day a unit: foraging counts in person-days.
+3. **The page.** `cookbook.read` on the imported item: a ration's `days`, the
+   duration its price row's label states (`gear-prices.mjs` `labelDays`), or for
+   a vessel one share of the vessels the paragraph counts to a person's day
+   (`perDay`), else `holds.amount / daily`, what it holds as a fraction of that
+   day, all read from the vessel entry's own paragraph in one unit
+   (`vesselFigures`). The count wins where both are read: it is the page's own
+   rounding of the two figures. A class-kit copy sheds the importer's stamp and carries
+   the same keys under `skin.read`.
+4. **The name.** A duration in the item's own name: an optional whole count and
+   a whole word week or day, a week being seven days.
+
+Where none answers the item is **unsized**: `perUnit` and `days` are null,
+`sized` is false, and no stand-in figure is written. `daysCarried` leaves it
+out, `unsizedProvisions(actor, kind)` lists it (`[{item, kind}]`) so a surface
+can name it, and the Supplies press never spends it. The ruling is in
+[DECISIONS](DECISIONS.md), and the item sheet's Provision fields set a size by
+hand (docs/equipment/MODEL.md, "Provision fields").
+
+A water item is kept as what is left (`provision.left`, days across the whole
+stack): clamped to what the stack holds, full where never set, and a null or
+blank `left` is never set. `days` for water is that figure. A food unit part
+eaten holds fewer days: the press keeps a `uses` count on a multi-day unit and
+`provisionOf` takes it off the first unit, so a week's ration with three used
+holds four days of it. The press spends only from a sized item `provisionOf`
+calls food, the unit worth the fewest days first.
 
 HOW a shortfall is spread is a Judge's call, not the book's — it prices what
 hunger does to a body, never who a captain chooses to feed — so both honest

@@ -101,6 +101,33 @@
   </div>
   {{/if}}
 
+  {{#if details.provision}}
+  <div class="acks-extras-item-sheet__rule">
+    <span class="acks-extras-item-sheet__rule-title">{{localize 'ACKS-EQUIPMENT.itemSheet.provision.title'}}</span>
+  </div>
+  <div class="acks-row acks-row--wrap">
+    <label class="acks-extras-item-sheet__field is-md" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.provision.providesHint'}}">
+      <span class="acks-extras-item-sheet__field-label">{{localize 'ACKS-EQUIPMENT.itemSheet.provision.provides.label'}}</span>
+      <select class="acks-input acks-input--line" name="{{provisionPath}}.kind" {{disabled (not editing)}}>
+        {{#each details.provision.options}}
+        <option value="{{value}}"{{#if on}} selected{{/if}}>{{label}}</option>
+        {{/each}}
+      </select>
+    </label>
+    <label class="acks-extras-item-sheet__field is-sm" data-tooltip-text="{{details.provision.tip}}">
+      <span class="acks-extras-item-sheet__field-label">{{localize 'ACKS-EQUIPMENT.itemSheet.provision.perUnit'}}</span>
+      <input class="acks-input acks-input--line acks-nums" type="number" name="{{provisionPath}}.perUnit" value="{{details.provision.perUnit}}" placeholder="{{details.provision.placeholder}}" min="0" step="any" {{disabled (not editing)}}>
+    </label>
+    {{#if details.provision.showLeft}}
+    <label class="acks-extras-item-sheet__field is-sm" data-tooltip-text="{{details.provision.leftTip}}">
+      <span class="acks-extras-item-sheet__field-label">{{localize 'ACKS-EQUIPMENT.itemSheet.provision.left'}}</span>
+      <input class="acks-input acks-input--line acks-nums" type="number" name="{{provisionPath}}.left" value="{{details.provision.left}}" placeholder="{{details.provision.leftPlaceholder}}" min="0" step="0.1" {{disabled (not editing)}}>
+    </label>
+    {{/if}}
+  </div>
+  <div class="acks-row"><span class="acks-extras-item-sheet__rule-note">{{details.provision.readsAs}}</span></div>
+  {{/if}}
+
   {{#if details.identifyOffered}}
   <div class="acks-extras-item-sheet__mount" data-mount="magic"></div>
   {{/if}}

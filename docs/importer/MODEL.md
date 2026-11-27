@@ -1970,6 +1970,17 @@ under the id the item holds. A label that states none reads none; nothing here
 supplies a capacity by name (`docs/equipment/MODEL.md`, "Figures the book
 prints").
 
+A row's label can state how long a unit lasts the same way, as a parenthetical
+count of days or weeks: `labelDays` reads it and `daysFor` hands it on under the
+same rule, and the cookbook records it as `cookbook.read.days` (`withDays`). The
+vessel entry's own paragraph states what the vessel holds and what a person
+drinks in a day, in one unit, and may count the day in vessels: `vesselFigures`
+reads them as `cookbook.read.holds`, `daily` and `perDay` (`withVessel`). The
+provision reader takes these as an item's size (`docs/formation/MODEL.md`,
+"Provisions"). A repair refreshes the cookbook stamp with the rest of the build,
+so a library item takes them at its next repair; a copy already on an actor
+keeps the stamp it was copied with.
+
 Two sentences of RR read as `proseValues` windows of the `equipment` document:
 the sizes Weapon Finesse takes (`weaponFinesse`, the `sizeList` take) and the
 unarmed strike's die (`unarmedStrike`, the `dice` take).

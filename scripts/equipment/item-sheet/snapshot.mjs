@@ -44,6 +44,7 @@ import { chartSnapshot, isChart } from "./chart.mjs";
 import { splitFromOf } from "./stack.mjs";
 import { ACCEPT_KINDS, kindsOf, cleanAccepts } from "./accept-kinds.mjs";
 import { priceLedger } from "./price-ledger.mjs";
+import { provisionView } from "./provision-fields.mjs";
 import { signed } from "./format.mjs";
 
 const loc = makeLoc(LANG);
@@ -620,6 +621,7 @@ export function snapshotItem(item, { gm = false, descriptionHTML = "", trueDescr
     namedOffered: named.trackerVisible({ isNamed: false, disguised: isDisguised(item), isGM: gm, overlayOn: named.overlayEnabled() })
       && (item.type === ITEM_TYPE.weapon || item.type === ITEM_TYPE.armor),
     container,
+    provision: provisionView(item, loc),
     spellbook: spellbookSnapshot(item),
     chart: chartSnapshot(item),
     condition: conditionOf(item, container),

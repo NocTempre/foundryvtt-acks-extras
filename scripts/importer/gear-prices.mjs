@@ -103,6 +103,31 @@ export function labelCapacity(name) {
   return Number.isFinite(stone) && stone >= 0 ? stone : null;
 }
 
+/** The number words a label may state a count in. Structure: the words of the language, not a page's figures. */
+const COUNT_WORDS = Object.freeze({
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12,
+});
+
+/** Days in a week: a calendar concept the rows count in, not a printed value. */
+const DAYS_PER_WEEK = 7;
+
+/** A parenthetical stating a duration: a count (digits or a word) and a week or day unit. */
+const DURATION = /\(\s*(\d+|[a-z]+)\s*[- ]?\s*(weeks?|days?)\s*\)/i;
+
+/**
+ * The days a row's printed label says one unit of its item lasts, or null when
+ * the label states none: a parenthetical holding a whole count (digits, or the
+ * words one to twelve) and "week" or "day", plural or not. A week is seven
+ * days. Only the pattern ships; the count is the reader's page.
+ */
+export function labelDays(name) {
+  const m = DURATION.exec(String(name ?? ""));
+  if (!m) return null;
+  const count = /^\d+$/.test(m[1]) ? Number(m[1]) : COUNT_WORDS[m[1].toLowerCase()];
+  if (!Number.isFinite(count) || count <= 0) return null;
+  return /^week/i.test(m[2]) ? count * DAYS_PER_WEEK : count;
+}
+
 /**
  * The capacity a price lookup states for the entry `name`: the matched row's
  * own, and only when that row IS the entry. `priceFor` falls back to the one
@@ -113,6 +138,21 @@ export function labelCapacity(name) {
  */
 export function capacityFor(priced, name) {
   return priced?.capacity != null && priceKey(priced.name) === priceKey(name) ? priced.capacity : null;
+}
+
+/**
+ * The days one unit lasts that a price lookup states for the entry `name`,
+ * under `capacityFor`'s rule: the matched row's own, and only when that row IS
+ * the entry. The row's name is read up to its duration parenthetical, since a
+ * price printed as a range can bleed into the text after it.
+ * @param {{name:string, days?:number|null}|null} priced what `priceFor` returned
+ * @returns {number|null}
+ */
+export function daysFor(priced, name) {
+  if (priced?.days == null) return null;
+  const label = String(priced.name ?? "");
+  const m = DURATION.exec(label);
+  return m && priceKey(label.slice(0, m.index)) === priceKey(name) ? priced.days : null;
 }
 
 /**
@@ -165,7 +205,7 @@ export function extractPrices(items, recipe) {
       // A real row must carry a price; header/section rows do not.
       if (cost == null && weight6 == null) continue;
       priced++;
-      out.push({ name, cost, weight6, section, capacity: labelCapacity(name) });
+      out.push({ name, cost, weight6, section, capacity: labelCapacity(name), days: labelDays(name) });
     }
     // A section heading: nothing on the line is priced and only the first
     // column carries text. The column-heading line repeats across every column,
@@ -190,7 +230,7 @@ export async function extractPriceMapFromDoc(doc, readPage) {
   const map = new Map();
   for (const row of await extractPriceRowsFromDoc(doc, readPage)) {
     const key = priceKey(row.name);
-    if (key && !map.has(key)) map.set(key, { name: row.name, cost: row.cost, weight6: row.weight6, capacity: row.capacity ?? null });
+    if (key && !map.has(key)) map.set(key, { name: row.name, cost: row.cost, weight6: row.weight6, capacity: row.capacity ?? null, days: row.days ?? null });
   }
   return map;
 }

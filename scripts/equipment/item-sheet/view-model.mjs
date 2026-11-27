@@ -18,6 +18,7 @@
  *   named      {given, trueName, revealed, unlocked, total, cats[], by} | null
  *   container  {holds, capacityStone, capacityStated, capacityTip, load6, cap6, locked, lockMod, quality,
  *              keys[], fragile, accepts[], refusal, contents[], canSee} | null
+ *   provision  what the Provision fieldset shows (`provision-fields.mjs` `provisionView`), absent in a bare snapshot
  *   spellbook  {pagesUsed, pagesCap (null until imported), hasCap, capTip, usedTip, groups[]} | null
  *   chart      {sceneName, explored, pct} | null
  *   condition  {labels[], damaged, destroyed, material, acNow, acFull, itemLossAc, note,
@@ -464,6 +465,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
       accepts: container?.accepts ?? [],
       acceptChips: (snap.acceptKinds ?? []).map((k) => ({ key: k, on: (container?.accepts ?? []).includes(k) })),
       refusal: container?.refusal ?? "",
+      provision: snap.provision?.offered ? snap.provision : null,
       disguisable: !!dis.enabled,
       identifyOffered: !gm && magic.is && !undetected && know < 3 && editable,
     },

@@ -9,7 +9,7 @@
  * RAW value is baked here; the root supplies them.
  */
 import assert from "node:assert";
-import { bindEquipment, pricedDoc, withCapacity } from "../../scripts/importer/cookbook.mjs";
+import { bindEquipment, pricedDoc, withCapacity, withDays, withVessel, vesselFigures } from "../../scripts/importer/cookbook.mjs";
 import { useWeaponFixture, FIXTURE_ROWS } from "../weapon-fixture.mjs";
 
 // The equipment root reads the weapon rows through the seam; these are invented.
@@ -90,6 +90,38 @@ const written = refreshPlan(stored, rebuilt, REPAIR.priced).update.flags?.[MODUL
 check("a rebuild writes the page's capacity over a stored one and leaves the declaration's other keys out of the write", written?.gear?.capacity === 4 && written.cookbook.read.capacity === 4 && !("slots" in written.gear));
 const nothingStated = { type: "item", name: "Crate", system: {}, flags: { [MODULE_ID]: { cookbook: { id: "x" } } } };
 check("a build that states none writes none over what a hand typed", Object.keys(refreshPlan(stored, nothingStated, REPAIR.priced).update).length === 0);
+
+// --- A provision's size: the days a row's label states, and a vessel's own paragraph ---
+// Every figure and every sentence here is INVENTED; the real ones arrive from the Judge's copy.
+const loaf = pricedDoc({ name: "Loaf, Dry (two weeks)", cost: 1, weight6: 6, section: "", capacity: null }, "def.priced.loaf", "RR p. 1");
+check("a priced row whose label states a duration stamps the days", loaf.flags[MODULE_ID].cookbook.read.days === 14 && loaf.flags[MODULE_ID].cookbook.id === "def.priced.loaf");
+check("and a row that states none stamps none", rope.flags[MODULE_ID].cookbook.read === undefined);
+const both = pricedDoc({ name: "Crate (holds 9 stone)", cost: 1, weight6: 6, section: "", capacity: 9, days: 3 }, "def.priced.crate", "RR p. 1");
+check("a stamp holds the days beside the capacity", both.flags[MODULE_ID].cookbook.read.days === 3 && both.flags[MODULE_ID].cookbook.read.capacity === 9);
+const stamp = { flags: { [MODULE_ID]: { cookbook: { id: "x", read: { capacity: 4 } } } } };
+withDays(stamp, 7);
+check("withDays joins the stamp's other figures", stamp.flags[MODULE_ID].cookbook.read.days === 7 && stamp.flags[MODULE_ID].cookbook.read.capacity === 4 && stamp.flags[MODULE_ID].cookbook.id === "x");
+
+const figures = (text) => vesselFigures(text);
+check("a vessel's paragraph states what it holds and what a person drinks a day, in one unit",
+  JSON.stringify(figures("Carries about 40 drams. A traveller drinks 160 drams in a day.")) === JSON.stringify({ holds: { amount: 40, unit: "dram" }, daily: 160 }));
+check("the daily figure is the one in the holding's unit, though a larger unit comes first and a qualifier word precedes it, and a count of vessels to the day is kept as perDay",
+  JSON.stringify(figures("It carries 12.5 drams when full. A walker needs 3 quarts a day (50 fluid drams), so 4 flasks' worth.")) === JSON.stringify({ holds: { amount: 12.5, unit: "dram" }, daily: 50, perDay: 4 }));
+check("with no count of vessels there is no perDay", !("perDay" in figures("Carries about 40 drams. A traveller drinks 160 drams in a day.")));
+const counted = { flags: { [MODULE_ID]: { cookbook: { id: "def.equip.waterskinWineskin" } } } };
+withVessel(counted, figures("It carries 12.5 drams when full. A walker needs 3 quarts a day (50 fluid drams), so 4 flasks' worth."));
+check("the vessel count rides the stamp", counted.flags[MODULE_ID].cookbook.read.perDay === 4);
+check("a figure of another unit is never taken for the day's", figures("Holds 40 drams. A traveller drinks 3 quarts in a day.") === null);
+check("a paragraph with no holding, no daily figure or a daily figure of nothing reads none",
+  figures("A sack for grain.") === null && figures("Holds 40 drams of fluid.") === null && figures("Holds 40 drams. A day is 0 drams.") === null && figures("") === null && figures(null) === null);
+check("the holding is not read twice as its own daily figure", figures("Holds 40 drams, a day's drink.") === null);
+const skin = { flags: { [MODULE_ID]: { cookbook: { id: "def.equip.waterskinWineskin" } } } };
+withVessel(skin, figures("Carries about 40 drams. A traveller drinks 160 drams in a day."));
+const skinRead = skin.flags[MODULE_ID].cookbook.read;
+check("a vessel's stamp holds the holding and the daily figure", skinRead.holds.amount === 40 && skinRead.holds.unit === "dram" && skinRead.daily === 160);
+const bare = { flags: { [MODULE_ID]: { cookbook: { id: "def.equip.waterskinWineskin" } } } };
+withVessel(bare, figures("Carries about 40 drams."));
+check("a vessel whose paragraph gives no pair is stamped with nothing", bare.flags[MODULE_ID].cookbook.read === undefined);
 
 // --- The count an import writes is the plain integer the system stores -------------
 // A stored row holds the count as an integer, and the comparison `unstampedTwins`

@@ -467,6 +467,28 @@ that names what it accepts.*
   shows no capacity until you type one), the construction controls (their shape is *Worn at*,
   above), and the core record fields.
 
+### What an item provides
+
+Food and water carried by a character count toward the camp only at a size. Open
+the item: Items sidebar tab (or Actors sidebar tab → an actor → its Inventory
+tab → the item's row) → its sheet → **Details** tab → **Provision**, after
+arming the sheet with the pencil.
+
+- **Provides** — *As it reads* follows the book import, then the item's name;
+  *Food*, *Water* or *Nothing* says it by hand. *Nothing* takes the item out of
+  every count.
+- **Days per unit** — how many days one unit lasts. Blank follows the import:
+  the size an imported ration or waterskin reads from your book shows greyed in
+  the field, and hovering the field says where it came from. A size you type
+  wins; clear the field to go back. An item with no size anywhere shows the
+  field blank with the page reference in its tooltip, and the camp leaves it out
+  of the count until you give it one.
+- **Left** — for a water item, the days of water left across the whole stack.
+  Blank is a full stack, and the full figure shows greyed in the field.
+
+The line under the fields, **Reads as**, states the kind, the size and where it
+came from. Clearing all three controls removes the declaration.
+
 A once-only item can be set to spend its count with each use. On the Details tab,
 under **Effect rows**, press a row's pen to open the row's editor; in its **Reach**
 group, where **How it is used** reads **Used up**, tick **Each use spends one**.

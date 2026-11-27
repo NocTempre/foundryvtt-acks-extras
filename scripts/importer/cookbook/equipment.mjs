@@ -11,7 +11,8 @@ import { slugLabel } from "../table-extract.mjs";
 import { pageItems } from "../extract.mjs";
 import { WEAPON_TABLE, extractWeaponsFromDoc, bindWeaponRow, bindAmmoRow } from "../weapon-tables.mjs";
 import { ARMOR_TABLE, extractArmorFromDoc, bindArmorRow } from "../armor-tables.mjs";
-import { extractPriceMapFromDoc, extractPriceRowsFromDoc, priceFor, priceKey, capacityFor, PRICE_TABLES } from "../gear-prices.mjs";
+import { extractPriceMapFromDoc, extractPriceRowsFromDoc, priceFor, priceKey, capacityFor, daysFor, labelDays, PRICE_TABLES } from "../gear-prices.mjs";
+import { VESSEL_IDENTITY } from "../../formation/provisions.mjs";
 import { progressBar } from "../progress.mjs";
 import { priceStatedIn } from "../adventure-item-binding.mjs";
 import { nameKeys, slug } from "../../lib/vocab.mjs";
@@ -699,11 +700,15 @@ async function buildEquipmentItem(found, id, node) {
     if (priced?.weight6 != null) doc.system.weight6 = priced.weight6;
     const held = capacityFor(priced, found.entry.name);
     if (held != null) withCapacity(doc, held);
+    const days = daysFor(priced, found.entry.name);
+    if (days != null) withDays(doc, days);
   }
   // What the grids do not price, the entry's own paragraphs often do: a cost
   // run-in, a stated stone weight, a stated damage die. Page values, per seat.
   if (node?.fields?.description) {
     const prose = node.fields.description.map((p) => p.text ?? "").join(" ");
+    // The one vessel entry states what it holds and what a person drinks in a day.
+    if (id === VESSEL_IDENTITY) withVessel(doc, vesselFigures(prose));
     if (!doc.system.cost) {
       const stated = priceStatedIn(prose);
       if (stated != null) doc.system.cost = stated;
@@ -895,7 +900,80 @@ export function pricedDoc(row, id, cite) {
     flags: { [MODULE_ID]: { cookbook: { id, cite }, minted: true } },
   };
   if (row.capacity != null) withCapacity(doc, row.capacity);
+  // Its own label is the page's statement of how long a unit lasts, whether or not the row carries it read.
+  const days = row.days ?? labelDays(row.name);
+  if (days != null) withDays(doc, days);
   return doc;
+}
+
+/**
+ * Stamp how many days one unit of the item lasts, where the page stated it:
+ * `cookbook.read.days`, which the provision reader takes as the item's size.
+ * Nothing is written for an item whose page states none.
+ */
+export function withDays(doc, days) {
+  const flags = (doc.flags[MODULE_ID] ??= {});
+  const cookbook = (flags.cookbook ??= {});
+  cookbook.read = { ...cookbook.read, days };
+}
+
+/** The words a quantity's unit may carry before it, which name no unit of their own. */
+const UNIT_QUALIFIER = "(?:(?:fluid|liquid)\\s*)?";
+
+/** A unit word folded to one spelling: lower case, singular. */
+const foldUnit = (word) => String(word).toLowerCase().replace(/(?<=[^s])s$/, "");
+
+/**
+ * What a vessel's own paragraph states in one unit of liquid measure: how much
+ * it holds, and how much a person drinks in a day. The holding figure is the
+ * first quantity after a verb of holding; the daily one is a later quantity,
+ * in a sentence about a day, in the SAME unit (a paragraph may state the day
+ * in a larger unit first and give this one beside it). Either missing, nothing
+ * is read: a half-reading would size the vessel by a figure the page did not
+ * state. Where the day's sentence also counts the day in vessels ("N <vessel>s'
+ * worth"), that count is `perDay`: the page's own rounding of the two figures,
+ * which a vessel's size then follows. Only the pattern ships; the figures are
+ * the reader's page.
+ *
+ * @param {string} text the entry's paragraphs joined
+ * @returns {{holds: {amount: number, unit: string}, daily: number, perDay?: number}|null}
+ */
+export function vesselFigures(text) {
+  const t = String(text ?? "").replace(/\s+/g, " ");
+  const quantity = new RegExp(`(\\d+(?:\\.\\d+)?)\\s*${UNIT_QUALIFIER}([a-z]+)`, "gi");
+  const holding = new RegExp(
+    `\\b(?:holds?|carr(?:y|ies)|contains?)\\s+(?:about\\s+|around\\s+|roughly\\s+|approximately\\s+|up\\s+to\\s+)?(\\d+(?:\\.\\d+)?)\\s*${UNIT_QUALIFIER}([a-z]+)`,
+    "i",
+  ).exec(t);
+  if (!holding) return null;
+  const amount = Number(holding[1]);
+  const unit = foldUnit(holding[2]);
+  if (!(amount > 0)) return null;
+  const figureAt = holding.index + holding[0].search(/\d/);
+  for (const sentence of t.matchAll(/(?:\d\.\d|[^.;!?])+[.;!?]?/g)) {
+    if (!/\b(?:day|daily)\b/i.test(sentence[0])) continue;
+    for (const q of sentence[0].matchAll(quantity)) {
+      if (sentence.index + q.index === figureAt) continue;
+      const daily = Number(q[1]);
+      if (foldUnit(q[2]) !== unit || !(daily > 0)) continue;
+      const worth = /\b(\d+)\s+[a-z]+['’]?s?['’]?\s+worth\b/i.exec(sentence[0]);
+      const perDay = worth ? Number(worth[1]) : null;
+      return perDay > 0 ? { holds: { amount, unit }, daily, perDay } : { holds: { amount, unit }, daily };
+    }
+  }
+  return null;
+}
+
+/**
+ * Stamp what a vessel holds and what a person drinks in a day, from
+ * `vesselFigures`: `cookbook.read.holds` (`{amount, unit}`) and
+ * `cookbook.read.daily` (the same unit). Nothing is written for a null reading.
+ */
+export function withVessel(doc, figures) {
+  if (!figures) return;
+  const flags = (doc.flags[MODULE_ID] ??= {});
+  const cookbook = (flags.cookbook ??= {});
+  cookbook.read = { ...cookbook.read, holds: { ...figures.holds }, daily: figures.daily, ...(figures.perDay ? { perDay: figures.perDay } : {}) };
 }
 
 /**

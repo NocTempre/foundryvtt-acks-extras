@@ -714,6 +714,21 @@ by the slug of its key, label or raw value, since core's registry reads as lang
 keys in source and as localized words in a running world. The markets feature's magic panel mounts under Appearance for
 the Judge and, for an owner identifying a magical item, under Details.
 
+**Provision fields.** An ordinary item's Details tab carries a Provision
+fieldset over the flag `flags.acks-extras.provision = {kind, perUnit, left}`,
+which the one supply reader `provisionOf` takes (docs/formation/MODEL.md,
+"Provisions"). `item-sheet/provision-fields.mjs` builds what it shows from
+that reader, so the sheet and the camp read an item alike. *Provides* sets the
+kind (As it reads leaves it to the import or the name; Nothing declares the
+item no provision), *Days per unit* a hand size, and *Left* (water only) the
+days left across the stack. A control left blank clears its key, and with all
+three blank the flag is removed whole. The size's input shows the size the item
+reads as, in its placeholder, only where the import or the name gave it; its
+tooltip says where the figure came from, and for an unsized item carries the
+page reference alone. A *Reads as* line states kind, size and source. A
+weapon or armour shows the fieldset only once something is declared on it.
+The controls follow the sheet's armed state and no role gate.
+
 ## 2026-07-24 — containers live on the sheet; locks roll the character's own proficiency
 
 Containers have no window of their own: the equipment tab holds their controls,

@@ -7988,11 +7988,22 @@ await scenario("the Supplies press spends only what the supply reader calls food
 
     const [stamped] = await actor.createEmbeddedDocuments("Item", [{
       name: "Rations, Iron", type: "item", system: { quantity: 2 },
-      flags: { "acks-extras": { cookbook: { id: "def.equip.rationsIron" } } },
+      flags: { "acks-extras": { cookbook: { id: "def.equip.rationsIron", read: { days: 1 } } } },
     }]);
     await engine.consumeRations(party);
     assert.equal(stamped.system.quantity, 1, "an imported ration is the item the press spends");
     assert.deepEqual(quantities(), [1, 2, 3, 4], "and still nothing else");
+
+    // Nothing the page gave: the item names its kind and no size, so it is not spent.
+    const [unsized] = await actor.createEmbeddedDocuments("Item", [{
+      name: "Rations, Standard", type: "item", system: { quantity: 2 },
+      flags: { "acks-extras": { cookbook: { id: "def.equip.rationsStandard" } } },
+    }]);
+    await stamped.update({ "system.quantity": 0 });
+    const heard = chat.length;
+    await engine.consumeRations(party);
+    assert.equal(unsized.system.quantity, 2, "an unsized ration is left alone");
+    assert.ok(String(chat.at(heard).content).includes("chat.rationsMissing"), "and the member is reported without one");
   } finally {
     await actor.delete();
   }

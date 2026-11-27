@@ -8,7 +8,7 @@
  */
 import assert from "node:assert/strict";
 import {
-  SHARE_POLICIES, dealProvisions, provisionDay, provisionForecast, daysCarried, provisionOf,
+  SHARE_POLICIES, dealProvisions, provisionDay, provisionForecast, daysCarried, unsizedProvisions, provisionOf,
 } from "../scripts/formation/provisions.mjs";
 import { RATION_LEVELS, advanceSurvival, freshSurvival } from "../scripts/lib/survival.mjs";
 
@@ -156,8 +156,11 @@ ok("magic items whose names merely contain a provision's letters are no provisio
 });
 
 ok("an imported identity reads its kind, by cookbook id and by the id a class-kit item was cut from", () => {
+  assert.deepEqual(provisionOf(stamped("Rations, Iron", 2, { cookbook: { id: "def.equip.rationsIron", read: { days: 3 } } })),
+    { kind: "food", units: 2, perUnit: 3, days: 6, source: "imported", sized: true, sizeSource: "page", left: null });
   assert.deepEqual(provisionOf(stamped("Rations, Iron", 2, { cookbook: { id: "def.equip.rationsIron" } })),
-    { kind: "food", units: 2, perUnit: 1, days: 2, source: "imported" });
+    { kind: "food", units: 2, perUnit: null, days: null, source: "imported", sized: false, sizeSource: null, left: null },
+    "the identity names the kind; with no figure from the page it has no size");
   assert.equal(provisionOf(stamped("Rations, Standard", 1, { cookbook: { id: "def.equip.rationsStandard" } })).kind, "food");
   const weekKit = provisionOf(stamped("1 week's iron rations", 2, { skin: { base: "def.equip.rationsIron" } }));
   assert.equal(weekKit.kind, "food");
@@ -175,7 +178,11 @@ ok("a wineskin is not water, whatever vessel it was cut from", () => {
 });
 
 ok("a hand-made item with no identity reads by whole word and says it was the name", () => {
-  assert.deepEqual(provisionOf(item("Rations", 3)), { kind: "food", units: 3, perUnit: 1, days: 3, source: "name" });
+  assert.deepEqual(provisionOf(item("Rations", 3)),
+    { kind: "food", units: 3, perUnit: null, days: null, source: "name", sized: false, sizeSource: null, left: null },
+    "a name gives the kind, and no stand-in size");
+  assert.deepEqual(provisionOf(item("Day Rations", 3)),
+    { kind: "food", units: 3, perUnit: 1, days: 3, source: "name", sized: true, sizeSource: "name", left: null });
   assert.equal(provisionOf(item("Standard Ration", 1)).kind, "food");
   assert.equal(provisionOf(item("Waterskin", 1)).kind, "water");
   assert.equal(provisionOf(item("Water skin", 1)).kind, "water");
@@ -185,7 +192,7 @@ ok("a hand-made item with no identity reads by whole word and says it was the na
 
 ok("a foraged flag reads one day a unit and outranks the identity and the name", () => {
   const found = provisionOf(item("Foraged Food", 4, "food"));
-  assert.deepEqual(found, { kind: "food", units: 4, perUnit: 1, days: 4, source: "foraged" });
+  assert.deepEqual(found, { kind: "food", units: 4, perUnit: 1, days: 4, source: "foraged", sized: true, sizeSource: "foraged", left: null });
   assert.equal(provisionOf(item("Fresh Game", 2, "hunt")).kind, "hunt");
   assert.equal(provisionOf(item("Foraged Rations (week)", 2, "water")).kind, "water", "the flag says water, whatever the name");
   assert.equal(provisionOf(item("Foraged Rations (week)", 2, "water")).perUnit, 1);
@@ -197,7 +204,7 @@ ok("a Judge's declaration outranks everything: kind none beats a name match, a p
   assert.equal(provisionOf(item("Foraged Food", 3, "food", { provision: { kind: "none" } })), null, "even a foraged one");
   assert.equal(provisionOf(stamped("Rations, Iron", 3, { cookbook: { id: "def.equip.rationsIron" }, provision: { kind: "none" } })), null);
   const declared = provisionOf(item("Strange Loaf", 2, null, { provision: { kind: "food", perUnit: 3 } }));
-  assert.deepEqual(declared, { kind: "food", units: 2, perUnit: 3, days: 6, source: "declared" });
+  assert.deepEqual(declared, { kind: "food", units: 2, perUnit: 3, days: 6, source: "declared", sized: true, sizeSource: "declared", left: null });
   assert.equal(provisionOf(item("Ring of Regeneration", 1, null, { provision: { kind: "water", perUnit: 2 } })).kind, "water");
   assert.equal(provisionOf(item("Rations (1 week)", 1, null, { provision: { kind: "food", perUnit: "x" } })).perUnit, 7,
     "a perUnit that is no number falls back to the name's unit");
@@ -211,7 +218,92 @@ ok("a part-eaten week ration holds fewer days, so the forecast agrees with the p
   assert.equal(provisionOf(item("Iron Rations (1 week)", 1, null, { uses: 3 })).days, 4, "a week with 3 used holds 4 days");
   assert.equal(provisionOf(item("Iron Rations (1 week)", 1, null, { uses: 6 })).days, 1, "the last day of a unit");
   assert.equal(provisionOf(item("Iron Rations (1 week)", 1, null, { uses: 99 })).days, 1, "uses never take the last day away");
-  assert.equal(provisionOf(item("Rations", 2, null, { uses: 1 })).days, 2, "a one-day unit has no uses to fold");
+  assert.equal(provisionOf(item("Iron Rations (1 day)", 2, null, { uses: 1 })).days, 2, "a one-day unit has no uses to fold");
+});
+
+/* --- the size: hand, foraged, page, name, and otherwise none --------------- */
+const read = (reads, name = "Rations, Iron", qty = 2, flags = {}) =>
+  stamped(name, qty, { cookbook: { id: "def.equip.rationsIron", read: reads }, ...flags });
+const vessel = (reads, name = "Waterskin/Wineskin", qty = 1, flags = {}) =>
+  stamped(name, qty, { cookbook: { id: "def.equip.waterskinWineskin", read: reads }, ...flags });
+
+ok("the size is read in order: a hand figure, a foraged unit, the page, the name, then none", () => {
+  const sized = (flags) => provisionOf(stamped("Iron Rations (1 week)", 2, { cookbook: { id: "def.equip.rationsIron", read: { days: 3 } }, ...flags }));
+  assert.deepEqual([sized({}).perUnit, sized({}).sizeSource], [3, "page"], "the page outranks the name");
+  assert.deepEqual([sized({ provision: { perUnit: 5 } }).perUnit, sized({ provision: { perUnit: 5 } }).sizeSource], [5, "declared"], "a hand figure outranks the page");
+  assert.equal(provisionOf(stamped("Iron Rations (1 week)", 2, { cookbook: { id: "def.equip.rationsIron" } })).perUnit, 7, "the name answers where the page does not");
+  assert.equal(provisionOf(stamped("Rations, Iron", 2, { cookbook: { id: "def.equip.rationsIron" } })).perUnit, null, "and nothing answers last");
+  const forage = provisionOf(item("Foraged Food", 2, "food", { cookbook: { id: "def.equip.rationsIron", read: { days: 3 } } }));
+  assert.deepEqual([forage.perUnit, forage.sizeSource], [1, "foraged"], "a foraged unit is a person-day whatever the page says");
+  assert.equal(provisionOf(item("Foraged Food", 2, "food", { provision: { perUnit: 4 } })).perUnit, 4, "a hand figure outranks it");
+});
+
+ok("a hand size applies to an item whose kind is read as it reads, and to one declared", () => {
+  const byIdentity = provisionOf(stamped("Rations, Iron", 2, { cookbook: { id: "def.equip.rationsIron" }, provision: { perUnit: 4 } }));
+  assert.deepEqual([byIdentity.source, byIdentity.perUnit, byIdentity.days, byIdentity.sizeSource], ["imported", 4, 8, "declared"]);
+  const byName = provisionOf(item("Rations", 3, null, { provision: { perUnit: 2 } }));
+  assert.deepEqual([byName.source, byName.perUnit, byName.days], ["name", 2, 6]);
+  assert.equal(provisionOf(item("Rations", 3, null, { provision: { kind: "food", perUnit: 0 } })).sized, false, "a size of nothing is no size");
+  assert.equal(provisionOf(item("Rations", 3, null, { provision: { kind: "food", perUnit: "" } })).sized, false, "a blank is no size");
+  assert.equal(provisionOf(item("Rations", 3, null, { provision: { kind: "food", perUnit: null } })).sized, false);
+});
+
+ok("a class-kit copy reads the sizes its skin carries", () => {
+  const kit = provisionOf(stamped("Waterskin", 1, { skin: { base: "def.equip.waterskinWineskin", read: { holds: { amount: 25, unit: "unit" }, daily: 100 } } }));
+  assert.deepEqual([kit.kind, kit.perUnit, kit.sizeSource], ["water", 0.25, "page"]);
+  assert.equal(provisionOf(stamped("Rations", 2, { skin: { base: "def.equip.rationsIron", read: { days: 3 } } })).days, 6);
+});
+
+ok("a vessel's unit is the part of a person's day it holds, and what is left defaults to full", () => {
+  const w = provisionOf(vessel({ holds: { amount: 10, unit: "unit" }, daily: 40 }, "Waterskin", 4));
+  assert.deepEqual([w.kind, w.perUnit, w.days, w.left, w.sizeSource], ["water", 0.25, 1, 1, "page"]);
+  assert.equal(provisionOf(vessel({ holds: { amount: 10, unit: "unit" } })).sized, false, "a holding with no daily figure is no size");
+  assert.equal(provisionOf(vessel({ daily: 40 })).sized, false, "and a daily figure with no holding");
+  assert.equal(provisionOf(vessel({ holds: { amount: 10, unit: "unit" }, daily: 0 })).sized, false, "a day of nothing divides nothing");
+});
+
+ok("where the page counts vessels to a day, a vessel is that share of the day, over its holding's own ratio", () => {
+  const w = provisionOf(vessel({ holds: { amount: 9, unit: "unit" }, daily: 40, perDay: 4 }, "Waterskin", 4));
+  assert.deepEqual([w.perUnit, w.days, w.sizeSource], [0.25, 1, "page"]);
+  const kit = provisionOf(stamped("Waterskin", 2, { skin: { base: "def.equip.waterskinWineskin", read: { holds: { amount: 9, unit: "unit" }, daily: 40, perDay: 4 } } }));
+  assert.equal(kit.perUnit, 0.25, "a kit copy reads the count from its skin");
+});
+
+ok("what is left in a vessel is the stored figure, clamped to what the stack holds, and null or blank is never set", () => {
+  const full = { holds: { amount: 10, unit: "unit" }, daily: 40 };
+  const left = (value, qty = 4) => provisionOf(vessel(full, "Waterskin", qty, { provision: { left: value } })).left;
+  assert.equal(left(0.4), 0.4, "a hand figure");
+  assert.equal(left(0), 0, "an emptied vessel holds nothing: zero is a figure");
+  assert.equal(left(-2), 0, "never below empty");
+  assert.equal(left(9), 1, "never above what the stack holds");
+  assert.equal(left(null), 1, "null is never set");
+  assert.equal(left(""), 1, "a blank is never set");
+  assert.equal(left("x"), 1, "and so is a non-number");
+  assert.equal(left(0.4, 2), 0.4, "a smaller stack still holds it");
+  assert.equal(left(0.4, 1), 0.25, "a stack of one holds its own full only");
+  assert.equal(provisionOf(vessel(full, "Waterskin", 0, { provision: { left: 0.4 } })).days, 0, "no vessel, no water");
+  assert.equal(daysCarried(carrying(vessel(full, "Waterskin", 4, { provision: { left: 0.4 } })), WATER), 0.4, "the camp counts what is left");
+  const flagged = provisionOf(item("Foraged Water", 5, "water", { provision: { left: 2 } }));
+  assert.deepEqual([flagged.days, flagged.left], [2, 2], "a foraged water stack is kept the same way");
+  assert.equal(provisionOf(read({ days: 3 }, "Rations, Iron", 2, { provision: { left: 1 } })).left, null, "food has no left");
+});
+
+ok("an unsized item is not summed, and is listed by name for the card", () => {
+  const bare = item("Rations", 3);
+  const sizedItem = item("Day Rations", 2);
+  const wine = item("Waterskin", 1);
+  const none = item("Rations", 0);
+  const a = carrying(bare, sizedItem, wine, none);
+  assert.equal(daysCarried(a, FOOD), 2, "only the sized one counts");
+  assert.equal(daysCarried(a, WATER), 0, "an unsized vessel adds no water");
+  assert.deepEqual(unsizedProvisions(a, FOOD), [{ item: bare, kind: "food" }], "listed, and only while it holds a unit");
+  assert.deepEqual(unsizedProvisions(a, WATER), [{ item: wine, kind: "water" }]);
+  assert.deepEqual(unsizedProvisions(a, { kind: ["food", "water"] }).map((u) => u.kind), ["food", "water"]);
+  assert.deepEqual(unsizedProvisions(a, {}), []);
+  assert.deepEqual(unsizedProvisions(null, FOOD), []);
+  const handSized = carrying(item("Rations", 3, null, { provision: { perUnit: 2 } }));
+  assert.equal(daysCarried(handSized, FOOD), 6, "a size set by hand brings it back into the count");
+  assert.deepEqual(unsizedProvisions(handSized, FOOD), []);
 });
 
 /* --- the heat's extra thirst, felt in the pool ---------------------------- */

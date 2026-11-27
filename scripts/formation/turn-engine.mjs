@@ -289,8 +289,9 @@ export async function encounterCheck(formation, { manual = false, params = null 
 
 /**
  * The item the Supplies press spends from: among the actor's items that
- * `provisionOf` reads as food and that still hold some, the unit worth the
- * fewest days, so a day's ration goes before a week's. Never anything else.
+ * `provisionOf` reads as food, that have a size and that still hold some, the
+ * unit worth the fewest days, so a day's ration goes before a week's. An
+ * unsized item is never spent. Never anything else.
  *
  * @returns {{item: object, provision: object}|null} the item and its reading
  */
@@ -298,7 +299,7 @@ function findRationItem(actor) {
   const rations = [];
   for (const item of actor.items) {
     const provision = provisionOf(item);
-    if (provision?.kind === "food" && provision.units > 0) rations.push({ item, provision });
+    if (provision?.kind === "food" && provision.sized && provision.units > 0) rations.push({ item, provision });
   }
   rations.sort((a, b) => a.provision.perUnit - b.provision.perUnit);
   return rations[0] ?? null;
