@@ -686,3 +686,42 @@ period is 1 s). Output: `aia-tmp/20261127-perf-timings-s1.json`, after a smoke r
 - The S1 changelog fragment is reworded on `main`: the saving is the sidebar-edit burst and the first action
   that races the warm, not the quiet ready.
 - **Process note:** S2 was committed in the worktree during this walk and is landed only after it passed.
+
+### S2. Warm per type; RollTable and JournalEntry come off (phase 1, 2026-11-27)
+
+Commit `2fd1798a`, landed with the full gate green. Walked on `main` at `a526d375` (S1's results and a peer's
+commit above it), same world and seats. The census gains each seat's shelf state per type and three GM leads:
+building and detaching template packages (the shelf class whose packages already exist, then a kept fixture
+class, `perf/s2-package-class`, carrying one row of the kept world Item `perf/s2-flask`), the rules-table pass
+on a fresh page, and a book adventure's `prepareImport` on a fresh page. Two smoke runs (`…-s2-smoke.json`,
+`…-s2-smoke2.json`) fixed the script's fixture sub-type and the prepare call's options. Output:
+`aia-tmp/20261127-perf-timings-s2.json`. Eleven boots, each reaching `ready` with no error in init, setup or
+ready.
+
+- **Load (ready+60 s).** GM: 4 whole loads (Item 4,474, Actor 1,538), 4 `_id__in`, 2 index passes, **6,128
+  documents**, ready to warm end 19.8 s. Player: 2 whole, 4 `_id__in`, 1 index, **4,963 documents**, 17.4 s.
+  RollTable and JournalEntry hold 0 on both seats (S1: GM 6,561, Player 5,343; the difference is the 433 and
+  380 roll tables and journal entries).
+- **Sidebar edit and readers:** as in S1, at ready+60 s and after the idle.
+- **After the 310 s idle** (310,017 ms measured, every shelf at 0): the cast window stood in 132 ms (GM) and
+  151 ms (Player) with **no server pass**, where S1's `whenReady` loaded JournalEntry and RollTable whole. The
+  character sheet (5.5 s, 5.3 s, `classItems`' cold kick on Item) and the summon-row spell sheet
+  (`resolveCreature`'s cold kick on Actor: 1,538 and 374) load as before; S3 and S4 take those. Total after the
+  idle: GM 4 whole loads and 6,013 documents, Player 2 and 4,848 (S1: 6,446 and 5,228).
+- **Firsts.** Cast window: GM 13.5 s, its `whenReady` loading Item and Actor only (6,128 documents; S1 19.9 s,
+  6,561), Player 7.9 s (4,963; S1 13.5 s). Unequip: GM 0.22 s, Player 0.14 s.
+- **Template packages** (GM, Item held, RollTable cold): rebuilding the shelf class's packages loaded the
+  RollTable shelves (427) and created 0, relinked 0, left 0 unresolved, and kept its table and bundles; the
+  fixture class built one bundle and one table in 60 ms, and detaching removed both and the one item. The sweep
+  found both already gone.
+- **Rules-table pass** (fresh page, RollTable and JournalEntry cold): loaded both shelves (427 and 6),
+  exported 1,091, 346 keyed tables, **0 duplicate keys**, 4.4 s.
+- **Adventure prepare** (fresh page, both cold): loaded all four types before planning (none cold after) and
+  planned 49 actors, 1 journal entry, 1 roll table and 17 folders to create, 77 actors, 11 scenes and 3 folders
+  to update. Prepare only: nothing was imported.
+- **Quiet queries:** `_id__in` of 40 383 ms, index 470 ms, whole 5,436 ms.
+- **Offline only:** `test-library-where` 37, `test-lib` 314, `test-table-docs` 49, `test-classes` 169 checks,
+  the book-adventure suite, and the land's full gate.
+- **Not checked:** removing materialized tables was not driven (it deletes the world's materialized tables);
+  the packages were built and detached through the module's functions, not the class sheet's controls; the
+  adventure's plan was not compared against one made on warm shelves.
