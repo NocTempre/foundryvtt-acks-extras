@@ -7,6 +7,8 @@ feature docs and this file is deleted in the same session.
 
 The owner, 2026-11-24, of the work that ships with the `acks` 14.2.0 repair:
 "Include tasking appropriate agents to burn down the known bug/defect list".
+And 2026-11-27, when the batches were re-cut: "Can you queue up the bug fixes
+until all known bugs/defects are resolved?"
 
 The list is the bug-intake ledger (`acks-bug-triage` §2), which is LOCAL-ONLY
 and never quoted into a repo. So this file names batches, their file areas,
@@ -24,13 +26,23 @@ editing, and the deferred feature requests are not defects.
 ## Capacity
 
 Integration is exclusive: every landing takes the one landing lease and a full
-gate, and every walk shares one test world. At most three lanes write at a
-time, counting lanes that are not this plan's (on 2026-11-24: the repair's
-conditions work and the Beastman gear work). **One batch runs at a time until
-a lane frees.** The session that started a batch starts the next one when it
-ends; a batch session starts none. The app refuses a start on a turn that
-another session's note began, so the next batch then reaches the owner as a
-card, with its rows already claimed.
+gate, and every walk shares one test world. **One batch runs at a time.**
+
+**How the next batch starts.** The app opens a session only on a turn the
+owner's own message began. So each batch from B14 on has a **standby**
+session, opened in the owner's turn of 2026-11-27 and briefed to wait. The
+batch map names each standby's session id. A batch's last act wakes the next
+standby by that id. The woken standby checks that its predecessor's State in
+the map reads `closed`, and only then starts. The wake is only a trigger:
+the standby's task is the brief it was opened with, and the message carries
+no instruction of its own.
+
+**If the queue stalls**, because a batch closed and the next standby never
+started, the owner or any session sends that standby `start`. It begins once
+the marker stands.
+
+That hop from one batch to the next was untested when this was written. The
+first batch to close is where it is proven.
 
 ## Batches
 
@@ -51,56 +63,104 @@ Order is severity first, then the files no live session is editing.
 | B11 | importer and toolchain, small | `scripts/importer/`, `tools/`, `.claude/skills/`, `docs/` | no | a toolchain tool's change runs its own suite |
 | B12 | what 14.2.0 left | `scripts/equipment/`, `scripts/formation/`, `scripts/monsters/`, `docs/` | in part | |
 
+**Re-cut 2026-11-27.** B05 to B12 had gone stale: other work had fixed,
+released or moved many of their rows since 2026-11-24. Their open rows, and
+every defect registered since, now run as B13 onward, one at a time in this
+order. The batch map holds the rows, and it lists each row left out with the
+reason.
+
+| Batch | Area | Files, mostly | A user sees a change | Notes |
+|---|---|---|---|---|
+| B13 | the first ten after T-0907: walk teardowns, a conversion rename, a ruling's DECISIONS entry, monster sheet coverage, a burst tooltip, a labelled stack, a roll table's ceiling, three battlemap wordings | `tools/live/`, `scripts/importer/`, `scripts/monsters/`, `scripts/magic/`, `scripts/lib/`, `scripts/battlemap/`, `lang/` | in part | it was already running when the batches were re-cut, under the claim `batch:2026-11-27b`, which it keeps |
+| B14 | importer, toolchain and the walk runner | `tools/`, `.claude/skills/`, `scripts/importer/` | no | a change to a toolchain tool runs that tool's own suite; two rows were filed against the retired template, whose code now lives in this repo |
+| B15 | tooltips: item sheet, item loss, doors, template sheet, lair | `scripts/equipment/`, `scripts/formation/`, `scripts/lib/`, `scripts/location/`, `templates/`, `lang/` | yes | `ui-tooltips.md`: a field with nothing imported shows its page reference alone |
+| B16 | tooltips: character sheet, henchmen, influence | `scripts/character-sheet/`, `scripts/henchmen/`, `scripts/influence/`, `templates/`, `lang/` | yes | as for B15 |
+| B17 | magic, conditions, markets, monsters, influence, theme faces | `scripts/magic/`, `scripts/lib/`, `scripts/markets/`, `scripts/monsters/`, `scripts/influence/`, `styles/` | in part | a condition's printed odds arrive through `acks-printed-value`; one row waits on the owner's word (batch map) |
+| B18 | battlemap: the palette, setup tooltips, controls, the hex fit | `scripts/battlemap/`, `templates/`, `lang/` | yes | the hex-fit rows carry the architect's measurements in their notes; one design board |
+| B19 | seats, timing and short windows | `tools/live/`, `scripts/importer/`, `scripts/lib/` | in part | rows seen once or confounded by other runs: reproduce each on a quiet tree first, and `not-reproducible` is a valid close |
+| B20 | the module clock and performance | `scripts/lib/`, `scripts/magic/`, `scripts/location/`, `scripts/importer/` | in part | design work, so `architect` rules on the clock first. This is the post-release clock pass the hub named on 2026-11-26. Each measured lead is timed again, then closed, built, or left deferred with its numbers |
+| B21 | found on the way | wherever they fall | | every defect row registered while B13 to B20 ran |
+
+**When the queue ends.** It ends when the ledger holds no `new` or `claimed`
+row outside the batch map's exclusions. B21 takes about ten of what is left.
+If more remain, it writes their batch into the map and its start prompt here.
+Only an owner's turn can open a session, so B21 then puts the next start to
+the owner as a card.
+
 ## What every batch session does
 
 One fresh session per batch, on a model its start names, working about ten
 rows and no more. It follows `acks-bug-triage` §3 to §5 with these limits:
 
 - **It stops at `fixed-unreleased`.** No release is cut, nothing is pushed,
-  and no report asks about a release (TOOLCHAIN §4, "Release kinds"). The
+  and no report asks about a release; the owner calls releases. The
   skill's default that a fix ships as a hotfix does not apply here.
 - **It is the one ledger writer for its own rows.** It re-reads the ledger
   before every write and writes no other batch's rows. A finding outside its
   rows is registered `new` and left for the batch map.
-- **Agents.** Investigators diagnose and edit nothing. A row whose cause is
-  not known goes to `architect` (opus: diagnosis) before any edit. A scoped
-  fix goes to `implementer` (sonnet), one fresh agent per fix, with the
-  owner's words in its brief. A lookup goes to `scout` (haiku).
+- **Agents.** Investigators diagnose and edit nothing.
+  - A defect is fixed with no design gate in front of it. The owner,
+    2026-11-25: "Bugs: just fix them … No architect pass needed first".
+  - `architect` (opus) takes a cause that resists a first diagnosis, and
+    B20's clock design.
+  - A design choice inside a fix is the batch's own call. The batch states
+    how the choice meets the owner's three principles: "every value has a
+    control, everything has a manual override or entry point, and nothing is
+    buried in a hidden table".
+  - A scoped fix goes to `implementer` (sonnet), one fresh agent per fix,
+    with the owner's words in its brief.
+  - A lookup goes to `scout` (haiku).
 - **Four dispositions.** A row closes as a false report, a docs gap or style
   feedback as readily as a fix, each with its evidence.
 - **Design before build.** Every row in the batch that changes what a user
   sees goes on one board (`/design`). Rows with no visible change are built
-  meanwhile. The owner, 2026-11-24, to the session that starts the batches:
-  "You can approve design boards for simple items". So a batch session sends
-  its board's link to that session with each item marked simple or not, and
-  that session reads the board and answers. **Simple**, as that session reads
-  the word: a label, a tooltip, an accessible name, a hint's wording, a
-  missing disabled or empty state, a figure's format, on a control that
-  already exists where it already is. **Not simple**, and still the owner's:
-  a new control or window, a control moved or removed, a changed layout, a
-  changed order of steps, a new setting, anything a Judge or player must
-  relearn, and anything the approving session is unsure of. An approval is
-  recorded in the batch's Results as the planning session's, with the item,
-  and never as the owner's.
+  meanwhile.
+  - The batch session reviews its own board against `ui-layout.md`,
+    `ui-tooltips.md` and the design system, then approves it. It records the
+    approval as its own, item by item, never as the owner's. The owner,
+    2026-11-25: "Unless it's a major judgement call, I'll just try it and
+    give feedback after testing."
+  - A major judgement call goes to the owner, with the board's link inside
+    the question itself. That covers what happens in play, who may do what,
+    and a reversal of an owner ruling. The batch works its other rows
+    meanwhile.
+  - The batch's Results keep a "to try" list for the owner: each thing built
+    on the batch's own approval, where it is in the UI, and its board link.
 - **A printed figure found in source** is moved by `acks-printed-value`, in
   the batch that finds it.
-- **Tree.** A fix is written on `topic/defects-b<nn>`, opened and landed with
-  `acks-branch`, so nothing sits uncommitted in `main`'s tree. A walk-script
-  or docs-only change may be written in `main`'s tree through `acks-commit`.
+- **Tree.** A fix is written in `main`'s tree through `acks-commit`, one batch
+  at a time (`.claude/rules/shared-tree.md`). A change that spans several
+  commits, none walked until the last, may take `topic/defects-b<nn>` through
+  `acks-branch`.
+- **Live check.** Each landing's live check runs on `main` at the landing. It
+  is a short look at the changed surface: no thrown error, and the observable
+  the row names. A kept walk runs only where the feature's recipe already
+  names one, and no fix gets a new walk script. The owner, 2026-11-26: "Only
+  what changed needs checked, and that's part of the implement land".
 - **Before a walk:** who holds the Gamemaster seat, and which lane is quiet.
   **Before a runtime landing:** `main`'s version has its tag.
-- **Its last acts:** each row's status and sha on the ledger, a Results entry
-  below (what was walked live, what was checked offline only, what was not
-  checked; no row titles), its topic closed, and `archive_session` on itself.
+- **A finding outside its rows** is registered `new` on the ledger, and B21
+  takes it.
+- **Its last acts, in order:**
+  1. each row's status and sha on the ledger;
+  2. a Results entry below: what was walked live, what was checked offline
+     only, what was not checked, and the "to try" list (no row titles);
+  3. any topic it opened, closed;
+  4. its State in the batch map set to `closed <date>`;
+  5. the next standby woken by the session id the map gives it;
+  6. `archive_session` on itself.
 
 ## Start prompt, per batch
 
 "Read `CLAUDE.md`, `docs/wip/20261124-defect-burndown-plan.md` and the batch
 map `C:\Proj\acks-rules\bug-intake\burndown-2026-11-24.md`. You are batch
 B<nn>. The owner: 'Include tasking appropriate agents to burn down the known
-bug/defect list'. Claim your rows on the ledger if they are not already
-yours, then work them as 'What every batch session does' says. Stop at
-`fixed-unreleased`; push nothing; ask nothing about a release."
+bug/defect list' (2026-11-24) and 'Can you queue up the bug fixes until all
+known bugs/defects are resolved?' (2026-11-27). Check that the batch before
+yours reads `closed` in the map. Claim your rows on the ledger if they are
+not already yours, then work them as 'What every batch session does' says.
+Stop at `fixed-unreleased`; push nothing; ask nothing about a release. Your
+last act wakes the next standby."
 
 ## Results
 
