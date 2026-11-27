@@ -289,6 +289,15 @@ await test("the tab's data carries the view in use, the switch with the current 
   assert.equal(followersSwitch("cards", []), null);
 });
 
+await test("the tab offers the Roster chip to a character no employer holds, a dismissed one included", async () => {
+  const w = buildWorld();
+  assert.equal((await buildFollowersTab(w.boss)).isRetainer, false, "a plain character is no hireling");
+  w.boss.system.retainer = { enabled: true, managerid: "" };
+  assert.equal((await buildFollowersTab(w.boss)).isRetainer, false, "core leaves a dismissed character marked with no employer, and they may hire again");
+  w.boss.system.retainer = { enabled: true, managerid: "lead" };
+  assert.equal((await buildFollowersTab(w.boss)).isRetainer, true, "a character an employer holds has no Roster chip");
+});
+
 console.log("service nodes: one render reads each lord's hirelings once");
 await test("the sheet's context build reads each lord's hirelings once, and the nodes and cards are those a build without the memo gives", async () => {
   const w = buildWorld();

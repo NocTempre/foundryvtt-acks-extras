@@ -16,7 +16,7 @@ import { clampScore, loyaltyBounds, moraleBounds } from "../lib/score-bounds.mjs
 // lib subsystem — the influence feature reads the same schema. `monsterHd`'s
 // union also covers the "1/2"-HD form. Henchman-specific reads (retainer,
 // henchmenList, gold) stay here.
-import { abilityMod, classLevel, monsterHd } from "../lib/actor-read.mjs";
+import { abilityMod, classLevel, inService, monsterHd } from "../lib/actor-read.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 // A bare `export … from` re-export creates no local binding — spendGold's
 // receipt whisper needs the import itself.
@@ -109,15 +109,12 @@ export function isRetainer(actor) {
 }
 
 /**
- * True where the actor is in an employer's service: the retainer block is
- * enabled and names a manager. Core's `delHenchman` clears `managerid` and
- * leaves `enabled` on, so a dismissed character is still `isRetainer` yet has
- * no employer, and is free to take on or be taken on.
+ * True where the actor is in an employer's service, as lib's `inService`
+ * reads it. Core's `delHenchman` clears `managerid` and leaves `enabled` on,
+ * so a dismissed character is still `isRetainer` yet has no employer, and is
+ * free to take on or be taken on.
  */
-export function isInService(actor) {
-  const r = actor?.system?.retainer;
-  return !!r?.enabled && !!r.managerid;
-}
+export const isInService = inService;
 
 /** The world actor named by the retainer's `managerid`, or null where none is set. */
 export function getManager(actor) {

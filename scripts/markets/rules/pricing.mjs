@@ -41,17 +41,31 @@ export function bargainWinner({ partyRanks = 0, merchantRanks = 0, opposedWinner
 }
 
 /**
+ * A figure a Judge typed into a form field: the number, or `null` for a blank,
+ * missing or non-finite entry.
+ * @param {*} value  the field's raw value
+ * @returns {number|null}
+ */
+export function typedFigure(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
  * The merchant's Bargaining ranks and Charisma modifier a trade is priced with.
  * The merchant is the Judge's counterparty and no document a seat owns, so the
  * figures are the Judge's to type: a request that did not come from a Judge's
- * seat is priced with the defaults, whatever its payload carries.
- * @param {{merchantRanks?: number, merchantCha?: number}} payload  the request
+ * seat is priced with the defaults, whatever its payload carries. A Charisma
+ * the Judge left blank (or typed as a non-finite value) is `null`, which adds
+ * no modifier to the merchant's roll (RR 376).
+ * @param {{merchantRanks?: number, merchantCha?: number|string|null}} payload  the request
  * @param {boolean} judgeTyped  the request is a Judge's (`judgeDeclares`)
- * @returns {{merchantRanks: number, merchantCha: number}}
+ * @returns {{merchantRanks: number, merchantCha: number|null}}
  */
 export function merchantFigures(payload, judgeTyped) {
-  const { merchantRanks = 0, merchantCha = 1 } = judgeTyped ? (payload ?? {}) : {};
-  return { merchantRanks, merchantCha };
+  const { merchantRanks = 0, merchantCha = null } = judgeTyped ? (payload ?? {}) : {};
+  return { merchantRanks, merchantCha: typedFigure(merchantCha) };
 }
 
 /**

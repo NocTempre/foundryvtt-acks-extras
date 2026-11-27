@@ -7274,6 +7274,7 @@
   "ACKS-MARKETS.purchase.dedicatedHint": "Tick when the party spends a dedicated activity shopping here this month (RR 124).",
   "ACKS-MARKETS.purchase.merchantRanks": "Merchant Bargaining ranks",
   "ACKS-MARKETS.purchase.merchantCha": "Merchant CHA modifier",
+  "ACKS-MARKETS.purchase.merchantChaCite": "RR 376",
   "ACKS-MARKETS.purchase.merchantHint": "The selling merchant's Bargaining ranks and Charisma modifier, used when the buyer bargains too (RR 107).",
   "ACKS-MARKETS.purchase.submit": "Buy",
   "ACKS-MARKETS.trade.filter": "Filter goods…",

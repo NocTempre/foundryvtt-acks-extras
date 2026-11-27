@@ -14,6 +14,7 @@ import { wageBill } from "../../henchmen/engine/events.mjs";
 import { serviceNodes, serviceReads } from "../../henchmen/engine/service-tree.mjs";
 import { daysUntil } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { inService } from "../../lib/actor-read.mjs";
 
 const loc = makeLoc(LANG);
 
@@ -113,7 +114,7 @@ export async function buildFollowersTab(actor, { view = "cards", reads = service
     due: bill.due,
     nextDueDays: bill.nextDue == null ? null : daysUntil(bill.nextDue),
     editable: actor.isOwner,
-    isRetainer: !!actor.system?.retainer?.enabled,
+    isRetainer: inService(actor),
     emptyHint: loc("followers.empty"),
   };
 }

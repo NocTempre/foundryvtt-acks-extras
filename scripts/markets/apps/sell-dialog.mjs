@@ -7,7 +7,7 @@
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { performSell, salePlan, demandStepsFor, categoryOf, availabilityFor } from "../engine/trade.mjs";
 import { refusalText, availabilityText } from "../engine/refusal.mjs";
-import { toGp } from "../rules/pricing.mjs";
+import { toGp, typedFigure } from "../rules/pricing.mjs";
 import { magicKnowledge, stackCountOf } from "../../lib/item-model.mjs";
 import { offersCount } from "../../lib/storage-logic.mjs";
 
@@ -72,7 +72,7 @@ export class SellDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       itemId: this.item.id,
       qty: Number(data.qty) || 1,
       merchantRanks: Number(data.merchantRanks) || 0,
-      merchantCha: Number(data.merchantCha) || 0,
+      merchantCha: typedFigure(data.merchantCha),
       resolutionId: foundry.utils.randomID(),
     });
     if (result?.error) {

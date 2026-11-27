@@ -99,7 +99,9 @@ party's find.
 - **Buy/sell** (`engine/trade.mjs`): staged copper pricing (condition,
   demand steps, Bargaining swing by opposed winner; the merchant's ranks and
   Charisma are typed in the Judge's dialog only, and a request not from a
-  Judge's seat is priced with the defaults, `merchantFigures`); purchases arrive through
+  Judge's seat is priced with the defaults, `merchantFigures`; the Charisma
+  field starts blank, its tooltip names the page that prints a typical
+  merchant, and a blank adds no modifier to the merchant's roll); purchases arrive through
   lib's `deliverItems` (one stack of the quantity, folded into an identical
   stack the buyer carries, or one copy per unit; docs/lib/MODEL.md, "Goods
   handed to an actor, and bundles"); sales destroy the sold document. Magic

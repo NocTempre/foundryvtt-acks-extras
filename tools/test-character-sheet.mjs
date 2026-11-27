@@ -540,6 +540,12 @@ test("the frame model carries the cast column for a caster and none for anyone e
   assert.deepEqual(caster.rails.cast.trackers.map((c) => c.kind), ["record", "pad", "pad", "pad", "pad"]);
   assert.equal(caster.rails.party.mode, "none", "the party cell is untouched by the column");
 });
+test("the party menu offers the roster by who is in service, not by the retainer mark core leaves on a dismissed character", () => {
+  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
+  const call = sheet.slice(sheet.indexOf("partyMenuModel({ party: partyOf"), sheet.indexOf("const items = model.map"));
+  assert.ok(call.includes("roster: !inService(this.actor)"), "the roster flag reads inService");
+  assert.ok(!/retainer\?\.enabled/.test(call), "and not the enabled mark");
+});
 test("the cast column's strings exist, and the castMenu action is not a view action", () => {
   const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
   const viewActions = sheet.slice(sheet.indexOf("static VIEW_ACTIONS"), sheet.indexOf("static PARTS"));

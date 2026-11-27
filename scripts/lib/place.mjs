@@ -35,6 +35,7 @@ import {
   wouldCycle,
 } from "./place-logic.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
+import { inService } from "./actor-read.mjs";
 
 // Re-export the Foundry-free half so consumers reach it all through
 // `acksLib.places`, while the pure half stays independently Node-importable.
@@ -384,12 +385,12 @@ export async function setParent(doc, parentUuid) {
 
 /**
  * What kind of occupant an actor is, for display bucketing. Reads the registered
- * type and the core retainer flag — never a name or a guess.
+ * type and whether the actor is in an employer's service — never a name or a guess.
  */
 export function occupantKindOf(actor) {
   if (!actor) return OCCUPANT_KIND.ACTOR;
   if (actor.type === `${MODULE_ID}.group`) return OCCUPANT_KIND.GROUP;
-  if (actor.system?.retainer?.enabled) return OCCUPANT_KIND.HENCHMAN;
+  if (inService(actor)) return OCCUPANT_KIND.HENCHMAN;
   if (actor.type === ACTOR_TYPE.monster) return OCCUPANT_KIND.MONSTER;
   return OCCUPANT_KIND.ACTOR;
 }

@@ -22,6 +22,7 @@
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { LANG_PREFIX as LOCATION_LANG } from "../../location/constants.mjs";
 import { ACTOR_TYPE, ITEM_TYPE } from "../../lib/vocab.mjs";
+import { inService } from "../../lib/actor-read.mjs";
 import { acksExtras } from "../../namespace.mjs";
 import { SECONDS_PER_DAY } from "../../henchmen/constants.mjs";
 import { now } from "../../henchmen/time.mjs";
@@ -162,7 +163,7 @@ export function actingTrader(_sheet) {
   return (
     candidates.find((a) => a.uuid === chosen) ??
     candidates.find((a) => a === game.user.character) ??
-    candidates.find((a) => !a.system?.retainer?.enabled) ??
+    candidates.find((a) => !inService(a)) ??
     candidates[0]
   );
 }

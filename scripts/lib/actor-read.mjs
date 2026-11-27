@@ -276,6 +276,17 @@ export function areEnemies(tokenA, tokenB) {
   return a !== b;
 }
 
+/**
+ * True where `actor` is in an employer's service: the system marks them a
+ * retainer and names an employer. Core's dismissal clears the employer and
+ * leaves the mark on, so a dismissed character is marked and still free; the
+ * mark alone never answers who is in service.
+ */
+export function inService(actor) {
+  const retainer = actor?.system?.retainer;
+  return !!retainer?.enabled && !!retainer.managerid;
+}
+
 /** Wage bases that mean "paid in coin, not in experience" (RR ch. 8). */
 export const UNSHARED_BASES = Object.freeze(["mercenary", "specialist"]);
 

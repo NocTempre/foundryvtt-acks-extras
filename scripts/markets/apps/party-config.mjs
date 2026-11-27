@@ -9,6 +9,7 @@
 import { MODULE_ID, LANG } from "../constants.mjs";
 import { getSetting } from "../settings.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { inService } from "../../lib/actor-read.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -48,7 +49,7 @@ export class PartyConfigApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    const characters = game.actors.filter((a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled);
+    const characters = game.actors.filter((a) => a.type === ACTOR_TYPE.character && !inService(a));
     context.parties = this.#load().map((p, index) => ({
       index,
       name: p.name ?? p.id,

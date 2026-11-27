@@ -1664,14 +1664,52 @@ assert.strictEqual(parseMoneyCp("-"), 0, "unreadable money is zero");
   assert.notStrictEqual((await sale("player")).error, "printedMissing","a Player's payload cannot set the merchant's ranks: the figure is the Judge's");
   const { merchantFigures } = await import(new URL("../scripts/markets/rules/pricing.mjs", import.meta.url));
   assert.deepStrictEqual(merchantFigures({ merchantRanks: 2, merchantCha: -2 }, true), { merchantRanks: 2, merchantCha: -2 }, "the Judge's figures stand");
-  assert.deepStrictEqual(merchantFigures({ merchantRanks: 2, merchantCha: -2 }, false), { merchantRanks: 0, merchantCha: 1 }, "any other seat's are the defaults, whatever the payload says");
-  assert.deepStrictEqual(merchantFigures({}, true), { merchantRanks: 0, merchantCha: 1 }, "a Judge who typed none gets the defaults");
+  assert.deepStrictEqual(merchantFigures({ merchantRanks: 2, merchantCha: -2 }, false), { merchantRanks: 0, merchantCha: null }, "any other seat's are the defaults, whatever the payload says");
+  assert.deepStrictEqual(merchantFigures({}, true), { merchantRanks: 0, merchantCha: null }, "a Judge who typed none gets the defaults, and a blank Charisma adds nothing");
+  assert.strictEqual(merchantFigures({ merchantRanks: 2, merchantCha: null }, true).merchantCha, null, "a Judge's blank Charisma is null");
+  assert.strictEqual(merchantFigures({ merchantRanks: 2, merchantCha: "" }, true).merchantCha, null, "a Judge's empty-string Charisma is null");
+  assert.strictEqual(merchantFigures({ merchantRanks: 2, merchantCha: NaN }, true).merchantCha, null, "a Judge's non-finite Charisma is null");
+  assert.strictEqual(merchantFigures({ merchantRanks: 2, merchantCha: 2 }, true).merchantCha, 2, "a Judge's typed Charisma stands");
+  assert.strictEqual(merchantFigures({ merchantRanks: 2, merchantCha: 0 }, true).merchantCha, 0, "a typed zero is a figure, not blank");
+  assert.strictEqual(merchantFigures({ merchantRanks: 2, merchantCha: 2 }, false).merchantCha, null, "a Player's typed Charisma is not read");
+  const { typedFigure } = await import(new URL("../scripts/markets/rules/pricing.mjs", import.meta.url));
+  assert.deepStrictEqual(["", undefined, null, "x"].map(typedFigure), [null, null, null, null], "a blank, missing or non-numeric field submits null");
+  assert.deepStrictEqual(["2", "-1", "0", 3].map(typedFigure), [2, -1, 0, 3], "a typed field submits its number, zero included");
+  assert.strictEqual(merchantFigures({ merchantRanks: 3 }, true).merchantRanks, 3, "ranks are unchanged: a Judge's stand");
+  assert.strictEqual(merchantFigures({ merchantRanks: 3 }, false).merchantRanks, 0, "ranks are unchanged: any other seat's are none");
   ns.location = savedReach;
   delete globalThis.fromUuid;
   delete globalThis.foundry;
   delete globalThis.acksExtras;
   delete globalThis.game;
   delete globalThis.Hooks;
+}
+
+{
+  // Core's dismissal clears `managerid` and leaves `retainer.enabled` on: such a
+  // character is free, so the implicit party counts them and the pickers offer them.
+  const saved = { game: globalThis.game, Hooks: globalThis.Hooks };
+  const character = (id, retainer) => ({ id, uuid: `Actor.${id}`, type: "character", hasPlayerOwner: true, system: { retainer } });
+  const roster = [
+    character("pc", { enabled: false, managerid: "" }),
+    character("dismissed", { enabled: true, managerid: "" }),
+    character("hired", { enabled: true, managerid: "pc" }),
+  ];
+  globalThis.game = { actors: roster, settings: { get: () => [] } };
+  globalThis.Hooks ??= { on() {}, once() {}, callAll() {} };
+  const { partyMembers, DEFAULT_PARTY_ID } = await import(new URL("../scripts/markets/engine/parties.mjs", import.meta.url));
+  assert.deepStrictEqual(partyMembers(DEFAULT_PARTY_ID).map((a) => a.id), ["pc", "dismissed"], "a dismissed character is a buyer candidate, a hired one is not");
+  globalThis.game = saved.game;
+  if (saved.game === undefined) delete globalThis.game;
+  if (saved.Hooks === undefined) delete globalThis.Hooks;
+
+  // The pickers and the party configuration ask the same question, through lib's one reader.
+  const { readFileSync } = await import("node:fs");
+  for (const file of ["apps/commission-dialog.mjs", "apps/purchase-dialog.mjs", "apps/party-config.mjs", "apps/trade-tab.mjs", "engine/parties.mjs"]) {
+    const source = readFileSync(new URL(`../scripts/markets/${file}`, import.meta.url), "utf8");
+    assert.ok(!/retainer\?\.enabled/.test(source), `${file} reads who is in service through inService, not the retainer block's enabled flag`);
+    assert.ok(/\binService\(/.test(source), `${file} calls inService`);
+  }
 }
 
 console.log("test-markets: OK (availability, caps, pricing, magic pricing, imports, commissions, arbitrage, result bands, venture queue, ledger, item flags, identification, printed reader, load draws, moorage and stabling, shop sources, city gate toll and duty, the city entry's payment, the Enter dialog's figures, the Judge's switch and the merchant's figures)");

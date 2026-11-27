@@ -75,6 +75,7 @@ import { buildServicePanel } from "../henchmen/service-view.mjs";
 import { serviceNodes, serviceReads } from "../henchmen/engine/service-tree.mjs";
 import { ORG_ACTIONS, serviceChartContext, serviceLocationsContext } from "../lib/org-chart-ui.mjs";
 import { getManager } from "../henchmen/acks-adapter.mjs";
+import { inService } from "../lib/actor-read.mjs";
 import { openStashDialog } from "../location/apps/stash-dialog.mjs";
 import { setPinnedPlace, pinnedPlaces } from "../location/reach.mjs";
 import { setDown } from "../location/ground.mjs";
@@ -988,7 +989,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
    * menu (`#onCastMenu`).
    */
   static #onPartyMenu(event, target) {
-    const model = partyMenuModel({ party: partyOf(this.actor), owner: this.actor.isOwner, roster: !this.actor.system?.retainer?.enabled });
+    const model = partyMenuModel({ party: partyOf(this.actor), owner: this.actor.isOwner, roster: !inService(this.actor) });
     const items = model.map((it) => ({
       ...it,
       label: it.label ?? loc(it.key, it.data),

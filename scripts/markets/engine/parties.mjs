@@ -10,6 +10,7 @@
  * rosters.
  */
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { inService } from "../../lib/actor-read.mjs";
 import { getHenchmenIds } from "../../henchmen/acks-adapter.mjs";
 import { getSetting } from "../settings.mjs";
 
@@ -29,7 +30,7 @@ export function partiesConfig() {
 /** Player-owned adventuring characters (the implicit party's core). */
 function playerCharacters() {
   return game.actors.filter(
-    (a) => a.type === ACTOR_TYPE.character && a.hasPlayerOwner && !a.system?.retainer?.enabled
+    (a) => a.type === ACTOR_TYPE.character && a.hasPlayerOwner && !inService(a)
   );
 }
 

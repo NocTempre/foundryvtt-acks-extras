@@ -9,10 +9,11 @@ import { performPurchase, availabilityFor, buyQuote } from "../engine/trade.mjs"
 import { performImportOrder } from "../engine/imports.mjs";
 import { hubWait, marketRules } from "../engine/printed.mjs";
 import { refusalText, availabilityText } from "../engine/refusal.mjs";
-import { toGp } from "../rules/pricing.mjs";
+import { toGp, typedFigure } from "../rules/pricing.mjs";
 import { magicBasisOf } from "../rules/goods.mjs";
 import { partySize, partyOf } from "../engine/parties.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { inService } from "../../lib/actor-read.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -50,7 +51,7 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     context.item = this.item;
     const mayUse = (a) => game.user.isGM || a.testUserPermission(game.user, "OWNER");
     context.buyers = game.actors
-      .filter((a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && mayUse(a))
+      .filter((a) => a.type === ACTOR_TYPE.character && !inService(a) && mayUse(a))
       .map((a) => ({ id: a.uuid, name: a.name, selected: a.uuid === this.buyer?.uuid }));
     // The acting trader when listed, else the first listed buyer; the select's
     // default and the availability preview then name the same actor.
@@ -109,7 +110,7 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
           qty: Number(data.qty) || 1,
           dedicated: !!data.dedicated,
           merchantRanks: Number(data.merchantRanks) || 0,
-          merchantCha: Number(data.merchantCha) || 0,
+          merchantCha: typedFigure(data.merchantCha),
           resolutionId: foundry.utils.randomID(),
           ...(this.item.held ? { heldItemId: this.item.heldItemId } : {}),
         });

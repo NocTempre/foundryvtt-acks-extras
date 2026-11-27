@@ -309,3 +309,13 @@ value badge.
 **Strongest counter, LOW.** A forged payload with ranks 0 was already the Player's default, so only the Charisma and ranks that favour a Player could be forged (a high-rank merchant with a low modifier to lose the opposed roll). Held: the engine never read them from a seat it did not trust, and no honest client sends them.
 
 *Cost:* a Player's purchase and sale is always priced against a merchant with no Bargaining ranks, so a Player party with the proficiency takes the swing outright; a Judge who wants the merchant to have ranks makes the trade from a Judge's seat. The default Charisma of 1 and the dialogs' initial 1 are unexamined code figures, and a ROADMAP candidate for the printed-value rule.
+
+## 2026-11-26 — The merchant's Charisma field starts blank (T-0889)
+
+**Ruled.** The Buy and Sell windows' merchant Charisma field starts blank on a Judge's seat, with the page reference alone (RR 376) as its tooltip. A blank, missing or non-finite entry is `null` (`typedFigure`, `rules/pricing.mjs`), `merchantFigures` defaults to `null`, and `opposedBargain` reads it as no modifier. The opposed roll still happens only when the Judge has typed ranks for both sides, so a plain purchase's price does not change.
+
+**New against the (T-0819) entry above.** Its Cost line called the dialogs' initial figure and the default unexamined; the page check found the figure printed, as part of the typical merchant the venture engine already imports (`engine/printed.mjs` `negotiation()`). The printed-value rule therefore moves it out of source. That entry is less than 7 days old and is extended here, not superseded: its ruling that the figures are the Judge's still stands.
+
+**Rejected.** *Prefilling the field from the imported typical merchant.* The reason is that entry's: it would change what a plain purchase costs, and the field is the Judge's control, left as the Judge sets it.
+
+*Cost:* a Judge who types ranks and leaves Charisma blank rolls the merchant with no modifier.

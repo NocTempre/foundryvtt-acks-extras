@@ -74,7 +74,7 @@ import * as lightLib from "../scripts/lib/light.mjs";
 import { MAGIC_LIGHT_LOOK, applyTokenLight, applyTokenVision, isManagedLight, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { installTokenLightPaddingPatch, unpaddedRadius } from "../scripts/lib/patches/token-light-padding.mjs";
 import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } from "../scripts/lib/patches/spell-use.mjs";
-import { actorAlignment, areEnemies, creatureKinds, hdFormula, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
+import { actorAlignment, areEnemies, creatureKinds, hdFormula, inService, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
 import { drawForJudges, drawQuietly, postToJudges } from "../scripts/lib/roll-audience.mjs";
 import { elementOf, gmIds, judgesAndOwners, seededId } from "../scripts/lib/util.mjs";
@@ -5199,6 +5199,27 @@ t("creatureKinds: types, summoned, the defined term enchanted, character, and an
   assert.deepEqual([...creatureKinds({ type: "character", getFlag: () => undefined })], ["character"]);
   assert.equal(creatureKinds(null).size, 0);
 });
+
+t("inService: a character is in service while marked a retainer with an employer named; core's dismissal leaves the mark and clears the employer", () => {
+  const actor = (retainer) => ({ system: { retainer } });
+  assert.equal(inService(actor({ enabled: true, managerid: "boss" })), true);
+  assert.equal(inService(actor({ enabled: true, managerid: "" })), false, "a dismissed character is free");
+  assert.equal(inService(actor({ enabled: true })), false, "no employer field is no employer");
+  assert.equal(inService(actor({ enabled: false, managerid: "boss" })), false, "an employer with the block off is not service");
+  assert.equal(inService(actor({})), false);
+  assert.equal(inService({ system: {} }), false);
+  assert.equal(inService(null), false);
+});
+
+{
+  const { occupantKindOf, OCCUPANT_KIND } = await import("../scripts/lib/place.mjs");
+  t("occupantKindOf: a dismissed character is an ordinary occupant, not a henchman", () => {
+    const actor = (retainer) => ({ type: "character", system: { retainer } });
+    assert.equal(occupantKindOf(actor({ enabled: true, managerid: "boss" })), OCCUPANT_KIND.HENCHMAN);
+    assert.equal(occupantKindOf(actor({ enabled: true, managerid: "" })), OCCUPANT_KIND.ACTOR);
+    assert.equal(occupantKindOf(actor({ enabled: false, managerid: "" })), OCCUPANT_KIND.ACTOR);
+  });
+}
 
 t("areEnemies: friendly against hostile is true, one side false, neutral secret and missing are unknown", () => {
   const prior = globalThis.CONST;

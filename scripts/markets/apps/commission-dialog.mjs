@@ -13,6 +13,7 @@ import { optTable } from "../../henchmen/rules/tables.mjs";
 import { isMissingRow } from "../../lib/tables.mjs";
 import { getSetting as henchmenSetting } from "../../henchmen/settings.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
+import { inService } from "../../lib/actor-read.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -48,7 +49,7 @@ export class CommissionDialog extends HandlebarsApplicationMixin(ApplicationV2) 
     context.item = this.item;
     const mayUse = (a) => game.user.isGM || a.testUserPermission(game.user, "OWNER");
     context.buyers = game.actors
-      .filter((a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && mayUse(a))
+      .filter((a) => a.type === ACTOR_TYPE.character && !inService(a) && mayUse(a))
       .map((a) => ({ id: a.uuid, name: a.name, selected: a.uuid === this.buyer?.uuid }));
     if (!context.buyers.some((b) => b.selected) && context.buyers[0]) context.buyers[0].selected = true;
     const daysPerMonth = Number(henchmenSetting("daysPerMonth")) || 28;
