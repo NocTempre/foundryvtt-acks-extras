@@ -2325,6 +2325,16 @@ The scoping that the owner approved as the program's scope on 2026-09-24, and wh
 - **Left out of the program:** Domains at War battle resolution; congregation-scale divine power generation, which belongs to the domain module family; an OSE spell recipe, since OSE's own spell text is not in scope; and any value read off a page in a shipped file.
 - **Magic types never publish into the class builder's document** (`acks.classBuilder`). That is a second world-priority writer beside the importer's, and a layer replaces a table whole, so "documents first, then rows" cannot be said inside one document. They publish to their own `acks.magicTypes`, and the class builder merges the two by key. *Rejected:* publishing the documents into the builder's document at world priority.
 
+## 2026-11-26 — Two printed counts stay in pushed history
+
+**Asked.** The By This Axe groundwork plan's first wording of 3c ruling 3 (40a42632, 2026-11-17) gave the stigma marks a failure adds and the damage marks a botch adds as numbers. 67102895 corrected it the same day, and the ruling now takes both as arguments ("Gnosis and ceremony: the By This Axe groundwork and the 3c rulings", below). The plan was deleted in ad102b02. Both commits are on `origin/main`, and `.claude/rules/ip-doctrine.md` purges a leak that landed. The owner was asked "Leave the two printed counts in pushed history?"
+
+**Ruled.** The owner: "Leave them".
+
+**Rejected.** A purge. It rewrites pushed `main` from 40a42632 on, along with the seven published tags built on it (v2026.11.19 to v2026.11.26). The release rule forbids retagging a published release.
+
+**Cost.** The two figures stay readable in public history. They sit in a docs file, which never shipped in `module.zip`. The ruling covers these two commits only and says nothing about a later leak.
+
 ## 2026-11-18 — Gnosis and ceremony: the By This Axe groundwork and the 3c rulings
 
 What the By This Axe line ruled that no other entry holds. How the invocations and the classes' lists import is [importer DECISIONS](../importer/DECISIONS.md), 2026-11-16 and 2026-11-17; the casting row's cap is [classes DECISIONS](../classes/DECISIONS.md), "A casting row's level cap is its own key"; the gnosis tables' import is importer MODEL, "The gnostic tables"; the seam the casting line took from this one is rulings 200 to 208, 214, 215 and 228 above. What is not built is [ROADMAP.md](ROADMAP.md), 3c.
@@ -2353,3 +2363,4 @@ The owner on the five 3c questions, "Take recommendations": **A** yes, every aut
 - **Implements** (the canvas's two questions; the owner's words are in "The Invocation band"): one bucket of levelled sets, not a slot for each kind of implement, and the invoker may choose a lower set that is still high enough.
 - **The owner on the first 3c canvas:** "Spend more effort to unify style with the repo design language. BTA ceremony surface is directionally correct. More leveraging game-icons for things like pace, Show the fetish/foci/etc as buckets to fill with attention on them. Stigma should add visual feedback like cracking or smoke effect, idk." Then: "The stigma comment was not an animation request, it was a suggestion for visual feedback of getting darker/more broken as stigma accumulates". The revision draws stigma in three static steps, with glyphs from the game-icons pack or core Font Awesome and a labelled placeholder for the crack texture, which the art rule (`.claude/rules/ip-doctrine.md`) takes from open art or the Judge's own copy.
 - **The canvases:** the gnosis dialog and card (D1 and D2) stay on their own canvas, and the cast canvas is untouched. *Counter (medium):* one window is drawn on two canvases; the architect preferred one.
+
