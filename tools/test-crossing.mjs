@@ -774,6 +774,16 @@ await ok("a drowning member takes no throw and no pace, and has the breath and d
   assert.deepEqual([afloat.drown.active, afloat.drown.rounds, afloat.drown.elapsed, afloat.drown.left], [false, 19, 0, 19]);
 });
 
+await ok("a null Constitution modifier is no part: the breath is the base and the part is not listed", () => {
+  loadSwim();
+  const row = swimRow({ encumbrance: 4, conMod: null, member: { state: DROWNING, drownedRounds: 3 } });
+  assert.equal(row.drown.rounds, 17, "null counts as 0 in the breath");
+  assert.equal(row.drown.left, 14);
+  assert.deepEqual(row.drown.parts.map((p) => p.key), ["breath", "encumbrance", "sink"]);
+  const zero = swimRow({ encumbrance: 4, conMod: 0, member: { state: DROWNING } });
+  assert.deepEqual(zero.drown.parts.map((p) => p.key), ["breath", "conMod", "encumbrance", "sink"], "a zero modifier is still a part");
+});
+
 await ok("drowning names each figure not imported on its own and reads null", () => {
   loadSwim({ ...SWIM, breathRounds: undefined });
   const row = swimRow({ encumbrance: 4, member: { state: DROWNING, drownedRounds: 2 } });

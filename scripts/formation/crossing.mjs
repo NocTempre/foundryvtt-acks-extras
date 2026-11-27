@@ -553,7 +553,7 @@ function swimEntry(formation, crossing, { member, actor }, { seat, standing, rec
   const turn = crossingTurn(formation, member);
   const row = markLoad(swimRow({
     encumbrance: stone, holds: holdsSwimming(actor), own: ownSwimSpeed(actor), speeds: swimSpeeds(actor, (stone ?? 0) + (hauled?.stone ?? 0), !!hauled),
-    conMod: Number(actor.system?.scores?.con?.mod) || 0, penalty: swimPenalty(crossing), conditions: swimConditions(crossing),
+    conMod: monster ? null : abilityMod(actor, "con"), penalty: swimPenalty(crossing), conditions: swimConditions(crossing),
     judgeMod: crossing.judgeMod, hauled, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
   }), monster);
   const windedBy = forbiddenBy(conditionSet(actor.statuses ?? []), "run");

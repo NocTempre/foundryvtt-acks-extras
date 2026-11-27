@@ -794,7 +794,8 @@ export const DROWNING = "drowning";
  *   swim speed (`ownSwimSpeed`)
  * @param {{combat?: number, run?: number}} [o.speeds] the member's combat and
  *   running speed in feet, whose share a swimmer makes
- * @param {number} [o.conMod] the member's Constitution modifier, for their breath
+ * @param {number|null} [o.conMod] the member's Constitution modifier, for their breath;
+ *   null means the member has no Constitution part (a monster), counted as 0 and not listed
  * @param {number|string|null} [o.penalty] the water penalty as a size
  * @param {string[]} [o.conditions] keys of `WATER` ticked as its reason
  * @param {number} [o.judgeMod] the Judge's modifier to the target
@@ -882,7 +883,7 @@ export function swimRow({
     left: breath.rounds === null ? null : Math.max(0, breath.rounds - elapsed),
     depth: breath.feetPerRound === null ? null : elapsed * breath.feetPerRound,
     parts: [
-      ...(base === null ? [] : [{ key: "breath", value: base }, { key: "conMod", value: Number(conMod) || 0 }]),
+      ...(base === null ? [] : [{ key: "breath", value: base }, ...(conMod === null ? [] : [{ key: "conMod", value: Number(conMod) || 0 }])]),
       { key: "encumbrance", value: stone },
       ...(perStone === null ? [] : [{ key: "sink", value: perStone }]),
     ],

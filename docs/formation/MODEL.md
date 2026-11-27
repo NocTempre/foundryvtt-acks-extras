@@ -3639,7 +3639,8 @@ so the row's Vulnerable chip is read from that implication and no second effect 
 held. A drowning member takes no throw and no pace on any seat: the refusal is a
 seat refusal, and a Judge is refused as a player is. Their row carries the breath
 and the sink rate (`drowning`), the breath left, and the stone a rescuer lifts
-(`rescueStone`: the body and a share of the gear). No control moves a swimmer
+(`rescueStone`: the body and a share of the gear). A monster's breath carries no
+Constitution part, since a monster has no ability scores. No control moves a swimmer
 across: a swimmer's arrival is the Judge's call (ROADMAP).
 
 **The setup and the rows.** A swim crossing's setup holds `penaltyPick` (`none`, an

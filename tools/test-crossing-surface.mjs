@@ -179,7 +179,7 @@ const CLIMBING = () => item("Probe Climb", [throwOf("climb", ladder([1, 15], [5,
 const ACROBATICS = () => item("Probe Tumble", [], { provides: ["kw:acrobatics"], cite: "XX p.3" });
 
 /** A person on the world's actor list. `owner` is the user id who owns them besides the GM. */
-function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level = 6, dex = 14, owner = null, type = "character", saves = { paralysis: { value: 12 } }, stone = 0, str = 0, load = null } = {}) {
+function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level = 6, dex = 14, owner = null, type = "character", saves = { paralysis: { value: 12 } }, stone = 0, str = 0, con = null, load = null } = {}) {
   // A monster's carried load is the weight of what it holds, read by lib; `load` is that many stone as one physical item.
   if (load !== null) items = [...items, { id: `i${++serial}`, type: "item", name: "Pack", system: { cost: {}, weight6: load * 6 }, getFlag: () => undefined }];
   const actor = {
@@ -187,7 +187,7 @@ function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level =
     id: name, name, type, img: `${name}.webp`, statuses: new Set(), appliedEffects: [],
     system: {
       details: { level, morale: 0 }, adventuring: adventuring ? { ...adventuring } : undefined, hp: { value: hp, max: 10 },
-      encumbrance: { value: stone }, scores: { dex: { value: dex, mod: 0 }, str: { value: 10, mod: str } }, saves, attack: { throw: 10 }, surprise: {}, initiative: {},
+      encumbrance: { value: stone }, scores: { dex: { value: dex, mod: 0 }, str: { value: 10, mod: str }, ...(con === null ? {} : { con: { value: 10, mod: con } }) }, saves, attack: { throw: 10 }, surprise: {}, initiative: {},
     },
     getFlag: () => undefined,
     testUserPermission: (user) => !!user?.isGM || user?.id === owner,
@@ -2334,6 +2334,21 @@ await ok("a drowning row: the breath and the sink rate with their working, Vulne
   const player = rowOf(swimView(formation, PLAYER), "Alder");
   assert.deepEqual([player.said, player.canHaul, player.can], [format("ACKS-FORMATION.crossing.refusal.drowning"), true, false], "the drowning member's owner reads the refusal in words and has the haul");
   assert.deepEqual([rowOf(swimView(formation, OTHER), "Alder").canHaul], [false], "a seat that owns no member has no haul");
+});
+
+await ok("a drowning monster's breath has no Constitution part and gains no modifier; a character's does", async () => {
+  const { formation } = await swimWorld([["Wolf", { type: "monster", load: 9, con: 2 }], ["Alder", { stone: 9, con: 2 }]]);
+  naturals.push(3, 3);
+  await throwFor(formation, "Wolf");
+  await throwFor(formation, "Alder");
+  const view = swimView(formation);
+  const wolf = rowOf(view, "Wolf");
+  assert.equal(wolf.drown.breath.text, format("ACKS-FORMATION.crossing.swim.breath", { left: 2, rounds: 3 }), "a monster's score gives it no extra rounds");
+  assert.equal(wolf.drown.breath.tip, ["Breath 3", format("ACKS-FORMATION.crossing.swim.tip.elapsed", { elapsed: 1 }), CITE].join(" · "));
+  assert.ok(!wolf.drown.breath.tip.includes("Constitution"), "the monster's tip names no Constitution");
+  const alder = rowOf(view, "Alder");
+  assert.equal(alder.drown.breath.text, format("ACKS-FORMATION.crossing.swim.breath", { left: 4, rounds: 5 }), "a character's modifier counts");
+  assert.equal(alder.drown.breath.tip, ["Breath 3", "Constitution 2", format("ACKS-FORMATION.crossing.swim.tip.elapsed", { elapsed: 1 }), CITE].join(" · "));
 });
 
 await ok("a breath or a sink rate nobody imported is blank and its tooltip is the page alone", async () => {
