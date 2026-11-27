@@ -759,3 +759,39 @@ startup index row; the card's message is swept by id. The main run skipped it on
 - **Not checked:** the summon name the spell sheet shows after its redraw (S4b's walk reads it); a redraw asked
   of a window still in its first render; `byCookbookIdAsync` on a roll table or journal entry, which answers the
   world's documents alone.
+
+### S4a. Actor documents by stamp (phase 1, 2026-11-27)
+
+Commit `7eefa481`, landed with the full gate green. Walked on `main` from `7eefa481`, same world and seats. The
+census gains the Actor readers S4a moved, counted apart on each seat at ready+60 s and after the idle: the
+companion candidates, a summon ref resolved by stamp through `liveResolveRef`, and on the GM seat a lair's
+monster (a place naming an imported monster's stamp) and the token-art restore's subjects, driven only where no
+index row carries the token-art flag (none did; it restored 0). Output: `aia-tmp/20261127-perf-timings-s4a.json`.
+Twelve boots, each reaching `ready` with no error in init, setup or ready.
+
+- **At ready+60 s** (Actor still warmed): every reader answered from held documents with no server pass: 2
+  eligible and 52 other animals on both seats, the summon ref resolved (the GM's to a world document, the
+  Player's to a shelf one, by the observer preference), the lair's monster resolved with a lair plan.
+- **After the 310 s idle** (310,007 ms measured, every shelf at 0): the companion candidates loaded by one
+  `_id__in` of 45 documents (GM 853 ms, Player 978 ms), with the same 2 and 52; the summon ref by one `_id__in`
+  of 1 (311 and 341 ms); the token-art restore's subjects by two `_id__in`, 591 documents, 5.6 s, writing
+  nothing. Each used to await `whenReady`, which after an idle loads the Item and Actor shelves whole. The lair
+  made no pass, because its monster was the one the summon ref had just loaded.
+- **The rest after the idle:** the summon-row spell sheet made no server pass (the readers had read the Actor
+  index and held its creature); the cast window loads the Actor shelves whole through its `whenReady` (GM
+  11.5 s, Player 5.6 s) until S4b.
+- **Load (ready+60 s):** as in S2. **Firsts:** cast window GM 14.1 s, Player 6.7 s.
+- **A summoning cast from the Player seat:** the `formation-summons` walk (formation TESTING, "Summons in the
+  party") passed 105 checks with 0 failed, and both seats' recorders saw no error from `init` on. The Player
+  cast twice through the cast dialog, and the creatures joined the party through `joinOp`, which now awaits the
+  spell's twin. It ran on fixtures of its own (`FIXTURE_OWN=libidx`; kept: `summons/scene`, `summoner-a`,
+  `summoner-b`, `stranger`, `spike-source`, `spell-named-a`, `spell-named-b`, `party`, `party-token` and two
+  more, each `@libidx`). It did not use the recipe's own, because a peer's 2026-11-26 `character-sheet-summons`
+  run tracked a second document carrying `summons/spike-source` (`Actor.z4L9ENrfSvN7Rzye`). That document is
+  left for the run that built it to retire.
+- **Offline only:** `test-companions` 7, `test-lair` 23, `test-summons` 120, `test-magic-cast` 156,
+  `test-token-art` 48, `test-library-where` 37 checks, and the land's full gate.
+- **Not checked:** the companion picker window and a lair's Roll were not opened (the reads under them were
+  called); token art's Apply was not driven (it needs a third-party monster compendium and writes the library's
+  monsters); the walk's summon rows name their creature by uuid, so the stamp path ran in the census alone; the
+  lair's read was not counted apart from the summon ref's.
