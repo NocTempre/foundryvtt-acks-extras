@@ -81,7 +81,7 @@ td code { font-family: var(--f-mono); font-size: .82rem; }
 </div>
 
 <script>
-// The daemon writes the board's data in place of the null below; served live, the page re-reads it every few seconds.
+// The daemon writes the board's data in place of the null below; served by the daemon itself, the page re-reads it every few seconds, and a published copy stays the snapshot it was.
 const BOARD = /*BOARD*/null;
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const tone = { passed: "ok", failed: "bad", running: "warn", stopped: "warn" };
@@ -115,7 +115,7 @@ function draw(b) {
   }));
 }
 if (BOARD) draw(BOARD);
-if (location.protocol.startsWith("http")) {
+if (location.protocol === "http:" && ["127.0.0.1", "localhost"].includes(location.hostname)) {
   const live = document.getElementById("live");
   let last = BOARD && BOARD.asof;
   const tick = async () => {
