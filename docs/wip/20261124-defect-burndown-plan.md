@@ -597,10 +597,11 @@ landing through `acks-commit` with its full gate. `main`'s version
 - Released earlier: T-0840, T-0525, T-0573.
 - T-0783: false report.
 - T-0837: docs only.
-- Six findings registered `new`: T-0914 to T-0919 (shelter read off item
+- Nine findings registered `new`: T-0914 to T-0922 (shelter read off item
   names, a gear price row's name cell, where the Provision controls show,
   the Game kind, slow item-sheet saves, a press that feeds only part of a
-  day).
+  day, an End day pressed while the last one is still settling, Refill on a
+  foraged water stack, a press mark that names no party).
 
 Walked live on `main`, lane A (Gamemaster / Player), kept fixtures:
 
@@ -637,27 +638,49 @@ Walked live on `main`, lane A (Gamemaster / Player), kept fixtures:
   (now "1 of 1") and left A's stack empty. B's hunger set to Hungry wrote the
   rung with runs reset and the mark. The open table redrew it with "set by
   hand", and so did both seats on a fresh render.
+- T-0911 on the stored formation of `formation/b14-camp-party`, through the
+  party sheet's own buttons (Wilderness tab) on the GM seat, packs and
+  ladders reset first. The Supplies press fed A (its one-unit loaf to zero,
+  marked with the day counter, 0) and its card named B, whose only food was
+  unsized, as having no rations. End day then counted A fed, drew each
+  member's day of water from the waterskin stack and the flask (both to
+  zero, quantities kept), held B's food ladder, and named B, the bread and
+  the page on the toll card. The counter went from 0 to 1, and the Camp read
+  Food 0 and Water 0 days. A second End day found A's mark stale and dealt
+  it nothing: A went hungry, both went dehydrated, B's food ladder stayed
+  held, and the Going without rows read the same. That press came 8 s after
+  the first, while the first's day change was still writing. Its
+  provisioning, toll card and clock jump all happened, but the counter and
+  log kept the first day's (registered T-0920). A third End day pressed alone
+  moved the counter from 1 to 2 and wrote a second log row at 3 s. It jumped
+  the clock a day and posted the night card at 25 s. A console.error wrapped
+  in for that press recorded nothing. The three End days moved the shared
+  world clock about 60 hours, to a dawn.
 
 Deleted and kept:
 
 - Kept: `character-sheet/b14-hands`, `formation/b14-provision`,
   `formation/b14-spend-a`, `formation/b14-spend-b`,
-  `formation/b14-camp-party` (with its formation record). B's thirst was
-  set by hand to Dehydrated and back, so it carries a hand-set mark.
+  `formation/b14-camp-party` (with its formation record, now at day 2).
+  The sheet walk left every vessel empty, A's loaf at zero and B's bread
+  unsized, with the ladders as its End days stepped them.
   `b14-press` was swept earlier in the batch.
 - Slice B's walk swept its two posted cards by id (removed 2, missing 0,
-  failed 0).
+  failed 0). The sheet walk swept the seven cards its fixtures posted, by id
+  (removed 4, 2 and 1, missing 0, failed 0); the last was a night card the
+  second End day posted after the run stopped listening.
 
 Checked offline only:
 
 - The unit suites each landing touched, and each landing's full gate.
 - A part-day `uses` on a multi-day unit, the triage policy's spend, and a
-  water forage deposit raising what is left (no forage was run live).
+  short day after a dry one leaving dehydration standing (test-survival).
 
 Not checked:
 
-- End day through the Wilderness tab's own button on a stored formation; the
-  walk called the provisioning on a formation-shaped record.
+- A water forage deposit raising what is left: no suite covers
+  `forage-run.mjs`, and no forage was run live. Refill on such a stack gives
+  back every day found (registered T-0921, by reading).
 - A press that feeds a member only in part. Review found that member is
   listed both fed and out and gets no mark, so End day deals them again
   (registered as T-0919).
