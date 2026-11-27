@@ -24,7 +24,7 @@ globalThis.CONFIG = { Item: { compendiumIndexFields: [] } };
 globalThis.game = { items: [], packs: [] };
 
 const lib = await import("../scripts/lib/library.mjs");
-const { libraryDocsWhere, declareLibraryIndexFields, libraryCold, cookbookId } = lib;
+const { libraryDocsWhere, declareLibraryIndexFields, libraryCold, cookbookId, loadIds, packDocsWhere, WARM_MARK_ENDED, warmMarkEnded } = lib;
 
 const STAMP = "flags.acks-extras.cookbook.id";
 const { shelfMock: shelf, sourceDoc: source } = await import("./lib-shelf-mock.mjs");
@@ -145,6 +145,8 @@ await ok("except drops those ids, shelf and world alike, before anything is load
   assert.deepEqual(idsOf(found), ["aw0", "aw2"]);
   assert.deepEqual(pack.calls.getDocuments[0]._id__in, ["aw0", "aw2"], "an excluded id is not even loaded");
   assert.deepEqual(idsOf(await libraryDocsWhere("Item", isWeapon, { except: ["aw0"] })).includes("aw0"), false, "any iterable of ids will do");
+  const once = new Set(["aw1", "wx"]).values();
+  assert.deepEqual(idsOf(await libraryDocsWhere("Item", isWeapon, { except: once })), ["aw0", "aw2"], "a one-shot iterator excludes the world's document and the shelf's alike");
   game.items = [];
 });
 
@@ -266,6 +268,139 @@ await ok("the warm is deferred a macrotask even with nothing in flight, so a rea
   const narrowAt = loads.findIndex((query) => query?._id__in);
   const wholeAt = loads.findIndex((query) => !query?._id__in);
   assert.ok(narrowAt >= 0 && wholeAt > narrowAt, "the narrow read's load goes first, the whole-shelf load after it");
+});
+
+await ok("loadIds: the same ids asked twice at once are one server call, answered in the order asked", async () => {
+  const pack = shelf({ docs: filler("a", 3) });
+  const [one, two] = await Promise.all([loadIds(pack, ["aw1", "aw0"]), loadIds(pack, ["aw1", "aw0"])]);
+  assert.equal(pack.calls.getDocuments.length, 1, "one server call for both callers");
+  assert.deepEqual(pack.calls.getDocuments[0], { _id__in: ["aw1", "aw0"] });
+  assert.deepEqual(idsOf(one), ["aw1", "aw0"], "the order asked, not the server's");
+  assert.deepEqual(idsOf(two), ["aw1", "aw0"]);
+  assert.equal(one[0], pack.get("aw1"));
+});
+
+await ok("loadIds: overlapping ids ask only for the new ones, and a held id asks for nothing", async () => {
+  const pack = shelf({ docs: filler("a", 4), held: ["aw3"] });
+  const first = loadIds(pack, ["aw0", "aw1"]);
+  const second = loadIds(pack, ["aw1", "aw2", "aw3"]);
+  const [a, b] = await Promise.all([first, second]);
+  assert.deepEqual(pack.calls.getDocuments, [{ _id__in: ["aw0", "aw1"] }, { _id__in: ["aw2"] }]);
+  assert.deepEqual(idsOf(a), ["aw0", "aw1"]);
+  assert.deepEqual(idsOf(b), ["aw1", "aw2", "aw3"], "the in-flight id, the new id and the held one");
+  await loadIds(pack, ["aw0", "aw3", "aw3"]);
+  assert.equal(pack.calls.getDocuments.length, 2, "everything held: no call, and a repeated id asks once");
+});
+
+await ok("loadIds: an id the pack does not hold is dropped from the answer", async () => {
+  const pack = shelf({ docs: filler("a", 2) });
+  assert.deepEqual(idsOf(await loadIds(pack, ["nowhere", "aw0"])), ["aw0"]);
+  assert.deepEqual(await loadIds(pack, []), []);
+  assert.equal(pack.calls.getDocuments.length, 1, "an empty list asks for nothing");
+});
+
+await ok("loadIds: a rejected load releases its ids, every waiter sees the rejection, and a later call asks again", async () => {
+  const pack = shelf({ docs: filler("a", 2), failLoad: true });
+  const settled = await Promise.allSettled([loadIds(pack, ["aw0"]), loadIds(pack, ["aw0"])]);
+  assert.deepEqual(settled.map((s) => s.status), ["rejected", "rejected"]);
+  assert.match(String(settled[0].reason), /load refused/);
+  assert.equal(pack.calls.getDocuments.length, 1, "the second caller waited on the first's load");
+  pack.failLoad = false;
+  assert.deepEqual(idsOf(await loadIds(pack, ["aw0"])), ["aw0"]);
+  assert.equal(pack.calls.getDocuments.length, 2, "the ids were released, so the call asks again");
+});
+
+await ok("packDocsWhere: a shelf whose index throws is named on `failed` and the other shelves still answer", async () => {
+  const bad = shelf({ docs: filler("a", 2), failIndex: true });
+  const good = shelf({ line: "Sample Line", docs: filler("b", 2) });
+  const { value, warned } = await withWarnings(() => packDocsWhere([bad, good], isWeapon));
+  assert.deepEqual(idsOf(value), ["bw0", "bw1"]);
+  assert.deepEqual(value.failed, [bad.collection]);
+  assert.equal(warned.length, 1);
+  assert.match(String(warned[0][0]), /acks-extras \| could not read the imported Item library from /);
+  assert.equal(Object.keys(value).length, 2, "`failed` is not enumerable");
+});
+
+await ok("packDocsWhere: the packs are the caller's, so a shelf this seat cannot open is read when handed over; one id query per shelf, in index order", async () => {
+  const closed = shelf({ docs: filler("a", 3), visible: false });
+  const lined = shelf({ line: "Sample Line", docs: filler("b", 2) });
+  game.packs = [];
+  const found = await packDocsWhere([lined, closed], isWeapon, { except: ["aw1"] });
+  assert.deepEqual(idsOf(found), ["bw0", "bw1", "aw0", "aw2"], "shelf by shelf, in the order handed");
+  assert.deepEqual(closed.calls.getDocuments, [{ _id__in: ["aw0", "aw2"] }]);
+  assert.deepEqual(found.failed, []);
+});
+
+await ok("packDocsWhere is a narrow read: the warm starts behind it", async () => {
+  const pack = shelf({ docs: filler("a", 3) });
+  game.packs = [pack];
+  let open;
+  const gate = new Promise((resolve) => (open = resolve));
+  const realIndex = pack.getIndex.bind(pack);
+  pack.getIndex = async (...args) => {
+    await gate;
+    return realIndex(...args);
+  };
+  const bare = () => pack.calls.getDocuments.filter((query) => !query?._id__in).length;
+  const reading = packDocsWhere([pack], isWeapon);
+  const warming = lib.registerLibraryWarm();
+  await sleep(15);
+  assert.equal(bare(), 0, "no whole-shelf load while the pack read is under way");
+  open();
+  await reading;
+  await warming;
+  assert.equal(bare(), 1);
+  pack.getIndex = realIndex;
+});
+
+await ok("libraryDocsWhere answers the world's documents, then packDocsWhere over the seat's shelves, with `failed` carried", async () => {
+  const bad = shelf({ docs: filler("a", 2), failLoad: true });
+  const good = shelf({ line: "Sample Line", docs: filler("b", 1) });
+  const hidden = shelf({ line: "Hidden Line", docs: filler("c", 1), visible: false });
+  game.packs = [bad, good, hidden];
+  game.items = [{ id: "wx", name: "World weapon", type: "weapon", flags: { "acks-extras": { cookbook: { id: "def.weapon.wx" } } }, system: {} }];
+  const { value } = await withWarnings(() => libraryDocsWhere("Item", isWeapon));
+  assert.deepEqual(idsOf(value), ["wx", "bw0"]);
+  assert.deepEqual(value.failed, [bad.collection]);
+  assert.equal(hidden.calls.getIndex.length, 0);
+  game.items = [];
+});
+
+await ok("registerLibraryWarm sets each type's ended mark and then the overall ended mark", async () => {
+  game.packs = [shelf({ docs: filler("a", 2) })];
+  performance.clearMarks();
+  await lib.registerLibraryWarm();
+  const at = (name) => {
+    const entries = performance.getEntriesByName(name, "mark");
+    assert.equal(entries.length, 1, `${name} set once`);
+    return entries[0].startTime;
+  };
+  assert.equal(WARM_MARK_ENDED, "acks-extras:libraryWarm:ended");
+  assert.equal(warmMarkEnded("Item"), "acks-extras:libraryWarm:Item:ended");
+  const ended = ["Item", "Actor", "JournalEntry", "RollTable"].map((type) => at(warmMarkEnded(type)));
+  assert.ok(at(WARM_MARK_ENDED) >= Math.max(...ended), "the overall mark follows every type's");
+  assert.equal(performance.getEntriesByName("acks-extras:libraryWarm:started", "mark").length, 1);
+});
+
+await ok("whenReady and warmLibrary set no ended mark", async () => {
+  game.packs = [shelf({ docs: filler("a", 2) })];
+  performance.clearMarks();
+  await lib.whenReady();
+  await lib.warmLibrary();
+  assert.equal(performance.getEntriesByName(WARM_MARK_ENDED, "mark").length, 0);
+  assert.equal(performance.getEntriesByName(warmMarkEnded("Item"), "mark").length, 0);
+});
+
+await ok("the stand-in shelf reports `indexed` as core does: the declared fields are a subset of those the index was built with", async () => {
+  const pack = shelf({ docs: filler("a", 2) });
+  assert.deepEqual(globalThis.CONFIG.Item.compendiumIndexFields.length > 0, true, "the stamp is declared in this run");
+  assert.equal(pack.indexed, false, "the startup index holds core fields only");
+  await pack.getIndex();
+  assert.equal(pack.indexed, true);
+  const saved = globalThis.CONFIG.Item.compendiumIndexFields;
+  globalThis.CONFIG.Item.compendiumIndexFields = [];
+  assert.equal(shelf({ docs: filler("a", 1) }).indexed, true, "nothing declared beyond core: covered from the start");
+  globalThis.CONFIG.Item.compendiumIndexFields = saved;
 });
 
 console.log(`\n${passed} passed`);

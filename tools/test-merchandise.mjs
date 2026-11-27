@@ -345,29 +345,49 @@ const tableRows = [
   { type: "gems", __missing: true },
 ];
 
-let packFetches = 0;
+/** Every server query a pack below received, as `[collection, query]`; a pack is read by `_id__in` and never by id. */
+const queries = [];
 const worldItems = [];
+/**
+ * An Item compendium as the catalogue reads it: a startup index (a Collection,
+ * which iterates its rows), `get` for what a load instantiated, and
+ * `getDocuments({_id__in})` for the rest. `getDocument` answers one document by
+ * `_id`, a query of its own, so a loop of them shows as one query per good.
+ */
+function itemPack(collection, docs, rows) {
+  const held = new Map();
+  return {
+    documentName: "Item",
+    collection,
+    fail: false,
+    index: new FakeCollection(rows),
+    get: (id) => held.get(id),
+    async getDocuments(query) {
+      queries.push([collection, query]);
+      if (this.fail) throw new Error("load refused");
+      const found = (query?._id__in ?? []).filter((id) => docs.has(id)).map((id) => docs.get(id));
+      for (const id of query?._id__in ?? []) if (docs.has(id)) held.set(id, docs.get(id));
+      return found;
+    },
+    async getDocument(id) {
+      queries.push([collection, { _id: id }]);
+      return docs.get(id);
+    },
+  };
+}
 const packDocs = new Map([
   ["c1", item("grainVegetables", "Compendium grain", { pricePerStoneGp: 20 })],
   ["c2", item("salt", "Compendium salt", { pricePerStoneGp: 21 })],
   ["c3", item("ivory", "Compendium ivory", { tier: "precious" })],
 ]);
-const pack = {
-  documentName: "Item",
-  collection: "world.cookbook-items",
-  index: new FakeCollection([
-    { _id: "c1", type: "acks-extras.merchandise" },
-    { _id: "c2", type: "acks-extras.merchandise" },
-    { _id: "c3", type: "acks-extras.merchandise" },
-    { _id: "n1", type: "acks-extras.variation" },
-    { _id: "n2", type: "weapon" },
-  ]),
-  async getDocument(id) {
-    packFetches++;
-    return packDocs.get(id);
-  },
-};
-const otherPack = { documentName: "Actor", collection: "world.actors", index: new FakeCollection([]), async getDocument() { throw new Error("read an Actor pack"); } };
+const pack = itemPack("world.cookbook-items", packDocs, [
+  { _id: "c1", type: "acks-extras.merchandise" },
+  { _id: "c2", type: "acks-extras.merchandise" },
+  { _id: "c3", type: "acks-extras.merchandise" },
+  { _id: "n1", type: "acks-extras.variation" },
+  { _id: "n2", type: "weapon" },
+]);
+const otherPack = { documentName: "Actor", collection: "world.actors", index: new FakeCollection([]), async getDocument() { throw new Error("read an Actor pack"); }, async getDocuments() { throw new Error("read an Actor pack"); } };
 
 const created = [];
 globalThis.game = {
@@ -403,13 +423,45 @@ check("the catalogue is cached until something changes", merchandiseCatalog() ==
 
 // Compendium over table.
 const loaded = await primeMerchandiseCatalog();
-check("only merchandise items are read from a pack", loaded === 3 && packFetches === 3);
+check("only merchandise items are read from a pack", loaded === 3);
+check("the pack's goods are one id query of the three merchandise ids", JSON.stringify(queries) === JSON.stringify([["world.cookbook-items", { _id__in: ["c1", "c2", "c3"] }]]));
 rows = merchandiseCatalog();
 const grainRow = merchandiseFor("grainVegetables");
 check("a compendium item beats the table for its key", grainRow.source === "compendium" && grainRow.pricePerStoneGp === 20);
 check("a table-only good keeps its table row", merchandiseFor("beerAle").source === "table");
 check("a compendium-only good joins", merchandiseFor("ivory").source === "compendium" && merchandiseFor("ivory").tier === "precious");
 check("an unknown key answers null", merchandiseFor("nothing") === null);
+
+// Five goods in one pack are one id query; a pack whose load fails is skipped with one warning and the others answer.
+{
+  const five = new Map(Array.from({ length: 5 }, (_, n) => [`m${n}`, item(`key${n}`, `Five ${n}`)]));
+  const crowded = itemPack("world.crowded", five, [
+    ...[...five.keys()].map((_id) => ({ _id, type: "acks-extras.merchandise" })),
+    ...Array.from({ length: 4 }, (_, n) => ({ _id: `x${n}`, type: "equipment" })),
+  ]);
+  const broken = itemPack("world.broken", new Map([["b1", item("brokenKey", "Never read")]]), [{ _id: "b1", type: "acks-extras.merchandise" }]);
+  broken.fail = true;
+  const keepPacks = game.packs;
+  const keepRows = merchandiseCatalog().map((r) => r.key).join();
+  game.packs = new FakeCollection([crowded, broken]);
+  queries.length = 0;
+  const warned = [];
+  const realWarn = console.warn;
+  console.warn = (...args) => warned.push(args);
+  let count;
+  try {
+    count = await primeMerchandiseCatalog();
+  } finally {
+    console.warn = realWarn;
+  }
+  check("five goods in one pack are one id query of the five, ids in index order", JSON.stringify(queries[0]) === JSON.stringify(["world.crowded", { _id__in: ["m0", "m1", "m2", "m3", "m4"] }]));
+  check("a pack whose load rejects is asked once and the others still answer", queries.length === 2 && queries[1][0] === "world.broken" && count === 5);
+  check("the rejected pack is warned about once, by its collection", warned.length === 1 && /world\.broken/.test(String(warned[0][0])));
+  check("the catalogue holds the answering pack's goods and none of the broken one's", ["key0", "key4"].every((k) => merchandiseFor(k)?.source === "compendium") && merchandiseFor("brokenKey") === null);
+  game.packs = keepPacks;
+  await primeMerchandiseCatalog();
+  check("the catalogue is as it was once the first pack answers again", merchandiseCatalog().map((r) => r.key).join() === keepRows && merchandiseFor("key0") === null);
+}
 
 // World over compendium.
 worldItems.push(item("grainVegetables", "World grain", { pricePerStoneGp: 300 }));

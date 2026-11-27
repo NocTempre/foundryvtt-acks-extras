@@ -320,8 +320,9 @@ const rowOf = (source) => ({
  * document is left out when its id is in `except`, which a caller uses for a
  * delete whose hook fires before the collection drops the document.
  *
- * The read is tracked while it runs, so the warm (`registerLibraryWarm`) starts
- * behind the narrow reads under way rather than beside them.
+ * The shelves' half is `packDocsWhere` over `libraryPacks(type)`, so the read is
+ * tracked while it runs and the warm (`registerLibraryWarm`) starts behind the
+ * narrow reads under way rather than beside them.
  *
  * @param {string} type a document type the importer keeps a shelf for
  * @param {(row: {_id: string, id: string, uuid?: string, name: string, type: string, flags: object}) => boolean} match
@@ -329,8 +330,34 @@ const rowOf = (source) => ({
  * @param {Iterable<string>} [options.except] document ids to leave out
  * @returns {Promise<object[] & {failed: string[]}>}
  */
-export function libraryDocsWhere(type, match, options = {}) {
-  const read = readWhere(type, match, options);
+export async function libraryDocsWhere(type, match, options = {}) {
+  const except = options.except instanceof Set ? options.except : new Set(options.except ?? []);
+  const docs = [...(worldCollection(type) ?? [])].filter(wantedOf(match, { except }));
+  const shelves = await packDocsWhere(libraryPacks(type), match, { except });
+  docs.push(...shelves);
+  return answerOf(docs, shelves.failed);
+}
+
+/**
+ * The shelves' half of `libraryDocsWhere`, over a pack list the caller gives (a
+ * caller reading for this seat hands over `openPacks(type)` or `libraryPacks`,
+ * so no shelf the seat is not shown is read here). Per pack it awaits
+ * `shelfIndex(pack)`, tests each index row with the same `{_id, id, uuid, name,
+ * type, flags}` projection `libraryDocsWhere` hands its test, and loads the
+ * documents it does not hold through `loadIds`; a pack's matches come back in
+ * its index order and the packs in the order given. The answer carries the same
+ * non-enumerable `failed` (the collection ids of the packs that could not be
+ * read), and `except` drops document ids as it does there. The read is tracked
+ * as a narrow read while it runs, so the warm starts behind it.
+ *
+ * @param {object[]} packs compendium collections
+ * @param {(row: {_id: string, id: string, uuid?: string, name: string, type: string, flags: object}) => boolean} match
+ * @param {object} [options]
+ * @param {Iterable<string>} [options.except] document ids to leave out
+ * @returns {Promise<object[] & {failed: string[]}>}
+ */
+export function packDocsWhere(packs, match, options = {}) {
+  const read = readPacks(packs, match, options);
   narrowReads.add(read);
   const done = () => narrowReads.delete(read);
   read.then(done, done);
@@ -365,34 +392,84 @@ export function shelfIndex(pack) {
   return read;
 }
 
-/** `libraryDocsWhere`'s read: the world's documents, then every shelf's. */
-async function readWhere(type, match, { except = null } = {}) {
+/** The test a source (a world document or an index row) must pass: not excluded, and `match` over its projection. */
+function wantedOf(match, { except = null } = {}) {
   const skip = except instanceof Set ? except : new Set(except ?? []);
-  const wanted = (source) => !skip.has(source._id ?? source.id) && match(rowOf(source));
-  const docs = [...(worldCollection(type) ?? [])].filter(wanted);
-  const packs = libraryPacks(type);
+  return (source) => !skip.has(source._id ?? source.id) && match(rowOf(source));
+}
+
+/** A document list with the non-enumerable `failed` array that `libraryDocsWhere` and `packDocsWhere` answer with. */
+function answerOf(docs, failed) {
+  Object.defineProperty(docs, "failed", { value: failed, enumerable: false });
+  return docs;
+}
+
+/** `packDocsWhere`'s read: every pack's matching documents, a pack that cannot be read left out and named. */
+async function readPacks(packs, match, options = {}) {
+  const wanted = wantedOf(match, options);
   const perShelf = await Promise.all(
     packs.map(async (pack) => {
       try {
         const index = await shelfIndex(pack);
         const hits = [...index.values()].filter(wanted).map((row) => row._id);
-        const missing = hits.filter((id) => !pack.get(id));
-        if (missing.length) await pack.getDocuments({ _id__in: missing });
-        return hits.map((id) => pack.get(id)).filter(Boolean);
+        return await loadIds(pack, hits);
       } catch (err) {
-        console.warn(`${MODULE_ID} | could not read the imported ${type} library from ${pack.collection}`, err);
+        console.warn(`${MODULE_ID} | could not read the imported ${pack.documentName} library from ${pack.collection}`, err);
         return null;
       }
     }),
   );
-  for (const list of perShelf) if (list) docs.push(...list);
-  const failed = packs.filter((_, n) => !perShelf[n]).map((pack) => pack.collection);
-  Object.defineProperty(docs, "failed", { value: failed, enumerable: false });
-  return docs;
+  const docs = perShelf.flatMap((list) => list ?? []);
+  return answerOf(
+    docs,
+    packs.filter((_, n) => !perShelf[n]).map((pack) => pack.collection),
+  );
 }
 
-/** The `performance.mark` set when the warm begins loading whole shelves, read by tools/live/perf-leads.mjs. */
+/** The loads in flight, by pack and then by document id: each id maps to the one load that is fetching it. */
+const idLoads = new WeakMap();
+
+/**
+ * Documents of one pack by id, each id fetched once however many callers ask.
+ * An id the pack already holds asks for nothing; an id another caller's load is
+ * fetching waits on that load; the rest go out now in ONE `getDocuments({_id__in})`
+ * of this call's own. There is no pause to gather callers and no merging across
+ * calls, so a caller's query leaves the moment it asks. A load that rejects
+ * releases its ids, so the next call asks again, and the rejection reaches every
+ * caller that waited on it.
+ *
+ * @param {object} pack a compendium collection
+ * @param {Iterable<string>} ids document ids
+ * @returns {Promise<object[]>} the documents of `ids` the pack holds once the loads settle, in the order of `ids`, a repeated id once and an id the pack does not hold left out
+ */
+export async function loadIds(pack, ids) {
+  const wanted = [...new Set(ids)];
+  let inFlight = idLoads.get(pack);
+  if (!inFlight) idLoads.set(pack, (inFlight = new Map()));
+  const absent = wanted.filter((id) => !pack.get(id));
+  const fresh = absent.filter((id) => !inFlight.has(id));
+  const waits = new Set(absent.filter((id) => inFlight.has(id)).map((id) => inFlight.get(id)));
+  if (fresh.length) {
+    const load = (async () => pack.getDocuments({ _id__in: fresh }))();
+    for (const id of fresh) inFlight.set(id, load);
+    const release = () => {
+      for (const id of fresh) if (inFlight.get(id) === load) inFlight.delete(id);
+    };
+    load.then(release, release);
+    waits.add(load);
+  }
+  await Promise.all(waits);
+  return wanted.map((id) => pack.get(id)).filter(Boolean);
+}
+
+/** The `performance.mark` set when the warm begins loading whole shelves, read by a timing script. */
 export const WARM_MARK_STARTED = "acks-extras:libraryWarm:started";
+
+/** The `performance.mark` set once every type's warm load has settled, read by a timing script. */
+export const WARM_MARK_ENDED = "acks-extras:libraryWarm:ended";
+
+/** The `performance.mark` set when one document type's warm load settles, read by a timing script. */
+export const warmMarkEnded = (type) => `acks-extras:libraryWarm:${type}:ended`;
 
 /**
  * Warm the library at ready, so a synchronous read is complete once it has run.
@@ -406,11 +483,16 @@ export const WARM_MARK_STARTED = "acks-extras:libraryWarm:started";
  * exercises with no Foundry global in sight, and a top-level `Hooks` call there
  * is a ReferenceError before any test body runs.
  *
+ * It sets a mark as each type's load settles (`warmMarkEnded`) and one when all
+ * have (`WARM_MARK_ENDED`); `whenReady` and `warmLibrary` set none.
+ *
  * @returns {Promise<unknown>} resolves once the whole-shelf loads have settled
  */
 export async function registerLibraryWarm() {
   await new Promise((resolve) => setTimeout(resolve, 0));
   while (narrowReads.size) await Promise.allSettled([...narrowReads]);
   perfMark(WARM_MARK_STARTED);
-  return warmLibrary();
+  const loaded = await Promise.all(LIBRARY_TYPES.map((type) => loadPack(type).finally(() => perfMark(warmMarkEnded(type)))));
+  perfMark(WARM_MARK_ENDED);
+  return loaded;
 }

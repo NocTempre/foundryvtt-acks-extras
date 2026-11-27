@@ -9,6 +9,8 @@
  * - `getDocuments(query)` answers in the SERVER's order (the reverse of the
  *   index's), takes `_id__in`, instantiates new documents, and sets only the ones
  *   it did not already hold;
+ * - `indexed` is true once the first `getIndex()` has run with every declared
+ *   field (or when nothing beyond core fields is declared), as core's is;
  * - `size` counts held documents and `index.size` every row, which is how the
  *   library tells a shelf is cold.
  *
@@ -19,7 +21,10 @@ import { libraryPackLabel } from "../scripts/lib/library.mjs";
 /** Core answers a server call on a later tick; so does the stand-in, so a load kicked and not awaited has not landed. */
 const later = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-const pathOf = (obj, path) => path.split(".").reduce((at, key) => at?.[key], obj);
+/** The fields core's startup index holds: the document class's core index fields, nothing a module declared. */
+const CORE_FIELDS = ["_id", "name", "type"];
+
+const pathOf =(obj, path) => path.split(".").reduce((at, key) => at?.[key], obj);
 const putPath = (obj, path, value) => {
   const keys = path.split(".");
   let at = obj;
@@ -63,6 +68,7 @@ export function shelfMock({ line = null, docs, held = [], visible = true, failIn
   const instance = (d) => ({ id: d._id, name: d.name, type: d.type, flags: structuredClone(d.flags), system: structuredClone(d.system), uuid: `Compendium.${d._id}` });
   const coreRow = (d) => ({ _id: d._id, name: d.name, type: d.type });
   let indexed = false;
+  let indexedFields = new Set(CORE_FIELDS);
   const label = libraryPackLabel(type, line);
   const pack = {
     collection: `world.${label.replace(/\W+/g, "-")}`,
@@ -74,6 +80,10 @@ export function shelfMock({ line = null, docs, held = [], visible = true, failIn
     failIndex,
     failLoad,
     index: new Map(docs.map((d) => [d._id, coreRow(d)])),
+    /** Core's `indexFields.isSubsetOf(#indexedFields)`: every field declared now is one the index was built with. */
+    get indexed() {
+      return (globalThis.CONFIG?.[type]?.compendiumIndexFields ?? []).every((field) => indexedFields.has(field));
+    },
     has: (id) => stored.has(id),
     get: (id) => stored.get(id),
     get size() {
@@ -91,9 +101,11 @@ export function shelfMock({ line = null, docs, held = [], visible = true, failIn
       await later();
       if (pack.failIndex) throw new Error("index refused");
       if (!indexed) {
+        const declared = globalThis.CONFIG?.[type]?.compendiumIndexFields ?? [];
+        indexedFields = new Set([...CORE_FIELDS, ...declared]);
         for (const d of docs) {
           const row = coreRow(d);
-          for (const field of globalThis.CONFIG?.[type]?.compendiumIndexFields ?? []) {
+          for (const field of declared) {
             const value = pathOf(d, field);
             if (value !== undefined) putPath(row, field, value);
           }

@@ -14,7 +14,7 @@
  * the registry and the roller may both import it.
  */
 import { ITEM_TYPE, resolveLevelValue } from "../lib/vocab.mjs";
-import { cookbookId, openPacks } from "../lib/library.mjs";
+import { cookbookId, openPacks, packDocsWhere } from "../lib/library.mjs";
 
 const ABILITIES_ID = "acks-extras";
 
@@ -86,19 +86,28 @@ function redrawActorSheets() {
   }
 }
 
-/** Rebuild the skill-to-ladder map from the item directory AND the world packs; open actor sheets redraw when a ladder changed. */
+/** Whether an index row of a world pack is an imported skill definition. */
+const isSkillRow = (row) => row.type === ITEM_TYPE.ability && cookbookId(row).startsWith(SKILL_PREFIX);
+
+/**
+ * Rebuild the skill-to-ladder map from the item directory AND the world packs;
+ * open actor sheets redraw when a ladder changed. A pack is read through its
+ * index, and only the skill definitions it names are loaded (`packDocsWhere`),
+ * never the whole shelf. A read that could not read a pack publishes nothing: the
+ * map and the item cache stand as last published, and stay unset when no read has
+ * succeeded yet, so the next reader asks again.
+ */
 export async function refreshLadders() {
   const mine = ++generation;
   const map = new Map();
   const items = new Map();
   for (const item of game.items ?? []) takeLadder(map, item, items);
-  for (const pack of openPacks("Item")) {
-    if (pack.metadata?.packageType !== "world") continue;
-    try {
-      for (const doc of await pack.getDocuments()) takeLadder(map, doc, items);
-    } catch (err) {
-      console.warn(`acks-extras | could not read compendium ${pack.collection}`, err);
-    }
+  const worldPacks = openPacks("Item").filter((pack) => pack.metadata?.packageType === "world");
+  const found = await packDocsWhere(worldPacks, isSkillRow);
+  for (const doc of found) takeLadder(map, doc, items);
+  if (found.failed.length) {
+    console.warn(`acks-extras | the skill ladders were kept as published: ${found.failed.join(", ")} could not be read.`);
+    return ladderCache ?? new Map();
   }
   // A read that started earlier never overwrites a later one's map.
   if (mine === generation) {

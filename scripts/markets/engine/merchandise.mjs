@@ -17,7 +17,7 @@ import { merchandiseLabel } from "../config.mjs";
 import { DEMAND_COLUMN_KEYS, MARKET_CLASS_COUNT, MERCHANDISE_KEYS, merchandiseTierOf } from "../merchandise-keys.mjs";
 import { optTable } from "../../henchmen/rules/tables.mjs";
 import { isMissingRow, citeOf } from "../../lib/tables.mjs";
-import { openPacks } from "../../lib/library.mjs";
+import { loadIds, openPacks } from "../../lib/library.mjs";
 
 /** The good whose tariff and season follow the printed procedure for staple food. */
 const STAPLE_KEY = "grainVegetables";
@@ -108,21 +108,24 @@ export function invalidateMerchandiseCatalog({ pack = false } = {}) {
 
 /**
  * Load the compendium half of the catalogue: every merchandise Item in every
- * Item pack, read through the pack index so no other pack's documents are
- * fetched. Safe to call again; it replaces the compendium snapshot.
+ * Item pack, picked off the pack's startup index by type and loaded with one id
+ * query per pack (`loadIds`), so no other document is fetched. A pack whose load
+ * fails is warned about once and skipped; the others answer. Safe to call again;
+ * it replaces the compendium snapshot.
  * @returns {Promise<number>} how many compendium goods were read
  */
 export async function primeMerchandiseCatalog() {
   const rows = [];
   for (const pack of openPacks("Item")) {
     const ids = [...(pack.index ?? [])].filter((entry) => entry.type === MERCHANDISE_TYPE).map((entry) => entry._id ?? entry.id);
-    for (const id of ids) {
-      try {
-        const row = rowOfItem(await pack.getDocument(id), CATALOG_SOURCE.compendium);
+    if (!ids.length) continue;
+    try {
+      for (const doc of await loadIds(pack, ids)) {
+        const row = rowOfItem(doc, CATALOG_SOURCE.compendium);
         if (row) rows.push(row);
-      } catch (err) {
-        console.warn(`${MODULE_ID} | merchandise: ${pack.collection} item ${id} could not be read`, err);
       }
+    } catch (err) {
+      console.warn(`${MODULE_ID} | merchandise: ${pack.collection} could not be read`, err);
     }
   }
   compendiumRows = rows;
