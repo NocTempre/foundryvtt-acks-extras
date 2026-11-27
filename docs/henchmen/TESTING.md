@@ -124,7 +124,7 @@ a step it does not name is walked by hand.
 - **What a seat was told is read off the notification.** Wrap
   `ui.notifications.info` and `.warn` for the length of the step. A seat that
   has just joined also raises the book loader's own toasts ("Reading …",
-  "ACKS Extras | … open") for a minute or more; leave them out of the count.
+  "acks-extras | … open") for a minute or more; leave them out of the count.
 - **A payroll entry out of the employer's reach is written by hand.** No hire
   makes one: `assignMonsterEmployer` takes a monster hired away off the first
   employer's `monsterHenchmenList`, and `coinReach` counts a hireling whose

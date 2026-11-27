@@ -301,19 +301,42 @@ export function parseCite(text) {
   return { book: bookId, page: m[2] ? printed : printed + (REGISTRY[bookId].printedOffset ?? 0) };
 }
 
-/** Human-readable fingerprint check; returns null when OK, else a warning. */
-export function fingerprintWarning(bookId, numPages, title) {
+/**
+ * What a PDF's page count and title say against a book's fingerprint, as data
+ * (no wording, so the runtime composes it in the user's language): null when
+ * the file fits, else `{book, pages, expected}` for a page count that differs
+ * and `{book, title}` for a title that does not match, both on one object when
+ * both differ. `book` is the registry label. A book id the registry does not
+ * know answers `{book: bookId, unknown: true}`.
+ * @returns {{book: string, unknown?: true, pages?: number, expected?: number, title?: string}|null}
+ */
+export function fingerprintProblems(bookId, numPages, title) {
   const book = REGISTRY[bookId];
-  if (!book) return `unknown book id "${bookId}"`;
+  if (!book) return { book: bookId, unknown: true };
+  const found = {};
+  if (numPages !== book.pages) Object.assign(found, { pages: numPages, expected: book.pages });
+  if (title && !book.titleRe.test(title)) found.title = title;
+  return Object.keys(found).length ? { book: book.label, ...found } : null;
+}
+
+/**
+ * The fingerprint check in English, for the Node tools that print it; null when
+ * the file fits. The runtime builds its notice from `fingerprintProblems` and
+ * lang keys instead.
+ */
+export function fingerprintWarning(bookId, numPages, title) {
+  const found = fingerprintProblems(bookId, numPages, title);
+  if (!found) return null;
+  if (found.unknown) return `unknown book id "${found.book}"`;
   const problems = [];
-  if (numPages !== book.pages) problems.push(`page count ${numPages} (expected ${book.pages})`);
-  if (title && !book.titleRe.test(title)) problems.push(`title "${title}"`);
-  return problems.length ? `${book.label}: ${problems.join(", ")} — different edition/printing? Extraction may miss.` : null;
+  if (found.expected != null) problems.push(`page count ${found.pages} (expected ${found.expected})`);
+  if (found.title != null) problems.push(`title "${found.title}"`);
+  return `${found.book}: ${problems.join(", ")} — different edition/printing? Extraction may miss.`;
 }
 
 /**
  * Which book an opened PDF is, or null when the fingerprint names no one book.
- * It reads the evidence `fingerprintWarning` reads, but asks whose file this is
+ * It reads the evidence `fingerprintProblems` reads, but asks whose file this is
  * rather than whether it fits a given slot.
  *
  * A book is named only when the whole fingerprint fits it and nothing else.

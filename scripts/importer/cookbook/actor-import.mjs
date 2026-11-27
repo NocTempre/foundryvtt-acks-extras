@@ -394,7 +394,7 @@ export async function abilityData(id, { folderId = null, pageCache = null } = {}
   const { node, reason } = await readForImport(id, pageCache ? { pageCache: pageCache(bookId) } : {});
   if (!node) return { data: null, reason };
   const folder = folderId ?? (await ensureItemFolder(id))?.id ?? null;
-  const ladders = await laddersForEntry(found.entry, { pageCache: pageCache ? pageCache(bookId) : null });
+  const ladders = await laddersForEntry(found.entry, { pageCache });
   const doc = bindAbility(found.entry, node, id, ladders ? { ladders } : {});
   const extras = doc.flags[MODULE_ID].extras;
   extras.effects = await resolveCompanions(extras.effects);

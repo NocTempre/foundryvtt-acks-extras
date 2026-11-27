@@ -24,6 +24,8 @@ import { pdfGuess } from "../../scripts/importer/table-extract.mjs";
 import * as services from "../../scripts/lib/services.mjs";
 import { initCookbook, loadCookbook, cookbookEntry, cookbookImportAbilities, cookbookUpdateAbilities } from "../../scripts/importer/cookbook.mjs";
 import { holdingReads, readForImport, repairFromEntry } from "../../scripts/importer/cookbook/read.mjs";
+import { abilityData } from "../../scripts/importer/cookbook/actor-import.mjs";
+import { laddersForEntry } from "../../scripts/importer/cookbook/classes.mjs";
 
 let pass = 0;
 const ok = (label, cond, detail = "") => {
@@ -388,6 +390,62 @@ function fetched(url) {
     ok("the next read executes again, and its node is kept", second.node && third.node && abilityBook.reads.get(2) === 1, `${abilityBook.reads.get(2)}`);
   });
   console.error = quiet;
+}
+
+/* --- a ladder is read from its class's own book -------------------------------------------- */
+{
+  // An ability printed in one book whose rolls name a class printed in another.
+  CONTENT.ladders = {
+    schema: SCHEMA,
+    entries: {
+      "def.power.ladderer": {
+        kind: "kind.power",
+        name: "Ladderer",
+        cite: "ZZ 2",
+        pages: [2],
+        book: "zz",
+        meta: { category: "power" },
+        fields: {
+          note: { op: "value", page: 2, box: { x0: 0, x1: 400, y0: 50, y1: 150 }, pattern: "raw" },
+          rolls: { op: "rolls", specs: [{ key: "t", fromLadders: { as: "ladderclass", grid: "rebuking", prefix: "r" } }] },
+        },
+      },
+      "def.class.ladderclass": {
+        kind: "kind.class",
+        name: "Ladderclass",
+        cite: "YY 3",
+        pages: [3],
+        book: "yy",
+        meta: {},
+        fields: { rebuking: { op: "value", page: 3, box: { x0: 0, x1: 400, y0: 50, y1: 150 }, pattern: "raw" } },
+      },
+    },
+  };
+  const sessions = new Map();
+  initCookbook({ sessionDocs: sessions });
+  await loadCookbook();
+  const abilityBook = countingBook(4);
+  const classBook = countingBook(4);
+  await abilityBook.settle();
+  await classBook.settle();
+  sessions.set("zz", { doc: abilityBook });
+  sessions.set("yy", { doc: classBook });
+
+  const maps = new Map();
+  const asked = [];
+  const pageCache = (bookId) => {
+    asked.push(bookId);
+    if (!maps.has(bookId)) maps.set(bookId, new Map());
+    return maps.get(bookId);
+  };
+  const { data: built, reason } = await abilityData("def.power.ladderer", { folderId: "none", pageCache });
+  ok("the ability is read", !!built && reason === null, String(reason));
+  ok("the run's cache is asked for the ability's book and for the class's", asked.includes("zz") && asked.includes("yy"), asked.join());
+  ok("the class's page is cached under the class's book", maps.get("yy")?.has(3) === true, [...(maps.get("yy")?.keys() ?? [])].join());
+  ok("and not under the ability's", !maps.get("zz")?.has(3), [...(maps.get("zz")?.keys() ?? [])].join());
+
+  const direct = await laddersForEntry(cookbookEntry("def.power.ladderer").entry);
+  ok("with no cache function a ladder is still read, from the class's own book", direct && Array.isArray(direct.t), JSON.stringify(direct));
 }
 
 delete globalThis.foundry;

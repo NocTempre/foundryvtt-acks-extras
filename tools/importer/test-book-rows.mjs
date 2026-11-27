@@ -204,11 +204,14 @@ const html = (view) => shelfRowHtml(view, { esc, L });
   for (const m of rows.matchAll(/\bL\("([A-Za-z]+)"/g)) keys.add(m[1]);
   for (const m of rows.matchAll(/"((?:text|shelf)[A-Z][A-Za-z]*)"/g)) keys.add(m[1]);
   const mod = read("../../scripts/importer/module.mjs");
-  for (const m of mod.matchAll(/\buiText\("([A-Za-z]+)"/g)) keys.add(m[1]);
+  for (const m of mod.matchAll(/\b(?:uiText|noticeText|saidError)\("([A-Za-z]+)"/g)) keys.add(m[1]);
+  for (const m of mod.matchAll(/\bfailureText\(err, "([A-Za-z]+)"/g)) keys.add(m[1]);
   for (const m of mod.matchAll(/"(books(?:Waiting|OpenHead|AbsentHead)Tip)"/g)) keys.add(m[1]);
   for (const k of ["readFailed", "readFailedAgain", "readKept", "readWhyFetch", "readWhySave"]) keys.add(k);
   ok("the scan found the keys", keys.size > 30, String(keys.size));
   for (const key of keys) ok(`lang has ACKS-IMPORTER.ui.${key}`, typeof lang[`ACKS-IMPORTER.ui.${key}`] === "string");
+  const prefixedKeys = Object.entries(lang).filter(([k, v]) => k.startsWith("ACKS-IMPORTER.") && /^\s*(ACKS Extras|acks-extras)\s*\|/i.test(String(v))).map(([k]) => k);
+  ok(`no importer string carries the module prefix itself, since the notice adds it once (${prefixedKeys.join(", ") || "none"})`, prefixedKeys.length === 0);
   const note = lang["ACKS-IMPORTER.ui.statusNote"];
   ok("the status note no longer says the file is never stored, and no line says every launch", !/never stored/.test(note) && !/every launch/.test(lang["ACKS-IMPORTER.ui.shelfCount"] + lang["ACKS-IMPORTER.ui.shelfHeld"] + lang["ACKS-IMPORTER.ui.shelfEmpty"]));
 }

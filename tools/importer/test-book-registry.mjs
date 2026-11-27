@@ -1,6 +1,6 @@
 /** The registry split: what the module offers (`BOOKS`) against what it knows (`REGISTRY`). No PDFs, no Foundry. */
 import assert from "node:assert";
-import { BOOKS, REGISTRY, bookIsJudges, bookLine, citeFor, offeredBookFiles, parseCite, registryBookOf } from "../../scripts/importer/books.mjs";
+import { BOOKS, REGISTRY, bookIsJudges, bookLine, citeFor, fingerprintProblems, fingerprintWarning, offeredBookFiles, parseCite, registryBookOf } from "../../scripts/importer/books.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -46,6 +46,22 @@ for (const id of Object.keys(REGISTRY)) {
   check("a book the offered set withdrew is still named", registryBookOf("zza.entry", invented) === "zza" && !("zza" in offered));
   check("the default registry is the real one", registryBookOf(`${Object.keys(REGISTRY)[0]}.x`) === Object.keys(REGISTRY)[0]);
   check("the real registry's ids filter down to the offered books, in order", offeredBookFiles(Object.keys(REGISTRY), BOOKS).join() === Object.keys(BOOKS).join());
+}
+
+/* The fingerprint check answers as data, and its English wrapper is built from that. */
+{
+  const { rr } = REGISTRY;
+  check("a file that fits is no problem", fingerprintProblems("rr", rr.pages, "") === null && fingerprintWarning("rr", rr.pages, "") === null);
+  const pagesOnly = fingerprintProblems("rr", rr.pages + 1, "");
+  check("a page count that differs is reported with both counts", pagesOnly?.book === rr.label && pagesOnly.pages === rr.pages + 1 && pagesOnly.expected === rr.pages && !("title" in pagesOnly));
+  const titleOnly = fingerprintProblems("rr", rr.pages, "zzz");
+  check("a title that does not match is reported by itself", titleOnly?.book === rr.label && titleOnly.title === "zzz" && !("pages" in titleOnly));
+  const both = fingerprintProblems("rr", rr.pages + 1, "zzz");
+  check("both findings share one object", both?.pages === rr.pages + 1 && both.title === "zzz");
+  const unknown = fingerprintProblems("zzx", 1, "");
+  check("an unknown book id is flagged, never thrown", unknown?.unknown === true && unknown.book === "zzx");
+  check("the English wrapper names both findings", fingerprintWarning("rr", rr.pages + 1, "zzz") === `${rr.label}: page count ${rr.pages + 1} (expected ${rr.pages}), title "zzz" — different edition/printing? Extraction may miss.`);
+  check("the English wrapper names an unknown id", fingerprintWarning("zzx", 1, "") === 'unknown book id "zzx"');
 }
 
 // A citation names the printed folio, so it is composed by `citeFor` alone: an

@@ -31,7 +31,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, ACTOR_TYPE, DEFAULT_IMG } from "./constants.mjs";
 import { bookText, CITE_CLASS, CITE_LINK_CLASS, sumsUpdate } from "./prose.mjs";
-import { BOOKS, REGISTRY, bookIsForm, bookIsJudges, fingerprintWarning, identifyBook, parseCite, shelfBooksToOpen } from "./books.mjs";
+import { BOOKS, REGISTRY, bookIsForm, bookIsJudges, fingerprintProblems, identifyBook, parseCite, shelfBooksToOpen } from "./books.mjs";
 import { matchFilesToBooks } from "./book-match.mjs";
 import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
@@ -449,9 +449,7 @@ async function shelvePath(bookId, path, { name = null, size = 0 } = {}) {
   } catch (err) {
     console.warn(`${MODULE_ID} | ${path} could not be shelved as ${REGISTRY[bookId]?.label ?? bookId}`, err);
     ui.notifications.warn(
-      err?.wrongBook
-        ? `${MODULE_ID} | ${err.message}`
-        : game.i18n.format(`${LANG_PREFIX}.ui.shelfFailed`, { name: name ?? path }),
+      err?.wrongBook ? prefixed(err.message) : game.i18n.format(`${LANG_PREFIX}.ui.shelfFailed`, { name: name ?? path }),
     );
     return null;
   }
@@ -533,12 +531,12 @@ async function shelveUpload(bookId, file, { verified = false } = {}) {
   if (taken) {
     // Size stays 0: nothing was uploaded, and the file up there is not necessarily this one.
     const held = await shelvePath(bookId, taken, { name });
-    if (!held) throw new Error(game.i18n.format(`${LANG_PREFIX}.ui.shelfTaken`, { path: taken }));
+    if (!held) throw saidError("shelfTaken", { path: taken });
     return held;
   }
   const named = file.name === name ? file : new File([file], name, { type: "application/pdf" });
   const res = await FP.upload("data", SHELF_DIR, named, {}, { notify: false });
-  if (!res?.path) throw new Error(game.i18n.localize(`${LANG_PREFIX}.ui.shelfUploadFailed`));
+  if (!res?.path) throw saidError("shelfUploadFailed");
   const record = { path: res.path, name, size: named.size ?? 0 };
   if (!verified) return shelvePath(bookId, res.path, { name, size: record.size });
   await shelfPut(bookId, record);
@@ -583,13 +581,13 @@ async function shelveOpen(bookId) {
   const taken = await shelfFile(name);
   if (taken) {
     const held = await shelvePath(bookId, taken, { name });
-    if (!held) throw new Error(game.i18n.format(`${LANG_PREFIX}.ui.shelfTaken`, { path: taken }));
+    if (!held) throw saidError("shelfTaken", { path: taken });
     return held;
   }
   // The bridge holds the bytes only inside its window; a book that is open here
   // is read back from the open document, which `ingestBook` fingerprinted.
   const blob = (await bytesGet(bookId).catch(() => null)) ?? (await openBookBytes(bookId).catch(() => null));
-  if (!blob) throw new Error(game.i18n.localize(`${LANG_PREFIX}.ui.shelfNoBytes`));
+  if (!blob) throw saidError("shelfNoBytes");
   return shelveUpload(bookId, new File([blob], name, { type: "application/pdf" }), { verified: true });
 }
 
@@ -631,7 +629,7 @@ const parsedBooks = new ParsedBooks({
   pointerOf: (bookId) => shelfJournal(bookId)?.getFlag(MODULE_ID, PARSED_FLAG) ?? null,
   writePointer: async (bookId, pointer) => {
     const journal = shelfJournal(bookId);
-    if (!journal) throw new Error(`${bookId} is not on the shelf`);
+    if (!journal) throw saidError("notOnShelf", { book: BOOKS[bookId]?.label ?? bookId });
     await journal.update({ [`flags.${MODULE_ID}.${PARSED_FLAG}`]: pointer });
   },
   upload: async (name, text) => {
@@ -642,7 +640,7 @@ const parsedBooks = new ParsedBooks({
       );
     }
     const res = await FP.upload("data", PARSED_DIR, new File([text], name, { type: "application/json" }), {}, { notify: false });
-    if (!res?.path) throw new Error(`${MODULE_ID} | the saved text of ${name} could not be uploaded`);
+    if (!res?.path) throw saidError("savedTextNotUploaded", { name });
     return res.path;
   },
   open: (bookId, buffer) => openChecked(bookId, buffer),
@@ -684,8 +682,37 @@ function bookTextTally(bookIds) {
 const uiText = (key, data) =>
   data ? game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.ui.${key}`);
 
+/** Text led by the module id, the way every importer notice is. Notices take their prefix here, and lang strings carry none. */
+const prefixed = (text) => `${MODULE_ID} | ${text}`;
+
 /** A localized notice, led by the module id the way every importer notice is. */
-const noticeText = (key, data) => `${MODULE_ID} | ${uiText(key, data)}`;
+const noticeText = (key, data) => prefixed(uiText(key, data));
+
+/**
+ * An error whose message is already a localized sentence of this module's, with
+ * no prefix: a catch shows it as it stands (`failureText`) and a notice adds the
+ * module id once (`prefixed`).
+ */
+const saidError = (key, data) => Object.assign(new Error(uiText(key, data)), { said: true });
+
+/**
+ * What a user reads for a failure. A module-thrown error (`saidError`, or a
+ * wrong-book refusal) is its own sentence; any other exception (pdf.js, fetch,
+ * Foundry) is led by the localized sentence `key` with the raw message passed as
+ * `{error}`, diagnostic text for a report.
+ */
+const failureText = (err, key, data = {}) =>
+  err?.said || err?.wrongBook ? err.message : uiText(key, { ...data, error: err?.message || String(err) });
+
+/** The notice for a fingerprint that does not fit (`fingerprintProblems`), composed from lang keys. */
+function fingerprintNotice(found) {
+  if (found.unknown) return noticeText("unknownBookId", { id: found.book });
+  const problems = [
+    ...(found.expected != null ? [uiText("fingerprintPages", { pages: found.pages, expected: found.expected })] : []),
+    ...(found.title != null ? [uiText("fingerprintTitle", { title: found.title })] : []),
+  ];
+  return noticeText("fingerprintDiffers", { book: found.book, problems: problems.join(", ") });
+}
 
 /** Up to five names joined, with the count of the rest. */
 const nameList = (names) => `${names.slice(0, 5).join(", ")}${names.length > 5 ? ` (+${names.length - 5})` : ""}`;
@@ -699,14 +726,14 @@ function readNotifier(bookId) {
   const book = BOOKS[bookId]?.label ?? bookId;
   const again = !!parsedBooks.stored(bookId);
   return {
-    info: ({ pointer }) => ui.notifications.info(uiText("readSaved", { book, pages: pointer.numPages })),
+    info: ({ pointer }) => ui.notifications.info(noticeText("readSaved", { book, pages: pointer.numPages })),
     warn: ({ error, denied }) => {
-      if (denied) return ui.notifications.warn(uiText("readDenied"));
+      if (denied) return ui.notifications.warn(noticeText("readDenied"));
       const kind = refusalKind(error);
-      if (kind === "gone") return ui.notifications.error(uiText("readRefusedGone", { book }));
-      if (kind === "wrong" || kind === "size") return ui.notifications.error(uiText("readRefused", { book }));
+      if (kind === "gone") return ui.notifications.error(noticeText("readRefusedGone", { book }));
+      if (kind === "wrong" || kind === "size") return ui.notifications.error(noticeText("readRefused", { book }));
       const why = uiText(error?.kind === "fetch" ? "readWhyFetch" : "readWhySave");
-      const said = uiText(again ? "readFailedAgain" : "readFailed", { book, why });
+      const said = noticeText(again ? "readFailedAgain" : "readFailed", { book, why });
       return ui.notifications.warn(again ? `${said}${uiText("readKept")}` : said);
     },
   };
@@ -971,15 +998,15 @@ const allRecipes = () => [...RECIPES, ...Object.values(dynamicRecipes())];
 async function connectBookUrl(bookId, url, { remember = true, bridge = true, silent = false } = {}) {
   // Throws as well as warning: the shelf records a path only when this resolves.
   if (!BOOKS[bookId]) {
-    const message = noticeText("unknownBookId", { id: bookId });
-    ui.notifications.warn(message);
-    throw new Error(message);
+    const err = saidError("unknownBookId", { id: bookId });
+    ui.notifications.warn(prefixed(err.message));
+    throw err;
   }
   const resp = await fetch(url);
   if (!resp.ok) {
-    const message = noticeText("urlUnreadable", { url, status: resp.status });
-    ui.notifications.warn(message);
-    throw new Error(message);
+    const err = saidError("urlUnreadable", { url, status: resp.status });
+    ui.notifications.warn(prefixed(err.message));
+    throw err;
   }
   // Blob first, buffer from it: pdf.js detaches the array it is handed.
   const blob = await resp.blob();
@@ -1010,12 +1037,10 @@ async function openChecked(bookId, buffer) {
   const actualId = identifyBook(numPages, title);
   if (actualId && actualId !== bookId) {
     await releaseDoc(doc);
-    const err = new Error(
-      game.i18n.format(`${LANG_PREFIX}.ui.connectWrongBook`, {
-        book: REGISTRY[bookId]?.label ?? bookId,
-        actual: REGISTRY[actualId].label,
-      }),
-    );
+    const err = saidError("connectWrongBook", {
+      book: REGISTRY[bookId]?.label ?? bookId,
+      actual: REGISTRY[actualId].label,
+    });
     err.wrongBook = actualId;
     throw err;
   }
@@ -1023,9 +1048,7 @@ async function openChecked(bookId, buffer) {
     const { isForm, share } = await readForm(doc);
     if (!isForm) {
       await releaseDoc(doc);
-      throw new Error(
-        game.i18n.format(`${LANG_PREFIX}.ui.connectNotForm`, { book: BOOKS[bookId].label, share: Math.round(share * 100) }),
-      );
+      throw saidError("connectNotForm", { book: BOOKS[bookId].label, share: Math.round(share * 100) });
     }
   }
   // Tagged before anything reads a page: an untagged read uses the wrong size
@@ -1055,8 +1078,8 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null, src = 
   try {
     bar.note(game.i18n.localize(`${LANG_PREFIX}.ui.progressOpening`));
     const { doc, numPages, title } = await openChecked(bookId, buffer);
-    const warning = fingerprintWarning(bookId, numPages, title);
-    if (warning && !silent) ui.notifications.warn(`${MODULE_ID} | ${warning}`);
+    const mismatch = fingerprintProblems(bookId, numPages, title);
+    if (mismatch && !silent) ui.notifications.warn(fingerprintNotice(mismatch));
     const held = sessionDocs.get(bookId)?.doc;
     const handle = (held?.isBookHandle ? held : handleFor(bookId, src)).adopt({ doc, numPages, title, src });
     sessionDocs.set(bookId, { doc: handle, title });
@@ -1067,10 +1090,10 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null, src = 
     const book = BOOKS[bookId]?.label ?? bookId;
     const read = entries || allRecipes().some((r) => r.book === bookId) || tableRecipeBooks().has(bookId);
     const message = bookIsForm(bookId)
-      ? game.i18n.format(`${LANG_PREFIX}.ui.bookOpenForm`, { book })
+      ? noticeText("bookOpenForm", { book })
       : !read
-        ? game.i18n.format(`${LANG_PREFIX}.ui.bookOpenNothing`, { book })
-        : game.i18n.format(`${LANG_PREFIX}.ui.${entries === 1 ? "bookOpenOne" : "bookOpenMany"}`, { book, n: entries ?? 0 });
+        ? noticeText("bookOpenNothing", { book })
+        : noticeText(entries === 1 ? "bookOpenOne" : "bookOpenMany", { book, n: entries ?? 0 });
     if (silent) console.debug(message);
     else ui.notifications.info(message);
     return true;
@@ -1119,7 +1142,8 @@ async function cookbookImportTables(only = null, { repair = null, phase = "both"
   try {
     report = await importTables(sessionDocs, { onProgress: (name) => bar.step(name), only });
   } catch (err) {
-    ui.notifications.error(`${MODULE_ID} | ${err.message}`);
+    console.error(`${MODULE_ID} | table import`, err);
+    ui.notifications.error(noticeText("tablesFailed", { error: err?.message || String(err) }));
     return null;
   } finally {
     bar.finish();
@@ -1127,21 +1151,23 @@ async function cookbookImportTables(only = null, { repair = null, phase = "both"
   const nTables = report.imported.reduce((s, d) => s + d.tables.length, 0);
   if (nTables) {
     ui.notifications.info(
-      game.i18n.format(`${LANG_PREFIX}.tables.imported`, {
-        tables: nTables,
-        docs: report.imported.map((d) => d.docId).join(", "),
-      }),
+      prefixed(
+        game.i18n.format(`${LANG_PREFIX}.tables.imported`, {
+          tables: nTables,
+          docs: report.imported.map((d) => d.docId).join(", "),
+        }),
+      ),
     );
   }
   if (report.missingBooks.length) {
     ui.notifications.warn(
-      game.i18n.format(`${LANG_PREFIX}.tables.missingBooks`, { books: report.missingBooks.join(", ") }),
+      prefixed(game.i18n.format(`${LANG_PREFIX}.tables.missingBooks`, { books: report.missingBooks.join(", ") })),
     );
   }
   // A supplement this seat does not hold is information, not a fault.
   if (report.optionalBooks?.length) {
     ui.notifications.info(
-      game.i18n.format(`${LANG_PREFIX}.tables.optionalBooks`, { books: report.optionalBooks.join(", ") }),
+      prefixed(game.i18n.format(`${LANG_PREFIX}.tables.optionalBooks`, { books: report.optionalBooks.join(", ") })),
     );
   }
   // A table whose book is open and still would not read is the fault worth a
@@ -1149,18 +1175,22 @@ async function cookbookImportTables(only = null, { repair = null, phase = "both"
   if (report.missingTables.length) {
     const ids = report.missingTables.map((t) => String(t).split(" (")[0]);
     ui.notifications.warn(
-      game.i18n.format(`${LANG_PREFIX}.tables.unread`, {
-        n: ids.length,
-        tables: ids.length > 5 ? `${ids.slice(0, 5).join(", ")}, …` : ids.join(", "),
-      }),
+      prefixed(
+        game.i18n.format(`${LANG_PREFIX}.tables.unread`, {
+          n: ids.length,
+          tables: ids.length > 5 ? `${ids.slice(0, 5).join(", ")}, …` : ids.join(", "),
+        }),
+      ),
     );
   }
   // A table that read but lacks rows stores a placeholder no lookup matches; name the tables and how many rows.
   if (report.incomplete?.length) {
     ui.notifications.warn(
-      game.i18n.format(`${LANG_PREFIX}.tables.incomplete`, {
-        tables: report.incomplete.map((t) => `${t.docId}.${t.tableId} (${t.rows.length})`).join(", "),
-      }),
+      prefixed(
+        game.i18n.format(`${LANG_PREFIX}.tables.incomplete`, {
+          tables: report.incomplete.map((t) => `${t.docId}.${t.tableId} (${t.rows.length})`).join(", "),
+        }),
+      ),
     );
   }
   const docIds = report.imported.map((d) => d.docId);
@@ -1222,7 +1252,7 @@ async function ingestPairs(matched, byFile, { announce = true } = {}) {
       console.error(`${MODULE_ID} | connect ${bookId} from ${file.name}`, err);
       ui.notifications.error(
         err.wrongBook
-          ? `${MODULE_ID} | ${err.message}`
+          ? prefixed(err.message)
           : `${REGISTRY[bookId].label}: ${game.i18n.localize(`${LANG_PREFIX}.ui.reconnectFailed`)}`,
       );
       continue;
@@ -1747,12 +1777,12 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
           say(`[data-status="${bookId}"]`, L("shelfUploading"));
           try {
             const record = await shelveOpen(bookId);
-            if (!record) throw new Error(L("shelfUploadFailed"));
+            if (!record) throw saidError("shelfUploadFailed");
             button.remove();
             await rebuild(L("shelfHeld", { name: record.name }));
           } catch (err) {
             console.error(`${MODULE_ID} | shelve ${bookId}`, err);
-            say(`[data-status="${bookId}"]`, err.message);
+            say(`[data-status="${bookId}"]`, failureText(err, "shelfUploadFailedWhy"));
             button.disabled = false;
           }
         });
@@ -1772,7 +1802,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
 
         } catch (err) {
           console.error(`${MODULE_ID} | add ${bookId} to the server`, err);
-          say(`[data-status="${bookId}"]`, err.message || L("shelfUploadFailed"));
+          say(`[data-status="${bookId}"]`, failureText(err, "shelfUploadFailedWhy"));
           if (control) control.disabled = false;
           return false;
         }
@@ -1850,7 +1880,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
           else say("[data-shelf-scan-status]", report);
         } catch (err) {
           console.error(`${MODULE_ID} | shelf scan`, err);
-          say("[data-shelf-scan-status]", err.message);
+          say("[data-shelf-scan-status]", failureText(err, "shelfScanFailed"));
         } finally {
           scanBtn.disabled = false;
         }

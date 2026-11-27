@@ -160,6 +160,22 @@ const PAGES = [
   eq("a heading key is not matched by body text", await locatePageNumber(doc, { book: "rr", printedPage: 1, locateHeadingKey: KEYS.zorvane, headH: 11 }), null);
 }
 
+/* --- locatePageNumber: the search stays inside the book ---------------------------------- */
+{
+  const calls = [];
+  const read = async (_doc, p) => {
+    calls.push(p);
+    return { items: [{ str: p === 9 ? "marker phrase" : "other", x: 0, y: 0, h: BODY }] };
+  };
+  const found = await locatePageNumber({ numPages: 10 }, { pdfPage: 30, locate: "marker phrase" }, read);
+  eq("a guess past the book's end still finds a page the book holds", found, 9);
+  ok("no page outside the book is read", calls.every((p) => Number.isInteger(p) && p >= 1 && p <= 10), `read ${calls.join(",")}`);
+  calls.length = 0;
+  const none = await locatePageNumber({ numPages: 10 }, { pdfPage: 30, locate: "absent phrase" }, read);
+  eq("a phrase no page holds is not found", none, null);
+  ok("a miss reads no page outside the book either", calls.every((p) => p >= 1 && p <= 10), `read ${calls.join(",")}`);
+}
+
 /* --- importTables: the label is read off the heading, the fallback is neutral ------------- */
 {
   const block = (id, anchorKey, headingKey, label, extra = {}) => ({

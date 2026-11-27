@@ -835,8 +835,12 @@ export function gridLadders(grid, prefix) {
  * that publishes them. Resolved from the cookbook, not a world document, so
  * the class need not be imported yet.
  *
- * @returns {Promise<Array<{key: string, label: string}>>} empty when the class
- *   entry, its book, or the grid is unreachable
+ * `pageCache` is a run's `(bookId) => Map`, asked for the class entry's own
+ * book; with none, the class is read without a cache.
+ *
+ * @returns {Promise<Object<string, Array<{key: string, label: string}>>|null>} one
+ *   ladder list per spec key (each empty when the class entry, its book, or the
+ *   grid is unreachable), or null when the entry names no ladders
  */
 export async function laddersForEntry(entry, { pageCache = null } = {}) {
   const specs = (entry?.fields?.rolls?.specs ?? []).filter((sp) => sp?.fromLadders);
@@ -846,12 +850,17 @@ export async function laddersForEntry(entry, { pageCache = null } = {}) {
   return out;
 }
 
-/** Reads the keys and labels of the ladders a spec's class entry prints in its named grid; empty when the class or its book is unavailable. */
+/**
+ * Reads the keys and labels of the ladders a spec's class entry prints in its
+ * named grid; empty when the class or its book is unavailable. `pageCache` is a
+ * run's `(bookId) => Map`; the class entry is read with the cache of its own
+ * book, which need not be the book of the ability that names it.
+ */
 export async function laddersFromSpec(spec, { pageCache = null } = {}) {
   const classId = `def.class.${spec?.as ?? ""}`;
   const found = spec?.as ? cookbookEntry(classId) : null;
   if (!found) return [];
-  const { node } = await readForImport(classId, { ...(pageCache ? { pageCache } : {}) }).catch(() => ({ node: null }));
+  const { node } = await readForImport(classId, { ...(pageCache ? { pageCache: pageCache(bookOf(found)) } : {}) }).catch(() => ({ node: null }));
   if (!node) return [];
   const grid = node.fields?.[spec.grid ?? "rebuking"];
   return gridLadders(grid, spec.prefix ?? "").map(({ key, label }) => ({ key, label }));

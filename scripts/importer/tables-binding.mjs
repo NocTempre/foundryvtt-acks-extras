@@ -54,8 +54,10 @@ export async function locatePageNumber(doc, recipe, read = pageItems) {
   const guess = pdfGuess(recipe);
   const order = [];
   for (let d = 0; d <= (recipe.searchRadius ?? 12); d++) {
-    if (guess + d <= doc.numPages) order.push(guess + d);
-    if (d && guess - d >= 1) order.push(guess - d);
+    // Both sides stay inside 1..numPages: a guess past the end reads no page the book lacks.
+    const inBook = (p) => p >= 1 && p <= doc.numPages;
+    if (inBook(guess + d)) order.push(guess + d);
+    if (d && inBook(guess - d)) order.push(guess - d);
   }
   const seen = new Set(order);
   for (let p = 1; p <= doc.numPages; p++) if (!seen.has(p)) order.push(p);
