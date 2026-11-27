@@ -650,3 +650,39 @@ found.
   GM 2.6 s, Player 3.3 s.
 - **T-0824 confirmed:** both Actor shelves read `indexed: false` on both seats throughout; nothing builds their
   declared-field index.
+
+### S1. The two loads at `ready` beside the warm (phase 1, 2026-11-27)
+
+Commit `f4f95130`, landed with the full gate green. Walked on `main` at `f20b4e9a` with a clean tree, same
+world and seats, the census extended with two observables: each seat's readers (`P.readers`: skill rows on the
+index, imported skill keys, the first key's rungs, goods on the index, catalogue rows) and a sidebar edit (the GM
+writes a flag on the kept world Item `perf/sidebar-item`, then both seats are counted for 3 s; the ladder's quiet
+period is 1 s). Output: `aia-tmp/20261127-perf-timings-s1.json`, after a smoke run with a 5 s idle
+(`…-s1-smoke.json`). Nine boots, each reaching `ready` with no error in init, setup or ready.
+
+- **Callers.** `refreshLadders` made index passes only (GM 2, Player 1); the skill definitions it names load
+  through `packDocsWhere`'s `_id__in`, which the census attributes to `lib/library.mjs` `readPacks`, since the
+  async frames above it are lost after the index await. `primeMerchandiseCatalog` made one `_id__in` of 29 goods
+  on each seat. Neither made a whole load.
+- **Load (ready+60 s).** GM: 8 whole loads, 4 `_id__in`, 2 index passes, 6,561 documents, ready to warm end
+  27.4 s. Player: 4 whole, 4 `_id__in`, 1 index, 5,343 documents, 16.4 s. At a quiet ready nothing is saved:
+  the warm now makes the whole Item load `refreshLadders` made in the baseline, and the narrow startup reads
+  (classes, variations, weapon rows, skills) load their 87 ids in three `_id__in` passes, where in the baseline
+  they found them held because the ladder's load had landed first.
+- **Sidebar edit.** At ready+60 s: no server pass on either seat. After the 310 s idle (310,006 ms measured,
+  every shelf at 0): one `_id__in` of 15 documents on each seat. The baseline re-fetched the whole shelf
+  (4,474 documents) on each burst.
+- **Readers, both seats, at ready+60 s and after the idle:** 14 skill rows on the index, 9 imported skill keys,
+  the first key's ladder 14 rungs; 29 goods on the index, catalogue 37 rows, 29 of them from the compendium.
+- **Firsts.** Cast window: GM 19.9 s with 6,561 documents (baseline 10,920: the Item shelf now loads once, not
+  twice), Player 13.5 s with 5,343 (baseline 9,701). Unequip: GM 0.19 s, Player 0.15 s.
+- **After the idle**, the sheet, spell and cast steps load as in the baseline (`classItems` and
+  `resolveCreature` cold kicks, the cast's `whenReady`); S1 does not touch them.
+- **Quiet queries:** `_id__in` of 40 364 ms, index 436 ms, whole 5,225 ms.
+- **Offline only:** `test-library-where` 30, `test-skill-ladders` 16, `test-merchandise` 254 checks, and the
+  land's full gate.
+- **Not checked:** the rendered borrowed-skill throw and the market window were not opened (the ladder map and
+  the catalogue they read were); a compendium merchandise change was not driven.
+- The S1 changelog fragment is reworded on `main`: the saving is the sidebar-edit burst and the first action
+  that races the warm, not the quiet ready.
+- **Process note:** S2 was committed in the worktree during this walk and is landed only after it passed.
