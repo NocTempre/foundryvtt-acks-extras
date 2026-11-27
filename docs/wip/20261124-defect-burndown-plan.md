@@ -459,3 +459,98 @@ Not checked:
 - A second treasure run to bound T-0685's rate.
 - `init`/`setup`/`ready` console beyond each walk's own load-to-ready check.
 - A world relaunch after S12's new stylesheet.
+
+### 2026-11-27, B13
+
+Ten rows worked under the claim `batch:2026-11-27b`, all in `main`'s tree,
+each landed through `acks-commit` with its full gate. `main`'s version
+(2026.11.26.1) carried its tag throughout. Nothing pushed.
+
+- Fixed:
+  - T-0825 (3d642f6d).
+  - T-0846 (d279f36e).
+  - T-0852 (44d0dd94; its recipe step 8ef907f1).
+  - T-0853 (3ba77031).
+  - T-0904 (fb6cb8f1).
+  - T-0543 (26ca0d1a).
+  - T-0628 and T-0603 (e318e507), on a board
+    (https://claude.ai/artifact/SxK4Y3zRJxXnw7sXJjnJsF) approved by the
+    planning session, not by the owner or this batch, item by item:
+    - T-0628: "image px" on the card head, the residual, the box rows and
+      the scale bar; "canvas px" on the size field label and the Measured
+      line.
+    - T-0603: the Alley notice names its street; the Coastline button
+      becomes Coast; the earthen preset gets fa-mound, gravel fa-braille,
+      and paved keeps fa-road; the Walls control's mark tool becomes
+      fa-road-circle-check.
+- T-0771, docs-only: 078a5ac6 had already recorded the ruling in importer
+  DECISIONS. Noted and not changed: that entry says the owner's exact words
+  survive nowhere else, and the local adjudication file of that day holds
+  them. The entry is append-only, so it stands.
+- T-0626, released: 29c02bb7 fixed it, and v2026.11.19 shipped it.
+- One finding registered `new` for B21: T-0908, seen live in T-0852's check.
+- T-0904 and T-0543 change nothing an import writes today: no table the
+  importer holds carries either shape they fix.
+
+Walked live on `main`, lane A (Gamemaster / Player), alone on the server,
+kept fixtures:
+
+- equipment passed (31 pass, 0 fail) and close-role-side passed (40 pass,
+  0 fail), run 20261127-145941 (T-0825). Each kept its marked fixtures and
+  swept only what it built without a marker.
+- lib-aura-fuse passed (83 pass, 0 fail) on 3ba77031, then a one-off probe
+  built from its setup passed 13 of 13 (T-0853). An immune near body's Damage
+  tooltip named the defense and the figures it moved, before the page, on the
+  GM seat and on the Player seat that owned it. The stored entry kept the
+  stage. The tooltip stood after Apply and after the defense was taken off;
+  undefended rows named none, and no cell carried a `title`.
+- A one-off driver for T-0852, through the group sheet's Individuate press.
+  The labelled stack stored its figure, the press added no record, and one
+  body took the figure once a monster was dropped on the row; a `createActor`
+  observer recorded nothing.
+- A read for T-0543: the one imported city map's after-dark figure equals what
+  the landed code recomputes from its table.
+- A look at Map setup and the presets for T-0628 and T-0603. Every new word
+  rendered. At the window's minimum width (200 px) the hex card head wrapped
+  its figure. Its unit stayed on one line, 6 px into the card's 10 px
+  padding, and was not clipped. The size labels and the Measured line
+  wrapped. Each re-glyphed control kept its accessible name, shown by an
+  empty `data-tooltip`. Real presses noticed the paved road, then the paved
+  road with Alley, then Coast.
+
+Deleted and kept:
+
+- close-role-side built and kept five marked actors and swept four unmarked
+  documents (a seal item, two walls, a token). equipment kept
+  `equipment/ac-sum`; its sweep found one unmarked item already gone.
+- The fuse probe reused the walk's 13 kept fixtures. Its claim-based teardown
+  swept nothing, so its one burst card was listed afterwards and swept by
+  id. It restored the near body without the defense and the walk's figures
+  without fire.
+- T-0852's driver built and kept `lib/labelled-hp-group` and reused
+  `lib/org-monster`. The group keeps the one labelled stack and its record.
+- The battlemap look wrote nothing to the world except the GM seat's armed
+  wall preset, which it left on Coast.
+
+Checked offline only:
+
+- T-0904 (`tools/importer/test-executor.mjs`) and T-0846 (its own suite).
+- The unit suites each fix touched, and each landing's full gate.
+
+Not checked:
+
+- A square map's card head ("image px cell"). The hex label, the longer of
+  the two, was measured.
+- The Measured line on a fitted map. It was seen on the scale-only map only.
+- A resistance on the burst tooltip, which needs an imported figure. The
+  probe used an immunity, which needs none.
+- T-0904 on a real import, since no table holds either alternative.
+
+To try (approved by the planning session, not the owner; board
+https://claude.ai/artifact/SxK4Y3zRJxXnw7sXJjnJsF):
+
+- Map setup's pixel words: Battlemap scene control → Map setup.
+- The road presets' glyphs, the Alley notice and the Coast preset: the
+  Battlemap scene control.
+- The mark tool's glyph: Walls scene control → Mark the selected walls as
+  roads.
