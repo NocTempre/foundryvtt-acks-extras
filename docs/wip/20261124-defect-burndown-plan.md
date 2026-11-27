@@ -95,16 +95,32 @@ release of everything on `main` with `acks-release`. That answer is the
 owner's go-ahead for the release's tag and push. Every gate the skill names
 still applies, and a red gate stops the release and goes to the owner.
 
+**A release also follows B14b's T-0923.** The owner, 2026-11-27: "After that
+batch of work is done with that specific fix, please release what is done by
+then before finishing the rest." The rules for that release:
+- B14b builds T-0923, the power icons, before T-0912.
+- Once T-0923 is walked on `main`, B14b cuts one release with `acks-release`,
+  of everything `main` holds at that point.
+- Then B14b resumes T-0912, and B15 waits until B14b ends as usual.
+- That message is the owner's go-ahead for this release's tag and push. The
+  same gates apply as for the queue's last release.
+- Weapon-set slices not yet landed do not ship.
+- Library-index slices already on `main` ship as they are. Where one has
+  landed and its walk is still running (`docs/lib/wip/`), the release waits
+  for that walk's result.
+
+The release that ends the queue still follows it.
+
 ## What every batch session does
 
 One fresh session per batch, on a model its start names, working about ten
 rows and no more. It follows `acks-bug-triage` §3 to §5 with these limits:
 
 - **It stops at `fixed-unreleased`.** No release is cut, nothing is pushed,
-  and no report asks about a release; the owner calls releases. The one
-  exception is the release that ends the queue ("When the queue ends",
-  above). The skill's default that a fix ships as a hotfix does not apply
-  here.
+  and no report asks about a release; the owner calls releases. The two
+  exceptions are B14b's release after T-0923 and the release that ends the
+  queue ("When the queue ends", above). The skill's default that a fix ships
+  as a hotfix does not apply here.
 - **It is the one ledger writer for its own rows.** It re-reads the ledger
   before every write and writes no other batch's rows. A finding outside its
   rows is registered `new` and left for the batch map.
