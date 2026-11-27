@@ -434,7 +434,7 @@ t("the strip finds the open engaged entry of a subject and kind across the chat'
 /*  The fuse card and the burst card             */
 /* -------------------------------------------- */
 
-const { blankBurstModel, burstCardModel, burstDamageOf, damageTip, fuseCardModel, throwTip } = await import("../scripts/lib/item-run-card-logic.mjs");
+const { blankBurstModel, burstCardModel, burstDamageOf, damageTip, defenseStepsOf, fuseCardModel, throwTip } = await import("../scripts/lib/item-run-card-logic.mjs");
 const fuseWords = { ...words, throw: "Throw", base: "Base", light: "Light", lit: "Lit", unlit: "Not lit", fumble: "Fumble", judgeDecides: "Judge", blankRow: { throw: "Light throw", fumble: "Fumble range", fuseDice: "Fuse dice" }, blankLine: { round: "no rounds", spot: "no spot" }, unlitLine: "unlit line", fumbleLine: "fumble line", judgeLine: "judge line", fuseHint: "hint", moveSpot: "Move the spot", moveSpotTip: "ms tip", moveSpotAria: "ms aria", setOff: "Set it off now", setOffTip: "so tip", setOffAria: "so aria" };
 const fuseIds = { activationId: "act", itemUuid: "I.1" };
 const pressesOf = (model) => [...(model.buttons ?? []), ...model.sections.flatMap((s) => s.rows.flatMap((r) => r.actions ?? []))].map((a) => a.action);
@@ -529,13 +529,24 @@ t("a burst whose save is blank has no Save press and a blank cell with the page 
 });
 
 t("a figure's damage is the share a passed save takes off, then the body's defense stage; the tooltip names the dice, what they rolled, the share and the page", () => {
-  assert.deepEqual(burstDamageOf({ rolled: 11, saved: false, reduction: 0.5, stage: null }), { amount: 11, judge: false, defended: false });
+  assert.deepEqual(burstDamageOf({ rolled: 11, saved: false, reduction: 0.5, stage: null }), { amount: 11, judge: false, defended: false, steps: [] });
+  const stage = { key: "defense", label: "Fire resistance", band: "resistance", source: "Ring", factor: 0.5 };
+  const defended = burstDamageOf({ rolled: 10, saved: false, reduction: 0.5, stage });
+  assert.deepEqual([defended.amount, defended.defended], [5, true]);
+  assert.deepEqual(defended.steps, [{ key: "defense", label: "Fire resistance", band: "resistance", source: "Ring", before: 10, after: 5 }], "the steps that made the amount come back, the defense with its label, band and source");
+  assert.deepEqual(defenseStepsOf(defended.steps).map((s) => s.label), ["Fire resistance"], "the defense stages are picked from the steps");
+  assert.deepEqual([defenseStepsOf(undefined), defenseStepsOf([{ key: "fraction" }, { key: "round" }])], [[], []], "no steps, or none that is a defense, is no stage");
+  assert.deepEqual(burstDamageOf({ rolled: 10, saved: true, reduction: null, stage }).steps, [], "the Judge's figure has no steps");
   const saved = burstDamageOf({ rolled: 10, saved: true, reduction: 0.5, stage: null });
   assert.deepEqual([saved.amount, saved.judge], [5, false]);
   assert.equal(burstDamageOf({ rolled: 10, saved: true, reduction: null, stage: null }).judge, true, "a passed save with no share imported is the Judge's");
   const damageWords = { rolled: "rolled", takesOff: "the share a passed save takes off", noShare: "the failed save takes none off", defenses: "then defenses" };
   assert.equal(damageTip({ amount: 5, dice: "3d6", rolled: 10, saved: true, reduction: 0.5, cite: "MM p. 55", words: damageWords }), "5: 3d6 rolled 10, the share a passed save takes off (0.5) (MM p. 55)");
   assert.equal(damageTip({ amount: 11, dice: "3d6", rolled: 11, saved: false, reduction: 0.5, defended: true, words: damageWords }), "11: 3d6 rolled 11, the failed save takes none off, then defenses");
+  const part = { amount: 5, dice: "3d6", rolled: 11, saved: false, reduction: 0.5, cite: "MM p. 55", words: damageWords };
+  assert.equal(damageTip({ ...part, defended: true, defense: "then Fire resistance (Ring) 11 to 5" }), "5: 3d6 rolled 11, the failed save takes none off, then Fire resistance (Ring) 11 to 5 (MM p. 55)", "a worded defense stage replaces the bare word");
+  assert.equal(damageTip({ ...part, defense: "then a defense 11 to 5" }), "5: 3d6 rolled 11, the failed save takes none off, then a defense 11 to 5 (MM p. 55)", "a stage the seat may not name shows its figures alone, and needs no `defended` flag");
+  assert.equal(damageTip({ ...part, defended: true }), "5: 3d6 rolled 11, the failed save takes none off, then defenses (MM p. 55)", "no worded stage: the bare word, as a figure with no stored steps reads");
 });
 
 t("a burst that rolled nothing is a plain line, with the blast's blank cell and the page where a figure was blank, and no row where the item is gone", () => {

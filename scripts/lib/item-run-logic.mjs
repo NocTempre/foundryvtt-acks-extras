@@ -701,17 +701,19 @@ export function fuseLight({ natural, total, target, fumble, proficient }) {
  * reduced by the save's `reduction` (the share a passed save takes off, so it
  * keeps `1 - reduction`), then each of `stages` (`amountAfter`). A saved subject
  * with no reduction, and a stage the module does not compute, are the Judge's:
- * `{amount: null, judge: true}`.
+ * `{amount: null, judge: true}`. An amount comes with the `steps` that made it
+ * (`amountAfter`'s: the fraction, each defense with its band and source, the
+ * rounding), so a tooltip can name the parts.
  *
  * @param {{rolled: number, saved: boolean, reduction: number|null, stages?: Array<Function|object|null>}} p
- * @returns {{amount: number|null, judge: boolean}}
+ * @returns {{amount: number|null, judge: boolean, steps?: object[]}}
  */
 export function burstAmount({ rolled, saved, reduction, stages = [] }) {
   const off = numOrNull(reduction);
   if (saved && off === null) return { amount: null, judge: true };
   const out = amountAfter(rolled, { fraction: saved ? 1 - off : 1, stages });
   if (out.judge || out.applied === null) return { amount: null, judge: true };
-  return { amount: out.applied, judge: false };
+  return { amount: out.applied, judge: false, steps: out.steps };
 }
 
 /** The fuse flag key, named once for the writer and the steppers. */

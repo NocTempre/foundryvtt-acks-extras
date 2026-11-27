@@ -50,9 +50,10 @@ import { itemCite, itemRunRowsOf, mayUndoEntry, promptCardModel, reachFigures } 
 import { HP_REASON } from "./hp-logic.mjs";
 import { actorDefenses, defenseFigures, defenseStage } from "./defenses.mjs";
 import { pickPoint } from "./point-pick.mjs";
-import { admittedWithCount, blankBurstModel, blankTip, burstCardModel, burstDamageOf, countSubjectAction, damageTip, fuseCardModel, healTip, importTip, outcomeCardModel, resultCardModel, swigUnknownModel, throwTip, engagedCardKey, engagedCardModel, engagedEntry, isCountedIn, newEngagedCard, openEngagedOf, ownsEveryBearer, patchEngagedPrompt, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard, signedFigure, standingPartTip, unsettledRows } from "./item-run-card-logic.mjs";
+import { admittedWithCount, blankBurstModel, blankTip, burstCardModel, burstDamageOf, countSubjectAction, damageTip, defenseStepsOf, fuseCardModel, healTip, importTip, outcomeCardModel, resultCardModel, swigUnknownModel, throwTip, engagedCardKey, engagedCardModel, engagedEntry, isCountedIn, newEngagedCard, openEngagedOf, ownsEveryBearer, patchEngagedPrompt, patchForget, patchOut, patchPrompt, patchSubject, patchUncount, patchUndetermined, reachCardModel, rowStateOf, safeKey, saveCardModel, saveTip, newCard, signedFigure, standingPartTip, unsettledRows } from "./item-run-card-logic.mjs";
 import { applyAllEntries, applyEntry, cardOf, cardSaveOptions, handOn, kindKeyOf, moveFuseSpot, notEngaged, onActivationLifted, ownerIdsOf, patchCard, pressRoll, saveNameOf, serialized, setFuseOffNow, setPressListener, setUsePresenter, swigAskSave, swigHeal, tickBearer, tickSubject, undoCardEntry, untickBearer } from "./item-run.mjs";
 import { saveSpec } from "./saves.mjs";
+import { namesDefense, stepLine } from "./attack-apply.mjs";
 import { tokenEdgeGapFeet } from "./distance-units.mjs";
 import { executeAsGM, judgeDeclares, registerHandler } from "./sockets.mjs";
 import { isMarkerActor } from "./place.mjs";
@@ -453,8 +454,15 @@ function burstDamage(card, actor, saved) {
     const stage = defenseStage(actorDefenses(actor), { types: card.types ?? [] }, defenseFigures());
     return burstDamageOf({ rolled: card.rolled, saved, reduction: card.reduction, stage });
   } catch {
-    return { amount: null, judge: true, defended: false };
+    return { amount: null, judge: true, defended: false, steps: [] };
   }
+}
+
+/**
+ * The defense part of a damage tooltip, worded for the seat that reads it: each defense stage among `steps`, by `stepLine` (the defense named only where `named`, its figures before and after either way). Blank where no stage is among them.
+ */
+function defensePart(steps, named) {
+  return defenseStepsOf(steps).map((step) => loc("itemRun.card.damageTip.defense", { defense: stepLine(step, named) })).join(", ");
 }
 
 /** Build the body of a burst card for a seat: a table of the bodies it owns, each row read live, with the presses the entry's state offers it. */
@@ -478,7 +486,13 @@ function burstBody(message, card) {
       const damage = burstDamage(card, actor, saved);
       const amount = state === "applied" ? (Number.isFinite(entry.amount) ? entry.amount : null) : damage.amount;
       row.damage = { amount, judge: amount === null };
-      if (amount !== null) row.damageTip = damageTip({ amount, dice: card.dice, rolled: card.rolled, saved, reduction: card.reduction, defended: damage.defended && damage.amount === amount, cite, words: damageWords });
+      if (amount !== null) {
+        // An applied row reads the stages its Apply stored; one with none (written before they were kept) names the defenses by the live read, as a bare word.
+        const stored = state === "applied" && Array.isArray(entry.steps);
+        const named = namesDefense({ isGM: judgeDeclares(), ownsTarget: owns(fromUuidSync(sub.uuid)) });
+        const defense = state === "applied" && !stored ? "" : defensePart(stored ? entry.steps : damage.steps, named);
+        row.damageTip = damageTip({ amount, dice: card.dice, rolled: card.rolled, saved, reduction: card.reduction, defended: !stored && damage.defended && damage.amount === amount, defense, cite, words: damageWords });
+      }
     }
     if (state === "judge") row.whyText = whyText(entry.why);
     return row;
@@ -943,4 +957,4 @@ export function installItemRunPresenter() {
   Hooks.on("renderChatMessageHTML", onRender);
 }
 
-export { present as presentUse, onReach as presentReach, onLifted, recheckHere, raisedBody, whisperBody, onceBody, engagedBody, fuseBody, burstBody, consumeBody, swigUnknownBody, outcomeBody, cardBody, press, lifeWord, messageIdFor, refusal, saveFigureOf };
+export { present as presentUse, onReach as presentReach, onLifted, recheckHere, raisedBody, whisperBody, onceBody, engagedBody, fuseBody, burstBody, defensePart, consumeBody, swigUnknownBody, outcomeBody, cardBody, press, lifeWord, messageIdFor, refusal, saveFigureOf };

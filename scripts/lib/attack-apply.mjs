@@ -73,8 +73,8 @@ export function planAttackApply(flag, actor, read = {}) {
   return reduced.skipped.length ? { ...plan, skipped: reduced.skipped } : plan;
 }
 
-/** One step as a line of a tooltip. */
-function stepLine(step, named, loc) {
+/** One step as a line of a tooltip: a defense is named only where `named`, its figures are shown either way. */
+export function stepLine(step, named, loc = text) {
   if (step.key === "perDie") return loc("step.perDie", { source: step.source ?? "", cite: step.cite ?? "", per: step.per, dice: step.dice, before: step.before, after: step.after });
   if (step.key === "defense") return loc("step.defense", { defense: defenseWord(step, named, loc), before: step.before, after: step.after });
   return loc("step.round", { before: step.before, after: step.after });

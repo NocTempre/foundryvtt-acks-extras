@@ -707,7 +707,7 @@ async function applyHere({ messageId, entryKey, requestUserId = null }) {
     const made = !done?.judge && done?.records?.length ? await actor.createEmbeddedDocuments("ActiveEffect", done.records) : [];
     const patch = done?.judge
       ? { state: "judge", why: String(done.why ?? "") }
-      : { state: "applied", recordIds: made.map((e) => e.id), names: done?.names ?? [], life: done?.life ?? fresh.life, ...(done?.hp ? { hp: done.hp } : {}), ...(Number.isFinite(done?.amount) ? { amount: done.amount } : {}), appliedBy: requestUserId ?? game.user?.id ?? "" };
+      : { state: "applied", recordIds: made.map((e) => e.id), names: done?.names ?? [], life: done?.life ?? fresh.life, ...(done?.hp ? { hp: done.hp } : {}), ...(Number.isFinite(done?.amount) ? { amount: done.amount } : {}), ...(Array.isArray(done?.steps) ? { steps: done.steps } : {}), appliedBy: requestUserId ?? game.user?.id ?? "" };
     await serialized(messageId, () => patchCard(message, Object.fromEntries(Object.entries(patch).map(([k, v]) => [`entries.${entryKey}.${k}`, v]))));
     const next = { ...fresh, ...patch };
     await pressListener?.({ message, key: entryKey, entry: next, early: false, applied: true, subjectToken });
@@ -1545,7 +1545,8 @@ export async function burstFuse({ actor, record }) {
  * card's `types` (`defenseStage`), and writes the amount through `adjustHp` as
  * damage. It answers `{hp: [{uuid, amount}], amount}`, `uuid` the body's actor
  * and `amount` the hit points actually taken (what the write was clamped to, so
- * an Undo gives back exactly that); or `{judge: true, why}`, nothing written,
+ * an Undo gives back exactly that), plus `steps`, the stages that made the amount
+ * (the entry keeps them, so an applied row's tooltip reads what was applied); or `{judge: true, why}`, nothing written,
  * where the reduction is blank for a saved subject (`figure`), a stage is the
  * Judge's (`figure`), the token stands for several bodies (`several`), the body
  * takes no hit points here (a `HP_REASON`) or the write did not land (a `HP_WHY`).
@@ -1565,7 +1566,7 @@ async function burstOutcome({ phase, card, saved, actor, subjectToken }) {
     if (!written?.ok) return { judge: true, why: written?.why ?? "failed" };
     taken = written.before - written.after;
   }
-  return { records: [], names: [], life: "raised", hp: taken ? [{ uuid: target.key, amount: taken }] : [], amount: plan.amount };
+  return { records: [], names: [], life: "raised", hp: taken ? [{ uuid: target.key, amount: taken }] : [], amount: plan.amount, steps: plan.steps };
 }
 
 /* -------------------------------------------- */

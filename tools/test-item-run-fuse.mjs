@@ -118,14 +118,20 @@ await t("with no natural-die figures imported the target alone decides, and noth
 });
 
 await t("a burst's amount: the failed save takes it whole, a saved subject the fraction, a blank fraction is the Judge's", () => {
-  assert.deepEqual(logic.burstAmount({ rolled: 20, saved: false, reduction: 0.5 }), { amount: 20, judge: false });
-  assert.deepEqual(logic.burstAmount({ rolled: 20, saved: false, reduction: null }), { amount: 20, judge: false }, "a failed save needs no fraction");
-  assert.deepEqual(logic.burstAmount({ rolled: 20, saved: true, reduction: 0.5 }), { amount: 10, judge: false });
-  assert.deepEqual(logic.burstAmount({ rolled: 9, saved: true, reduction: 0.6 }), { amount: 4, judge: false }, "one rounding at the end");
+  const figure = ({ amount, judge }) => ({ amount, judge });
+  assert.deepEqual(figure(logic.burstAmount({ rolled: 20, saved: false, reduction: 0.5 })), { amount: 20, judge: false });
+  assert.deepEqual(figure(logic.burstAmount({ rolled: 20, saved: false, reduction: null })), { amount: 20, judge: false }, "a failed save needs no fraction");
+  assert.deepEqual(figure(logic.burstAmount({ rolled: 20, saved: true, reduction: 0.5 })), { amount: 10, judge: false });
+  assert.deepEqual(figure(logic.burstAmount({ rolled: 9, saved: true, reduction: 0.6 })), { amount: 4, judge: false }, "one rounding at the end");
   assert.deepEqual(logic.burstAmount({ rolled: 20, saved: true, reduction: null }), { amount: null, judge: true });
   assert.deepEqual(logic.burstAmount({ rolled: 20, saved: true, reduction: undefined }), { amount: null, judge: true });
-  assert.deepEqual(logic.burstAmount({ rolled: 20, saved: false, reduction: null, stages: [{ factor: 0.5 }] }), { amount: 10, judge: false }, "a defense stage");
-  assert.deepEqual(logic.burstAmount({ rolled: 20, saved: true, reduction: 0.5, stages: [{ minus: 3 }] }), { amount: 7, judge: false }, "the fraction, then the stage");
+  assert.deepEqual(figure(logic.burstAmount({ rolled: 20, saved: false, reduction: null, stages: [{ factor: 0.5 }] })), { amount: 10, judge: false }, "a defense stage");
+  assert.deepEqual(figure(logic.burstAmount({ rolled: 20, saved: true, reduction: 0.5, stages: [{ minus: 3 }] })), { amount: 7, judge: false }, "the fraction, then the stage");
+  assert.deepEqual(logic.burstAmount({ rolled: 20, saved: true, reduction: 0.5 }).steps, [{ key: "fraction", before: 20, after: 10 }], "the steps come back with the amount: the fraction a passed save left");
+  assert.deepEqual(logic.burstAmount({ rolled: 20, saved: false, reduction: 0.5 }).steps, [], "a failed save with no stage changed nothing");
+  const stage = { key: "defense", label: "Fire resistance", band: "resistance", source: "Ring", cite: "RR p. 1", factor: 0.5 };
+  assert.deepEqual(logic.burstAmount({ rolled: 20, saved: false, reduction: 0.5, stages: [stage] }).steps, [{ key: "defense", label: "Fire resistance", band: "resistance", source: "Ring", cite: "RR p. 1", before: 20, after: 10 }], "a defense stage's step carries its label, band, source and the figures before and after");
+  assert.deepEqual(logic.burstAmount({ rolled: 20, saved: false, reduction: 0.5, stages: [{ ...stage, factor: 1 }] }).steps.map((s) => [s.key, s.before, s.after]), [["defense", 20, 20]], "a defense that changed nothing keeps its step");
   assert.deepEqual(logic.burstAmount({ rolled: 20, saved: false, reduction: 0.5, stages: [{ judge: true }] }), { amount: null, judge: true }, "a stage the module does not compute");
   assert.deepEqual(logic.burstAmount({ rolled: "x", saved: false, reduction: 0.5 }), { amount: null, judge: true }, "no roll to apply");
 });

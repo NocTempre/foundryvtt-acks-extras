@@ -9,6 +9,7 @@
  * Usage: node tools/test-item-run-presenter.mjs
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 globalThis.Hooks = { once() {}, on() {}, callAll() {} };
 class ForcedDeletion {}
@@ -1016,6 +1017,32 @@ await t("a row's presses follow its entry: Apply once it holds a verdict, Apply 
   const done = bodyFor("burstBody", "f1", users[1]);
   assert.ok(!done.includes("itemRun.handOn") && done.includes("ACKS-LIB.itemRun.card.handed"), "a handed vehicle reads handed");
   me.current = users[0];
+});
+
+await t("an applied burst row's Damage tooltip reads the stages its Apply stored: the defense and its figures before and after, named to a seat that may name it; a row with none stored keeps the bare word", async () => {
+  const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+  const prior = globalThis.game.i18n;
+  globalThis.game.i18n = { has: (k) => k in lang, localize: (k) => lang[k] ?? k, format: (k, d = {}) => (lang[k] ?? k).replace(/\{(\w+)\}/g, (_m, name) => String(d[name] ?? "")) };
+  try {
+    const message = cardOfAct("f1");
+    const entries = message.flags["acks-extras"].itemRunCard.entries;
+    const stage = { key: "defense", label: "Fire resistance", band: "resistance", source: "Ring", before: 11, after: 5 };
+    const tipOf = (user) => bodyFor("burstBody", "f1", user).match(/data-tooltip-text="(5: 3d6[^"]*)"/)?.[1] ?? "";
+    entries["S~a"] = { subject: "S.a", state: "applied", saved: false, total: 6, target: 11, amount: 5, steps: [stage, { key: "round", before: 5, after: 5 }], presser: "pa", appliedBy: "pa" };
+    const named = tipOf(users[0]);
+    assert.ok(/, then Fire resistance \(Ring\) 11 to 5 \(/.test(named) && !named.includes("body's defenses"), `a Judge's seat reads the stored stage, the defense named with its figures: ${named}`);
+    assert.equal(tipOf(users[1]), named, "an owner of the subject reads the same");
+    const unnamed = presenter.defensePart([stage], false);
+    assert.ok(!/Fire resistance|Ring/.test(unnamed) && unnamed.includes("11 to 5"), `a seat that may not name the defense reads its figures alone: ${unnamed}`);
+    assert.equal(presenter.defensePart([{ key: "round", before: 5, after: 5 }, { key: "fraction", before: 11, after: 5 }], true), "", "no defense stage among the steps is no part");
+    entries["S~a"].steps = [];
+    assert.ok(!/then /.test(tipOf(users[0])), "an applied row whose stored steps hold no defense names none, whatever the body holds now");
+    delete entries["S~a"].steps;
+    assert.ok(tipOf(users[0]).startsWith("5: 3d6 "), "an applied row with no stored steps still draws, from the live read");
+  } finally {
+    globalThis.game.i18n = prior;
+    me.current = users[0];
+  }
 });
 
 await t("a burst that could not happen whispers the Judges a line naming the item and bearer and posts no table, and the fuse card offers no more controls; a blank burst posts a plain card", async () => {

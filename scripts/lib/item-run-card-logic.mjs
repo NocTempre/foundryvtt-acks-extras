@@ -442,28 +442,35 @@ export function fuseCardModel({ title, subtitle, words, roll, outcome, blank = [
  * The hit points a burst does to one subject, as the Apply press will write them:
  * `{amount, judge, defended}`. The rolled figure is read through the save's share
  * (`burstAmount`), then the subject's defense stage, as the writer does; `defended`
- * is true where the stage changed the figure, so the tooltip can name that part.
+ * is true where the stage changed the figure; `steps` are the stages that made the
+ * amount (`burstAmount`'s), empty where it is the Judge's.
  *
  * @param {{rolled: number, saved: boolean, reduction: number|null, stage?: Function|object|null}} p
  */
 export function burstDamageOf({ rolled, saved, reduction, stage = null }) {
   const full = burstAmount({ rolled, saved, reduction, stages: [stage] });
-  if (full.judge) return { amount: null, judge: true, defended: false };
+  if (full.judge) return { amount: null, judge: true, defended: false, steps: [] };
   const plain = burstAmount({ rolled, saved, reduction, stages: [] });
-  return { amount: full.amount, judge: false, defended: !plain.judge && plain.amount !== full.amount };
+  return { amount: full.amount, judge: false, defended: !plain.judge && plain.amount !== full.amount, steps: full.steps ?? [] };
 }
+
+/** The defense stages among a burst amount's steps: those `defenseStage` made, which carry the stage's `band`. */
+export const defenseStepsOf = (steps) => (Array.isArray(steps) ? steps : []).filter((s) => s?.key === "defense");
 
 /**
  * The tooltip of one damage figure: the amount, the dice and what they rolled, the
- * share a passed save takes off (or that the save failed and none is taken), a
- * defense stage where it changed the figure, and the page. The parts name how the
- * figure was made with the burst's own numbers.
+ * share a passed save takes off (or that the save failed and none is taken), the
+ * defense stage, and the page. The parts name how the figure was made with the
+ * burst's own numbers. The stage is `defense`, already worded for the seat that
+ * reads it (the defense and its figures before and after); with none given, a
+ * `defended` figure names it only as `words.defenses`.
  *
- * @param {{amount: number, dice: string, rolled: number, saved: boolean, reduction: number|null, defended?: boolean, cite?: string, words: {rolled: string, takesOff: string, noShare: string, defenses: string}}} p
+ * @param {{amount: number, dice: string, rolled: number, saved: boolean, reduction: number|null, defended?: boolean, defense?: string, cite?: string, words: {rolled: string, takesOff: string, noShare: string, defenses: string}}} p
  */
-export function damageTip({ amount, dice, rolled, saved, reduction, defended = false, cite = "", words }) {
+export function damageTip({ amount, dice, rolled, saved, reduction, defended = false, defense = "", cite = "", words }) {
   const share = saved ? `${words.takesOff}${numOrNull(reduction) === null ? "" : ` (${reduction})`}` : words.noShare;
-  return `${amount}: ${dice} ${words.rolled} ${rolled}, ${share}${defended ? `, ${words.defenses}` : ""}${cite ? ` (${cite})` : ""}`;
+  const stage = defense || (defended ? words.defenses : "");
+  return `${amount}: ${dice} ${words.rolled} ${rolled}, ${share}${stage ? `, ${stage}` : ""}${cite ? ` (${cite})` : ""}`;
 }
 
 /** The Save column of a burst row: the target and the verdict the entry holds, "11+ · 14 Saved"; a declared verdict is marked as the Judge's call. */

@@ -681,6 +681,7 @@
   "ACKS-LIB.itemRun.card.damageTip.takesOff": "the share a passed save takes off",
   "ACKS-LIB.itemRun.card.damageTip.noShare": "the failed save takes none off",
   "ACKS-LIB.itemRun.card.damageTip.defenses": "then the body's defenses",
+  "ACKS-LIB.itemRun.card.damageTip.defense": "then {defense}",
   "ACKS-LIB.itemRun.card.why.figure": "The Judge settles this one: a figure it needs is blank.",
   "ACKS-LIB.itemRun.card.why.several": "This token stands for several bodies. The Judge settles it.",
   "ACKS-LIB.itemRun.card.why.other": "The Judge settles this one.",
