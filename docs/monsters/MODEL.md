@@ -106,7 +106,9 @@ A part carries `key`, `origin`, `label` (the word as printed), `role`,
   it carries no `percent`, and `round` (blank where the page prints none) rounds
   the number of blocks.
 - `when.units` are the unit words the part applies to, as the stat block's
-  lines print them; `state` and `place` are set only where a line fixes them.
+  lines print them; `state` and `place` are set only where a line fixes them, or
+  where a guard sentence names one place. The roll reads `place` of a size part
+  alone; on any other part it is the editor's Found in and the description.
 - Parts of one `branch.group` are alternatives. `band` names a die's share
   where a page prints one, and no reader invents it.
 - `basis` is `page` for everything the reader writes. `table` is for a part
@@ -116,10 +118,11 @@ A part carries `key`, `origin`, `label` (the word as printed), `role`,
 | Part | Role | Reads |
 |---|---|---|
 | `archers`, `warriors` | `body` | each share (`ratioOf: unit`) of the gangs or warbands the sentence names, in whole units, with its printed rounding |
-| `leader-<role>` | `leader` | the rank that leads each unit and how many; the chieftain's part carries `moraleWhileAlive`, the printed bonus while that rank lives |
-| `dependant-drudge`, `dependant-whelp` | `dependant` | each share of the warriors (a percent), or a die or figure for every so many of the creature's own kind (`forEvery`); the rounding stays blank where the page prints none |
-| `guard-<creature word>` | `guard` | a village guard's chance, dice and creature, the key made from the creature word as printed (a numbered suffix where the same word is named again); beasts joined by "or" share one `branch.group` |
-| `chieftain-guard` | `guard` | the chieftain's escort, pointing at the Role cell the page says it is equivalent to |
+| `leader-<role>` | `leader` | the rank that leads or rules each unit and how many (words between the count and the rank are allowed); the chieftain's part carries `moraleWhileAlive`, the printed bonus while that rank lives |
+| `dependant-<word>` | `dependant` | one part per dependant word the page uses (`drudge`, `whelp`, `egg`, `child`, `female`, `noncombatant`, singular in the key): each share of the warriors, archers or males (a percent, `ratioOf` the printed word), or a die or figure for every so many of the creature's own kind (`forEvery`); the rounding stays blank where the page prints none |
+| `guard-<creature word>` | `guard` | a guard's chance, dice and creature (guarded by it, or kept in a kennel), the key made from the creature word as printed (a numbered suffix where the same word is named again); beasts joined by "or" share one `branch.group`; `when.place` is the one place the sentence names, blank for none or two (the roll ignores it, so the part rolls in both) |
+| `chieftain-guard` | `guard` | the chieftain's escort worded "defended by", pointing at the Role cell the page says it is equivalent to |
+| `escort-<noun>` | `guard` | one part per item of an "accompanied by" list: its die or count word, the rank's Role cell or the creature as printed, and `perUnit` for "for every <unit>"; units are the paragraph's "encountered in" unit, else the rank's leader part's, and none means no part |
 | `captives` | `captive` | chance and dice per unit |
 | `caster-shaman`, `caster-witchDoctor` | `caster` | each caster's chance, pointing at the Role cell that holds its level die |
 | `size-<place>-<state>` | `body` or `unit` | what each side of the encounter lines counts: bodies, or the unit it counts and how many |

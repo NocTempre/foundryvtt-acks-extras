@@ -438,6 +438,121 @@ check("the read copy is the recipe whole, kept apart from the parts, and an empt
   assert.deepEqual(recipeReadStamp([], { replace: true }), { read: { recipe: [] } });
 });
 
+/* ---- the wordings a creature's own page may use for what a group is made of ---- */
+
+check("a dependant share of the males: with or without 'of', beside the unit or after 'there will be'", () => {
+  const a = byKey(read({ combat: [], ecology: ["Zorb villages and lairs will have eggs and females equal to 37% the number of males in the village each."] }));
+  assert.equal(a["dependant-female"].role, "dependant");
+  assert.deepEqual(a["dependant-female"].count, { dice: "", literal: null, ratioOf: "males", percent: 37, round: "", perUnit: "", forEvery: null });
+  assert.equal(a["dependant-egg"].count.percent, 37, "'each' gives both words the one figure");
+  assert.equal(a["dependant-egg"].label, "eggs");
+  assert.equal(a["dependant-egg"].source.templateCell, "zorb|egg");
+  assert.deepEqual(a["dependant-egg"].when.units, ["village", "lair"]);
+  const b = byKey(read({ combat: [], ecology: ["There will be whelps and eggs equal to 44% and 61% of the males in the lair."] }));
+  assert.equal(b["dependant-whelp"].count.percent, 44);
+  assert.equal(b["dependant-egg"].count.percent, 61);
+  assert.equal(b["dependant-egg"].count.ratioOf, "males");
+  assert.deepEqual(b["dependant-egg"].when.units, ["lair"]);
+});
+
+check("dependants worded as eggs, children, females or noncombatants, with a bracketed note after a word", () => {
+  const r = byKey(read({ combat: [], ecology: ["Zorb villages will have children and noncombatants (frail, sleeping or lost) equal to 83% and 27% of the warriors respectively."] }));
+  assert.equal(r["dependant-noncombatant"].label, "noncombatants");
+  assert.equal(r["dependant-noncombatant"].count.percent, 27);
+  assert.equal(r["dependant-noncombatant"].count.ratioOf, "warriors");
+  assert.equal(r["dependant-child"].label, "children");
+  assert.equal(r["dependant-child"].count.percent, 83);
+  assert.equal(r["dependant-child"].source.templateCell, "zorb|child");
+  assert.deepEqual(Object.keys(r).filter((k) => k.startsWith("dependant-")).sort(), ["dependant-child", "dependant-noncombatant"]);
+  const e = byKey(read({ combat: [], ecology: ["Zorb lairs will have eggs and drudges equal to 58% and 19% of the number of warriors."] }));
+  assert.equal(e["dependant-egg"].count.percent, 58);
+  assert.equal(e["dependant-drudge"].count.percent, 19);
+});
+
+check("mutation: a share of a word that names no body, or after a word no dependant list holds, adds no part", () => {
+  assert.deepEqual(read({ combat: [], ecology: ["Zorb villages will have eggs and females equal to 64% the number of hostages in the village each."] }), []);
+  assert.deepEqual(read({ combat: [], ecology: ["Zorb lairs will have hens and clutches equal to 64% the number of males in the lair each."] }), []);
+  // After 'there will be', a sentence that names no unit stays unread, so it cannot start a recipe.
+  assert.deepEqual(read({ combat: [], ecology: ["There will be whelps and eggs equal to 44% and 61% of the males."] }), []);
+});
+
+check("a leader ruled by a rank, with words between the article and the rank", () => {
+  const r = byKey(read({ combat: [], ecology: ["A zorb lair will be ruled by a gaunt, ancient chieftain with 4 AC and 9 HD.", MORALE] }));
+  assert.equal(r["leader-chieftain"].role, "leader");
+  assert.equal(r["leader-chieftain"].count.literal, 1);
+  assert.equal(r["leader-chieftain"].source.templateCell, "zorb|chieftain");
+  assert.deepEqual(r["leader-chieftain"].when.units, ["lair"]);
+  assert.equal(r["leader-chieftain"].moraleWhileAlive, 4, "the morale sentence finds the part the 'ruled by' sentence made");
+  const two = byKey(read({ combat: [], ecology: ["Each zorb gang will be ruled by two champions with 9 AC and 14 HD."] }));
+  assert.equal(two["leader-champion"].count.literal, 2);
+});
+
+check("mutation: ruled by something that is no printed rank, or by a rank of no unit, adds no part", () => {
+  assert.deepEqual(read({ combat: [], ecology: ["A zorb lair will be ruled by a wise seer."] }), []);
+  assert.deepEqual(read({ combat: [], ecology: ["There is a 12% chance the zorb will be ruled by a gaunt, ancient chieftain."] }), []);
+});
+
+check("a chieftain's escort worded 'accompanied by': a count per unit, a die, a rank's Role cell or a creature as printed", () => {
+  const sentence = "The chieftain will be escorted by 2 extra champions for every gang, and 3d7 spotted hounds.";
+  const r = byKey(read({ combat: [], ecology: [GANG, LAIR, sentence] }));
+  const champions = r["escort-champions"];
+  assert.equal(champions.role, "guard");
+  assert.deepEqual(champions.count, { dice: "", literal: 2, ratioOf: "", percent: null, round: "", perUnit: "gang", forEvery: null });
+  assert.equal(champions.source.templateCell, "zorb|champion");
+  assert.deepEqual(champions.when.units, ["lair", "village"], "the escort goes where the chieftain does");
+  assert.equal(r["escort-spotted-hounds"].count.dice, "3d7");
+  assert.equal(r["escort-spotted-hounds"].count.perUnit, "");
+  assert.deepEqual(r["escort-spotted-hounds"].source, { uuid: "", templateCell: "", stat: "", name: "spotted hounds" });
+  assert.equal(partKind(champions), "chieftainGuard");
+  const other = byKey(read({ combat: [], ecology: [GANG, LAIR, "The chieftain will be accompanied by an additional sub-chieftain and 4d3 jesters."] }));
+  assert.equal(other["escort-sub-chieftain"].count.literal, 1);
+  assert.equal(other["escort-sub-chieftain"].source.templateCell, "zorb|subChieftain");
+  assert.equal(other["escort-jesters"].count.dice, "4d3");
+  assert.equal(other["escort-jesters"].label, "jesters");
+  // A paragraph that says where the group is met scopes the escort to that unit.
+  const met = byKey(read({ combat: [], ecology: [GANG, LAIR, `${ENCOUNTERED} The chieftain will be accompanied by an additional sub-chieftain and 4d3 jesters.`] }));
+  assert.deepEqual(met["escort-jesters"].when.units, ["village"]);
+});
+
+check("mutation: an escort with no chieftain to go with, or one no unit holds, adds no part", () => {
+  assert.deepEqual(read({ combat: [], ecology: ["The chieftain will be accompanied by 6d2 jesters."] }), []);
+  assert.deepEqual(read({ combat: [], ecology: ["The queen will be accompanied by 6d2 jesters.", GANG] }).filter((p) => p.key.startsWith("escort-")), []);
+  assert.equal(read({ combat: [], ecology: [GANG, "The chieftain will be accompanied by 6d2 jesters."] }).filter((p) => p.key.startsWith("escort-")).length, 0, "no chieftain part has named a unit yet");
+  // A for-every word that is no unit drops its item and keeps the others.
+  const odd = byKey(read({ combat: [], ecology: [GANG, LAIR, "The chieftain will be accompanied by 2 extra champions for every moon, and 6d2 jesters."] }));
+  assert.ok(!("escort-champions" in odd) && odd["escort-jesters"].count.dice === "6d2");
+});
+
+check("a kennel clause: alone, or as the second clause of a guard sentence", () => {
+  const alone = byKey(read({ combat: [], ecology: ["There is a 22% chance a zorb village will have a kennel of 5d3 pale hounds."] }));
+  assert.equal(alone["guard-pale-hounds"].role, "guard");
+  assert.equal(alone["guard-pale-hounds"].chance, 22);
+  assert.equal(alone["guard-pale-hounds"].count.dice, "5d3");
+  assert.deepEqual(alone["guard-pale-hounds"].when.units, ["village"]);
+  const second = byKey(read({ combat: [], ecology: ["There is a 47% chance the lair will be guarded by 3d5 mossy blimps and a 18% chance the lair will have a kennel with 4d2 ratty hounds."] }));
+  assert.equal(second["guard-mossy-blimps"].chance, 47);
+  assert.equal(second["guard-ratty-hounds"].chance, 18);
+  assert.equal(second["guard-ratty-hounds"].count.dice, "4d2");
+  assert.deepEqual(second["guard-ratty-hounds"].when.units, ["lair"]);
+});
+
+check("mutation: a kennel clause with no die, or at a place no unit word names, adds no part", () => {
+  assert.deepEqual(read({ combat: [], ecology: ["There is a 22% chance a zorb village will have a kennel of sleepy hounds."] }), []);
+  assert.deepEqual(read({ combat: [], ecology: ["There is a 22% chance the hamlet will have a kennel of 5d3 pale hounds."] }), []);
+});
+
+check("a guard keeps the place a sentence puts before its unit, and none where it names two", () => {
+  const one = byKey(read({ combat: [], ecology: ["Where zorbs are met in a wilderness lair, there is a 38% chance the lair will be protected by 2d9 mossy blimps."] }));
+  assert.equal(one["guard-mossy-blimps"].when.place, "wilderness");
+  assert.deepEqual(one["guard-mossy-blimps"].when.units, ["lair"]);
+  const dungeon = byKey(read({ combat: [], ecology: ["Where zorbs are met in a dungeon lair, there is a 38% chance the lair will be protected by 2d9 mossy blimps."] }));
+  assert.equal(dungeon["guard-mossy-blimps"].when.place, "dungeon");
+  const both = byKey(read({ combat: [], ecology: ["Where zorbs are met in a dungeon lair or wilderness village, there is a 38% chance the lair will be protected by 2d9 mossy blimps."] }));
+  assert.equal(both["guard-mossy-blimps"].when.place, "");
+  const none = byKey(read({ combat: [], ecology: ["There is a 38% chance a zorb village will be guarded by 2d9 mossy blimps."] }));
+  assert.equal(none["guard-mossy-blimps"].when.place, "");
+});
+
 /* ---- the key the Role cells are filed under, on every path ---- */
 
 check("a member's variant is found in the cookbooks it is declared in, and an entry in no family has none", () => {

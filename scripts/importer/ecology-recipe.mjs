@@ -18,7 +18,7 @@
  * `dice` or `literal` for a count thrown once for every so many of `ratioOf`,
  * `RECIPE_BODIES` naming every body of the unit),
  * `chance` (percent, null for always), `when` (the units, and state and place
- * where a line fixes them), `branch` (parts of one group are alternatives, a
+ * where a line fixes them, or a guard sentence names its one place), `branch` (parts of one group are alternatives, a
  * band naming the share of a die where the page prints one), `moraleWhileAlive`
  * (a bonus while the part lives), `cite` and `basis` (`page`; `table` is the
  * evaluator's, for a printed table). A rounding the page does not print is
@@ -51,15 +51,33 @@ const MORALE_RX = new RegExp(
   "i",
 );
 const SPLIT_NEXT_RX = /^\s*(?:\(\s*round[^)]*\))?\s*,?\s*(?:and\s+)?(\d+)\s*%\s+will\s+be\s+(archers|warriors)\b(.*)$/i;
+/** What a guard sentence says its beasts do: they guard the place, or are kept in its kennel. */
+const GUARDING = String.raw`(?:be\s+(?:guarded|defended|protected)\s+by|have\s+an?\s+kennel\s+(?:with|of))`;
 const GUARD_CLAUSE_RX = new RegExp(
-  String.raw`^(?:(\d+)\s*%\s+chance\s+(?:for|of|(?:that\s+)?it\s+will\s+be\s+(?:guarded|defended|protected)\s+by|of\s+being\s+(?:guarded|defended|protected)\s+by)\s+)?(.+)$`,
-  "i",
+  String.raw`^(?:(\d+)\s*%\s+chance\s+(?:for|of|(?:that\s+)?it\s+will\s+be\s+(?:guarded|defended|protected)\s+by|of\s+being\s+(?:guarded|defended|protected)\s+by|(?:the|an?)\s+(?:[\p{L}'’-]+\s+){0,3}?will\s+${GUARDING})\s+)?(.+)$`,
+  "iu",
 );
+/** The words a dependant share is written for, each singular or plural. */
+const DEPENDANT_WORD = String.raw`(?:drudges?|whelps?|eggs?|children|child|females?|noncombatants?)(?:\s*\([^)]*\))?`;
+/** The role a dependant word names: its singular, a bracketed note after it dropped. */
+const dependantRole = (word) => String(word).toLowerCase().replace(/\s*\(.*$/, "").replace(/^children$/, "child").replace(/s$/, "");
+/** The bodies a share may count: the rank and file, by the word the page uses for them. */
+const SHARE_BASE = String.raw`(?:archers|warriors|males)`;
+/** A rank that a leader sentence names, alone. */
+const RANK_ALONE = new RegExp(String.raw`^${RANK}s?$`, "i");
+/** A figure's word before a noun in a list: an article or a number word. */
+const COUNT_ITEM = String.raw`(an?|one|two|three)`;
 const BEAST_RX = new RegExp(String.raw`^(${DICE})\s+([\p{L}'’ -]+?)\s*$`, "iu");
 const ESCORT_RX = new RegExp(
   String.raw`\bthe\s+(${RANK})\s+will\s+be\s+(?:defended|guarded|protected|attended)\s+by\s+(${DICE})\s+([\p{L}'’ -]+?)\s*(?:\(\s*equivalent\s+to\s+(${RANK})s?\s+statistically\s*\))?\s*\.?$`,
   "iu",
 );
+/** A rank's escort written as a list: "the chieftain will be accompanied by <item>, <item> and <item>". */
+const ACCOMPANIED_RX = new RegExp(String.raw`\bthe\s+(${RANK})\s+will\s+be\s+(?:accompanied|escorted)\s+by\s+(.+?)\s*\.?$`, "iu");
+/** One item of such a list: a die or a count word, a noun, and a unit it is counted for. */
+const ESCORT_ITEM_RX = new RegExp(String.raw`^(?:(${DICE})|${COUNT_ITEM})\s+(?:(?:additional|extra)\s+)?([\p{L}'’ -]+?)(?:\s+for\s+every\s+([\p{L}'’-]+))?$`, "iu");
+/** The place a sentence puts a group in, where it names one: the stat block's own two places. */
+const PLACE_RX = /\b(dungeon|wilderness)\b/gi;
 const CASTER_RX = /(\d+)\s*%\s+chance\s+(?:of|to\s+have)\s+an?\s+(shaman|witch[\s-]*doctor)\b/gi;
 
 /**
@@ -104,7 +122,7 @@ function locators(extra = []) {
   const built = {
     word: new RegExp(String.raw`\b(${UNIT})s?\b`, "gi"),
     leader: new RegExp(
-      String.raw`\b(?:each|an?|the|every)\s+(?:[\p{L}'’-]+\s+){0,2}?${UNITS}\s+will\s+be\s+led\s+by\s+(?:(${COUNT_WORD})\s+)?(${RANK})s?\b`,
+      String.raw`\b(?:each|an?|the|every)\s+(?:[\p{L}'’-]+\s+){0,2}?${UNITS}\s+will\s+be\s+(?:led|ruled)\s+by\s+(?:(${COUNT_WORD})\s+)?(?:[\p{L}'’-]+,?\s+){0,3}?(${RANK})s?\b`,
       "iu",
     ),
     splitFirst: new RegExp(
@@ -112,7 +130,7 @@ function locators(extra = []) {
       "i",
     ),
     dependant: new RegExp(
-      String.raw`\b${UNITS}\s+will\s+have\s+(drudges?|whelps?)(?:\s*(?:,|and)\s*(drudges?|whelps?))?\s+equal\s+to\s+(\d+)\s*%(?:\s*(?:,|and)\s*(\d+)\s*%)?\s+of\s+(?:the\s+)?(?:number\s+of\s+)?(archers|warriors)\b(.*)$`,
+      String.raw`\b(?:${UNITS}\s+will\s+have|there\s+will\s+be)\s+(${DEPENDANT_WORD})(?:\s*(?:,|and)\s*(${DEPENDANT_WORD}))?\s+equal\s+to\s+(\d+)\s*%(?:\s*(?:,|and)\s*(\d+)\s*%)?\s+(?:of\s+)?(?:the\s+)?(?:number\s+of\s+)?(${SHARE_BASE})\b(.*)$`,
       "i",
     ),
     dependantEvery: new RegExp(
@@ -120,7 +138,7 @@ function locators(extra = []) {
       "iu",
     ),
     guard: new RegExp(
-      String.raw`\bthere\s+is\s+an?\s+(\d+)\s*%\s+chance\s+(?:that\s+)?(?:an?|the)\s+(?:[\p{L}'’-]+\s+){0,2}?${UNITS}\s+will\s+be\s+(?:guarded|defended|protected)\s+by\s+(.+?)\s*\.?$`,
+      String.raw`\bthere\s+is\s+an?\s+(\d+)\s*%\s+chance\s+(?:that\s+)?(?:an?|the)\s+(?:[\p{L}'’-]+\s+){0,2}?${UNITS}\s+will\s+${GUARDING}\s+(.+?)\s*\.?$`,
       "iu",
     ),
     captive: new RegExp(
@@ -360,12 +378,16 @@ function readPass({ combat, ecology, variant, cite }, extra) {
         const words = [dep[2], dep[3]].filter(Boolean);
         const figures = [dep[4], dep[5]].filter(Boolean);
         const round = ROUND.exec(dep[7])?.[1]?.toLowerCase() ?? "";
-        words.forEach((word, i) => {
-          const role = word.toLowerCase().replace(/s$/, "");
-          const percent = parseInt(figures[i] ?? figures[0], 10);
-          if (!Number.isFinite(percent)) return;
-          add(part({ key: `dependant-${role}`, label: word, role: "dependant", source: cell(role), count: { ratioOf: dep[6].toLowerCase(), percent, round }, units: unitsOf(dep[1]), cite }));
-        });
+        // Written as "there will be", the unit is the one the sentence ends on; a sentence that names none adds no part.
+        const units = unitsOf(dep[1] ?? dep[7]);
+        if (units.length) {
+          words.forEach((word, i) => {
+            const role = dependantRole(word);
+            const percent = parseInt(figures[i] ?? figures[0], 10);
+            if (!Number.isFinite(percent)) return;
+            add(part({ key: `dependant-${role}`, label: word.replace(/\s*\(.*$/, ""), role: "dependant", source: cell(role), count: { ratioOf: dep[6].toLowerCase(), percent, round }, units, cite }));
+          });
+        }
       }
 
       // A die or a figure of each dependant word for every so many of the creature's own rank and file: a block count of the bodies, thrown once per block.
@@ -389,9 +411,33 @@ function readPass({ combat, ecology, variant, cite }, extra) {
         add(part({ key: "chieftain-guard", label: escort[3].trim(), role: "guard", source: equal ? cell(equal) : { name: escort[3].trim() }, count: countOf(escort[2]), units: here, cite }));
       }
 
+      // An escort listed after "accompanied by" goes where the paragraph says the group is met, else where its rank's own leader part does: a part no unit holds is never rolled, so none is written for one.
+      const accompanied = ACCOMPANIED_RX.exec(sentence);
+      if (accompanied) {
+        const rank = roleKeyOf(accompanied[1]);
+        const units = here.length ? here : parts.get(`leader-${rank}`)?.when.units ?? [];
+        if (rank && units.length) {
+          for (const item of accompanied[2].split(/\s*,\s*(?:and\s+)?|\s+and\s+/i)) {
+            const m = ESCORT_ITEM_RX.exec(item.trim());
+            if (!m) continue;
+            const noun = m[3].trim();
+            const perUnit = m[4] ? unitsOf(m[4])[0] : "";
+            if (m[4] && !perUnit) continue;
+            const equal = RANK_ALONE.test(noun) ? roleKeyOf(noun) : null;
+            add(part({
+              key: `escort-${wordKey(noun)}`, label: noun, role: "guard", source: equal ? cell(equal) : { name: noun },
+              count: { ...(m[1] ? countOf(m[1]) : { literal: countWord(m[2]) }), perUnit }, units, cite,
+            }));
+          }
+        }
+      }
+
       const guard = rx.guard.exec(sentence);
       if (guard) {
         const units = unitsOf(guard[2]);
+        // The place the sentence puts the group in, where it names exactly one.
+        const places = [...new Set([...sentence.slice(0, guard.index).matchAll(PLACE_RX)].map((m) => m[1].toLowerCase()))];
+        const place = places.length === 1 ? places[0] : "";
         const clauses = guard[3].split(/\s+(?:and|,)\s+(?:(?:another|an?)\s+)?(?=\d+\s*%\s+chance)/i);
         clauses.forEach((clause, ci) => {
           const m = GUARD_CLAUSE_RX.exec(clause.trim());
@@ -406,7 +452,7 @@ function readPass({ combat, ecology, variant, cite }, extra) {
             let key = base;
             for (let n = 2; parts.has(key); n++) key = `${base}-${n}`;
             add(part({
-              key, label: beast[2], role: "guard", source: { name: beast[2] }, count: countOf(beast[1]), chance, units,
+              key, label: beast[2], role: "guard", source: { name: beast[2] }, count: countOf(beast[1]), chance, units, place,
               branch: alternatives.length > 1 ? { group: `guard-or-${ci + 1}` } : {}, cite,
             }));
           });
@@ -435,7 +481,7 @@ export function partKind(p) {
   if (key === "archers" || key === "warriors") return "split";
   if (key.startsWith("leader-")) return "leader";
   if (key.startsWith("dependant-")) return "dependant";
-  if (key === "chieftain-guard") return "chieftainGuard";
+  if (key === "chieftain-guard" || key.startsWith("escort-")) return "chieftainGuard";
   if (key.startsWith("guard-")) return "guard";
   if (key === "captives") return "captive";
   if (key.startsWith("caster-")) return "caster";

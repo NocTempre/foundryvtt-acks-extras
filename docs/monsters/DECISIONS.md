@@ -930,3 +930,99 @@ monster's carried sword the Judge never marked takes a figure from the natural
 table where the chapter intends the character's. The mark is one select on the
 weapon's ACKS Monster group, and the label names the average damage it was read
 at, so the Judge sees which rule was applied.
+
+## 2026-11-27 — The recipe reader's five under-reads on non-family pages (T-0867)
+
+T-0721/T-0722 left five wordings unread on the pages of creatures outside the
+beastman family. They are read now, each as a part shape the recipe already has.
+The count is the local corpus: every monster entry of the books on this machine
+read through `executeEntry` and `monsterProseChannels` (335 entries), the old
+reader against the new, part by part.
+
+Read:
+
+- **A share of the males.** The dependant locator takes "males" as a base beside
+  `archers` and `warriors`, with or without "of", after "<unit> will have" or
+  after "there will be" (the unit then being the one the sentence ends on; a
+  sentence naming none adds no part, so it cannot start a recipe). `ratioOf` is
+  the printed word, as for warriors, so the roll counts every body of the unit
+  today: the evaluator resolves any share word to all bodies where the creature
+  has no split. A creature with both a split and a share of males would count
+  none; no page in the corpus is both.
+- **Dependant words.** `drudge` and `whelp` joined by `egg`, `child`/`children`,
+  `female` and `noncombatant`, each in either number, with a bracketed note after
+  a word allowed and dropped from the label. Part keys are the singular
+  (`dependant-egg`, `dependant-child`). Females are a dependant here because the
+  one page that words its females as a share of males puts them beside its eggs;
+  a page that wrote them as bodies would need the locator revisited.
+- **Leaders.** "Ruled by" reads as "led by", with up to three words (adjectives,
+  commas) between the count word and the rank. The morale sentence then finds the
+  chieftain part it was waiting for. An escort listed after "accompanied by" or
+  "escorted by" (the subject a rank) is one `guard` part per item, key
+  `escort-<noun as printed>`: a die or count word, "additional" ignored, a rank
+  noun pointing at that rank's Role cell, any other noun a creature as printed,
+  and "for every <unit>" the part's `perUnit`. Its units are the paragraph's
+  "encountered in" unit where it names one, else the units of the rank's own
+  leader part; with neither, no part is written, since a part with no unit is
+  never rolled and would otherwise start a recipe. `partKind` counts it as a
+  chieftain's guard.
+- **A kennel clause.** "will have a kennel with <die> <beasts>" reads as a guard
+  clause beside "will be guarded by", alone or as the second clause of a sentence.
+- **A guard's place.** A guard sentence that names exactly one of the stat
+  block's two places before its own clause keeps it as `when.place`. The
+  evaluator still ignores `place` on a part that is not a size part, so the guard
+  rolls at its unit in both places; the field is what the editor's Found in
+  filter and the part's description show.
+
+What it did on the corpus: the entries with a recipe stay 13 (six beastman
+breeds and seven others), and no entry gains or loses one. 331 of 335 recipes are
+byte-identical; the four that change are the creatures whose parts are gained.
+Parts gained: 13, on those four entries; changed: 1 (a guard's place); lost: 0.
+Every part passes `validatePart` and every part but a size part holds a unit.
+Lines carrying each wording, read with a pattern wider than the locator (the
+census pattern reads "carry" more widely than the locator does, so the last
+column is the measure):
+
+| Wording | Lines | On an entry with a recipe | Gain a part |
+|---|---|---|---|
+| a share of the males | 3 | 2 | 2 |
+| "ruled by" | 4 | 1 | 1 (the only one naming a rank) |
+| "accompanied by" or "escorted by" | 32 | 2 | 2 (the only two with a rank as subject) |
+| eggs, children, females or noncombatants as a share | 7 | 3 | 3 |
+| a kennel clause | 1 | 0 | 0 |
+| a guard sentence naming one place | 1 | 1 | 1 changed |
+
+Having a unit is not being rolled. Of the 13 gained parts, 9 are made by some
+side of their creature's own encounter lines in the organisation roll (run with
+a fixed die). The other 4 are one creature's, whose sentences place them in a
+unit its lines never count, so no side of it reaches them. The page's scoping is
+kept: the same mismatch already leaves that creature's caster parts unrolled, and
+the fix, if it is one, is the owner's.
+
+Still not read, and why. The five wordings also sit on pages whose recipe nothing
+has started: the 2026-11-26 entry rejected starting one from the lines' own
+words, and these pages state no leader or guard sentence the fixed unit words
+reach, so their share, their kennel and their escort stay unread. The kennel
+clause is the case in point: its one line is on such a page, so it gains nothing
+on today's books and is read on any page a fixed word has started. Whether
+those pages should start a recipe is the owner's call, and it is still open. A
+word such as "juveniles", or a creature's own name in a dependant list beside
+"eggs", is no dependant word and adds no part. A Role cell exists only for what a
+role sentence prints with its figures. None exists for the chieftain a "ruled by"
+sentence names (the page prints no hit points), for the new dependant words, or
+for a sub-chieftain a page names only in an escort, so those parts stand as
+labelled stacks; `leader-roles.mjs` is unchanged.
+
+Rejected: writing "males" as `RECIPE_BODIES` (the editor and the tooltip would
+name "bodies" where the page says males, and the evaluator reads both alike);
+widening "encountered in" to "their" and "its" (it reaches every captive and
+caster part's unit, which this change does not measure); reading the place into
+the evaluator (a behaviour change to every guard, caster and captive part).
+
+Strongest counter-argument (medium): a part that names a unit is written even
+where nothing rolls it, so 4 of the 13 parts are in the recipe and the editor
+and never in a Roll, which reads as a reader that works. The page's own word is
+what the part holds, the creature's other parts already behave so, and moving a
+part to a unit the page does not name would be the reader's guess; the Judge sees
+the unit on the row in the recipe editor and can change it. The measure above is
+what keeps the claim honest.
