@@ -162,14 +162,18 @@ export function resolveCreature(ref, { fromUuidSync, byCookbookId }) {
  * carries the name, the uuid and the shelf it is in, and no document is loaded.
  * A row that names no shelf is a world actor, which is in memory, so it is
  * answered as the document, whose own permission test `creatureOpens` reads; a
- * row in a shelf has none, and is tested against its shelf.
- * @param {(type: string, id: string) => {_id: string, pack: string|null}|null} rowOf
+ * row in a shelf has none, and is tested against its shelf. Of several copies
+ * carrying the id, the one `opens` answers true for is taken, so the sheet names
+ * the copy the cast summons for this seat (`sourceReadable`), and a world copy
+ * the seat cannot observe never hides a shelf copy it can.
+ * @param {(type: string, id: string, prefer: ((row: object) => boolean)|null) => {_id: string, pack: string|null}|null} rowOf
  * @param {(id: string) => object|null} worldActor the world's actor of this id
+ * @param {((creature: object) => boolean)|null} [opens] whether this seat opens a creature (`creatureOpens`)
  * @returns {(type: string, id: string) => object|null}
  */
-export const creatureByStamp = (rowOf, worldActor) => (type, id) => {
-  const row = rowOf(type, id);
-  return row && !row.pack ? (worldActor(row._id) ?? row) : row;
+export const creatureByStamp = (rowOf, worldActor, opens = null) => (type, id) => {
+  const asCreature = (row) => (row && !row.pack ? (worldActor(row._id) ?? row) : row);
+  return asCreature(rowOf(type, id, opens ? (row) => opens(asCreature(row)) : null));
 };
 
 /**

@@ -530,6 +530,18 @@ await ok("cookbookRow is the stamp's projection, template parts skipped, and nev
   assert.deepEqual([pack.calls.getIndex.length, pack.calls.getDocuments.length], [1, 0]);
 });
 
+await ok("cookbookRow takes the world's carrier first, and the one prefer answers true for among several", async () => {
+  reset();
+  const pack = shelf({ type: "Actor", docs: [mint("a1", "Shelf", "monster", "m.x")] });
+  await pack.getIndex();
+  game.packs = [pack];
+  game.actors = [worldDoc("w1", "World copy", "monster", "m.x")];
+  assert.equal(lib.cookbookRow("Actor", "m.x")?.id, "w1");
+  assert.equal(lib.cookbookRow("Actor", "m.x", { prefer: (row) => !!row.pack })?.id, "a1");
+  assert.equal(lib.cookbookRow("Actor", "m.x", { prefer: () => false })?.id, "w1", "no row preferred: the first");
+  assert.equal(pack.calls.getDocuments.length, 0);
+});
+
 await ok("cookbookRow on an unindexed shelf starts one index read and redraws its sheet once it lands", async () => {
   reset();
   const pack = shelf({ type: "Actor", docs: [mint("a1", "Row", "monster", "m.x")] });

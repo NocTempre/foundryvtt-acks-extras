@@ -80,7 +80,7 @@
 import { MODULE_ID, LANG_PREFIX, TEMPLATE_TYPE } from "../constants.mjs";
 import * as V from "../vocab.mjs";
 import { vocabChoices } from "../magic-vocab.mjs";
-import { SUMMON_SOURCE_TYPES, packIdOfUuid, summonRefName } from "../summons-logic.mjs";
+import { SUMMON_SOURCE_TYPES, creatureOpens, packIdOfUuid, summonRefName } from "../summons-logic.mjs";
 import { addSummonCreature, amountFromBox, amountTip, creatureByStamp, creatureView, removeSummonCreature, resolveCreature, summonListOf } from "../summon-list.mjs";
 import { writeOnChange } from "../press-safe-change.mjs";
 import { cookbookRow } from "../library.mjs";
@@ -750,11 +750,12 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
    * The lookups a creature's name is read through: the document or index row a
    * uuid names, else the creature's index row by its cookbook id. No document is
    * loaded, and this window redraws once when an index read the lookup started
-   * lands.
+   * lands. Of several copies, the one this seat opens is named.
    */
   #creatureLookups() {
-    const rowOf = (type, id) => cookbookRow(type, id, { redraw: this });
-    return { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId: creatureByStamp(rowOf, (id) => game.actors?.get(id) ?? null) };
+    const rowOf = (type, id, prefer) => cookbookRow(type, id, { redraw: this, prefer });
+    const opens = (creature) => creatureOpens(creature, game.user, { packOf: worldPackOf });
+    return { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId: creatureByStamp(rowOf, (id) => game.actors?.get(id) ?? null, opens) };
   }
 
   /**

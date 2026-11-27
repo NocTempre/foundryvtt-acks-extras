@@ -333,16 +333,19 @@ export async function byCookbookIdAsync(type, id, options = {}) {
  * shows its name, picture or uuid: a `libraryRows` projection, never a document,
  * the class-template parts skipped. Null where no row carries the id, which on
  * an unindexed shelf is also what it answers until the index lands, when
- * `redraw` re-renders the caller (`redrawOnRead`).
+ * `redraw` re-renders the caller (`redrawOnRead`). Of several rows carrying the
+ * id, `prefer` picks as it does for `pickCarrier`: the first it answers true
+ * for, else the first.
  * @param {string} type
  * @param {string} id
  * @param {object} [options]
  * @param {Function|object|null} [options.redraw] what to re-render when a read this ask started lands
+ * @param {((row: object) => boolean)|null} [options.prefer] the row to take among several carriers
  * @returns {{_id: string, id: string, uuid: string, name: string, type: string, img: string, flags: object, pack: string|null}|null}
  */
-export function cookbookRow(type, id, { redraw = null } = {}) {
+export function cookbookRow(type, id, { redraw = null, prefer = null } = {}) {
   if (!id) return null;
-  return libraryRows(type, stampMatch(id), { redraw })[0] ?? null;
+  return pickCarrier(libraryRows(type, stampMatch(id), { redraw }), id, { prefer });
 }
 
 /**

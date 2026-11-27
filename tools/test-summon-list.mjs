@@ -220,4 +220,22 @@ t("the stamp lookup answers a shelf's index row as the row and a world actor as 
   assert.equal(seatNameOf("cook.shelf", { resolve: (ref) => resolveCreature(ref, byStamp), user: player(), packOf: () => ({ testUserPermission: () => false }), neutral: NEUTRAL }), NEUTRAL);
 });
 
+t("of a world copy the seat cannot observe and a shelf copy it can open, the stamp lookup names the shelf copy", () => {
+  const worldRow = { _id: "w1", name: "Creature w", uuid: "Actor.w1", pack: null };
+  const shelfRow = { _id: "a1", name: "Creature one", uuid: "Compendium.mod.pack.Actor.a1", pack: "mod.pack" };
+  const hidden = { id: "w1", name: "Creature w", uuid: "Actor.w1", testUserPermission: () => false };
+  // The carriers in the library's order, world first, picked as pickCarrier picks them.
+  const rowOf = (type, id, prefer) => [worldRow, shelfRow].find((r) => prefer?.(r)) ?? worldRow;
+  const worldActor = (id) => (id === "w1" ? hidden : null);
+  const packOf = () => ({ testUserPermission: () => true });
+  const seat = (user, opens) => {
+    const byStamp = { fromUuidSync: () => null, byCookbookId: creatureByStamp(rowOf, worldActor, opens) };
+    return { resolve: (ref) => resolveCreature(ref, byStamp), user, packOf, neutral: NEUTRAL };
+  };
+  const opens = (creature) => creature === shelfRow || creature.testUserPermission?.() === true;
+  assert.equal(seatNameOf("cook.x", seat(player(), opens)), "Creature one");
+  assert.equal(seatNameOf("cook.x", seat(player(), null)), NEUTRAL, "with no test the world's copy is taken, as before");
+  assert.equal(creatureByStamp(rowOf, worldActor, () => false)("Actor", "cook.x"), hidden, "no copy opens: the first carrier");
+});
+
 console.log(`\n${n} passed`);

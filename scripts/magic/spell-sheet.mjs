@@ -22,7 +22,7 @@ import { effectRowActions } from "../lib/apps/effect-row-editor.mjs";
 import { RungDrafts, isInvocationLadder, withKindChoice } from "../lib/rung-ladder.mjs";
 import { RUNG_ACTIONS, actionsContext, kindAllowed, kindContext, ladderContext, wireRungs } from "../lib/rung-view.mjs";
 import { cookbookId, byCookbookId, cookbookRow } from "../lib/library.mjs";
-import { packIdOfUuid } from "../lib/summons-logic.mjs";
+import { creatureOpens, packIdOfUuid } from "../lib/summons-logic.mjs";
 import { creatureByStamp, resolveCreature, seatNameOf } from "../lib/summon-list.mjs";
 import { classItems } from "../classes/registry.mjs";
 import * as V from "../lib/vocab.mjs";
@@ -386,8 +386,10 @@ export function createSpellSheet(Base) {
       context.provenance = { id, imported: !!id, cite: data.cite ?? "" };
       // A summon row names its creature as this seat reads it: the name where the seat can open the creature, the neutral label where it cannot.
       // The creature is read off the Actor index, and this sheet redraws once when an index read it started lands.
-      const lookups = { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId: creatureByStamp((type, id) => cookbookRow(type, id, { redraw: this }), (id) => game.actors?.get(id) ?? null) };
-      const seat = { resolve: (ref) => resolveCreature(ref, lookups), user: game.user, packOf: (uuid) => game.packs?.get?.(packIdOfUuid(uuid)) ?? null, neutral: game.i18n.localize("ACKS-LIB.summons.neutral") };
+      const packOf = (uuid) => game.packs?.get?.(packIdOfUuid(uuid)) ?? null;
+      const opens = (creature) => creatureOpens(creature, game.user, { packOf });
+      const lookups = { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId: creatureByStamp((type, id, prefer) => cookbookRow(type, id, { redraw: this, prefer }), (id) => game.actors?.get(id) ?? null, opens) };
+      const seat = { resolve: (ref) => resolveCreature(ref, lookups), user: game.user, packOf, neutral: game.i18n.localize("ACKS-LIB.summons.neutral") };
       const nameOf = (ref) => seatNameOf(ref, seat);
       context.effectRows = (data.effects ?? []).map((e, i) => effectRowView(e, i, { nameOf, cite: data.cite ?? "", fieldLabel, say: loc }));
       return context;
