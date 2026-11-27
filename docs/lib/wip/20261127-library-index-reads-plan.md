@@ -603,3 +603,50 @@ the build stop there.
 
 (Appended by the phase sessions, one entry per slice: commit, census and timings before and after, what was
 walked, what was checked offline only, what was not checked.)
+
+### S0. Baseline (phase 1, 2026-11-27)
+
+Run on `main` at `2aceec65` with peers' uncommitted edits in the working tree (the junction serves the tree),
+world `test`, lane A (Gamemaster and Player), both seats on fresh pages at once. The script is the untracked
+`tools/live/perf-leads.mjs` (ruling 1), run as `PERF_LEADS=1 PERF_SET=census PERF_LABEL=<label>`; it wraps the
+database backend's `get` before the page's first script, so every compendium server pass is recorded with its
+kind, documents returned and caller frames. Output: `aia-tmp/20261127-perf-timings-baseline.json`. Counts are
+the measure; every ms figure is one run and swung widely between runs (the GM's first unequip took 92 ms in a
+smoke run and 2,636 ms here). Every boot reached `ready` with no error in init, setup or ready. A smoke run
+before it (5 s idle) logged 16 `ready` rejections ("reading '_source'") on one GM boot, right after its own
+chat messages were swept and while the Actor shelves grew from 1,534 to 1,538 rows; not seen again, cause not
+found.
+
+- **Shelves.** Item 4,474 rows on two shelves (the ACKS shelf 4,473, a Judge's shelf 1), Actor 1,538 (374 on
+  the ACKS shelf, 1,164 on a Judge's shelf), RollTable 427, JournalEntry 6. The Player seat opens 4,473, 374,
+  378 and 2 of them. No shelf holds an invalid document, and a shelf loaded whole reads not cold (F3's
+  unverified case does not occur here).
+- **Load (ready+60 s, untouched).** GM: 9 whole loads, 1 `getDocument`, 2 index passes, **6,447 documents**;
+  ready to warm end 23.5 s. Player: 4 whole loads, 1 `getDocument`, 1 index pass, **5,228 documents**; 21.4 s.
+  By caller: `refreshLadders` made the whole Item load on both seats (4,474 GM, 4,473 Player) before the warm
+  began, so the warm's Item share was the Judge's 1-row shelf on the GM seat and nothing on the Player's; the
+  warm loaded Actor, JournalEntry and RollTable whole (GM 1,972 documents, Player 754).
+  `primeMerchandiseCatalog` made one `getDocument` and found the other 28 goods held, because the ladder's
+  whole load had landed first. `readClasses` made the index passes.
+- **F2 corrected.** On a quiet page the Item shelf is instantiated once, by `refreshLadders`, not twice. The
+  second whole Item load happens where a `whenReady` races it (the first cast below: 10,920 documents on the GM
+  seat, 9,701 on the Player's) and on every burst of sidebar item edits, where the bare `getDocuments()` moves
+  and instantiates the whole shelf again although it is held.
+- **Quiet queries (ruling 2).** Lone queries on the ACKS Item shelf, median of five: index 443 ms, `_id__in` of
+  40 **360 ms**, `_id` 298 ms, whole 5,391 ms. The floor is about 300 ms per pass (the server scans the shelf
+  for any query), so F14's 4.7 s narrow reads were contention. **S2c is not built** (360 ms is under the
+  1,000 ms bar).
+- **Item rows by sub-type (ruling 3).** class 31, race 4, spell 342, ability 700, variation 7: 1,084 of 4,473.
+  The rest is 3,389 rows (76%: item 2,171, weapon 597, armor 273, bundle 248, language 58, merchandise 29,
+  trap 13). **S6's bar is met**; phase 2 builds it.
+- **After a real 310 s idle** (310,001 ms measured): every shelf on both seats held **0** documents. Then, on
+  each seat: the character sheet bound to its class by name rendered in 5.5 s (0.8 s before the idle), with
+  `classItems`' cold kick loading the Item shelf whole and `warmDocument` one `getDocument`; the ability sheet
+  and the masterwork weapon's sheet made no server pass; the spell sheet with a summon row loaded the Actor
+  shelves whole through `resolveCreature`'s cold kick (GM 1,538, Player 374); the cast window stood after
+  4.3 s (GM) and 4.0 s (Player), its `whenReady` loading JournalEntry and RollTable whole; the attack made no
+  pass. Total after the idle: GM 8 whole loads and 6,446 documents, Player 4 and 5,228, the whole library again.
+- **Firsts on a fresh page.** Cast window: GM 14.9 s, Player 11.5 s (`castSpellRun`'s `whenReady`). Unequip:
+  GM 2.6 s, Player 3.3 s.
+- **T-0824 confirmed:** both Actor shelves read `indexed: false` on both seats throughout; nothing builds their
+  declared-field index.
