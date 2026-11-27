@@ -508,6 +508,21 @@ the henchman allowance and the follower card's attack figure read none, and the
 system's own monster rolls add none. The rules MM ch. 3 gives a monster's
 scores apart from a character's are not applied (ROADMAP).
 
+**The Strength modifier of a natural attack.** One more `monsters` table,
+`strengthAttack` (MM p. 349, Attributes for Monsters), read by
+`scripts/monsters/strength-attack.mjs`: rows are attribute scores, columns are
+bands of an attack's average damage, each cell the attack-throw and damage
+modifier. `strengthBands()` parses the stored header row (`header: true`, cells
+`col1`...) into ordered `{key, min, max}` bands, an open edge null, and answers
+null when the table is absent or a header cell reads as no band.
+`strengthBandFor(average)` is the one place an average finds its band: an
+average between two printed bands falls in the lower, and one below the first
+band or past the last is in none. `strengthAttackBonus(score, average)` answers
+`{value, band, cite}` from the score's row in that band's column, and null where
+the table is absent, the score has no row, the average is no finite number or in
+no band, or the cell is blank or not a number. A Judge's override wins, and
+carries no page, so its `cite` is null.
+
 **Natural weapons and extraordinary damage.** Two more `monsters` tables, from
 the Damage entry of the Monster Overview (MM p. 12), read by
 `scripts/monsters/natural-weapons.mjs`. `naturalWeaponDamage` is one row per

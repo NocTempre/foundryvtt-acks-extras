@@ -79,6 +79,16 @@ the system reads as mundane.
 `docs/monsters/MODEL.md`, "Natural weapons and extraordinary damage", has the
 reader's side.
 
+A third `monsters` table, `strengthAttack` (MM p. 349, Attributes for
+Monsters), is the Strength modifier grid of a natural attack: attribute scores
+down the side, bands of the attack's average damage across the top. It is a
+`gridRows` recipe in the Monstrous Manual's own folder
+(`books/mm/table-recipes.mjs`). The header row is read as a row of its own,
+marked `header: true`, each of its two-line cells joined whole under the column
+keys `col1`..., so the bands are the page's and no band edge is written in
+source; every other row is keyed by its own label (`keyByLabel`), the score, and
+holds one whole figure per column. `monsters/strength-attack.mjs` reads it.
+
 ## The import manager
 
 One window (`apps/import-manager.mjs`, `openImportManager({tab})`) holds the

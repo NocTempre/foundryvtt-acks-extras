@@ -23,7 +23,8 @@ import { BODY_FORM_ICONS } from "../../scripts/monsters/statblock.mjs";
 import { cultureNames, extractPlain, locatePageNumber, recipeLocates, recipePages } from "../../scripts/importer/tables-binding.mjs";
 import { ROLE_ORDER } from "../../scripts/importer/leader-roles.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
-import { isMissingRow, missingRowKeys, quantity } from "../../scripts/lib/tables.mjs";
+import { PRIORITY, isMissingRow, missingRowKeys, quantity, registerTable, resetTables } from "../../scripts/lib/tables.mjs";
+import { strengthBands } from "../../scripts/monsters/strength-attack.mjs";
 import { parseCell } from "../../scripts/markets/rules/availability.mjs";
 import { parseStones, parseTollCpPerSt, parseTariffPct, parseStayFee, diceRange } from "../../scripts/markets/rules/arbitrage.mjs";
 import { parseMoneyCp } from "../../scripts/markets/rules/commissions.mjs";
@@ -125,7 +126,7 @@ const TABLES = {
   // default attribute score; the natural weapons each damage type is listed
   // against, the edges of the extraordinary-damage rule, the body forms, and
   // the beastman organisation grids (village, leaders, special troops, traits).
-  monsters: ["sizeFrontage", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule", "bodyForms", "beastmanVillage", "beastmanLeaders", "beastmanSpecialTroops", "beastmanTraits", "beastmanEquipment", "beastmanTroopRules", "beastmanTraitRules", "beastmanOrganisation"],
+  monsters: ["sizeFrontage", "loadRule", "defaultScore", "strengthAttack", "naturalWeaponDamage", "extraordinaryRule", "bodyForms", "beastmanVillage", "beastmanLeaders", "beastmanSpecialTroops", "beastmanTraits", "beastmanEquipment", "beastmanTroopRules", "beastmanTraitRules", "beastmanOrganisation"],
   // The armour limits on abilities, and the weapon-narrowing penalty's two figures.
   "acks.classBuilder": ["thiefLimits", "tradeoffPenalty"],
   // The jumping, fall and squeezing figures, the Spelunking grids' stretch and targets
@@ -676,6 +677,39 @@ VERIFY["monsters.loadRule"] = (out, recipe, fail) => {
 VERIFY["monsters.defaultScore"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.score) && !(Number.isInteger(out.score) && out.score > 0)) fail("score: not a whole figure above zero");
+};
+// The Strength modifier grid: one header row whose cells each read as a band of
+// average damage, ascending, then score rows keyed by a whole score, each cell a
+// whole figure in every band column; fewer rows than the generic spec run, so the
+// run was not exhausted. Shape only; no band and no figure is named.
+VERIFY["monsters.strengthAttack"] = (out, recipe, fail) => {
+  const rows = Object.entries(out ?? {});
+  const heads = rows.filter(([, row]) => row?.header === true);
+  if (heads.length !== 1) return fail(`${heads.length} header row(s), not one`);
+  const columns = recipe.cellColumns.map((col) => col.key);
+  for (const key of columns) if (!isText(heads[0][1][key])) fail(`header ${key}: empty or non-text`);
+  resetTables();
+  registerTable({ id: "monsters", tables: { strengthAttack: out } }, { priority: PRIORITY.WORLD });
+  const bands = strengthBands();
+  resetTables();
+  if (!bands) fail("a header cell reads as no band");
+  else {
+    if (bands.length !== columns.length) fail("a column reads as no band");
+    if (bands[0].min !== null || bands.at(-1).max !== null) fail("the first band is not open below or the last not open above");
+    bands.slice(1).forEach((band, i) => {
+      if (!(band.min > (bands[i].max ?? Infinity))) fail(`${band.key}: not above the band before it`);
+    });
+  }
+  const scores = rows.filter(([, row]) => row?.header !== true);
+  if (!scores.length) fail("no score row read");
+  if (rows.length >= recipe.rows.length) fail("as many rows as specs: the run may have stopped short");
+  let last = -Infinity;
+  for (const [key, row] of scores) {
+    if (isMissingRow(row)) fail(`row ${key}: read missing`);
+    else if (!/^\d+$/.test(key) || Number(key) <= last) fail(`row ${key}: not a whole score above the one before`);
+    else for (const col of columns) if (!Number.isInteger(row[col])) fail(`row ${key}: ${col} is not a whole figure`);
+    last = Number(key);
+  }
 };
 // The natural weapons per damage type: at least one row read, each a damage
 // type the vocabulary declares holding a list of plain words. Shape only; no

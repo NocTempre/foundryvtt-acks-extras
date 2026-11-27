@@ -2,9 +2,11 @@
  * The Monstrous Manual's table recipes for the `monsters` document: the
  * beastman organisation of MM pp. 47 and 54-57, the village makeup, leader,
  * special-troop and tribal-trait grids, the paragraphs and equipment under
- * them, and the split, speech and elite-wage blocks. Geometry and anchors only;
- * every figure, row and label is read from the Judge's own copy at import
- * (docs/importer/RECIPES.md), and `monsters/organisation.mjs` reads them.
+ * them, and the split, speech and elite-wage blocks, which
+ * `monsters/organisation.mjs` reads; and the Strength modifier grid of a
+ * monster's natural attacks (MM p. 349), which `monsters/strength-attack.mjs`
+ * reads. Geometry and anchors only; every figure, row and label is read from
+ * the Judge's own copy at import (docs/importer/RECIPES.md).
  *
  * The document's other recipes wait in the shared `table-recipes.mjs`, whose
  * `source.pages` covers the pages they read, so this folder's `pages` adds the
@@ -309,6 +311,36 @@ export const tableRecipes = {
               { key: "battleCite", findRe: "rr p\\.\\s*\\d+", group: 0, take: "cite" },
             ],
           },
+        ],
+      },
+      // The Strength modifiers for a monster's natural attacks (MM Rules
+      // p. 349, Attributes for Monsters): an attribute score down the side, a
+      // band of the attack's average damage across the top, the attack-throw
+      // and damage modifier in each cell. The header row is read as a row
+      // (`header: true`), so which band each column stands for is the page's,
+      // each header cell a two-line label joined whole; every other row is
+      // keyed by its own label (`keyByLabel`), the score. The window ends above
+      // the worked examples. `monsters/strength-attack.mjs` reads the bands and
+      // the cells.
+      strengthAttack: {
+        shape: "gridRows",
+        book: "mm",
+        printedPage: 349,
+        locate: "Monster Attack Throw",
+        column: { xMin: 70, xMax: 310, yMin: 462, yMax: 672 },
+        labelMaxX: 115,
+        keyByLabel: true,
+        wrapRows: { centered: true },
+        cellColumns: [
+          { key: "col1", x: 125, w: 33, row: true },
+          { key: "col2", x: 160, w: 30, row: true },
+          { key: "col3", x: 197, w: 30, row: true },
+          { key: "col4", x: 232, w: 38, row: true },
+          { key: "col5", x: 273, w: 37, row: true },
+        ],
+        rows: [
+          { key: "header", labelRe: "^a\\s*t\\s*t\\s*r", cellPattern: "raw", set: { header: true } },
+          ...Array.from({ length: 24 }, (_, i) => ({ key: `score${i + 1}`, labelRe: "^\\d+$", optional: true, cellPattern: "intDash" })),
         ],
       },
     },
