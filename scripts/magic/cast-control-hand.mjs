@@ -252,18 +252,20 @@ const REFUSALS = Object.freeze(["gone", "notOwner", "noCard", "badOutcome", "noU
 
 /** How long after a pick's answer a redraw of its card still takes keyboard focus (a timing choice of the module). */
 const FOCUS_HOLD_MS = 1500;
+/** The longest a pick still in flight holds focus on its card: a relay to a GM who left never answers, and the hold must still close (a timing choice of the module). */
+const FOCUS_ASK_MS = 30000;
 
 /**
  * The card a pick asked to keep keyboard focus on. One pick can redraw its card
  * more than once (the record's write, then the creatures' own updates), so the
  * hold is not spent by the first redraw: it stays open while the pick is in
- * flight and for `FOCUS_HOLD_MS` after its answer, and every redraw of that
- * card inside it puts the focus back on the select.
+ * flight, at most `FOCUS_ASK_MS`, and for `FOCUS_HOLD_MS` after its answer, and
+ * every redraw of that card inside it puts the focus back on the select.
  */
 export const controlFocus = {
   pending: null,
   /** Open the hold for a card whose pick is in flight. */
-  ask(id) { this.pending = { id, until: Infinity }; },
+  ask(id, now = Date.now()) { this.pending = { id, until: now + FOCUS_ASK_MS }; },
   /** Start the hold's tail once the pick is answered. */
   settle(id, now = Date.now()) { if (this.pending?.id === id) this.pending.until = now + FOCUS_HOLD_MS; },
   /** Close the hold, for a pick that was refused or failed. */

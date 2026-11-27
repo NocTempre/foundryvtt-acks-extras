@@ -738,6 +738,9 @@ t("a pick's card takes keyboard focus back on every redraw while the pick is in 
     hand.controlFocus.ask("m1");
     hand.controlFocus.drop();
     assert.equal(redraw().focused, undefined, "a refused pick drops the hold");
+    hand.controlFocus.ask("m1", Date.now() - 60000);
+    assert.equal(redraw().focused, undefined, "a pick that was never answered stops holding the focus");
+    assert.equal(hand.controlFocus.pending, null, "and its hold is closed");
   } finally {
     hand.controlFocus.drop();
     globalThis.requestAnimationFrame = raf;
