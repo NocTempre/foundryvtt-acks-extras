@@ -14,7 +14,7 @@ globalThis.game = { packs: [], actors: [], items: [], journal: [], tables: [], f
 globalThis.foundry = { utils: { deepClone: (o) => JSON.parse(JSON.stringify(o)), escapeHTML: (s) => String(s) } };
 globalThis.Hooks = { on() {}, once() {}, call() {}, callAll() {} };
 
-const { companionSlots, isAnimal, hitDiceOf, underOneHitDie, offersPicker, FLAG_COMPANION } = await import("../scripts/abilities/companions.mjs");
+const { companionSlots, isAnimal, hitDiceOf, underOneHitDie, offersPicker, companionCandidates, FLAG_COMPANION } = await import("../scripts/abilities/companions.mjs");
 const { isUnattended, unattendedOperation } = await import("../scripts/lib/constants.mjs");
 
 let n = 0;
@@ -104,6 +104,47 @@ t("an unattended create of a companion ability offers no picker", () => {
 
 t("the companion flag has one spelling", () => {
   assert.equal(FLAG_COMPANION, "companion");
+});
+
+/* ---- the candidates, read off the index ---- */
+
+globalThis.CONFIG = { Item: { compendiumIndexFields: [] }, Actor: { compendiumIndexFields: [] } };
+const { declareLibraryIndexFields } = await import("../scripts/lib/library.mjs");
+const { shelfMock, sourceDoc } = await import("./lib-shelf-mock.mjs");
+declareLibraryIndexFields();
+
+/** An invented creature as the shelf stores it: the importer's type record rides in its extras flag. */
+const creature = (id, name, type, types, hd) => {
+  const doc = sourceDoc(id, name, type, `zz.${id}`);
+  doc.flags[M].extras = { types, ...(hd ? { hd } : {}) };
+  return doc;
+};
+
+const ta = async (name, fn) => {
+  await fn();
+  n++;
+  console.log(`ok - ${name}`);
+};
+
+await ta("the picker loads the animals alone, by one id query, and groups them by the rule's shape", async () => {
+  const pack = shelfMock({
+    type: "Actor",
+    docs: [
+      creature("a1", "Weasel", "monster", ["animal"], { count: 0.5, bonus: 0 }),
+      creature("a2", "Bison", "monster", ["animal"], { count: 4, bonus: 0 }),
+      creature("a3", "Sprite", "monster", ["fey"]),
+      creature("a4", "Hound", `${M}.animal`, []),
+      creature("a5", "Pilgrim", "character", []),
+    ],
+  });
+  game.packs = [pack];
+  game.actors = [];
+  const { eligible, other } = await companionCandidates();
+  assert.deepEqual(pack.calls.getDocuments, [{ _id__in: ["a1", "a2", "a4"] }], "one query naming the animals; no whole-shelf load");
+  assert.equal(pack.calls.getDocuments.some((q) => q === undefined), false);
+  assert.deepEqual(eligible.map((a) => a.name), ["Weasel"]);
+  assert.deepEqual(other.map((a) => a.name), ["Bison", "Hound"]);
+  game.packs = [];
 });
 
 console.log(`\ntest-companions: ${n} tests passed`);

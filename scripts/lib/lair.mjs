@@ -5,7 +5,7 @@
  * (once), `noted` the reason the Judges were last told nothing could be rolled.
  */
 import { MODULE_ID, LAIR_LANG_PREFIX } from "./constants.mjs";
-import { byCookbookId, whenReady } from "./library.mjs";
+import { byCookbookIdAsync } from "./library.mjs";
 import { citeOf, countTip, makeEncounter, rollEncounter } from "./group-encounter.mjs";
 import { LAIR_KEY, isShelved, lairOf, planLair } from "./lair-logic.mjs";
 import { occupantRow } from "./place.mjs";
@@ -28,8 +28,7 @@ const DEFAULT_CONTEXT = "wilderness";
 export async function lairMonster(place) {
   const of = lairOf(place)?.of;
   if (!of) return null;
-  await whenReady();
-  return byCookbookId("Actor", of, { original: true });
+  return byCookbookIdAsync("Actor", of, { original: true });
 }
 
 /** The words for a refusal: why a lair made no group. */

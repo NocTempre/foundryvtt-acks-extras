@@ -17,7 +17,7 @@
  * and its scale are never written.
  */
 import { MODULE_ID, LANG_PREFIX, ACTOR_TYPE } from "./constants.mjs";
-import { libraryActors, cookbookId, whenReady } from "../lib/library.mjs";
+import { libraryActors, libraryDocsWhere, cookbookId } from "../lib/library.mjs";
 import { unset, escape } from "../lib/util.mjs";
 import { ART_FIT, indexSource, planApply, planRestore, planPlaced, isWildcardPath } from "./token-art-logic.mjs";
 
@@ -64,14 +64,17 @@ export async function tokenArtSources() {
   return out;
 }
 
-/** The imported monsters this feature writes: the library's and the world copies made from them. */
-const monstersOf = () => libraryActors().filter((a) => a.type === ACTOR_TYPE.MONSTER && cookbookId(a));
+/** Whether a document or an index row is an imported monster: the importer's stamp on a monster. */
+const isImportedMonster = (a) => a.type === ACTOR_TYPE.MONSTER && !!cookbookId(a);
 
-/** The same, once the shelves are loaded. */
-async function subjectActors() {
-  await whenReady();
-  return monstersOf();
-}
+/** The imported monsters held now: the library's and the world copies made from them. */
+const monstersOf = () => libraryActors().filter(isImportedMonster);
+
+/**
+ * The imported monsters this feature writes: the world's, and each shelf's read
+ * off the index, so only the stamped monsters are loaded.
+ */
+const subjectActors = () => libraryDocsWhere("Actor", isImportedMonster);
 
 /** A subject as the plan reads it. */
 const subjectOf = (actor) => ({

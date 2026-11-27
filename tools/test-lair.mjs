@@ -150,14 +150,31 @@ function monster({ id, name = "Knot", type = "monster", encounter = null, stamp 
 
 /** The shelf the importer mints: a world pack of actors. */
 const shelf = {
-  metadata: { packageType: "world", label: "ACKS Cookbook — Actor" }, documentName: "Actor", collection: "world.shelf", index: new Map(), contents: [],
-  get size() { return this.contents.length; },
-  get: (id) => shelf.contents.find((d) => d.id === id),
+  metadata: { packageType: "world", label: "ACKS Cookbook — Actor" }, documentName: "Actor", collection: "world.shelf", visible: true, index: new Map(),
+  /** Every call, so a test can say what the shelf was asked. */
+  calls: { getIndex: [], getDocuments: [] },
+  /** The server's documents, and the ones this client holds: a document is held once a query has loaded it. */
+  server: new Map(),
+  held: new Map(),
+  get contents() { return [...this.held.values()]; },
+  get size() { return this.held.size; },
+  get: (id) => shelf.held.get(id),
+  async getIndex(...args) {
+    shelf.calls.getIndex.push(args);
+    return shelf.index;
+  },
+  async getDocuments(query) {
+    shelf.calls.getDocuments.push(query);
+    const ids = query?._id__in ? new Set(query._id__in) : null;
+    const found = [...shelf.server.values()].filter((d) => !ids || ids.has(d.id));
+    for (const doc of found) shelf.held.set(doc.id, doc);
+    return found;
+  },
 };
 game.packs = [shelf];
 const stock = (...actors) => {
   for (const a of actors) {
-    shelf.contents.push(a);
+    shelf.server.set(a.id, a);
     shelf.index.set(a.id, { _id: a.id, name: a.name, type: a.type, flags: a.flags });
   }
 };
@@ -246,6 +263,18 @@ await ok("a lair finds the library's own actor, never a world copy or a group's 
   assert.equal(await lairMonster(lairPlace()), beast);
   assert.equal(await lairMonster(lairPlace({ of: "zz.absent" })), null, "a monster that is not imported has no actor");
   assert.equal(await lairMonster(lairPlace({ of: "" })), null, "a place that is no lair has none");
+});
+
+await ok("a lair loads the stamp's one actor by one id query and no whole shelf", async () => {
+  const other = monster({ id: "zz.other", name: "Other", encounter: LINES });
+  stock(other);
+  shelf.held.clear();
+  shelf.calls.getDocuments.length = 0;
+  assert.equal(await lairMonster(lairPlace()), beast);
+  assert.deepEqual(shelf.calls.getDocuments, [{ _id__in: [beast.id] }], "the stamp's match alone, and never getDocuments() of the whole shelf");
+  assert.equal(shelf.held.has(other.id), false, "the shelf's other actor was not loaded");
+  shelf.server.delete(other.id);
+  shelf.index.delete(other.id);
 });
 
 /* -------------------------------------------- */

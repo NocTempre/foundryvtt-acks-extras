@@ -36,7 +36,7 @@ const { castRecordEnd, endAction, sweepEndedCasts, announceEndedCast } = await i
 const { castControlOutcome, applyCastControl } = await import("../scripts/magic/cast-control.mjs");
 const { damageBounds, checkApplyRequest, applyOnTarget: applyRaw, amountOf, undoEntry, undoEntries, missingGroupKeys, entryId, conditionRecords, checkUndoRequest, anchoredRecordIds, CAST_UNDO_HANDLER, CAST_WRITE_HANDLER, checkThrowRequest, checkTargetsRequest, checkRevertRequest } = await import("../scripts/magic/cast-apply.mjs");
 const { castCardView, castCardContent, CARD_ACTIONS, undoableEntry } = await import("../scripts/magic/cast-card.mjs");
-const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, buildTargets, castReach, CAST_SPELL_KEY } = await import("../scripts/magic/cast-spell.mjs");
+const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, buildTargets, castReach, CAST_SPELL_KEY, liveResolveRef } = await import("../scripts/magic/cast-spell.mjs");
 const { takesTargets } = await import("../scripts/magic/cast-kinds.mjs");
 const { dialogContext } = await import("../scripts/magic/apps/cast-dialog-model.mjs");
 const { describeSpellEffect } = await import("../scripts/magic/describe.mjs");
@@ -2731,6 +2731,26 @@ await ta("a declaration stored with a tradition resolves through it; one stored 
   const old = make({});
   assert.equal((await castSpellRun(spell([heal]), () => {}, old.deps, {})).ok, true);
   assert.deepEqual(reads, [null], "a record with none resolves as before");
+});
+
+await ta("a summon row's creature resolves asynchronously, off the index: one id query for the stamp and no whole shelf", async () => {
+  globalThis.CONFIG = { Item: { compendiumIndexFields: [] }, Actor: { compendiumIndexFields: [] } };
+  (await import("../scripts/lib/library.mjs")).declareLibraryIndexFields();
+  const { shelfMock, sourceDoc } = await import("./lib-shelf-mock.mjs");
+  const shelf = shelfMock({ type: "Actor", docs: [sourceDoc("c1", "Creature c1", "monster", "zz.c1"), sourceDoc("c2", "Creature c2", "monster", "zz.c2")] });
+  const saved = { game: globalThis.game, fromUuid: globalThis.fromUuid };
+  globalThis.game = { ...saved.game, user: { isGM: true }, packs: [shelf], actors: [], items: [], journal: [], tables: [] };
+  globalThis.fromUuid = async () => null;
+  try {
+    const answer = liveResolveRef("zz.c2");
+    assert.ok(answer instanceof Promise, "the lookup is awaited by every consumer, so it answers a promise");
+    assert.equal((await answer)?.id, "c2");
+    assert.deepEqual(shelf.calls.getDocuments, [{ _id__in: ["c2"] }]);
+    assert.equal(await liveResolveRef("zz.absent"), null, "a ref nothing answers is null");
+  } finally {
+    globalThis.game = saved.game;
+    globalThis.fromUuid = saved.fromUuid;
+  }
 });
 
 console.log(`\n${n} magic cast tests passed`);

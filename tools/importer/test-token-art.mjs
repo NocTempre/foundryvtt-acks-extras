@@ -216,6 +216,28 @@ const restored = await restoreTokenArt();
 ok("restore puts the recorded token back and clears the flag", restored.restore === 2 && actors[0].prototypeToken.texture.src === BOOKART && !actors[0].flags[MODULE_ID].tokenArt, JSON.stringify(restored));
 ok("restore of a wildcard returns the mark", actors[1].prototypeToken.randomImg === false);
 ok("and none is left to restore", hasTokenArtFlag() === false);
+// The shelves are read off the index: only the stamped monsters are loaded, by one id query.
+globalThis.CONFIG = { Item: { compendiumIndexFields: [] }, Actor: { compendiumIndexFields: [] } };
+library.declareLibraryIndexFields();
+const { shelfMock, sourceDoc } = await import("../lib-shelf-mock.mjs");
+const shelfPack = shelfMock({
+  type: "Actor",
+  docs: [
+    sourceDoc("s1", "Shelf Wump", "monster", "zz.shelfwump"),
+    sourceDoc("s2", "Shelf Pilgrim", "character", "zz.shelfpilgrim"),
+    sourceDoc("s3", "Shelf Plain", "monster"),
+    sourceDoc("s4", "Shelf Zorn", "monster", "zz.shelfzorn"),
+  ],
+});
+game.packs = [pack, shelfPack];
+dialogResult = false;
+active = true;
+await applyTokenArt(sources[0]);
+ok("the plan loads the shelf's stamped monsters alone, by one id query", JSON.stringify(shelfPack.calls.getDocuments) === JSON.stringify([{ _id__in: ["s1", "s4"] }]), JSON.stringify(shelfPack.calls.getDocuments));
+await restoreTokenArt();
+ok("restore asks for nothing more of a shelf that already holds them", shelfPack.calls.getDocuments.length === 1, JSON.stringify(shelfPack.calls.getDocuments));
+game.packs = [pack, ownPack, corePack];
+
 active = false;
 ok("restore needs no source package", (await restoreTokenArt()).restore === 0);
 game.user.isGM = false;

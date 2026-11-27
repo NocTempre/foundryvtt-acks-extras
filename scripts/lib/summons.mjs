@@ -38,7 +38,7 @@ import { MODULE_ID, LANG_PREFIX, SUMMONS_PLACED_HOOK, SUMMONS_DISMISSED_HOOK, TE
 import { docOf, makeLoc } from "./util.mjs";
 import { centreOfToken, pointGapFeet } from "./distance-units.mjs";
 import * as services from "./services.mjs";
-import { libraryPacks, byCookbookId, whenReady } from "./library.mjs";
+import { libraryPacks, byCookbookIdAsync, libraryTwinReady } from "./library.mjs";
 import {
   SUMMON_COPY_FLAG,
   SUMMON_RECORD_FLAG,
@@ -329,9 +329,17 @@ async function resolveSource(ref, spellId, user) {
     // an id that is no uuid: the library lookup below answers for it
   }
   if (!spellId) return null;
-  await whenReady();
-  return byCookbookId("Actor", key, { prefer: (doc) => sourceReadable(doc, user) });
+  return byCookbookIdAsync("Actor", key, { prefer: (doc) => sourceReadable(doc, user) });
 }
+
+/**
+ * Resolve once the library twin of the summoner's spell `spellId` is held, so
+ * the summon policy (magic's `summonRefusal`, which reads the twin
+ * synchronously) finds it on this client. The spell is the summoner's own item,
+ * the one `checkPlaceRequest` hands the policy; no spell, or one with no
+ * cookbook stamp, has no twin to wait for.
+ */
+const spellTwinReady = (summoner, spellId) => libraryTwinReady(spellId ? summoner?.items?.get?.(spellId) : null);
 
 /**
  * The centre of the caster's token on the scene, for the range a placement is
@@ -355,6 +363,7 @@ async function placeOp({ summonerUuid, sourceUuid, sceneId, positions, count, sp
   const source = await resolveSource(sourceUuid, spellId, user);
   const scene = game.scenes.get(sceneId);
   const cast = normalizeCast({ ...stated, castId: stated?.castId ?? castId }, foundry.utils.randomID());
+  await spellTwinReady(summoner, spellId);
   const verdict = checkPlaceRequest({ user, summoner, source, scene, count, positions, spellId, cast });
   if (!verdict.ok) return refused(verdict.reason);
   if (!user.isGM) {
@@ -389,6 +398,7 @@ async function joinOp({ summonerUuid, sourceUuid, count, spellId = "", castId = 
   const summoner = await fromUuid(summonerUuid);
   const source = await resolveSource(sourceUuid, spellId, user);
   const cast = normalizeCast({ ...stated, castId: stated?.castId ?? castId }, foundry.utils.randomID());
+  await spellTwinReady(summoner, spellId);
   const verdict = checkPlaceRequest({ user, summoner, source, count, spellId, cast });
   if (!verdict.ok) return refused(verdict.reason);
   const party = joiningParty(summoner);
@@ -690,6 +700,7 @@ async function previewsFor(source, summoner, count) {
 export async function summonVerdict(summoner, { sourceUuid, count = 1, spellId = "" } = {}) {
   const scene = sceneNow();
   const source = await resolveSource(sourceUuid, spellId, game.user);
+  await spellTwinReady(summoner, spellId);
   const verdict = checkPlaceRequest({ user: game.user, summoner, source, scene, count, spellId });
   // A seat that is no GM cannot tell a creature that is gone from one on a shelf closed to it: a ref its spell carries that nothing here answers reads as the second.
   const closed = verdict.reason === "badSource" && !source && !!spellId && !!normalizeRef(sourceUuid) && !game.user.isGM;

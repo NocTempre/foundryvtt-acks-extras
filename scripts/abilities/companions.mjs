@@ -27,7 +27,7 @@ import { MODULE_ID, LANG_PREFIX, FLAG_EXTRAS, ABILITY_TYPE } from "./constants.m
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 import { ANIMAL_TYPE, isUnattended } from "../lib/constants.mjs";
 import { monsterHitDice } from "../lib/actor-read.mjs";
-import { libraryActors, whenReady } from "../lib/library.mjs";
+import { libraryDocsWhere } from "../lib/library.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { docOf, escape as esc } from "../lib/util.mjs";
 
@@ -87,15 +87,13 @@ export function hitDiceOf(actor) {
 export const underOneHitDie = ({ count, bonus } = {}) => count > 0 && (count < 1 || (count === 1 && bonus < 0));
 
 /**
- * The library's animals, by name, split into the rule's two groups. Awaits
- * the library so a cold shelf never offers half a list.
+ * The library's animals, by name, split into the rule's two groups. The
+ * animals are picked off the index (`libraryDocsWhere`) and only they are
+ * loaded, so no other creature of the library is.
  * @returns {Promise<{eligible: object[], other: object[]}>}
  */
 export async function companionCandidates() {
-  await whenReady();
-  const animals = libraryActors()
-    .filter(isAnimal)
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const animals = (await libraryDocsWhere("Actor", isAnimal)).sort((a, b) => a.name.localeCompare(b.name));
   const eligible = animals.filter((a) => underOneHitDie(hitDiceOf(a)));
   return { eligible, other: animals.filter((a) => !eligible.includes(a)) };
 }

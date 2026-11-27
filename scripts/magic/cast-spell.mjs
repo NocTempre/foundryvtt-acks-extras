@@ -74,7 +74,7 @@ import { summonRowsOf, summonOffer, judgeSummon, summonIsConjuration } from "./c
 import { SEAL_ROW_TYPE } from "./cast-seal.mjs";
 import { askSpellDie } from "./spell-die-prompt.mjs";
 import { displayDuration } from "./spell-logic.mjs";
-import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
+import { byCookbookId, byCookbookIdAsync, cookbookId, whenReady } from "../lib/library.mjs";
 import { sourceReadable } from "../lib/summons-logic.mjs";
 import { addSpellUseClaimant, removeSpellUseClaimant } from "../lib/patches/spell-use.mjs";
 import { MAGIC_ATTACK_TYPE, spellCarrier, magicDamageSpec, actorToken, addAttackContributor } from "../lib/patches/attack-throw.mjs";
@@ -519,6 +519,17 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
   return { targets, entries, rolls };
 }
 
+/**
+ * The Actor a summon row's `ref` names, as the live world resolves it: a uuid,
+ * else the library's actor carrying the cookbook id, read off the index and
+ * loaded alone. Of several documents carrying one id, the seat is offered the
+ * one its user observes, as lib's own lookup takes it. Async, since the read is.
+ * @param {string} ref
+ * @returns {Promise<object|null>}
+ */
+export const liveResolveRef = (ref) =>
+  resolveSummonRef(ref, { fromUuid: (uuid) => fromUuid(uuid), byCookbookId: (type, id) => byCookbookIdAsync(type, id, { prefer: (doc) => sourceReadable(doc, game.user) }) });
+
 /** The dependencies a cast uses, as the live world gives them; a test supplies its own. */
 const liveDeps = () => ({
   ready: whenReady,
@@ -551,8 +562,7 @@ const liveDeps = () => ({
   // A summoning's creature prompt, the ref's creature, lib's pre-click checks, the seat's clicks and the placement (`lib/summons.mjs`, loaded where a summoning is cast).
   pickSummon: async (caster, o) => (await import("../lib/summons.mjs")).pickSummon(caster, o),
   summonVariant: async (caster, family, o) => (await import("../lib/summons.mjs")).summonVariant(caster, family, o),
-  // Of several documents carrying a row's id, the seat is offered the one its user observes, as lib's own lookup takes it.
-  resolveRef: (ref) => resolveSummonRef(ref, { fromUuid: (uuid) => fromUuid(uuid), byCookbookId: (type, id) => byCookbookId(type, id, { prefer: (doc) => sourceReadable(doc, game.user) }) }),
+  resolveRef: liveResolveRef,
   summonVerdict: async (caster, o) => {
     const lib = await import("../lib/summons.mjs");
     const verdict = await lib.summonVerdict(caster, o);

@@ -2205,4 +2205,70 @@ await t("heldSummonsOf names the party each held summon rides in", () => {
   assert.deepEqual(heldSummonsOf(summoner).map((h) => [h.partyId, h.partyName, h.actorId]), [["pty", "Test Company", "m1"], ["nameless", "", "m2"]]);
 });
 
+/* -------------------------------------------- */
+/*  The shelves are read off the index           */
+/* -------------------------------------------- */
+
+globalThis.CONFIG = { Item: { compendiumIndexFields: [] }, Actor: { compendiumIndexFields: [] } };
+const libraryMod = await import("../scripts/lib/library.mjs");
+libraryMod.declareLibraryIndexFields();
+const { shelfMock, sourceDoc } = await import("./lib-shelf-mock.mjs");
+
+await t("a creature named by its cookbook id loads by one id query for that stamp, and no whole shelf", async () => {
+  const { scene } = setup({ items: [SPELL] });
+  const actors = shelfMock({
+    type: "Actor",
+    docs: [sourceDoc("c1", "Creature c1", "monster", "zz.c1"), sourceDoc("c2", "Creature c2", "monster", "zz.c2"), sourceDoc("c3", "Creature c3", "monster")],
+  });
+  game.packs = [actors];
+  seatCanvas(scene);
+  try {
+    const verdict = await summonVerdict(registry.get("Actor.sum"), { sourceUuid: "zz.c2", count: 1, spellId: SPELL.id });
+    assert.equal(verdict.ok, true);
+    assert.equal(verdict.source.id, "c2");
+    assert.deepEqual(actors.calls.getDocuments, [{ _id__in: ["c2"] }], "the stamp's match alone; the shelf's other creatures stay on the server");
+  } finally {
+    endSeat();
+  }
+});
+
+await t("a placement request finds the spell's library twin held before the policy reads it, at all three sites", async () => {
+  const stamp = "zz.twinspell";
+  const stamped = { id: SPELL.id, type: "spell", name: SPELL.name, documentName: "Item", flags: { [M]: { cookbook: { id: stamp } } } };
+  const sites = {
+    place: () => summonRelay(place()),
+    join: () => summonRelay(join()),
+    verdict: async () => {
+      const scene = world.scenes.get("s1");
+      seatCanvas(scene);
+      game.user = p1;
+      try {
+        return await summonVerdict(registry.get("Actor.sum"), { sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: SPELL.id });
+      } finally {
+        game.user = gm;
+        endSeat();
+      }
+    },
+  };
+  for (const [site, run] of Object.entries(sites)) {
+    setup({ items: [stamped] });
+    const items = shelfMock({ type: "Item", docs: [sourceDoc("t1", "Twin Spell", "spell", stamp), sourceDoc("t2", "Other Spell", "spell", "zz.otherspell")] });
+    game.packs = [items];
+    const seen = [];
+    // The policy reads the twin as magic's own does: synchronously, by the spell's stamp.
+    const off = logic.registerSummonPolicy(() => {
+      seen.push({ held: items.has("t1"), twin: libraryMod.byCookbookId("Item", stamp)?.id ?? null });
+      return "notNamed";
+    });
+    try {
+      assert.equal((await run()).reason, "notNamed", site);
+    } finally {
+      off();
+      game.packs = [];
+    }
+    assert.deepEqual(seen, [{ held: true, twin: "t1" }], `${site}: the twin is held when the policy runs`);
+    assert.deepEqual(items.calls.getDocuments, [{ _id__in: ["t1"] }], `${site}: one id query for the twin, none for its neighbour`);
+  }
+});
+
 console.log(`\ntest-summons: ${n} tests passed`);
