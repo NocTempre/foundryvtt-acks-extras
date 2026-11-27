@@ -174,7 +174,7 @@ installImportManager({
   // A press that writes the world refuses, whatever opened the window.
   const before = notices.length;
   await app.constructor.DEFAULT_OPTIONS.actions.importAll.call(app);
-  ok("importing from a player's window warns and runs nothing", notices.length === before + 1 && notices.at(-1)[0] === "warn" && notices.at(-1)[1] === "ACKS-IMPORTER.manager.gmOnly", JSON.stringify(notices.at(-1)));
+  ok("importing from a player's window warns and runs nothing", notices.length === before + 1 && notices.at(-1)[0] === "warn" && notices.at(-1)[1] === "acks-extras | ACKS-IMPORTER.manager.gmOnly", JSON.stringify(notices.at(-1)));
 
   // Opening it is open to every seat, always on Books.
   const opened = openImportManager({ tab: "tools", firstRun: true });

@@ -133,7 +133,7 @@ export async function cookbookImportAbilitiesDialog() {
           bar.finish();
         }
         ui.notifications.info(
-          game.i18n.format(`${LANG_PREFIX}.ui.abilDone`, { done, picked: picked.length, pack: packLabel("Item") }) +
+          `${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.abilDone`, { done, picked: picked.length, pack: packLabel("Item") })}` +
             (passed.closed ? ` ${game.i18n.format(`${LANG_PREFIX}.ui.abilPassed`, { n: passed.closed })}` : ""),
         );
       },
@@ -523,7 +523,7 @@ export async function danglingAbilities() {
 export async function cookbookPruneAbilities() {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
   const stale = await danglingAbilities();
-  if (!stale.length) return ui.notifications.info(game.i18n.localize(`${LANG_PREFIX}.ui.pruneNone`));
+  if (!stale.length) return ui.notifications.info(`${MODULE_ID} | ${game.i18n.localize(`${LANG_PREFIX}.ui.pruneNone`)}`);
   const rows = stale
     .map((i) => `<li>${esc(i.name)} <code>${esc(i.getFlag(MODULE_ID, "cookbook").id)}</code></li>`)
     .join("");
@@ -535,7 +535,7 @@ export async function cookbookPruneAbilities() {
   });
   if (!ok) return null;
   await deleteImported("Item", stale);
-  ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.pruneDone`, { n: stale.length }));
+  ui.notifications.info(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.pruneDone`, { n: stale.length })}`);
   return stale.length;
 }
 

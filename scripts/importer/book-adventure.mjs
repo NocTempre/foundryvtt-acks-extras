@@ -100,7 +100,7 @@ function fillImport(adventure, toCreate, toUpdate) {
 /** `preImportAdventure`: narrow the import to the fill, or cancel it. Never async. */
 function steerImport(adventure, options, toCreate, toUpdate) {
   if (!isCookbookAdventure(adventure)) return;
-  const say = (key, data = {}) => game.i18n.format(`${LANG_PREFIX}.adventure.${key}`, { name: adventure.name, ...data });
+  const say = (key, data = {}) => `${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.adventure.${key}`, { name: adventure.name, ...data })}`;
   // A cold shelf answers the library lookups with nothing, which would read
   // every library document as missing and create a world twin of each.
   // `warmBeforePrepare` has waited for the library, so a shelf still cold
@@ -154,9 +154,9 @@ function afterImport(adventure, options, created) {
       await cookbookImportLinks({ quiet: true });
     }
     ui.notifications.info(
-      game.i18n.format(`${LANG_PREFIX}.adventure.filled`, {
+      `${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.adventure.filled`, {
         name: adventure.name, added: report.added, held: report.held, shelved: report.shelved, skipped: report.skipped,
-      }),
+      })}`,
     );
   })().catch((err) => console.error(`${MODULE_ID} | ${adventure.name}: links after import`, err));
 }
@@ -175,7 +175,7 @@ const WARM_TRIES = 3;
  */
 async function warmBeforePrepare(wrapped, ...args) {
   if (isCookbookAdventure(this) && libraryCold()) {
-    ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.adventure.libraryWarming`, { name: this.name }));
+    ui.notifications.info(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.adventure.libraryWarming`, { name: this.name })}`);
     for (let n = 0; n < WARM_TRIES && libraryCold(); n++) await warmLibrary();
   }
   return wrapped(...args);

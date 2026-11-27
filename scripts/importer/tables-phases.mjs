@@ -141,10 +141,10 @@ export async function applyReadTables(docIds, { repair = null } = {}) {
       const built = await applyBuilderImport({ repair });
       if (built.races.length || built.builds.length) {
         ui.notifications.info(
-          game.i18n.format(`${LANG_PREFIX}.tables.builderApplied`, {
+          `${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.tables.builderApplied`, {
             races: built.races.length,
             builds: built.builds.length,
-          }),
+          })}`,
         );
       }
       console.log(`${MODULE_ID} | class-builder binding`, built);
@@ -171,7 +171,7 @@ export async function applyReadTables(docIds, { repair = null } = {}) {
       // An adopted tongue counts as work landed, though nothing was created.
       const landed = made.created + made.adopted;
       if (landed) {
-        ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.tables.languagesApplied`, { created: landed }));
+        ui.notifications.info(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.tables.languagesApplied`, { created: landed })}`);
       }
       console.log(`${MODULE_ID} | language binding`, made);
     } catch (err) {

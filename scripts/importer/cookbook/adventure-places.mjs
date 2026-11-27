@@ -1049,16 +1049,16 @@ export async function cookbookImportMarketProfiles({ books: only = null, repair 
   if (unmapped.size) {
     const list = [...unmapped].map(([column, header]) => `${header} (${column})`).join("; ");
     console.warn(`${MODULE_ID} | market profiles: goods with no merchandise match — ${list}`);
-    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.markets.unmapped`, { n: unmapped.size, list }));
+    ui.notifications.warn(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.markets.unmapped`, { n: unmapped.size, list })}`);
   }
   if (duplicates.size) {
     const list = [...duplicates].map(([column, header]) => `${header} (${column})`).join("; ");
-    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.markets.duplicates`, { n: duplicates.size, list }));
+    ui.notifications.warn(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.markets.duplicates`, { n: duplicates.size, list })}`);
   }
   if (conflicts.length) {
-    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.markets.classConflict`, { list: conflicts.join(", ") }));
+    ui.notifications.warn(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.markets.classConflict`, { list: conflicts.join(", ") })}`);
   }
-  ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.markets.done`, counts));
+  ui.notifications.info(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.markets.done`, counts)}`);
   return { ...counts, unmapped: [...unmapped.keys()], duplicates: [...duplicates.keys()], conflicts };
 }
 

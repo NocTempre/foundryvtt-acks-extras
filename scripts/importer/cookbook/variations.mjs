@@ -105,7 +105,7 @@ export async function importMerchandise({ only = null, repair = null } = {}) {
     const lines = describeUnmapped(unmapped);
     console.warn(`${MODULE_ID} | merchandise: ${lines.length} printed name(s) map to no good and were left out:\n${lines.join("\n")}`);
     ui.notifications?.warn(
-      game.i18n.format(`${LANG_PREFIX}.ui.merchUnmapped`, { n: lines.length, list: lines.join("; ") }),
+      `${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.merchUnmapped`, { n: lines.length, list: lines.join("; ") })}`,
     );
   }
   ui.notifications?.info(
@@ -125,9 +125,9 @@ async function appendDemand(held, unmapped) {
     const { node, closed } = await readEntryGrids(id);
     if (!node) {
       ui.notifications?.info(
-        game.i18n.format(`${LANG_PREFIX}.ui.${closed ? "merchDemandClosed" : "merchDemandNoMatch"}`, {
+        `${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.${closed ? "merchDemandClosed" : "merchDemandNoMatch"}`, {
           book: BOOKS[bookOf(cookbookEntry(id))]?.label ?? id,
-        }),
+        })}`,
       );
       continue;
     }

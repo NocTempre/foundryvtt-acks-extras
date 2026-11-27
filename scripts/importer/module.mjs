@@ -273,11 +273,11 @@ export async function openBookPage(bookId, pdfPage) {
   const journal = shelfJournal(bookId);
   const page = shelfPage(journal);
   if (!page?.src) {
-    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.citeNoBook`, { book: label }));
+    ui.notifications.warn(noticeText("citeNoBook", { book: label }));
     return false;
   }
   if (!page.testUserPermission(game.user, "OBSERVER")) {
-    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.citeNoAccess`, { book: label }));
+    ui.notifications.warn(noticeText("citeNoAccess", { book: label }));
     return false;
   }
   const n = Math.max(1, Math.trunc(Number(pdfPage) || 1));
@@ -449,7 +449,7 @@ async function shelvePath(bookId, path, { name = null, size = 0 } = {}) {
   } catch (err) {
     console.warn(`${MODULE_ID} | ${path} could not be shelved as ${REGISTRY[bookId]?.label ?? bookId}`, err);
     ui.notifications.warn(
-      err?.wrongBook ? prefixed(err.message) : game.i18n.format(`${LANG_PREFIX}.ui.shelfFailed`, { name: name ?? path }),
+      err?.wrongBook ? prefixed(err.message) : noticeText("shelfFailed", { name: name ?? path }),
     );
     return null;
   }
@@ -1126,7 +1126,7 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null, src = 
  */
 async function cookbookImportTables(only = null, { repair = null, phase = "both", read = null } = {}) {
   if (!game.user.isGM) {
-    ui.notifications.warn(game.i18n.localize(`${LANG_PREFIX}.tables.gmOnly`));
+    ui.notifications.warn(prefixed(game.i18n.localize(`${LANG_PREFIX}.tables.gmOnly`)));
     return null;
   }
   if (phase === "apply") {
@@ -1134,7 +1134,7 @@ async function cookbookImportTables(only = null, { repair = null, phase = "both"
     return read;
   }
   if (!services.get("ruledata-import")) {
-    ui.notifications.error(game.i18n.localize(`${LANG_PREFIX}.tables.noProvider`));
+    ui.notifications.error(prefixed(game.i18n.localize(`${LANG_PREFIX}.tables.noProvider`)));
     return null;
   }
   let report;
@@ -1253,7 +1253,7 @@ async function ingestPairs(matched, byFile, { announce = true } = {}) {
       ui.notifications.error(
         err.wrongBook
           ? prefixed(err.message)
-          : `${REGISTRY[bookId].label}: ${game.i18n.localize(`${LANG_PREFIX}.ui.reconnectFailed`)}`,
+          : prefixed(`${REGISTRY[bookId].label}: ${uiText("reconnectFailed")}`),
       );
       continue;
     }
@@ -1262,18 +1262,16 @@ async function ingestPairs(matched, byFile, { announce = true } = {}) {
     try {
       if (handle) {
         await locationPut(bookId, { kind: "handle", handle, name: handle.name ?? null, size: file.size });
-        if (announce) ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.locationSaved`, { book: BOOKS[bookId].label }));
+        if (announce) ui.notifications.info(noticeText("locationSaved", { book: BOOKS[bookId].label }));
       } else {
         await rememberFile(bookId, file);
         if (announce) {
-          ui.notifications.info(
-            game.i18n.format(`${LANG_PREFIX}.ui.locationNameOnly`, { book: BOOKS[bookId].label, name: file.name }),
-          );
+          ui.notifications.info(noticeText("locationNameOnly", { book: BOOKS[bookId].label, name: file.name }));
         }
       }
     } catch (err) {
       console.warn(`${MODULE_ID} | ${bookId} opened but its location could not be remembered`, err);
-      ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.locationNotSaved`, { book: BOOKS[bookId].label }));
+      ui.notifications.warn(noticeText("locationNotSaved", { book: BOOKS[bookId].label }));
     }
   }
   return done;
@@ -1385,7 +1383,7 @@ async function connectFolderPicks(picks, { remember = null } = {}) {
   const candidates = Object.keys(BOOKS).filter((id) => !sessionDocs.has(id));
   if (!candidates.length) {
     return ui.notifications.info(
-      game.i18n.format(`${LANG_PREFIX}.ui.reconnectAllOpen`, {
+      noticeText("reconnectAllOpen", {
         books: [...sessionDocs.keys()].map((id) => REGISTRY[id]?.label ?? id).join(", "),
       }),
     );
@@ -1398,13 +1396,13 @@ async function connectFolderPicks(picks, { remember = null } = {}) {
     console.log(`${MODULE_ID} | folder scan: ${unmatched.length} PDF(s) matched no book — ${unmatched.map((f) => f.name).join(", ")}`);
   }
   if (!matched.size) {
-    return ui.notifications.warn(game.i18n.localize(`${LANG_PREFIX}.ui.folderNone`));
+    return ui.notifications.warn(noticeText("folderNone"));
   }
   const done = await ingestPairs(matched, byFile, { announce: false });
   if (done.length) {
     ui.notifications.info(
-      game.i18n.format(`${LANG_PREFIX}.ui.folderDone`, { count: done.length, books: done.join(", ") }) +
-        (unmatched.length ? ` ${game.i18n.format(`${LANG_PREFIX}.ui.folderSkipped`, { skipped: unmatched.length })}` : ""),
+      noticeText("folderDone", { count: done.length, books: done.join(", ") }) +
+        (unmatched.length ? ` ${uiText("folderSkipped", { skipped: unmatched.length })}` : ""),
     );
   }
   return done;
@@ -2305,7 +2303,7 @@ async function loadHeadings(bookId, page, pageData, picked, kindChoice) {
   }
   if (!created) return;
   await game.settings.set(MODULE_ID, SETTING_DYNAMIC, dyn);
-  ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.browseDone`, { n: created, book: BOOKS[bookId].label, page }));
+  ui.notifications.info(noticeText("browseDone", { n: created, book: BOOKS[bookId].label, page }));
 }
 
 /* -------------------------------------------- */

@@ -159,7 +159,7 @@ export async function applyTokenArt(source) {
       done.refused++;
     }
   }
-  ui.notifications.info(loc("tokenArt.done", { n: done.change, refused: done.refused }));
+  ui.notifications.info(`${MODULE_ID} | ${loc("tokenArt.done", { n: done.change, refused: done.refused })}`);
   return done;
 }
 
@@ -189,7 +189,7 @@ export async function restoreTokenArt() {
       done.refused++;
     }
   }
-  ui.notifications.info(loc("tokenArt.restored", { n: done.restore, kept: done.kept, refused: done.refused }));
+  ui.notifications.info(`${MODULE_ID} | ${loc("tokenArt.restored", { n: done.restore, kept: done.kept, refused: done.refused })}`);
   return done;
 }
 

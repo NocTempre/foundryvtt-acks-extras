@@ -117,7 +117,7 @@ export async function packFor(type, line = null) {
     })().catch((err) => {
       // The fall-back to the sidebar is announced, since it splits the library across two targets.
       console.error(`${MODULE_ID} | could not open the ${type} compendium — those documents land in the sidebar.`, err);
-      ui.notifications?.error(game.i18n.format(`${LANG_PREFIX}.ui.packFailed`, { type }));
+      ui.notifications?.error(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.packFailed`, { type })}`);
       return null;
     });
     packCache.set(cacheKey, pending);

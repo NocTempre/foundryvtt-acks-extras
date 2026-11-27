@@ -27,6 +27,9 @@ let instance = null;
 
 const loc = (key, data) => (data ? game.i18n.format(`${LANG_PREFIX}.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.${key}`));
 
+/** A notice's text, led by the module id the way every importer notice is. */
+const notice = (key) => `${MODULE_ID} | ${loc(key)}`;
+
 /**
  * Give the window what it runs. `api` is the importer's api;
  * `booksPanel({firstRun, notice})` builds the Books tab as `{html, wire}`
@@ -179,8 +182,8 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
   /** Run `fn` as the window's one job at a time, saying what runs, then redraw. */
   async #run(label, fn) {
     if (this.#busy) return;
-    if (!game.user?.isGM) return ui.notifications.warn(loc("manager.gmOnly"));
-    if (!host?.api) return ui.notifications.warn(loc("manager.notReady"));
+    if (!game.user?.isGM) return ui.notifications.warn(notice("manager.gmOnly"));
+    if (!host?.api) return ui.notifications.warn(notice("manager.notReady"));
     this.#busy = loc("manager.running", { what: label });
     await this.render();
     try {
@@ -229,7 +232,7 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
   }
 
   static async #onTokenArt(_event, target) {
-    if (!game.user?.isGM) return ui.notifications.warn(loc("manager.gmOnly"));
+    if (!game.user?.isGM) return ui.notifications.warn(notice("manager.gmOnly"));
     if (target.dataset.action === "tokenArtRestore") return this.#run(target.textContent.trim(), () => host.tokenArt.restore());
     const source = this.#tokenSources.get(target.dataset.source);
     if (source) await this.#run(target.textContent.trim(), () => host.tokenArt.apply(source));
@@ -239,12 +242,12 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     const api = host.api;
     const tool = target.dataset.action;
     const label = target.textContent.trim();
-    if (!game.user?.isGM) return ui.notifications.warn(loc("manager.gmOnly"));
+    if (!game.user?.isGM) return ui.notifications.warn(notice("manager.gmOnly"));
     if (tool === "repair") {
       // The repair window's importer checks, every check where it has none.
       // The lib api is read now, not at install: the two ready hooks race.
       const lib = host.lib?.();
-      if (!lib?.repair?.open) return ui.notifications.warn(loc("manager.notReady"));
+      if (!lib?.repair?.open) return ui.notifications.warn(notice("manager.notReady"));
       const ids = (lib.repair.checks?.() ?? []).filter((c) => c.feature === "importer").map((c) => c.id);
       return lib.repair.open({ only: ids.length ? ids : null, scan: true });
     }

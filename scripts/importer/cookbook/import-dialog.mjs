@@ -247,7 +247,7 @@ export async function cookbookImportIds(ids) {
     (bookId && ctx.sessionDocs.has(bookId) && actorKindOf(found.entry) ? wanted : declined).push(id);
   }
   if (declined.length) {
-    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.cookbookIdsDeclined`, { n: declined.length, list: declined.join(", ") }));
+    ui.notifications.warn(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.cookbookIdsDeclined`, { n: declined.length, list: declined.join(", ") })}`);
   }
   // Already-present ids are filtered out: a monster import always creates, so
   // an unfiltered list would leave two actors claiming one cookbook id.
@@ -395,7 +395,7 @@ export async function cookbookImportMonsters({ confirmed = false } = {}) {
   const present = await importedIdSet();
   const todo = ids.filter((id) => !present.has(id));
   if (!todo.length) {
-    return ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.cookbookAllPresent`, { n: ids.length }));
+    return ui.notifications.info(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.cookbookAllPresent`, { n: ids.length })}`);
   }
   // Reading a whole book is long and makes many actors: confirm first.
   const ok = confirmed || await foundry.applications.api.DialogV2.confirm({

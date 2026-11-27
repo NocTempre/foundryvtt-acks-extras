@@ -389,16 +389,16 @@ function ignoredMode(mode, fn) {
  * The edits still standing are listed on the console.
  */
 function reportMerged(result) {
-  ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.repairMergedDone`, {
+  ui.notifications.info(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.repairMergedDone`, {
     replaced: result.replaced, taken: result.taken, held: result.held, copies: result.kept?.length ?? 0, brought: result.brought ?? 0,
     recreated: result.recreated, refused: result.refused,
-  }));
-  if (result.refused) ui.notifications.info(game.i18n.localize(`${LANG_PREFIX}.ui.repairRefusedHint`));
-  if (result.notOffered) ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.repairMergedNotOffered`, { n: result.notOffered }));
+  })}`);
+  if (result.refused) ui.notifications.info(`${MODULE_ID} | ${game.i18n.localize(`${LANG_PREFIX}.ui.repairRefusedHint`)}`);
+  if (result.notOffered) ui.notifications.info(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.repairMergedNotOffered`, { n: result.notOffered })}`);
   if (result.pregens) {
-    ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.ui.repairMergedPregensDone`, {
+    ui.notifications.info(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.repairMergedPregensDone`, {
       restored: result.restored, rewritten: result.rewritten, left: Math.max(0, result.pregens - result.restored - result.rewritten - result.pregenRefused),
-    }));
+    })}`);
   }
   if (result.edits?.length) console.info(`${MODULE_ID} | edits kept`, result.edits.map((e) => `${e.name || e.uuid} · ${e.path}${e.unstamped ? " (unstamped)" : ""}`));
 }
@@ -416,7 +416,7 @@ async function repairShelf(shelf, { tally, quiet = false, ask = null }) {
   const run = SHELF_REFILL[shelf];
   const tableRun = TABLE_REPAIRS[shelf];
   if (!tableRun && !REPAIR_RUNS[run]) {
-    ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.repairShelfRebuildOnly`, { shelf }));
+    ui.notifications.warn(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.repairShelfRebuildOnly`, { shelf })}`);
     return null;
   }
   const prefixes = shelfPrefixes(shelf);
@@ -887,7 +887,7 @@ export async function cookbookReimportEverything(mode, { decision = null, choose
       before: async () => (tablesRead = (await api().cookbookImportTables?.(null, { phase: "read" })) ?? null),
     });
     if (result?.asked === 0) {
-      ui.notifications.info(t("everythingNone"));
+      ui.notifications.info(`${MODULE_ID} | ${t("everythingNone")}`);
       return undefined;
     }
     asked = (result?.parts ?? []).map((p) => p.label);
@@ -946,7 +946,7 @@ export async function cookbookReimportBook(bookId, { mode, ask = null, decision 
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (writes over imported documents).`);
   const label = BOOKS[bookId]?.label ?? bookId;
   if (!(await verifiedBook(bookId))) {
-    return ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportNotConnected`, { book: label }));
+    return ui.notifications.warn(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.reimportNotConnected`, { book: label })}`);
   }
   return runMerged((t, at) => repairBook(bookId, label, { tally: t, quiet: !at.first, ask }), { decision, tally, choose });
 }
@@ -1255,8 +1255,8 @@ export async function cookbookReimportAdventure(bookId, { mode, ask = null, deci
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (writes over imported documents).`);
   const label = bookLabel(bookId);
   const t = (key, data) => game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data ?? {});
-  if (!bookIsJudges(bookId) || !data.books.has(bookId)) return ui.notifications.warn(t("reimportAdventureNotJudges", { book: label }));
-  if (!(await verifiedBook(bookId))) return ui.notifications.warn(t("reimportNotConnected", { book: label }));
+  if (!bookIsJudges(bookId) || !data.books.has(bookId)) return ui.notifications.warn(`${MODULE_ID} | ${t("reimportAdventureNotJudges", { book: label })}`);
+  if (!(await verifiedBook(bookId))) return ui.notifications.warn(`${MODULE_ID} | ${t("reimportNotConnected", { book: label })}`);
   const pass = async (passTally, { first }) => {
     if (first) {
       const { written, left, markets } = await adventureForceCensus(bookId);
@@ -1276,7 +1276,7 @@ export async function cookbookReimportAdventure(bookId, { mode, ask = null, deci
     const { steps, errors } = await runAdventureBookSteps(bookId, { force: true, tally: passTally, adventure: false });
     if (first) {
       const tail = errors.length ? t("reimportAdventureErrors", { n: errors.length }) : "";
-      ui.notifications[errors.length ? "warn" : "info"](t("reimportAdventureRepaired", { book: label, steps: steps.length, errors: tail }));
+      ui.notifications[errors.length ? "warn" : "info"](`${MODULE_ID} | ${t("reimportAdventureRepaired", { book: label, steps: steps.length, errors: tail })}`);
     }
     return { book: bookId, steps, errors };
   };
@@ -1934,7 +1934,7 @@ async function runEntryReimport(all, { mode, decision = null, choose = null } = 
   await verifyOwners(all.filter(({ key }) => key !== "Tables").map(({ id }) => id));
   const closed = all.filter(({ key, id }) => key !== "Tables" && !rebuildable(id));
   const picked = all.filter((p) => !closed.includes(p));
-  if (closed.length) ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportLeft`, { n: closed.length }));
+  if (closed.length) ui.notifications.warn(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.reimportLeft`, { n: closed.length })}`);
   if (!picked.length) return null;
   return runMerged((t, at) => repairEntries(picked, closed.length, { tally: t, quiet: !at.first }), { decision, choose });
 }
@@ -2043,10 +2043,10 @@ export const packLabelsFor = (type, ids) =>
 /** Report an import run, naming what was skipped as already present. */
 export function reportImport(done, picked, skipped, ids = []) {
   ui.notifications.info(
-    game.i18n.format(`${LANG_PREFIX}.ui.cookbookDone`, {
+    `${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.cookbookDone`, {
       done,
       picked,
       pack: packLabelsFor("Actor", ids) || packLabel("Actor"),
-    }) + (skipped ? ` ${game.i18n.format(`${LANG_PREFIX}.ui.cookbookSkipped`, { skipped })}` : ""),
+    })}` + (skipped ? ` ${game.i18n.format(`${LANG_PREFIX}.ui.cookbookSkipped`, { skipped })}` : ""),
   );
 }
