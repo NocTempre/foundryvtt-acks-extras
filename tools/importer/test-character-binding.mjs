@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { parseStatline, parseWriteup } from "../../scripts/importer/executor.mjs";
 import { stripBookText } from "../../scripts/importer/prose.mjs";
 import { buildPlan } from "../../scripts/character-sheet/pdf/plan.mjs";
-import { sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier, AS_PRINTED_CLASS, ALIGN_WORD } from "../../scripts/importer/character-binding.mjs";
+import { sheetValuesFromStatline, asPrintedBlock, playerOwned, classBehindQualifier, alternativesHeld, ownedChoice, AS_PRINTED_CLASS, ALIGN_WORD } from "../../scripts/importer/character-binding.mjs";
 
 let n = 0;
 const t = (name, fn) => Promise.resolve(fn()).then(() => {
@@ -267,6 +267,60 @@ await t("a class printed behind a qualifier is the library class its trailing wo
   assert.equal(classBehindQualifier("Lampwright", matchClass), null, "the whole name is the caller's to match");
   assert.equal(classBehindQualifier("Ashen Tinker", matchClass), null);
   assert.equal(classBehindQualifier("", matchClass), null);
+});
+
+/* ---------------- a two-spell rename ---------------- */
+
+/** `held` over an invented library, answering a name case-insensitively. */
+const holding = (...names) => (name) => names.some((s) => s.toLowerCase() === name.toLowerCase());
+
+await t("a rename to two spells carries the shared trailing words to the first, and both held are both answered", () => {
+  assert.deepEqual(alternativesHeld("Glimmer or Hush Ward", holding("Glimmer Ward", "Hush Ward")), ["Glimmer Ward", "Hush Ward"]);
+});
+
+await t("only the completed first held answers it alone", () => {
+  assert.deepEqual(alternativesHeld("Glimmer or Hush Ward", holding("Glimmer Ward")), ["Glimmer Ward"]);
+});
+
+await t("only the last alternative held answers it alone", () => {
+  assert.deepEqual(alternativesHeld("Glimmer or Hush Ward", holding("Hush Ward")), ["Hush Ward"]);
+});
+
+await t("neither held answers nothing", () => {
+  assert.deepEqual(alternativesHeld("Glimmer or Hush Ward", holding("Lantern Ward")), []);
+});
+
+await t("an alternative held as written has nothing carried to it", () => {
+  const asked = [];
+  const held = (name) => (asked.push(name), holding("Glimmer", "Hush Ward")(name));
+  assert.deepEqual(alternativesHeld("Glimmer or Hush Ward", held), ["Glimmer", "Hush Ward"]);
+  assert.ok(!asked.includes("Glimmer Ward"), "a name answered as written is not retried with the tail");
+});
+
+await t("the longest run of trailing words is tried first", () => {
+  assert.deepEqual(alternativesHeld("Glimmer or Hush Tallow Ward", holding("Glimmer Tallow Ward", "Glimmer Ward", "Hush Tallow Ward")), ["Glimmer Tallow Ward", "Hush Tallow Ward"]);
+  assert.deepEqual(alternativesHeld("Glimmer or Hush Tallow Ward", holding("Glimmer Ward", "Hush Tallow Ward")), ["Glimmer Ward", "Hush Tallow Ward"], "a shorter run answers where the longer is absent");
+});
+
+await t("a completion the library lacks is not accepted", () => {
+  assert.deepEqual(alternativesHeld("Glimmer or Hush Tallow Ward", holding("Glimmer Lantern Ward")), []);
+});
+
+await t("a name with no 'or' is answered as written or not at all", () => {
+  assert.deepEqual(alternativesHeld("Hush Ward", holding("Hush Ward")), ["Hush Ward"]);
+  assert.deepEqual(alternativesHeld("Hush Ward", holding("Glimmer Ward")), []);
+  assert.deepEqual(alternativesHeld("", holding("Glimmer Ward")), []);
+});
+
+await t("three alternatives each take the tail of the last", () => {
+  assert.deepEqual(alternativesHeld("Glimmer or Mantle or Hush Ward", holding("Glimmer Ward", "Mantle Ward", "Hush Ward")), ["Glimmer Ward", "Mantle Ward", "Hush Ward"]);
+});
+
+await t("a candidate the character already holds is the Judge's choice; none or both held leave it open", () => {
+  assert.equal(ownedChoice(["Glimmer Ward", "Hush Ward"], holding("Hush Ward")), "Hush Ward");
+  assert.equal(ownedChoice(["Glimmer Ward", "Hush Ward"], holding("Glimmer Ward")), "Glimmer Ward");
+  assert.equal(ownedChoice(["Glimmer Ward", "Hush Ward"], holding("Lantern Ward")), null);
+  assert.equal(ownedChoice(["Glimmer Ward", "Hush Ward"], holding("Glimmer Ward", "Hush Ward")), null);
 });
 
 console.log(`\ncharacter-binding: ${n} checks OK`);

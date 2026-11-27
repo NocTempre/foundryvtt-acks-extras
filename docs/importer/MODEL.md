@@ -1517,8 +1517,15 @@ becomes a character, and the derivation wins".
 - **Its names.** Every class, proficiency and spell name passes through
   `libraryNameFor` first: a class or spell the library answers keeps its
   name, else the conversion table's rename of that category
-  (`registers.tables.conversion`); a spell renamed to two alternatives takes
-  the one the library answers, and keeps the rename when none or both do. A class neither answers is then read
+  (`registers.tables.conversion`). A spell renamed to two alternatives ("A or
+  B C") carries the last alternative's trailing words to one the library does
+  not answer as written, longest run first (`alternativesHeld`), so "A C" is
+  tried. One held lands. Two held place neither: the block carries one "One
+  of" row naming both library spells, once per printed name and counted in
+  `printed.missing`, in place of a "Not in the library" row. A character that
+  already holds exactly one of them has that one as the answer and gets no row
+  (`ownedChoice`). With none held the rename stands and the name is reported
+  missing. A class neither answers is then read
   behind its qualifier (`classBehindQualifier`: the longest run of trailing
   words the library answers, as a tradition set before the class), and the
   block notes the class it was read as. A proficiency resolves through the

@@ -13,8 +13,8 @@ import { executeEntry, convertName } from "../executor.mjs";
 import { progressBar } from "../progress.mjs";
 import { stableDocId } from "../adventure-binding.mjs";
 import { unreadRecord, unreadOfStatline } from "../unread-figures.mjs";
-import { sheetValuesFromStatline, asPrintedBlock, classBehindQualifier } from "../character-binding.mjs";
-import { slug } from "../../lib/vocab.mjs";
+import { sheetValuesFromStatline, asPrintedBlock, classBehindQualifier, alternativesHeld, ownedChoice } from "../character-binding.mjs";
+import { slug, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { lineOfData, data, ctx, cookbookEntry, bookOf, characterEntry } from "./state.mjs";
 import { readForImport } from "./read.mjs";
 import {
@@ -250,9 +250,17 @@ async function adventureActorArt(actor, session, id, found, node) {
  * answers keeps its name, else the conversion table's rename; a class neither
  * answers is then read behind its qualifier, and pushed to `read` as
  * `{printed, as}`; a proficiency resolves through the ability index, whose
- * aliases carry the older names.
+ * aliases carry the older names. A spell renamed to two alternatives the
+ * library holds both of is placed as neither: the name stands as written and
+ * `oneOf` gains `{printed, target, names}`, once per printed name, unless `owns` says
+ * the character already has exactly one of them, which is then the answer.
+ * @param {object} matchers the sheet import's `matchClass` and `matchSpell`
+ * @param {Array<{printed: string, as: string}>} [read] receives the class reads
+ * @param {object} [options]
+ * @param {Map<string, {printed: string, target: string, names: string[]}>} [options.oneOf] receives the two-candidate findings
+ * @param {(name: string) => boolean} [options.owns] whether the character already holds a spell by that name
  */
-function libraryNameFor({ matchClass, matchSpell }, read = []) {
+function libraryNameFor({ matchClass, matchSpell }, read = [], { oneOf = new Map(), owns = () => false } = {}) {
   const nameIndex = abilityNameIndex();
   const present = new Set(loadedAbilityIndex().keys());
   const renamed = (name, category) => {
@@ -272,9 +280,18 @@ function libraryNameFor({ matchClass, matchSpell }, read = []) {
       if (matchSpell(name)) return name;
       const to = renamed(name, "spell");
       // A conversion that names two spells ("X or Y") resolves to the one the
-      // library holds; with none or both held the target stands as written.
-      const held = to === name ? [] : to.split(/\s+or\s+/i).map((s) => s.trim()).filter((s) => s && matchSpell(s));
-      return held.length === 1 ? held[0] : to;
+      // library holds; with none held the target stands as written, and with
+      // more than one held it is a finding for the Judge to settle.
+      if (to === name) return to;
+      const held = alternativesHeld(to, matchSpell);
+      if (held.length === 1) return held[0];
+      if (held.length > 1) {
+        const names = held.map((n) => matchSpell(n)?.name ?? n);
+        const chosen = ownedChoice(names, owns);
+        if (chosen) return chosen;
+        oneOf.set(slug(name), { printed: name, target: to, names });
+      }
+      return to;
     }
     const guess = idForName(nameIndex, name, present);
     return (guess && cookbookEntry(guess.id)?.entry?.name) || name;
@@ -319,7 +336,8 @@ async function importCharacter(bookId, id, folderId, node, found) {
   // this module is also loaded where no Foundry runs.
   const [{ importSheet }, matchers] = await Promise.all([import("../../character-sheet/pdf/apply.mjs"), import("../../character-sheet/pdf/match.mjs")]);
   const read = [];
-  const rename = libraryNameFor(matchers, read);
+  const oneOf = new Map();
+  const rename = libraryNameFor(matchers, read, { oneOf, owns: (n) => !!matchers.ownedNamed(actor, n, [ITEM_TYPE.spell]) });
   // A pregen's bracketed spellbook fills its repertoire: the piece is read
   // for the spells it holds, each placed at the level the library gives it.
   const bookSpells = (piece) =>
@@ -338,14 +356,23 @@ async function importCharacter(bookId, id, folderId, node, found) {
   const granted = actor.items.filter((i) => !standing.has(i.id) && !i.flags?.[MODULE_ID]?.minted);
   if (granted.length) await actor.updateEmbeddedDocuments("Item", granted.map((i) => ({ _id: i.id, [`flags.${MODULE_ID}.minted`]: true })));
   const moraleField = actor.system.schema?.getField?.("details.morale");
-  const missing = [...report.unmatched, ...unplaced];
+  // A two-spell rename with both spells held reaches the boxes as its unsplit
+  // target, which the sheet import cannot match; its row is the finding's.
+  const settling = new Set([...oneOf.values()].map((f) => slug(f.target)));
+  const missing = [
+    ...[...report.unmatched, ...unplaced].filter((u) => !(u.kind === "spell" && settling.has(slug(u.name)))),
+    ...[...oneOf.values()].map((f) => ({ kind: "spell", name: f.printed, oneOf: f.names })),
+  ];
   const words = {
     heading: game.i18n.localize(`${LANG_PREFIX}.character.asPrinted`),
     differs: (d) => game.i18n.format(`${LANG_PREFIX}.character.differs`, { printed: d.sheet, inForce: d.inForce }),
   };
   const rows = [
     ...read.map((r) => ({ label: game.i18n.localize(`${LANG_PREFIX}.character.readAs`), text: r.as })),
-    ...missing.map((u) => ({ label: game.i18n.localize(`${LANG_PREFIX}.character.missing`), text: u.name })),
+    ...missing.map((u) => ({
+      label: u.oneOf ? game.i18n.format(`${LANG_PREFIX}.character.oneOf`, { names: u.oneOf.join(", ") }) : game.i18n.localize(`${LANG_PREFIX}.character.missing`),
+      text: u.name,
+    })),
     ...report.noted,
   ];
   const biography = entryText(node, id, found.entry.cite) + asPrintedBlock({ id, statline: sl.text, differences: report.checks, rows }, words);

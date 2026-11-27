@@ -71,6 +71,44 @@ export function classBehindQualifier(name, matchClass) {
 }
 
 /**
+ * The names a conversion target "A or B C" resolves to, in printed order. The
+ * words after the last "or" are shared by the alternatives before it, so an
+ * alternative `held` does not answer as written is retried with the last
+ * alternative's trailing words appended, the longest run first, and a
+ * completion counts only where `held` answers it. The last alternative is
+ * only ever taken as written.
+ * @param {string} target the conversion's rename target
+ * @param {(name: string) => unknown} held whether the library answers a name
+ * @returns {string[]} the alternatives the library answers, as written or completed
+ */
+export function alternativesHeld(target, held) {
+  const parts = String(target ?? "").split(/\s+or\s+/i).map((s) => s.trim()).filter(Boolean);
+  const tail = (parts.at(-1) ?? "").split(/\s+/);
+  const out = [];
+  parts.forEach((alt, i) => {
+    if (held(alt)) return out.push(alt);
+    if (i === parts.length - 1) return;
+    for (let k = tail.length - 1; k >= 1; k--) {
+      const completed = `${alt} ${tail.slice(tail.length - k).join(" ")}`;
+      if (held(completed)) return out.push(completed);
+    }
+  });
+  return out;
+}
+
+/**
+ * The candidate a Judge has already chosen: the one name among `names` that
+ * `owns` says the character holds, or null when it holds none or more than one.
+ * @param {string[]} names the library names a two-spell rename left open
+ * @param {(name: string) => unknown} owns whether the character holds a spell by that name
+ * @returns {string|null}
+ */
+export function ownedChoice(names, owns) {
+  const kept = names.filter((n) => owns(n));
+  return kept.length === 1 ? kept[0] : null;
+}
+
+/**
  * The sheet's boxes for one parsed quick-stat line (`parseStatline`) or
  * write-up (`parseWriteup`).
  *

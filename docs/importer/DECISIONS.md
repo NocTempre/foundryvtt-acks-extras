@@ -3357,3 +3357,26 @@ ground.
 
 **Cost.** Until now the ruling lived only in the plan, which closed on
 2026-11-26, and in those two commit messages.
+
+## 2026-11-27 — A two-spell rename with both spells held is a finding, not a pick
+
+**Asked.** A conversion renames an older spell to "A or B C", two spells
+sharing their trailing words. The character import split it into "A" and "B
+C", never tried "A C", and with both held kept the unsplit target, which the
+sheet import listed as not in the library although the library holds both
+(T-0864).
+
+**Ruled.** The shared trailing words are carried to the alternative that
+lacks them. With exactly one spell held it lands. With both held neither is
+placed, and the as-printed block carries one "One of" row naming both. A
+character that already holds exactly one of the two has that one as the
+answer, so the Judge's choice survives a rebuild and raises no row (the
+owner's principles: the Judge decides, a Judge's choice wins, nothing is
+silent).
+
+**Rejected.** Picking the first alternative: the printed order carries no
+meaning, so the pick would be a guess presented as a result. Keeping both: it
+writes a spell the page does not give.
+
+**Cost.** The character arrives one spell short until the Judge drags the
+right one onto it.
