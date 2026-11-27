@@ -900,16 +900,13 @@ and the damage row for a melee or thrown one (the system's character model's
 own split, never missile, never a spell carrier), and picks the figure by the
 weapon's `naturalWeapon` mark: `weapon` takes `abilityMod`, anything else or no
 mark takes `strengthAttackBonus` at the average of the weapon's base damage
-formula. The average is lib `dice-bounds.mjs` `formulaAverage`, the minimized
-and maximized `Roll` that cast-apply's private `foundryBounds` held, moved so
-two features read one evaluator; cast-apply keeps a local wrapper that throws
-where `formulaBounds` answers null, as its callers expect, and a formula whose
-total is no finite number now throws there where it used to pass the figure on.
-A formula with no average, an absent table or a blank cell adds nothing and
+formula. The average is lib `dice-bounds.mjs` `formulaAverage`: Foundry's own
+`Roll` minimized and maximized, null where a formula has no finite extremes. A
+formula with no average, an absent table or a blank cell adds nothing and
 reports nothing.
 
 Gap ruling: an average between two printed bands falls in the lower band
-(slice 1's `strengthBandFor`), on the basis that the same section rounds a
+(`monsters/strength-attack.mjs` `strengthBandFor`), on the basis that the same section rounds a
 positive half down for its load adjustment, so a half beyond a band's edge stays
 in the band it passed.
 
@@ -918,7 +915,9 @@ natural attack (the system's own monster pack and older imports carry no mark)
 to no row, so the rule would fail on the commonest case; a second dice parser in
 the monsters feature, when `Roll` already reads every formula the system rolls;
 reading the damage mode, which never reaches the attack's context (`ctx` carries
-the weapon, and the base formula is the weapon's own).
+the weapon, and the base formula is the weapon's own); moving cast-apply's own
+bounds onto lib's, whose callers expect a throw and a non-finite total passed
+on, which would change what a cast does with such a formula.
 
 Cost: a monster sheet's own attack figures do not show the row, because the seam
 asks its contributors only with an attack in flight; the dialog's modifier list

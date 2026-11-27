@@ -1,4 +1,4 @@
-/* global game, ui, fromUuid, fromUuidSync */
+/* global game, ui, fromUuid, fromUuidSync, Roll */
 /**
  * Applying a cast: what one rolled amount does to one target, whichever client
  * writes it. The amount is the roll, the save's fraction, the target's defenses
@@ -71,7 +71,6 @@ import { lifeOf, lifeEntry, roundsBounds, roundsFormulaOf, hasLife, readsFight }
 import { heldFight } from "./cast-fight.mjs";
 import { anchorsNeeded } from "./cast-recur.mjs";
 import { undoableEntry } from "./cast-card.mjs";
-import { formulaBounds } from "../lib/dice-bounds.mjs";
 
 /** The relay's handler name on lib's socket transport. */
 export const CAST_APPLY_HANDLER = "magicCastApply";
@@ -922,16 +921,11 @@ export async function undoEntries(card, targetKey, rowKey, deps) {
 /*  Foundry                                      */
 /* -------------------------------------------- */
 
-/**
- * The extremes of a dice formula, by Foundry's own evaluation. Its callers read
- * the answer unguarded or catch a throw (`roundsBounds`), so a formula that
- * has no extremes throws here instead of answering null.
- */
-function foundryBounds(formula) {
-  const bounds = formulaBounds(formula);
-  if (!bounds) throw new Error(`"${formula}" has no bounds`);
-  return bounds;
-}
+/** The extremes of a dice formula, by Foundry's own evaluation. */
+const foundryBounds = (formula) => ({
+  min: new Roll(formula).evaluateSync({ minimize: true }).total,
+  max: new Roll(formula).evaluateSync({ maximize: true }).total,
+});
 
 /**
  * The ids, of those a card names, of effects the cast itself wrote: each one held
