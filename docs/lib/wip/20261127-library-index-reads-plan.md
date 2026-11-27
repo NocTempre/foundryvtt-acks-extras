@@ -725,3 +725,37 @@ ready.
 - **Not checked:** removing materialized tables was not driven (it deletes the world's materialized tables);
   the packages were built and detached through the module's functions, not the class sheet's controls; the
   adventure's plan was not compared against one made on warm shelves.
+
+### S3. The held reader and the Actor lists (phase 1, 2026-11-27)
+
+Commit `b6591ae3`, landed with the full gate green; the lib diff was read against section 4 before landing
+(ruling 8). Walked on `main` at `b6591ae3`, same world and seats. The census gains `encounterEarly`: on a fresh
+GM page, as soon as the page allows, an encounter card for the world's first formation names a monster by its
+startup index row; the card's message is swept by id. The main run skipped it on a lookup bug in the script
+(formations are keyed by id), so it was run again alone. Output: `aia-tmp/20261127-perf-timings-s3.json` and
+`…-s3-encounter.json`. Fourteen boots, each reaching `ready` with no error in init, setup or ready.
+
+- **Encounter card before the warm ends:** posted in 320 ms, the warm not yet ended; it resolved its creature
+  and the card links it. No server pass in the window came from the card (the passes there are the warm's and
+  the startup narrow reads).
+- **Load (ready+60 s):** as in S2: GM 6,128 documents, Player 4,963; RollTable and JournalEntry hold 0.
+- **After the 310 s idle** (310,007 ms measured, every shelf at 0): the summon-row spell sheet made one
+  `_id__in` of 1 document and the Actor index passes (GM 2, Player 1), where S2's cold kick loaded the Actor
+  shelves whole (1,538 and 374). The cast window then loads the Actor shelves whole through its `whenReady`
+  (GM 7.4 s, Player 3.3 s), because Actor is warmed until S4b; in S2 it found them held from the spell sheet.
+  Total after the idle: GM 4 whole loads and 6,014 documents, Player 2 and 4,849 (S2: 6,013 and 4,848), the
+  same documents moved from the spell sheet to the cast. The character sheet loads as before (`classItems`).
+- **Render times** (the per-call projection's cost, a review concern): spell sheet 129 and 197 ms (S2 225 and
+  224), ability sheet 67 and 89 ms (68 and 91), weapon sheet 175 and 153 ms (229 and 207). No sheet is slower.
+- **Firsts.** Cast window: GM 16.5 s and Player 9.5 s, their `whenReady` loading the same 6,128 and 4,963
+  documents as S2 (13.5 s and 7.9 s): the difference is run-to-run time, not load. Unequip: 0.22 s, 0.16 s.
+- **Template packages, rules-table pass, adventure prepare:** as in S2 (created 0 on the shelf class, the
+  fixture built and detached, 0 duplicate keys, the cold shelves loaded by the actions that read them).
+- **Quiet queries:** `_id__in` of 40 433 ms, index 541 ms, whole 6,040 ms.
+- **Offline only:** `test-library-held` 31, `test-library-where` 37, `test-encounter-line` 22,
+  `test-recipe-editor-logic` 31, `test-organisation` 39, `-axes` 192, `-logic` 40, `-preview` 10, `-card` 6
+  checks, `test-encounters` OK, and the land's full gate. The organisation chart's Roll and the recipe editor's
+  creature list were checked offline only (their fixtures are a whole organisation and a recipe).
+- **Not checked:** the summon name the spell sheet shows after its redraw (S4b's walk reads it); a redraw asked
+  of a window still in its first render; `byCookbookIdAsync` on a roll table or journal entry, which answers the
+  world's documents alone.
