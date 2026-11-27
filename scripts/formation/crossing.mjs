@@ -67,7 +67,7 @@ import {
 } from "./crossing-logic.mjs";
 import { setupKeysOf } from "./hazard-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
-import { abilityMod } from "../lib/actor-read.mjs";
+import { abilityMod, enteredScore } from "../lib/actor-read.mjs";
 import { capacityStone, loadStone, movementBearing } from "../lib/capacity.mjs";
 import { ownSpeeds } from "../lib/movement-scales.mjs";
 import { conditionSet, forbiddenBy } from "../lib/conditions.mjs";
@@ -553,7 +553,7 @@ function swimEntry(formation, crossing, { member, actor }, { seat, standing, rec
   const turn = crossingTurn(formation, member);
   const row = markLoad(swimRow({
     encumbrance: stone, holds: holdsSwimming(actor), own: ownSwimSpeed(actor), speeds: swimSpeeds(actor, (stone ?? 0) + (hauled?.stone ?? 0), !!hauled),
-    conMod: monster ? null : abilityMod(actor, "con"), penalty: swimPenalty(crossing), conditions: swimConditions(crossing),
+    conMod: monster && enteredScore(actor, "con") === null ? null : abilityMod(actor, "con"), penalty: swimPenalty(crossing), conditions: swimConditions(crossing),
     judgeMod: crossing.judgeMod, hauled, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
   }), monster);
   const windedBy = forbiddenBy(conditionSet(actor.statuses ?? []), "run");
@@ -2332,7 +2332,7 @@ function squeezeEntry(formation, crossing, { member, actor }, { seat, standing, 
   const holds = holdsContortionism(actor);
   const row = markLoad(squeezeRow({
     encumbrance: stone, holds, shape: crossing.shape === "squeeze" ? "squeeze" : "chokepoint", length: crossing.length, judgeMod: crossing.judgeMod,
-    pushFigure, strMod: monster ? 0 : abilityMod(actor, "str"), save, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
+    pushFigure, strMod: abilityMod(actor, "str"), save, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
     speeds: { combat: memberSpeeds(actor, stone).combat },
   }), monster);
   return { actor, member, squeeze: true, standing, row, record, stone, holds, turn, pushFigure, save };

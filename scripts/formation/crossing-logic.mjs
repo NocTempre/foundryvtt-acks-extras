@@ -795,7 +795,7 @@ export const DROWNING = "drowning";
  * @param {{combat?: number, run?: number}} [o.speeds] the member's combat and
  *   running speed in feet, whose share a swimmer makes
  * @param {number|null} [o.conMod] the member's Constitution modifier, for their breath;
- *   null means the member has no Constitution part (a monster), counted as 0 and not listed
+ *   null means the member has no Constitution part (a monster whose score is blank), counted as 0 and not listed
  * @param {number|string|null} [o.penalty] the water penalty as a size
  * @param {string[]} [o.conditions] keys of `WATER` ticked as its reason
  * @param {number} [o.judgeMod] the Judge's modifier to the target
@@ -1078,7 +1078,7 @@ const positiveFeet = (value) => {
  * @param {number|string|null} [o.length] the squeeze's length in feet
  * @param {number} [o.judgeMod] the Judge's modifier; positive lowers a target
  * @param {{target: number|null, parts?: object[]}|null} [o.pushFigure] the member's `resolveCheck` for Dungeonbashing
- * @param {number} [o.strMod] the member's Strength modifier, which the push adds to; 0 for a monster
+ * @param {number} [o.strMod] the member's Strength modifier, which the push adds to; 0 for a monster whose score is blank
  * @param {{base: number|null}|null} [o.save] the member's own Paralysis target (null base: no cell)
  * @param {{combatId: string, round: number}|null} [o.turn] the round the throw is for, where a fight is running
  * @param {{judge?: boolean, owns?: boolean}} [o.seat] who is pressing

@@ -174,16 +174,17 @@ const CLOAK = () => item("Warm Cloak");
 const ability = (name) => ({ name, type: "ability", system: {} });
 
 /** An actor stub: flags, a death save, hit points, and a palette that makes and lifts effects. */
-function makeActor(name, { items = [], death = 12, con = 0 } = {}) {
+function makeActor(name, { items = [], death = 12, con = 0, type = "character", entered = null } = {}) {
   const id = `a${++serial}`;
-  const flags = {};
+  // `entered` stands for the scores a Judge typed on a monster's Classification tab.
+  const flags = entered ? { "acks-extras.extras": { scores: { ...entered } } } : {};
   const effects = [];
   const actor = {
     id,
     name,
     uuid: `Actor.${id}`,
     documentName: "Actor",
-    type: "character",
+    type,
     img: "",
     items,
     effects,
@@ -491,6 +492,25 @@ await ok("an Endurance body gains a night per point of Constitution bonus, and a
   assert.equal(conditionStacksOf(labourer, "fatigued"), 0, "a labourer's extra night holds it off");
   await runRestNight(getFormation(id), night);
   assert.equal(conditionStacksOf(labourer, "fatigued"), 1, "and the sixth reaches it");
+});
+
+await ok("a monster's Endurance counts the Constitution a Judge entered, by the system's modifier for it, and never a sheet modifier it has no score for", async () => {
+  const had = globalThis.CONFIG;
+  globalThis.CONFIG = { ...had, Actor: { dataModels: { character: { getAttributeModifier: (score) => (score >= 14 ? 2 : 0) } } } };
+  try {
+    const scored = makeActor("Scored", { type: "monster", items: [ability("Endurance")], entered: { con: 14 } });
+    const blank = makeActor("Blank", { type: "monster", items: [ability("Endurance")], con: 2 });
+    const id = makeFormation([scored, blank]);
+    const night = { weather: CLEAR, ground: "grassland", day: { kind: "camp", noSleep: true }, camp: {} };
+    // As a character with a bonus of 2: the count is 2 nights and Endurance adds 3.
+    for (let i = 0; i < 4; i++) await runRestNight(getFormation(id), night);
+    assert.equal(conditionStacksOf(scored, "fatigued"), 0, "four nights are inside the count of five");
+    assert.ok(conditionStacksOf(blank, "fatigued") > 0, "a blank score adds no night, whatever the sheet's field says");
+    await runRestNight(getFormation(id), night);
+    assert.equal(conditionStacksOf(scored, "fatigued"), 1, "the fifth reaches it");
+  } finally {
+    globalThis.CONFIG = had;
+  }
 });
 
 await ok("a forced march tires everyone, a labourer included, and a rest day with a restful night cures it", async () => {

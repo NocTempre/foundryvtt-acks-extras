@@ -4,17 +4,63 @@
  *
  * Read the system's character/monster schema and fall back to 0 when a field
  * is absent. Pure reads, no writes; Foundry-free (they touch only the plain
- * `system` object, the document's own flag and ownership answers, and a
- * token's disposition), so
- * offline tooling can import them too.
+ * `system` object, the document's own flag and ownership answers, a
+ * token's disposition, and the guarded `CONFIG` read of the system's attribute
+ * table), so offline tooling can import them too.
  */
 
 import { ACTOR_TYPE, alignmentKey } from "./vocab.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { summonerOf } from "./summons-logic.mjs";
 
-/** An ability-score modifier ("cha", "wis", …), 0 when absent. */
-export const abilityMod = (actor, key) => Number(actor?.system?.scores?.[key]?.mod ?? 0);
+/**
+ * The monster stat block's flag, where a monster's `types` and its entered
+ * ability `scores` live. The monsters feature owns the model; lib reads the
+ * stored flag as `senses.mjs` does.
+ */
+const MONSTER_EXTRAS = Object.freeze({ scope: "acks-extras", key: "extras" });
+
+/**
+ * The system's own modifier for an ability score, read from the character
+ * model's attribute table (`getAttributeModifier`), or null where the system
+ * does not answer (no table loaded, or a score it returns no number for). The
+ * one `CONFIG` read here is guarded, so offline tooling imports this file.
+ */
+export function attributeModifier(score) {
+  const model = globalThis.CONFIG?.Actor?.dataModels?.character;
+  if (typeof model?.getAttributeModifier !== "function") return null;
+  const mod = model.getAttributeModifier(score);
+  if (mod === null || mod === undefined || mod === "") return null;
+  return Number.isFinite(Number(mod)) ? Number(mod) : null;
+}
+
+/**
+ * The ability score a Judge entered on a monster's sheet (`key` is "str", "int",
+ * "wis", "dex", "con" or "cha"): the whole number above zero stored on the
+ * stat block, or null where the field is blank, is no whole number above zero,
+ * or the actor is not a monster.
+ */
+export function enteredScore(actor, key) {
+  if (actor?.type !== ACTOR_TYPE.monster) return null;
+  const stored = actor.getFlag?.(MONSTER_EXTRAS.scope, MONSTER_EXTRAS.key)?.scores?.[key];
+  if (stored === null || stored === undefined || stored === "") return null;
+  const n = Number(stored);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/**
+ * An ability-score modifier ("cha", "wis", …), 0 when absent. A character reads
+ * the sheet's own modifier. A monster has no sheet scores: an entered score
+ * answers with the system's modifier for it (`attributeModifier`), and a blank
+ * one is the default specimen, which has none, so 0.
+ */
+export function abilityMod(actor, key) {
+  if (actor?.type === ACTOR_TYPE.monster) {
+    const score = enteredScore(actor, key);
+    return score === null ? 0 : attributeModifier(score) ?? 0;
+  }
+  return Number(actor?.system?.scores?.[key]?.mod ?? 0);
+}
 
 /** A character's class level, 0 when absent. */
 export const classLevel = (actor) => Number(actor?.system?.details?.level ?? 0);
@@ -78,12 +124,6 @@ export const hitDiceOrLevel = (actor) =>
 
 /** The `ALIGNMENTS` key an actor's sheet names, or null for a blank or unrecognised alignment. */
 export const actorAlignment = (actor) => alignmentKey(actor?.system?.details?.alignment);
-
-/**
- * The monster stat block's flag, where a monster's `types` live. The monsters
- * feature owns the model; lib reads the stored flag as `senses.mjs` does.
- */
-const MONSTER_EXTRAS = Object.freeze({ scope: "acks-extras", key: "extras" });
 
 /** The size a character with no stat block of its own is. */
 const CHARACTER_SIZE = "man";

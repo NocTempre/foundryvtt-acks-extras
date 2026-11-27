@@ -24,7 +24,7 @@ behavior.
 | **Body form** | extras | `.bodyForm` |
 | **Hit Dice rating** | extras | `.hd.{count,bonus,asterisks,dieType}` |
 | **Saves-as class/level** | extras | `.saveAs.{class,level}` |
-| **Attributes** | extras | `.scores.{str,int,wis,dex,con,cha}` |
+| **Attributes** | extras | `.scores.{str,int,wis,dex,con,cha}` (optional; an entered score feeds the module's throws, see the default-score paragraph below) |
 | **Speeds (multi-row)** | extras | `.speeds[]` = `{type,combat,run,hover}` |
 | **Vision / senses** | extras | `.vision` (Set), `.lightlessRange`, `.otherSenses[]` |
 | **Normal / max load** | extras | `.load.{normal,capacity}` |
@@ -497,7 +497,12 @@ both take it. With no ceiling a load past normal is Encumbered and never
 Overloaded, the bar scales to the larger of the two loads, and the Statblock
 note names no maximum. The Encumbered speed readout shows `speedShare` and shows
 nothing where none is imported. A blank attribute stays blank on the Classification
-tab and shows `defaultScore()` as its placeholder, or none.
+tab and shows `defaultScore()` as its placeholder, or none. A blank is the
+default specimen and gives no modifier. An entered score gives the acks
+system's modifier for it (`lib/actor-read.mjs` `abilityMod`, `enteredScore`),
+and every module throw that reads an ability modifier takes it for a monster:
+the swim breath, the squeeze push, a door bash, a night's Endurance, an
+ability's score term. The system's own monster rolls add none.
 
 **Natural weapons and extraordinary damage.** Two more `monsters` tables, from
 the Damage entry of the Monster Overview (MM p. 12), read by

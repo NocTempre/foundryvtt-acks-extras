@@ -999,6 +999,44 @@ rewrites the list where it does not.
 
 **Teardown.** The fixture stays.
 
+## An entered ability score
+
+MODEL, the default-score paragraph: an entered score gives the acks system's
+modifier through `lib/actor-read.mjs` `abilityMod`; a blank gives none. What a
+mock cannot show is that the system's table answers under the real
+`CONFIG.Actor.dataModels.character`, and that a crossing row a monster stands
+in reads it.
+
+**Fixtures.** `monsters/entered-scores`: a `monster` actor built with
+`api.fixture`, no items. `formation/swim-party` from the formation recipe, read
+only. A step asserts the scores it needs at its start: the fixture keeps
+whatever the last walk wrote.
+
+**Drive mechanics.** No party fixture holds a monster member, and none is
+needed: `crossing.mjs` `rowFor(party, {kind}, {member: {actorId}, actor})`
+builds the row for any actor without writing a crossing, so the rows are read
+in page context on a synthetic member of the kept party.
+
+**Steps.**
+
+1. Write `scores` `{con: 16, str: 3, cha: 12}` and blanks for the rest, then
+   read `enteredScore` and `abilityMod` for each key beside
+   `getAttributeModifier` called on the entered figure.
+   *Observable:* each entered key's `abilityMod` equals the table's answer for
+   its score; a blank, a `0` and an empty string read `enteredScore` null and
+   `abilityMod` 0. A character's `abilityMod` still equals its sheet's `mod`.
+2. With Constitution and Strength blank, read the swim and squeeze rows.
+   *Observable:* the swim row's parts hold the `breath` and no `conMod`; the
+   squeeze row holds no `strength` part.
+3. Enter Constitution 16 and Strength 16 on the Classification tab's
+   Attributes, then read both rows again.
+   *Observable:* the swim row gains `conMod` with the table's figure for 16;
+   the squeeze row's `strength` part carries the same figure as its `mod`.
+4. Clear both fields.
+   *Observable:* the parts of step 2 return.
+
+**Teardown.** The fixture stays, blank.
+
 ## The ACKS Monster group on an item sheet
 
 The group injected into the sheet of a monster-owned weapon, ability or

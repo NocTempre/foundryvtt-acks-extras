@@ -24,6 +24,7 @@
  * in (`NO_ACROBATICS`).
  */
 import { diceFormula, formationValue } from "./constants.mjs";
+import { attributeModifier } from "../lib/actor-read.mjs";
 
 /**
  * What Acrobatics is worth belongs to Acrobatics — passed in, never
@@ -105,15 +106,6 @@ export function extendedDexBands() {
 }
 
 /**
- * The system's own modifier for a score, from its attribute table, or null
- * where the system does not answer (no table loaded).
- */
-function systemModifier(score) {
-  const read = globalThis.CONFIG?.Actor?.dataModels?.character?.getAttributeModifier;
-  return typeof read === "function" ? given(read.call(globalThis.CONFIG.Actor.dataModels.character, score)) : null;
-}
-
-/**
  * The leap's bonus for a Dexterity score the sheet does not hold (one Acrobatics
  * raised, or a creature's assumed one). A score inside an imported band takes
  * that band's bonus; one below the lowest band takes the system's table; one
@@ -127,7 +119,7 @@ export function scoreModifier(score) {
   if (s === null || bands === null) return null;
   const band = bands.find((b) => s >= b.min && s <= b.max);
   if (band) return band.mod;
-  return s < bands[0].min ? systemModifier(s) : null;
+  return s < bands[0].min ? attributeModifier(s) : null;
 }
 
 /**

@@ -233,6 +233,18 @@ ok("a score under the bands is the system's own, and null where the system gives
   resetTables();
 });
 
+ok("a system table that answers no number gives no modifier, so no figure rests on it", () => {
+  load({ ...JUMPING, ...ACROBAT });
+  globalThis.CONFIG = { Actor: { dataModels: { character: { getAttributeModifier: () => undefined } } } };
+  try {
+    assert.equal(scoreModifier(12), null);
+    assert.equal(leapHeight({ dex: 12, mod: 0, acrobatics: true, level: 3 }).feet, null);
+  } finally {
+    delete globalThis.CONFIG;
+  }
+  resetTables();
+});
+
 ok("a creature's assumed score takes a modifier of its own, not the sheet's absence", () => {
   load({ ...JUMPING, ...ACROBAT });
   withSystemTable(() => assert.equal(leapHeight({}).feet, 3, "the assumed score's modifier plus the constant"));

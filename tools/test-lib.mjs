@@ -74,7 +74,7 @@ import * as lightLib from "../scripts/lib/light.mjs";
 import { MAGIC_LIGHT_LOOK, applyTokenLight, applyTokenVision, isManagedLight, sceneIsDrawing, syncTokenFromActor } from "../scripts/lib/token-sync.mjs";
 import { installTokenLightPaddingPatch, unpaddedRadius } from "../scripts/lib/patches/token-light-padding.mjs";
 import { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } from "../scripts/lib/patches/spell-use.mjs";
-import { actorAlignment, areEnemies, creatureKinds, hdFormula, inService, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
+import { abilityMod, actorAlignment, areEnemies, attributeModifier, enteredScore, creatureKinds, hdFormula, inService, monsterHd, monsterHitDice } from "../scripts/lib/actor-read.mjs";
 import { auditLine, auditOf, situationalTerm, skipDialogFor } from "../scripts/lib/roll-dialog.mjs";
 import { drawForJudges, drawQuietly, postToJudges } from "../scripts/lib/roll-audience.mjs";
 import { elementOf, gmIds, judgesAndOwners, seededId } from "../scripts/lib/util.mjs";
@@ -4030,6 +4030,44 @@ t("a sub-type this module defines stays on this module's sheet under every prese
   }
   // A system type is untouched by the rule and still follows the preset.
   assert.equal(chooseDefault(trap, UI_PRESET.core, {}, "weapon"), "acks.AcksItemSheetV2");
+});
+
+t("abilityMod, enteredScore and attributeModifier: a monster's entered score gives the system's modifier, a blank gives none, a character keeps its sheet's", () => {
+  const had = globalThis.CONFIG;
+  const monster = (scores) => ({ type: "monster", system: {}, getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? { scores } : undefined) });
+  const character = { type: "character", system: { scores: { con: { value: 12, mod: 4 } } }, getFlag: () => undefined };
+  try {
+    globalThis.CONFIG = undefined;
+    assert.equal(attributeModifier(14), null, "no CONFIG, no answer");
+    globalThis.CONFIG = { Actor: { dataModels: { character: {} } } };
+    assert.equal(attributeModifier(14), null, "no table, no answer");
+    // An invented table that, like the system's, reads its own class through `this`.
+    const table = { shift: 7, getAttributeModifier(score) { return score >= 14 ? this.shift : score <= 5 ? -this.shift : 0; } };
+    globalThis.CONFIG = { Actor: { dataModels: { character: table } } };
+    assert.deepEqual([attributeModifier(14), attributeModifier(9), attributeModifier(4)], [7, 0, -7]);
+    table.getAttributeModifier = () => "none";
+    assert.equal(attributeModifier(14), null, "a table that answers no number gives none");
+    table.getAttributeModifier = function (score) { return score >= 14 ? this.shift : 0; };
+
+    assert.equal(enteredScore(monster({ con: 14 }), "con"), 14);
+    for (const blank of [null, undefined, "", 0, -3, 12.5, "x"]) assert.equal(enteredScore(monster({ con: blank }), "con"), null, `${JSON.stringify(blank)} is no entered score`);
+    assert.equal(enteredScore(monster({}), "con"), null);
+    assert.equal(enteredScore({ type: "monster", system: {} }, "con"), null, "a monster with no flag reader");
+    assert.equal(enteredScore({ ...character, getFlag: () => ({ scores: { con: 14 } }) }, "con"), null, "only a monster's flag is read");
+
+    assert.equal(abilityMod(monster({ con: 14 }), "con"), 7, "the entered score's modifier");
+    assert.equal(abilityMod(monster({ con: 9 }), "con"), 0);
+    assert.equal(abilityMod(monster({ str: 14 }), "con"), 0, "another score's field is not this one's");
+    assert.equal(abilityMod(monster({}), "con"), 0, "a blank is the default specimen");
+    assert.equal(abilityMod({ ...monster({}), system: { scores: { con: { mod: 5 } } } }, "con"), 0, "a monster's sheet modifier is not read");
+    globalThis.CONFIG = undefined;
+    assert.equal(abilityMod(monster({ con: 14 }), "con"), 0, "where the system gives no table the entered score adds nothing");
+    assert.equal(abilityMod(character, "con"), 4, "a character reads its sheet's modifier");
+    assert.equal(abilityMod(character, "str"), 0);
+    assert.equal(abilityMod(null, "str"), 0);
+  } finally {
+    globalThis.CONFIG = had;
+  }
 });
 
 t("hdFormula writes the rating as core's roll formula, and monsterHd reads it back", () => {

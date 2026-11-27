@@ -179,7 +179,7 @@ const CLIMBING = () => item("Probe Climb", [throwOf("climb", ladder([1, 15], [5,
 const ACROBATICS = () => item("Probe Tumble", [], { provides: ["kw:acrobatics"], cite: "XX p.3" });
 
 /** A person on the world's actor list. `owner` is the user id who owns them besides the GM. */
-function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level = 6, dex = 14, owner = null, type = "character", saves = { paralysis: { value: 12 } }, stone = 0, str = 0, con = null, load = null } = {}) {
+function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level = 6, dex = 14, owner = null, type = "character", saves = { paralysis: { value: 12 } }, stone = 0, str = 0, con = null, load = null, entered = null } = {}) {
   // A monster's carried load is the weight of what it holds, read by lib; `load` is that many stone as one physical item.
   if (load !== null) items = [...items, { id: `i${++serial}`, type: "item", name: "Pack", system: { cost: {}, weight6: load * 6 }, getFlag: () => undefined }];
   const actor = {
@@ -189,7 +189,8 @@ function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level =
       details: { level, morale: 0 }, adventuring: adventuring ? { ...adventuring } : undefined, hp: { value: hp, max: 10 },
       encumbrance: { value: stone }, scores: { dex: { value: dex, mod: 0 }, str: { value: 10, mod: str }, ...(con === null ? {} : { con: { value: 10, mod: con } }) }, saves, attack: { throw: 10 }, surprise: {}, initiative: {},
     },
-    getFlag: () => undefined,
+    // `entered` stands for the scores a Judge typed on a monster's Classification tab.
+    getFlag: (scope, key) => (entered && scope === "acks-extras" && key === "extras" ? { scores: { ...entered } } : undefined),
     testUserPermission: (user) => !!user?.isGM || user?.id === owner,
     // Foundry's own test, read for the seat the stand-in `game.user` names.
     get isOwner() { return !!game.user?.isGM || game.user?.id === owner; },
@@ -2351,6 +2352,30 @@ await ok("a drowning monster's breath has no Constitution part and gains no modi
   assert.equal(alder.drown.breath.tip, ["Breath 3", "Constitution 2", format("ACKS-FORMATION.crossing.swim.tip.elapsed", { elapsed: 1 }), CITE].join(" · "));
 });
 
+await ok("a monster whose Constitution a Judge entered breathes by the system's modifier for it, named as a character's is; a blank field stays without the part", async () => {
+  const had = globalThis.CONFIG.Actor;
+  globalThis.CONFIG.Actor = { dataModels: { character: { getAttributeModifier: (score) => ({ 14: 3, 6: -2 })[score] ?? 0 } } };
+  try {
+    const { formation } = await swimWorld([["Wolf", { type: "monster", load: 9, entered: { con: 14 } }], ["Mole", { type: "monster", load: 9, entered: { con: 6 } }], ["Fox", { type: "monster", load: 9 }]]);
+    naturals.push(3, 3, 3);
+    await throwFor(formation, "Wolf");
+    await throwFor(formation, "Mole");
+    await throwFor(formation, "Fox");
+    const view = swimView(formation);
+    const wolf = rowOf(view, "Wolf");
+    assert.equal(wolf.drown.breath.text, format("ACKS-FORMATION.crossing.swim.breath", { left: 5, rounds: 6 }), "the entered score's modifier counts");
+    assert.equal(wolf.drown.breath.tip, ["Breath 3", "Constitution 3", format("ACKS-FORMATION.crossing.swim.tip.elapsed", { elapsed: 1 }), CITE].join(" · "));
+    const mole = rowOf(view, "Mole");
+    assert.equal(mole.drown.breath.text, format("ACKS-FORMATION.crossing.swim.breath", { left: 0, rounds: 1 }), "a negative modifier shortens it");
+    assert.equal(mole.drown.breath.tip, ["Breath 3", "Constitution -2", format("ACKS-FORMATION.crossing.swim.tip.elapsed", { elapsed: 1 }), CITE].join(" · "));
+    const fox = rowOf(view, "Fox");
+    assert.equal(fox.drown.breath.text, format("ACKS-FORMATION.crossing.swim.breath", { left: 2, rounds: 3 }), "a blank field is the default specimen and adds nothing");
+    assert.ok(!fox.drown.breath.tip.includes("Constitution"), "and its tip names no Constitution");
+  } finally {
+    globalThis.CONFIG.Actor = had;
+  }
+});
+
 await ok("a breath or a sink rate nobody imported is blank and its tooltip is the page alone", async () => {
   const { formation } = await swimWorld([["Alder", { stone: 9 }]]);
   resetTables();
@@ -2680,6 +2705,24 @@ await ok("a monster squeezes against the load it carries, named as its source in
   const stuck = crossingRow(formation, "Wolf");
   assert.equal(stuck.row.escape.wiggle.parts.find((p) => p.key === "encumbrance").source, "load");
   assert.equal(stuck.row.escape.push.parts.some((p) => p.key === "strength"), false, "a monster has no Strength term");
+});
+
+await ok("a monster whose Strength a Judge entered pushes with the system's modifier for it, itemized as a character's is; a blank field has no Strength term", async () => {
+  const had = globalThis.CONFIG.Actor;
+  globalThis.CONFIG.Actor = { dataModels: { character: { getAttributeModifier: (score) => ({ 14: 3, 6: -2 })[score] ?? 0 } } };
+  try {
+    const { formation } = await squeezeWorld([["Wolf", { type: "monster", load: 3, entered: { str: 14 } }], ["Fox", { type: "monster", load: 3 }]]);
+    await stuckAt(formation, "Wolf");
+    await stuckAt(formation, "Fox");
+    const [wolf, fox] = ["Wolf", "Fox"].map((name) => crossingRow(formation, name));
+    assert.deepEqual(wolf.row.escape.push.parts.find((p) => p.key === "strength"), { key: "strength", value: -9, mod: 3 }, "the entered score's modifier times the imported factor");
+    assert.equal(fox.row.escape.push.parts.some((p) => p.key === "strength"), false, "a blank field adds no part");
+    assert.equal(fox.row.escape.push.target - wolf.row.escape.push.target, 9);
+    assert.ok(crossing.escapeTargetTip(wolf, "push").includes("Strength (modifier +3, RR ch. 1) −9"), crossing.escapeTargetTip(wolf, "push"));
+    assert.equal(crossing.escapeTargetTip(fox, "push").includes("Strength"), false);
+  } finally {
+    globalThis.CONFIG.Actor = had;
+  }
 });
 
 await ok("a monster with no character speeds works along a squeeze at the round's speed core derives for it", async () => {

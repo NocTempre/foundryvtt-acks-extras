@@ -25,7 +25,8 @@ import { STONE } from "../lib/item-model.mjs";
 import { conditionStacksOf, setConditionStacks } from "../lib/status-effects.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
-import { makeLoc, numOrNull } from "../lib/util.mjs";
+import { abilityMod } from "../lib/actor-read.mjs";
+import { makeLoc } from "../lib/util.mjs";
 
 const loc = makeLoc("ACKS-FORMATION");
 
@@ -99,7 +100,7 @@ export async function runRestNight(formation, { weather = {}, ground = "", expos
     const labor = hasCapability(actor, "kw:labor") || hasAbility(actor, LABOR);
     const endurance = hasCapability(actor, "kw:endurance") || hasAbility(actor, ENDURANCE);
     const allowance = enduranceAllowance({
-      endurance, labor, conBonus: numOrNull(actor.system?.scores?.con?.mod) ?? 0,
+      endurance, labor, conBonus: abilityMod(actor, "con"),
     }) ?? 0;
 
     const before = conditionStacksOf(actor, "fatigued");

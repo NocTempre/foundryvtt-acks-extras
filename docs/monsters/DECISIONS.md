@@ -775,3 +775,46 @@ Strongest counter-argument (medium): "bodies" is a word the evaluator reads
 beside the printed keys, and a creature whose bodies are split could mean one
 kind by it. A split creature's page names the kind (`archers`, `warriors`), which
 keeps its own key, so the reserved word only ever means all of them.
+
+## 2026-11-27 — A monster's ability scores are optional and feed the module's throws; a blank gives no modifier (T-0906)
+
+The owner, 2026-11-27: "optional raw monsters can have scores with bonuses
+default assumes flat 9s".
+
+Read: a Judge may enter a monster's six scores on the Classification tab
+(`flags["acks-extras"].extras.scores`), and an entered score gives its modifier
+through the acks system's own attribute table. A blank is the default specimen,
+the flat score the page starts every attribute at, whose modifier is none, so the
+module adds no part for it and writes no figure for the 9. A monster with
+Constitution 13 entered takes the system table's modifier for 13 on its swim
+breath; one with the field blank takes no Constitution part.
+
+Built: `lib/actor-read.mjs` `abilityMod` answers for a monster from
+`enteredScore` through `attributeModifier` (the one reader of the system's table,
+which `formation/jumping.mjs` now imports instead of its own copy), and 0 where
+the field is blank. Every caller of `abilityMod` follows: the swim breath, the
+squeeze push, a door bash, a night's Endurance allowance, an ability's score
+term, and the influence, henchmen and languages readers. The swim row names the
+Constitution part for a monster only where a score was entered, so a blank keeps
+the tooltip T-0645 gave it.
+
+Rejected: writing the default score into a blank (a printed figure in the
+world's data, and a Judge could no longer tell entered from assumed); reading a
+monster's `system.scores` (the system's monster model has none, and a stand-in
+sheet modifier would be a second source); changing `equipment/attack-mods.mjs`,
+whose ability reads sit behind `weaponContext`, which answers null for a
+non-character, so no monster reaches them. The module computes no attack total:
+`lib/patches/attack-throw.mjs` appends its rows to the modifier list the
+system's own `getAttackThrowModifiers` returns, and the system sums them. The
+system's monster model adds no Strength or Dexterity to an attack, so a row for
+an entered score would be a modifier no monster attack carries today.
+
+Cost: a monster's entered score moves figures beyond the crossing (a monster
+target's Wisdom in an influence throw, a monster henchman's Charisma), which is
+what an entered score is for, and the system's own monster attack and damage
+rolls still ignore it.
+
+Strongest counter-argument (medium): the system declares that monsters have no
+ability scores, so a module reading one for a monster departs from the system's
+model. The score lives in this module's own flag and is read only by this
+module's throws, none of which the system makes for a monster.
