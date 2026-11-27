@@ -2400,6 +2400,8 @@ Read: dismissing is something the concentration does, so once a held cast has no
 
 **Strongest counter, LOW.** A dismissal relayed while the asking client is disconnected before the answer arrives deletes the creature and leaves the hold standing. Held: the status's own toggle ends it, as before this ruling, and the card that follows names no creature.
 
+*Cost:* a dismissal now posts a held-end card to the GMs and the caster's owners, one more card per held cast dismissed.
+
 ## 2026-11-27 — Power on the casting strip is an icon per power the character has
 
 The owner, in three messages on 2026-11-27, each refining the one before:
@@ -2419,5 +2421,3 @@ The third stands. It drops the Tweaks option and the "always show" check mark of
 **Rejected.** *A Tweaks checkbox* for showing the power, which the first message allowed and the third dropped. *An "Always show" option on the icon*, and the flag it would write: the number over the symbol is the signal, and a power the character has is always drawn. *A design board*, waived by the third message. *Keeping the tags beside the icons*: the icon carries the balance as its badge and its panel head, so a tag repeats it.
 
 *Cost:* a character that casts neither kind, holds no entry and has no class power has no strip control for the ledger at all; a Judge's first add on such a character goes through `acksExtras.magic.power.gain`.
-
-*Cost:* a dismissal now posts a held-end card to the GMs and the caster's owners, one more card per held cast dismissed.
