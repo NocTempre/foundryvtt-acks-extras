@@ -588,35 +588,3 @@ restores it, and the hand grant is indistinguishable from the one the hire made.
 **Rejected.** Leaving ownership as it stood: the row's controls would name the
 wrong seat. Adding the new employer's owners without removing the old: the old
 player keeps controls over a hireling no longer theirs.
-
-## 2026-11-27 — Henchmen by level stays the Judge's: hirelings yet to arrive are a Judge secret (T-0854)
-
-Asked whether the Judge's level filter on the henchman search should stay, the
-owner, 2026-11-27: "Yes preview of future actions like pre-rolled yet to arrive
-henchmen are one of the explicit judge-only cases", and then, correcting a
-reading of that as a Judge-only case of its own: "follow foundry permissions of
-preview as well, I was thinking yet to arrive henchmen qualify as a judge
-secret". The 2026-11-25 entry above kept the level-only kind on a GM seat as
-the release hub's call, and left open whether a search the book does not list
-ships at all under "no house rules ship" (owner 2026-11-11). This answers both.
-The kind stays. Its GM-seat gate is the owner's ruling now, not the hub's, and
-its ground is the standing exception for Judge secrets: the pre-rolled
-hirelings it looks at have not arrived, and who they are is the Judge's to
-know.
-
-No code changed. The dialog offers the kind on a GM seat only, the dialog and
-`createPosting` refuse it from a player (`criteria-required`), and a Judge's
-submit raises `ACKS-HENCHMEN.posting.levelOnlyJudge`.
-
-**Supersedes:** nothing. The 2026-11-25 entry's level-only bullet stands as
-written; this entry moves who made the call and names its ground.
-
-**Counter (weak).** A search no table lists is a house rule, and "no house rules
-ship". *Answer:* the owner ruled on this kind by name, and a player never meets
-it: it is how a Judge reads a secret, not a rule the automation applies to the
-table.
-
-**Rejected.** A Judge-only case for previews of future actions, beside Judge
-secrets: the owner's correction puts previews under Foundry's permissions like
-every other tool, and this search stays the Judge's only because what it shows
-is a secret.
