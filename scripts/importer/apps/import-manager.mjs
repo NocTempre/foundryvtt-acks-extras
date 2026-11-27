@@ -38,7 +38,7 @@ const notice = (key) => `${MODULE_ID} | ${loc(key)}`;
  * `runEverything()` runs the chain, and `runEverything("repair")` repairs every
  * open book in place instead; `merchandise()` builds the merchandise
  * items; `lib()` returns the shared lib api, for the repair window;
- * `tokenArt` is `{sources(), apply(source), restore(), hasFlag()}`, the overhead
+ * `tokenArt` is `{sources(), apply(source), restore(), hasFlag()}` (`hasFlag` is awaited), the overhead
  * token art controls of the Tools tab (`token-art.mjs`).
  */
 export function installImportManager(h) {
@@ -134,7 +134,7 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
     this.#tokenSources = new Map(found.map((s) => [s.id, s]));
     return {
       tokenArt: found.map((s) => ({ id: s.id, label: loc("manager.tokenArt.applyButton",{ title: s.title }) })),
-      tokenArtRestore: ready && isGM && !!host.tokenArt?.hasFlag(),
+      tokenArtRestore: ready && isGM && !!(await host.tokenArt?.hasFlag()),
       tabs,
       ready,
       isGM,

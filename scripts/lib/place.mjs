@@ -7,7 +7,7 @@
  * `nodeOf`; nothing downstream knows the difference. See docs/lib/PLACES.md.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { cookbookId } from "./library.mjs";
+import { cookbookId, shelfIndex } from "./library.mjs";
 import { bodyCount, liveRows } from "./group-logic.mjs";
 import { isContainer } from "./item-model.mjs";
 import { coinTotalGC, isProvider, storedItems, storageFlagOf, STORAGE_KEY } from "./storage.mjs";
@@ -204,6 +204,11 @@ export function nodeOf(doc) {
  * One place node from a compendium INDEX row — its own reduction, since an
  * index row has no `documentName` or `getFlag` for the predicates above to
  * read. Only the two actor-backed kinds can appear here.
+ *
+ * A location's `system.parentUuid` is read off the row, which is stored source
+ * the system has not migrated: the field is declared on the Actor index
+ * (location/module.mjs), and a row carries it only once the pack's first client
+ * `getIndex()` has run (`packPlaces` starts and reports it).
  */
 function packNodeOf(row, uuid) {
   const flag = row?.flags?.[MODULE_ID]?.[PLACE_KEY];
@@ -227,31 +232,52 @@ export function packIdOf(uuid) {
 }
 
 /**
- * The places one compendium holds, read from its already-loaded index — no
- * fetch on a render path. Scoped to a single pack; see docs/lib/PLACES.md,
- * "Cost".
+ * The places one compendium holds, read from its index — no fetch on a render
+ * path. Scoped to a single pack; see docs/lib/PLACES.md, "Cost".
+ *
+ * A pack whose index has not been read since the declared fields joined it
+ * (`pack.indexed` false) answers its startup rows, which carry no parent or
+ * place flag, and its index read is started (`shelfIndex`, one shared read per
+ * pack). The answer carries a non-enumerable `pending`, a promise that never
+ * rejects and resolves once that read has settled (null when none was
+ * started); a caller that can wait awaits it and asks again.
+ *
+ * @returns {object[] & {pending: Promise<void>|null}}
  */
 export function packPlaces(packId) {
   const pack = packId ? game.packs?.get(packId) : null;
-  if (!pack || pack.documentName !== "Actor") return [];
   const nodes = [];
-  for (const row of pack.index ?? []) {
-    const uuid = pack.getUuid?.(row._id) ?? `Compendium.${pack.collection}.Actor.${row._id}`;
-    const node = packNodeOf(row, uuid);
-    if (node) nodes.push(node);
+  let pending = null;
+  if (pack?.documentName === "Actor") {
+    if (pack.indexed === false) {
+      pending = shelfIndex(pack).then(
+        () => undefined,
+        (err) => console.warn(`${MODULE_ID} | could not read the index of ${pack.collection}`, err),
+      );
+    }
+    for (const row of pack.index?.values?.() ?? []) {
+      const uuid = pack.getUuid?.(row._id) ?? `Compendium.${pack.collection}.Actor.${row._id}`;
+      const node = packNodeOf(row, uuid);
+      if (node) nodes.push(node);
+    }
   }
-  return nodes;
+  return Object.defineProperty(nodes, "pending", { value: pending, enumerable: false });
 }
 
 /**
  * Every actor-backed place in the world, as nodes — plus, when a pack is
  * named, the places that pack holds. Container items are excluded (see
  * docs/lib/PLACES.md, "Cost"); pass the viewed document's `pack` so a place
- * living in a compendium sees its own family.
+ * living in a compendium sees its own family. The answer carries the pack's
+ * non-enumerable `pending` (`packPlaces`).
+ *
+ * @returns {object[] & {pending: Promise<void>|null}}
  */
 export function allPlaces({ pack = null } = {}) {
   const world = (game.actors?.contents ?? []).filter((a) => isLocation(a) || isProvider(a)).map(nodeOf).filter(Boolean);
-  return pack ? [...world, ...packPlaces(pack)] : world;
+  if (!pack) return Object.defineProperty(world, "pending", { value: null, enumerable: false });
+  const shelf = packPlaces(pack);
+  return Object.defineProperty([...world, ...shelf], "pending", { value: shelf.pending, enumerable: false });
 }
 
 /** uuid → node over every actor-backed place. Share one per render. */

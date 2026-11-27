@@ -81,9 +81,9 @@ import { MODULE_ID, LANG_PREFIX, TEMPLATE_TYPE } from "../constants.mjs";
 import * as V from "../vocab.mjs";
 import { vocabChoices } from "../magic-vocab.mjs";
 import { SUMMON_SOURCE_TYPES, packIdOfUuid, summonRefName } from "../summons-logic.mjs";
-import { addSummonCreature, amountFromBox, amountTip, creatureView, removeSummonCreature, resolveCreature, summonListOf } from "../summon-list.mjs";
+import { addSummonCreature, amountFromBox, amountTip, creatureByStamp, creatureView, removeSummonCreature, resolveCreature, summonListOf } from "../summon-list.mjs";
 import { writeOnChange } from "../press-safe-change.mjs";
-import { byCookbookId } from "../library.mjs";
+import { cookbookRow } from "../library.mjs";
 import { SLOT_VOCAB } from "../proficiency-strip.mjs";
 import { LIGHT_LEVELS } from "../light.mjs";
 import { ATTACK_KINDS } from "../conditions.mjs";
@@ -693,7 +693,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       }
       if (name === "ref" && row.type === "summon") {
         field.drop = true;
-        const named = field.value ? summonRefName(field.value, { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId }) : null;
+        const named = field.value ? summonRefName(field.value, this.#creatureLookups()) : null;
         field.refLine = !field.value ? "" : named ? loc("refNames", { name: named }) : loc("refUnknown");
       }
       return field;
@@ -747,6 +747,17 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /**
+   * The lookups a creature's name is read through: the document or index row a
+   * uuid names, else the creature's index row by its cookbook id. No document is
+   * loaded, and this window redraws once when an index read the lookup started
+   * lands.
+   */
+  #creatureLookups() {
+    const rowOf = (type, id) => cookbookRow(type, id, { redraw: this });
+    return { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId: creatureByStamp(rowOf, (id) => game.actors?.get(id) ?? null) };
+  }
+
+  /**
    * One line per creature of the open row's list, as this seat reads it. A row
    * that names no creature reads as the empty list does and keeps its Number
    * box; Remove is offered on a line that names a creature and on any line of
@@ -755,7 +766,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   #creatureLines(cite) {
     const rows = this.store.read();
     const list = summonListOf(rows, this.index);
-    const lookups = { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId };
+    const lookups = this.#creatureLookups();
     const seat = { resolve: (ref) => resolveCreature(ref, lookups), user: game.user, packOf: worldPackOf, neutral: game.i18n.localize("ACKS-LIB.summons.neutral") };
     const from = (source) => {
       if (source?.kind === "pack") return game.packs?.get?.(source.pack)?.title ?? source.pack;

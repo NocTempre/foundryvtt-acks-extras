@@ -64,7 +64,7 @@ import {
 } from "./cookbook.mjs";
 import { registerGettingStartedSettings, runImportEverything, runImportStep, GM_STEPS, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
 import { ImportManagerMenu, installImportManager, openImportManager } from "./apps/import-manager.mjs";
-import { tokenArtSources, applyTokenArt, restoreTokenArt, hasTokenArtFlag } from "./token-art.mjs";
+import { tokenArtSources, applyTokenArt, restoreTokenArt, hasTokenArtFlag, declareTokenArtIndexField } from "./token-art.mjs";
 import { acksExtras } from "../namespace.mjs";
 import * as services from "../lib/services.mjs";
 import { escape as esc } from "../lib/util.mjs";
@@ -2684,6 +2684,8 @@ Hooks.once("init", () => {
     },
   });
   registerGettingStartedSettings();
+  // The token-art mark joins the Actor index fields, so Restore is found without loading a monster.
+  declareTokenArtIndexField();
   // The GM's way in from settings to every import control.
   game.settings.registerMenu(MODULE_ID, "importManager", {
     name: `${LANG_PREFIX}.manager.menuName`,

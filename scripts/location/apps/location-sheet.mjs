@@ -302,7 +302,14 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     const actor = this.actor;
     // Its own pack when it lives in one; otherwise its PARENT's pack (a place
     // dragged out of the library keeps a pointer naming the library's copy).
-    const nodes = places.allPlaces({ pack: actor.pack ?? places.packIdOf(actor.system.parentUuid) });
+    // A pack whose index has not been read yet answers its startup rows, which
+    // hold no parent pointer; its place family is asked again once that read lands.
+    const where = { pack: actor.pack ?? places.packIdOf(actor.system.parentUuid) };
+    let nodes = places.allPlaces(where);
+    if (nodes.pending) {
+      await nodes.pending;
+      nodes = places.allPlaces(where);
+    }
     const index = places.indexPlaces(nodes);
 
     // Breadcrumb: root first; this place itself is dropped.

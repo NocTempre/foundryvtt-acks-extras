@@ -37,6 +37,8 @@ globalThis.game = { items: [], actors: [], journal: [], tables: [], packs: [] };
 const lib = await import("../scripts/lib/library.mjs");
 const { declareLibraryIndexFields, LIBRARY_INDEX_FIELDS, cookbookId } = lib;
 const { shelfMock: shelf, sourceDoc: source } = await import("./lib-shelf-mock.mjs");
+const { creatureByStamp, creatureView, resolveCreature } = await import("../scripts/lib/summon-list.mjs");
+const { summonRefName } = await import("../scripts/lib/summons-logic.mjs");
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 const stampOf = (id) => (row) => cookbookId(row) === id;
@@ -552,6 +554,89 @@ await ok("libraryTwinReady awaits the stamp's twin, and is a no-op for an unstam
   await lib.libraryTwinReady({ documentName: "Actor", flags: { "acks-extras": { cookbook: { id: "m.x" } } } });
   assert.deepEqual(pack.calls.getDocuments, [{ _id__in: ["a1"] }]);
   assert.equal(lib.byCookbookId("Actor", "m.x")?.id, "a1", "the twin is held once it has resolved");
+});
+
+await ok("a summon creature's name resolves from an index row with no load, and its sheet redraws once", async () => {
+  reset();
+  const pack = shelf({ type: "Actor", docs: [mint("a1", "Shelf Creature", "monster", "m.x")] });
+  game.packs = [pack];
+  let renders = 0;
+  const sheet = { rendered: true, render: () => renders++ };
+  const lookups = {
+    fromUuidSync: () => null,
+    byCookbookId: creatureByStamp((type, id) => lib.cookbookRow(type, id, { redraw: sheet }), (id) => game.actors.find((a) => a.id === id) ?? null),
+  };
+  assert.equal(summonRefName("m.x", lookups), null, "a cold shelf answers nothing at first");
+  assert.equal(resolveCreature("m.x", lookups), null);
+  await tick();
+  await tick();
+  assert.equal(renders, 1, "one redraw however many names asked");
+  assert.equal(summonRefName("m.x", lookups), "Shelf Creature");
+  const found = resolveCreature("m.x", lookups);
+  assert.equal(found.uuid, pack.getUuid("a1"));
+  assert.equal(pack.calls.getDocuments.length, 0, "no document was loaded");
+  assert.equal(pack.calls.getIndex.length, 1);
+  assert.equal(renders, 1, "the indexed shelf asks for no further redraw");
+  const seat = { user: { isGM: false }, packOf: () => ({ testUserPermission: () => true }), neutral: "NEUTRAL" };
+  assert.equal(creatureView({ ref: "m.x" }, { ...seat, resolve: (ref) => resolveCreature(ref, lookups) }).label, "Shelf Creature");
+});
+
+await ok("a summon creature that is a world actor is answered as the document, so the seat's own permission reads", async () => {
+  reset();
+  const pack = shelf({ type: "Actor", docs: [mint("a1", "Shelf Creature", "monster", "m.x")] });
+  await pack.getIndex();
+  game.packs = [pack];
+  const world = { ...worldDoc("w1", "World Creature", "monster", "m.x"), documentName: "Actor", testUserPermission: () => false };
+  game.actors = [world];
+  const byStamp = creatureByStamp((type, id) => lib.cookbookRow(type, id), (id) => game.actors.find((a) => a.id === id) ?? null);
+  assert.equal(byStamp("Actor", "m.x"), world, "the world's row is the world's document");
+  game.actors = [];
+  assert.equal(byStamp("Actor", "m.x")?.id, "a1", "a shelf's row stays a row");
+  assert.equal(byStamp("Actor", "m.none"), null);
+});
+
+await ok("an unindexed Actor pack starts one shelfIndex and answers its startup rows; once read, the family's parent pointers are on the rows", async () => {
+  reset();
+  const places = await import("../scripts/lib/place.mjs");
+  const declared = ["system.parentUuid", "flags.acks-extras.place"];
+  for (const field of declared) if (!CONFIG.Actor.compendiumIndexFields.includes(field)) CONFIG.Actor.compendiumIndexFields.push(field);
+  const region = source("r1", "Region", "acks-extras.location", null, { parentUuid: "" });
+  const town = source("c1", "Town", "acks-extras.location", null, { parentUuid: "Compendium.world.places.Actor.r1" });
+  const pack = shelf({ type: "Actor", docs: [region, town, source("x1", "Creature", "monster")] });
+  game.packs = Object.assign([pack], { get: (id) => (id === pack.collection ? pack : undefined) });
+  game.actors = { contents: [] };
+  const startup = places.packPlaces(pack.collection);
+  assert.equal(pack.indexed, false);
+  assert.deepEqual(startup.map((node) => node.name).sort(), ["Region", "Town"], "the startup rows answer the location rows");
+  assert.deepEqual(startup.map((node) => node.parentUuid), [null, null], "and carry no parent pointer yet");
+  assert.ok(startup.pending, "the read it started is reported");
+  assert.ok(places.allPlaces({ pack: pack.collection }).pending, "allPlaces carries the pack's read");
+  await startup.pending;
+  assert.equal(pack.calls.getIndex.length, 1, "one index read however many asks arrived while it ran");
+  assert.equal(pack.calls.getDocuments.length, 0, "no document was loaded");
+  const read = places.packPlaces(pack.collection);
+  assert.equal(read.pending, null, "an indexed pack starts nothing");
+  assert.equal(read.find((node) => node.name === "Town").parentUuid, "Compendium.world.places.Actor.r1");
+  assert.equal(pack.calls.getIndex.length, 1);
+  const all = places.allPlaces({ pack: pack.collection });
+  assert.deepEqual([all.pending, all.length], [null, 2]);
+  assert.equal(places.allPlaces().pending, null, "a world-only ask has nothing pending");
+  assert.deepEqual(places.packPlaces("no.such.pack"), []);
+});
+
+await ok("a pack whose index read fails answers its startup rows and its pending settles", async () => {
+  reset();
+  const places = await import("../scripts/lib/place.mjs");
+  const pack = shelf({ type: "Actor", docs: [source("r1", "Region", "acks-extras.location", null, { parentUuid: "" })], failIndex: true });
+  game.packs = Object.assign([pack], { get: (id) => (id === pack.collection ? pack : undefined) });
+  game.actors = { contents: [] };
+  const { value: startup, warned } = await quiet(async () => {
+    const nodes = places.packPlaces(pack.collection);
+    await nodes.pending;
+    return nodes;
+  });
+  assert.equal(startup.length, 1);
+  assert.equal(warned.length, 1);
 });
 
 reset();

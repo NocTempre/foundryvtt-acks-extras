@@ -17,7 +17,7 @@
  * and its scale are never written.
  */
 import { MODULE_ID, LANG_PREFIX, ACTOR_TYPE } from "./constants.mjs";
-import { libraryActors, libraryDocsWhere, cookbookId } from "../lib/library.mjs";
+import { libraryRows, libraryDocsWhere, cookbookId } from "../lib/library.mjs";
 import { unset, escape } from "../lib/util.mjs";
 import { ART_FIT, indexSource, planApply, planRestore, planPlaced, isWildcardPath } from "./token-art-logic.mjs";
 
@@ -66,9 +66,6 @@ export async function tokenArtSources() {
 
 /** Whether a document or an index row is an imported monster: the importer's stamp on a monster. */
 const isImportedMonster = (a) => a.type === ACTOR_TYPE.MONSTER && !!cookbookId(a);
-
-/** The imported monsters held now: the library's and the world copies made from them. */
-const monstersOf = () => libraryActors().filter(isImportedMonster);
 
 /**
  * The imported monsters this feature writes: the world's, and each shelf's read
@@ -196,5 +193,31 @@ export async function restoreTokenArt() {
   return done;
 }
 
-/** Whether any imported monster carries this feature's flag, so Restore is offered. */
-export const hasTokenArtFlag = () => monstersOf().some((a) => a.flags?.[MODULE_ID]?.[FLAG]);
+/**
+ * Add the mark's path to the Actor index fields, once. Run at `init`: a pack's
+ * `getIndex()` reads the list when it is called, so `hasTokenArtFlag` can test
+ * the mark on an index row without loading a monster.
+ */
+export function declareTokenArtIndexField() {
+  const fields = globalThis.CONFIG?.Actor?.compendiumIndexFields;
+  const path = `flags.${MODULE_ID}.${FLAG}`;
+  if (Array.isArray(fields) && !fields.includes(path)) fields.push(path);
+}
+
+/**
+ * Whether any imported monster, the library's or a world copy, carries this
+ * feature's flag, so Restore is offered. It reads the Actor index rows and loads
+ * no document; a shelf whose index is not read yet is awaited once and asked
+ * again.
+ *
+ * @returns {Promise<boolean>}
+ */
+export async function hasTokenArtFlag() {
+  const marked = (row) => isImportedMonster(row) && !!row.flags?.[MODULE_ID]?.[FLAG];
+  let rows = libraryRows("Actor", marked);
+  if (rows.pending) {
+    await rows.pending;
+    rows = libraryRows("Actor", marked);
+  }
+  return rows.length > 0;
+}

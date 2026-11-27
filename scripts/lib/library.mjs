@@ -195,7 +195,7 @@ function loadPack(type) {
  * outside it is loaded by the action that needs it (`loadLibrary`) and is never
  * loaded on a read.
  */
-export const WARM_TYPES = new Set(["Item", "Actor"]);
+export const WARM_TYPES = new Set(["Item"]);
 
 /**
  * Instantiate every shelf of the given types, so the synchronous reads below
@@ -244,7 +244,13 @@ export function libraryDocs(type) {
 /** Every library Item — the read that replaced `game.items` across this module. */
 export const libraryItems = () => libraryDocs("Item");
 
-/** Every library Actor. */
+/**
+ * The library Actors held now: the world's, and the documents a shelf has
+ * instantiated. Actor is outside `WARM_TYPES`, so this loads nothing and answers
+ * short on a cold shelf; a reader that needs the creatures reads the index
+ * (`libraryRows`, `cookbookRow`) or awaits a narrow read (`libraryDocsWhere`,
+ * `byCookbookIdAsync`).
+ */
 export const libraryActors = () => libraryDocs("Actor");
 
 /**

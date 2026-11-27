@@ -180,7 +180,7 @@ globalThis.foundry = {
   applications: { api: { DialogV2: { wait: async (opts) => (asked.push(opts), dialogResult) } } },
 };
 const library = await import("../../scripts/lib/library.mjs");
-const { tokenArtSources, applyTokenArt, restoreTokenArt, hasTokenArtFlag } = await import("../../scripts/importer/token-art.mjs");
+const { tokenArtSources, applyTokenArt, restoreTokenArt, hasTokenArtFlag, declareTokenArtIndexField } = await import("../../scripts/importer/token-art.mjs");
 
 // The library reads the world's actors through `game.actors`.
 const readable = (library.libraryActors().length === actors.length);
@@ -207,7 +207,7 @@ ok("a wildcard sets the mark", actors[1].prototypeToken.randomImg === true && ac
 ok("a Judge's own token is left", actors[2].prototypeToken.texture.src === "worlds/mine/zork.png" && !actors[2].flags[MODULE_ID].tokenArt);
 ok("the flag records the source and the token that stood", actors[0].flags[MODULE_ID].tokenArt.was.src === BOOKART && actors[0].flags[MODULE_ID].tokenArt.src === art("wump"));
 ok("the placed unlinked token moves and the linked one is left", sceneUpdates.length === 1 && sceneUpdates[0][1].length === 1 && sceneUpdates[0][1][0]._id === "tk1" && result.placed === 1, JSON.stringify(sceneUpdates));
-ok("the flag is found so Restore is offered", hasTokenArtFlag() === true);
+ok("the flag is found so Restore is offered", (await hasTokenArtFlag()) === true);
 
 const rerun = await applyTokenArt(sources[0]);
 ok("a second apply changes nothing it already wrote", rerun.change === 0 && rerun.current === 2, JSON.stringify(rerun));
@@ -215,7 +215,7 @@ ok("a second apply changes nothing it already wrote", rerun.change === 0 && reru
 const restored = await restoreTokenArt();
 ok("restore puts the recorded token back and clears the flag", restored.restore === 2 && actors[0].prototypeToken.texture.src === BOOKART && !actors[0].flags[MODULE_ID].tokenArt, JSON.stringify(restored));
 ok("restore of a wildcard returns the mark", actors[1].prototypeToken.randomImg === false);
-ok("and none is left to restore", hasTokenArtFlag() === false);
+ok("and none is left to restore", (await hasTokenArtFlag()) === false);
 // The shelves are read off the index: only the stamped monsters are loaded, by one id query.
 globalThis.CONFIG = { Item: { compendiumIndexFields: [] }, Actor: { compendiumIndexFields: [] } };
 library.declareLibraryIndexFields();
@@ -236,6 +236,31 @@ await applyTokenArt(sources[0]);
 ok("the plan loads the shelf's stamped monsters alone, by one id query", JSON.stringify(shelfPack.calls.getDocuments) === JSON.stringify([{ _id__in: ["s1", "s4"] }]), JSON.stringify(shelfPack.calls.getDocuments));
 await restoreTokenArt();
 ok("restore asks for nothing more of a shelf that already holds them", shelfPack.calls.getDocuments.length === 1, JSON.stringify(shelfPack.calls.getDocuments));
+game.packs = [pack, ownPack, corePack];
+
+// The mark is declared as an Actor index field and found on the index rows: no document is loaded.
+declareTokenArtIndexField();
+declareTokenArtIndexField();
+ok("the mark's path is declared once on the Actor index", globalThis.CONFIG.Actor.compendiumIndexFields.filter((f) => f === flagKey).length === 1);
+const markedDoc = sourceDoc("m1", "Marked Wump", "monster", "zz.markedwump");
+markedDoc.flags[MODULE_ID].tokenArt = { from: "ZZ Art", src: art("wump"), was: { src: BOOKART } };
+const markedChar = sourceDoc("m2", "Marked Pilgrim", "character", "zz.markedpilgrim");
+markedChar.flags[MODULE_ID].tokenArt = { from: "ZZ Art", src: art("wump"), was: { src: BOOKART } };
+const markedPack = shelfMock({ type: "Actor", docs: [markedDoc, markedChar, sourceDoc("m3", "Unmarked Zorn", "monster", "zz.unmarkedzorn")] });
+game.packs = [markedPack];
+const asking = hasTokenArtFlag();
+ok("an unindexed shelf starts one index read", markedPack.calls.getIndex.length === 1 && markedPack.indexed === false);
+ok("the mark is found from the index rows of a shelf", (await asking) === true);
+ok("and no document of the shelf was loaded", markedPack.calls.getDocuments.length === 0 && markedPack.size === 0, JSON.stringify(markedPack.calls.getDocuments));
+ok("the next ask reads the indexed shelf with no further read", (await hasTokenArtFlag()) === true && markedPack.calls.getIndex.length === 1);
+const bareDoc = sourceDoc("n1", "Bare Wump", "monster", "zz.barewump");
+const bareChar = sourceDoc("n2", "Bare Pilgrim", "character", "zz.barepilgrim");
+bareChar.flags[MODULE_ID].tokenArt = { from: "ZZ Art", src: art("wump"), was: { src: BOOKART } };
+game.packs = [shelfMock({ type: "Actor", docs: [bareDoc, bareChar] })];
+ok("a mark on a shelf's row that is no imported monster, or no mark at all, offers nothing", (await hasTokenArtFlag()) === false);
+actors[0].flags[MODULE_ID].tokenArt = { from: "ZZ Art", src: art("wump"), was: { src: BOOKART } };
+ok("a world copy that carries the mark is found without any shelf", (await hasTokenArtFlag()) === true);
+delete actors[0].flags[MODULE_ID].tokenArt;
 game.packs = [pack, ownPack, corePack];
 
 active = false;

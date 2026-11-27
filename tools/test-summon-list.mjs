@@ -8,7 +8,7 @@
  */
 import assert from "node:assert/strict";
 import { REGISTER_ORIGIN } from "../scripts/lib/magic-vocab.mjs";
-import { addSummonCreature, amountFromBox, amountTip, creatureView, removeSummonCreature, resolveCreature, seatNameOf, summonListOf } from "../scripts/lib/summon-list.mjs";
+import { addSummonCreature, amountFromBox, amountTip, creatureByStamp, creatureView, removeSummonCreature, resolveCreature, seatNameOf, summonListOf } from "../scripts/lib/summon-list.mjs";
 
 let n = 0;
 const t = (name, fn) => {
@@ -201,6 +201,23 @@ t("the Mechanics line names a creature as the seat reads it", () => {
   assert.equal(seatNameOf("Actor.one", deps(player())), NEUTRAL);
   assert.equal(seatNameOf("cook.gone", deps(player())), NEUTRAL, "a seat that cannot resolve it never prints the ref");
   assert.equal(seatNameOf("Actor.one", deps(player({ sees: ["Actor.one"] }))), "Creature one");
+});
+
+t("the stamp lookup answers a shelf's index row as the row and a world actor as its document, and asks no document of a shelf", () => {
+  const asked = [];
+  const rows = { "cook.shelf": { _id: "a1", name: "Creature one", uuid: "Compendium.mod.pack.Actor.a1", pack: "mod.pack" }, "cook.world": { _id: "w1", name: "Creature w", uuid: "Actor.w1", pack: null } };
+  const doc = { id: "w1", name: "Creature w", uuid: "Actor.w1", testUserPermission: () => true };
+  const lookup = creatureByStamp((type, id) => (asked.push([type, id]), rows[id] ?? null), (id) => (id === "w1" ? doc : null));
+  assert.equal(lookup("Actor", "cook.shelf"), rows["cook.shelf"]);
+  assert.equal(lookup("Actor", "cook.world"), doc);
+  assert.equal(lookup("Actor", "cook.none"), null);
+  assert.deepEqual(asked.map(([type]) => type), ["Actor", "Actor", "Actor"]);
+  const orphan = creatureByStamp(() => rows["cook.world"], () => null);
+  assert.equal(orphan("Actor", "x"), rows["cook.world"], "a world row with no document stays the row");
+  const byStamp = { fromUuidSync: () => null, byCookbookId: lookup };
+  assert.equal(resolveCreature("cook.shelf", byStamp).name, "Creature one");
+  assert.equal(seatNameOf("cook.shelf", { resolve: (ref) => resolveCreature(ref, byStamp), user: player({ sees: [] }), packOf: () => ({ testUserPermission: () => true }), neutral: NEUTRAL }), "Creature one", "a row in a shelf is tested against the shelf");
+  assert.equal(seatNameOf("cook.shelf", { resolve: (ref) => resolveCreature(ref, byStamp), user: player(), packOf: () => ({ testUserPermission: () => false }), neutral: NEUTRAL }), NEUTRAL);
 });
 
 console.log(`\n${n} passed`);

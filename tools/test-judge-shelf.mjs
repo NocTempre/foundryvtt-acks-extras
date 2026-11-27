@@ -252,7 +252,7 @@ const mixed = index.books.find((b) => bookIsJudges(b) && bookLine(b));
 ok("a lined Judge's book's own ids take its series' Judge line", !!mixed && lineOf(mixed) === judgeLine(bookLine(mixed)), mixed ?? "no lined Judge's book shipped");
 /* ---------------- a seat's library is the shelves it opens ---------------- */
 
-const { libraryPacks, libraryDocs, warmLibrary, openPacks, seatOpens, isLibraryPack } = await import("../scripts/lib/library.mjs");
+const { libraryPacks, libraryDocs, loadLibrary, openPacks, seatOpens, isLibraryPack } = await import("../scripts/lib/library.mjs");
 // A shelf as a seat holds it at connect: its index, no document loaded, and
 // every read asked of the server recorded.
 const reads = [];
@@ -274,8 +274,8 @@ const collections = (list) => list.map((pack) => pack.collection);
 
 seat((pack) => !isJudges(pack));
 ok("a seat that cannot open a Judge's shelf does not count it in its library", collections(libraryPacks("Actor")).includes(shared.collection) && !libraryPacks("Actor").some(isJudges));
-await warmLibrary();
-ok("the warm asks the server for no shelf the seat cannot open", reads.includes(shared.collection) && !reads.some((c) => isJudges(packs.get(c))), reads.join(", "));
+await loadLibrary(["Actor"]);
+ok("a whole load asks the server for no shelf the seat cannot open", reads.includes(shared.collection) && !reads.some((c) => isJudges(packs.get(c))), reads.join(", "));
 check("a library read on that seat answers with none of its documents", libraryDocs("Actor").map((d) => d.id), ["s1"]);
 ok("a scan of the packs passes it over", !openPacks("Actor").some(isJudges) && openPacks("Actor").includes(shared));
 ok("it is still one of the library's shelves", isLibraryPack(judges.collection) && importedPacks().some(({ pack }) => pack === judges));
@@ -283,8 +283,8 @@ ok("it is still one of the library's shelves", isLibraryPack(judges.collection) 
 seat(() => true);
 check("a seat that opens every shelf reads the library's own first", libraryPacks("Actor")[0].collection, shared.collection);
 ok("and counts the Judge's", collections(libraryPacks("Actor")).includes(judges.collection));
-await warmLibrary();
-ok("the warm loads the Judge's shelf there", reads.includes(judges.collection), reads.join(", "));
+await loadLibrary(["Actor"]);
+ok("a whole load takes the Judge's shelf there", reads.includes(judges.collection), reads.join(", "));
 check("and a library read answers with both shelves' documents", libraryDocs("Actor").map((d) => d.id).sort(), ["j1", "j2", "s1"]);
 ok("a pack that gives no answer counts as open, and only a refusal closes one", seatOpens({}) && seatOpens({ visible: true }) && !seatOpens({ visible: false }));
 

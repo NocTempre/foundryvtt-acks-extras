@@ -157,6 +157,22 @@ export function resolveCreature(ref, { fromUuidSync, byCookbookId }) {
 }
 
 /**
+ * The stamp lookup a summon surface hands `resolveCreature` and `summonRefName`,
+ * answering from the index: `rowOf(type, id)` is the creature's index row, which
+ * carries the name, the uuid and the shelf it is in, and no document is loaded.
+ * A row that names no shelf is a world actor, which is in memory, so it is
+ * answered as the document, whose own permission test `creatureOpens` reads; a
+ * row in a shelf has none, and is tested against its shelf.
+ * @param {(type: string, id: string) => {_id: string, pack: string|null}|null} rowOf
+ * @param {(id: string) => object|null} worldActor the world's actor of this id
+ * @returns {(type: string, id: string) => object|null}
+ */
+export const creatureByStamp = (rowOf, worldActor) => (type, id) => {
+  const row = rowOf(type, id);
+  return row && !row.pack ? (worldActor(row._id) ?? row) : row;
+};
+
+/**
  * How one creature reads on one seat. The name is the creature's own where the
  * seat can open it (`creatureOpens`), else the neutral label and nothing that
  * spells the creature: no row name, no ref. A Judge's seat reads the name, and

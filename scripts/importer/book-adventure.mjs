@@ -41,8 +41,8 @@ const TWIN_TYPES = ["Actor", "Scene", "RollTable", "JournalEntry", "Item"];
 /**
  * This world, as the fill asks about it. Twins are indexed once per import,
  * by cookbook id, over the collections an Adventure carries; a folder's twin
- * is found by type, name and parent. A library document is looked up in the
- * warmed library, synchronously.
+ * is found by type, name and parent. A library document is looked up
+ * synchronously, in a library this import has loaded whole first (`loadLibrary`).
  */
 function worldLookups() {
   const twins = new Map();
