@@ -1,19 +1,30 @@
 /* global foundry */
 /**
- * The power ledger's chip on the casting strip: a tag for each power with the
- * balance on its face, and beside it a disclosure button that opens that power's
- * panel. The panel holds the entries as rows and, for a seat that owns the
- * character (Foundry's own test, true for a GM), the controls: a Fades / Stays
- * switch, an amount box, an Add and a Remove, an Undo on each entry the model
- * calls undoable, and, on the arcane panel, the arcane lifetime's count. A row
- * the model refuses Undo says why in a line of its own. A seat that does not own
- * the character reads the tag and the rows and nothing else, and never a power
- * with no entries.
+ * The power ledger on the casting strip: one icon button for each power the
+ * character has. A power is shown, to every seat alike, where the character's
+ * class casts that kind, where its ledger holds entries of it, or, for arcane,
+ * where the sacrifice record marks the class power (`magic/power-ledger-live.mjs`
+ * `chipModelFor` reads all three); a character with none draws nothing. The icon
+ * is the disclosure of that power's panel, and while the balance is above zero
+ * the balance rides over the icon as a badge. The panel's head names the power
+ * with its balance as text, and the panel holds the entries as rows and, for a
+ * seat that can edit the character (Foundry's own `isOwner`, true for a GM), the
+ * controls: a Fades / Stays switch, an amount box, an Add and a Remove, an Undo
+ * on each entry the model calls undoable, and, on the arcane panel, the arcane
+ * lifetime's count. A row the model refuses Undo says why in a line of its own. A
+ * seat that cannot edit the character reads the icon, the badge and the rows.
  *
  * Add and Remove act with the typed amount in one request. The switch sets what
  * that panel's pair does: on Fades the Add writes a point that fades after the
  * lifetime and the Remove spends fading points first; on Stays the Add writes a
  * point that stays until removed and the Remove removes one.
+ *
+ * The blood sacrifice's button (`openerHtml`) is drawn in each shown panel's
+ * head under the sacrifice's own seat rule (`magic/sacrifice-record.mjs`
+ * `openerVisible`): a Judge's seat for every caster and a Player's for the
+ * casters that rule names. Where that rule allows it and no power is shown the
+ * strip draws neither the section nor the button, and the window stays open to
+ * `acksExtras.magic.sacrifice.open(actor)`.
  *
  * What a window keeps (`powerSwitchOf(app)`): per kind, the switch, whether the
  * panel is open and the typed amount, plus the base of the panel ids. Every
@@ -21,11 +32,7 @@
  * re-render each write causes; the panels start closed, the amount starts at one
  * and the switch on Fades; it ends when its window closes (`forgetPowerSwitch`)
  * and is never written to the actor. The classes feature hosts the chip; the
- * ledger is magic's, read and written through `magic/power-ledger-live.mjs`. The
- * blood sacrifice's button sits beside the tags (`openerHtml`): a Judge's seat
- * draws it for every caster and a Player's for the casters the sacrifice's own
- * rule names (`magic/sacrifice-record.mjs` `openerVisible`), whether or not the
- * ledger holds anything yet.
+ * ledger is magic's, read and written through `magic/power-ledger-live.mjs`.
  */
 import { chipModelFor, powerApi, announce } from "../magic/power-ledger-live.mjs";
 import { openerFor, openSacrifice } from "../magic/sacrifice-record-live.mjs";
@@ -79,15 +86,14 @@ function stayHtml(k, onStays) {
   return `<span class="acks-extras-classes-powerstay" role="group" aria-label="${esc(k.stay.group)}">${pill(false, k.stay.fades, k.stay.fadesTip)}${pill(true, k.stay.stays, k.stay.staysTip)}</span>`;
 }
 
-/** One power's tag and the button that opens its panel, in one wrapping group. */
+/** The glyph of each power's icon. */
+const GLYPH = { divine: "fa-hands-praying", arcane: "fa-hat-wizard" };
+
+/** One power's icon, which is the button that opens its panel, with the balance as a badge over it while the balance is above zero. The badge is hidden from assistive technology: the button's own name carries the balance. */
 function chipHtml(k, state) {
   const open = state.open?.[k.kind] === true;
-  return (
-    `<span class="acks-extras-classes-powerchip">` +
-    `<span class="acks-extras-classes-powertag" data-power="${k.kind}" data-tooltip-text="${esc(k.tip)}"><i class="fa-solid fa-bolt" inert></i> ${esc(k.label)} <span class="acks-nums">${k.balance}</span></span>` +
-    `<button type="button" class="acks-extras-classes-powerdisc" data-power-toggle="1" data-power-kind="${k.kind}" aria-expanded="${open}" aria-controls="${esc(panelId(state, k.kind))}" aria-label="${esc(k.disclosureLabel)}" data-tooltip=""><i class="fa-solid ${open ? "fa-chevron-down" : "fa-chevron-right"}" inert></i> ${esc(k.entriesText)}</button>` +
-    `</span>`
-  );
+  const badge = k.balance > 0 ? `<span class="acks-extras-classes-powerbadge acks-nums" data-power-badge="${k.kind}" aria-hidden="true">${k.balance}</span>` : "";
+  return `<button type="button" class="acks-extras-classes-powerdisc" data-power-toggle="1" data-power-kind="${k.kind}" aria-expanded="${open}" aria-controls="${esc(panelId(state, k.kind))}" aria-label="${esc(k.disclosureLabel)}" data-tooltip-text="${esc(k.tip)}"><i class="fa-solid ${GLYPH[k.kind] ?? "fa-bolt"}" inert></i>${badge}</button>`;
 }
 
 /** One entry's row: the source's art, its name and caption (a pin before a lot that stays), the line that says why Undo is refused, the figure, and an owner's Undo. */
@@ -125,15 +131,15 @@ function controlsHtml(k, state) {
   );
 }
 
-/** One kind's panel: its heading, an owner's controls and its entry rows, hidden until the window's record opens it. */
-function panelHtml(model, k, state) {
+/** One kind's panel: its heading with the balance as text, an owner's controls, the Sacrifice button where this seat has one (`opener`) and its entry rows, hidden until the window's record opens it. */
+function panelHtml(model, k, state, opener) {
   const open = state.open?.[k.kind] === true;
   const list = k.rows.length
     ? `<ul class="acks-extras-classes-powerlist">${k.rows.map(rowHtml).join("")}</ul>`
     : `<span class="acks-extras-classes-powerempty">${esc(model.emptyText)}</span>`;
   return (
     `<div class="acks-extras-classes-powerpanel" id="${esc(panelId(state, k.kind))}" data-power-panel="${k.kind}"${open ? "" : " hidden"}>` +
-    `<div class="acks-extras-classes-powerhead"><span class="acks-label acks-extras-classes-powerheadtext">${esc(k.panelLabel)}</span>${model.owns ? controlsHtml(k, state) : ""}</div>` +
+    `<div class="acks-extras-classes-powerhead"><span class="acks-label acks-extras-classes-powerheadtext">${esc(k.label)} <span class="acks-nums acks-extras-classes-powerbal" data-power-balance="${k.kind}">${k.balance}</span></span>${model.owns ? controlsHtml(k, state) : ""}${opener}</div>` +
     list +
     `</div>`
   );
@@ -152,34 +158,34 @@ export function openerHtml(actor, casts = false) {
 }
 
 /**
- * The ledger's markup for the strip, or "" where there is nothing to draw: a
- * seat that does not own the character with no entries and no Sacrifice button,
- * or an actor that casts nothing and holds no power.
+ * The ledger's markup for the strip, or "" where there is nothing to draw: no
+ * power is shown for the character (it casts none of them, holds no entries and
+ * has no class power marked), whatever the seat and whatever the Sacrifice
+ * button's own rule says.
  * @param {Actor} actor
- * @param {boolean} casts whether the actor has any casting pool to draw
+ * @param {boolean} casts whether the actor has any casting pool to draw, which the Sacrifice button's rule reads
  * @param {object} [state] the window's record (`powerSwitchOf`): each panel is drawn open or closed, each switch pressed and each amount box filled to match
  */
 export function powerSectionHtml(actor, casts, state = powerSwitchOf(null)) {
-  const opener = openerHtml(actor, casts);
   let model = null;
   try {
     model = chipModelFor(actor);
   } catch (err) {
     console.error("acks-extras | the power ledger could not be read", err);
   }
-  const chips = Boolean(model) && model.any && (casts || model.hasEntries);
-  if (!chips && !opener) return "";
-  const shown = chips ? model.kinds.filter((k) => k.shown) : [];
-  return `<div class="acks-extras-classes-power"><div class="acks-extras-classes-powerchips">${shown.map((k) => chipHtml(k, state)).join("")}${opener}</div>${shown.map((k) => panelHtml(model, k, state)).join("")}</div>`;
+  const shown = model ? model.kinds.filter((k) => k.shown) : [];
+  if (!shown.length) return "";
+  const opener = openerHtml(actor, casts);
+  return `<div class="acks-extras-classes-power"><div class="acks-extras-classes-powerchips">${shown.map((k) => chipHtml(k, state)).join("")}</div>${shown.map((k) => panelHtml(model, k, state, opener)).join("")}</div>`;
 }
 
 /**
- * Wire the ledger's controls on a strip: the disclosure, an owner's Add, Remove,
+ * Wire the ledger's controls on a strip: the icon that opens a panel, an owner's Add, Remove,
  * Fades / Stays switch and Undo, the arcane count, and the Sacrifice button. The
  * switch and the amount are read at the press: Add and Remove send the typed
  * amount in one request, and a panel set to Stays writes its Add as a lot that
  * stays and its Remove as a removal from the lots that stay. A press of the
- * disclosure or the switch, and a keystroke in the amount box, write nothing to
+ * icon or the switch, and a keystroke in the amount box, write nothing to
  * the actor; they set `state`, the window's record (`powerSwitchOf`), which a
  * render of the strip reads back.
  * @param {Element} strip
@@ -200,9 +206,6 @@ export function wirePowerChip(strip, actor, state = powerSwitchOf(null)) {
       const open = state.open?.[kind] !== true;
       (state.open ??= {})[kind] = open;
       toggle.setAttribute("aria-expanded", String(open));
-      const chevron = toggle.querySelector?.("i");
-      chevron?.classList?.toggle("fa-chevron-down", open);
-      chevron?.classList?.toggle("fa-chevron-right", !open);
       const panel = strip.querySelector?.(`[data-power-panel="${kind}"]`);
       if (panel) panel.hidden = !open;
       return;

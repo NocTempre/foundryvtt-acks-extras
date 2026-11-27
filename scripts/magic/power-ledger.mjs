@@ -370,12 +370,14 @@ export function powerOps(deps) {
  * the localizer of the ledger's lang group. `lifetimes[kind]` is
  * `{span, lifetime, cite, byHand}`: the span in days (null: nothing expires),
  * the imported `{count, unit}` for the words, the page the lifetime was read
- * from and whether a hand set it. A kind is shown to an owner always and to
- * anyone else where it has entries. Each kind carries the words of its
- * disclosure and panel (`entriesText`, `disclosureLabel`, `panelLabel`,
- * `amountLabel`, `addText`, `removeText`) and each row its `undoText`.
+ * from and whether a hand set it. A kind is `shown`, to every seat alike, where
+ * the character casts it (`casts[kind]`), where its ledger holds entries, or,
+ * for arcane, where the class power is marked (`classPower`); `owns` governs
+ * the controls and never the showing. Each kind carries the words of its icon
+ * and panel (`disclosureLabel`, which names the balance, `amountLabel`,
+ * `addText`, `removeText`) and each row its `undoText`.
  */
-export function chipModel({ ledger, today, lifetimes, loc, judge, owns = judge === true, userName = () => "" }) {
+export function chipModel({ ledger, today, lifetimes, loc, judge, owns = judge === true, userName = () => "", casts = {}, classPower = false }) {
   const kinds = POWER_KINDS.map((kind) => {
     const entries = ledger[kind].entries;
     const life = lifetimes?.[kind] ?? {};
@@ -429,8 +431,7 @@ export function chipModel({ ledger, today, lifetimes, loc, judge, owns = judge =
         : null;
     const stay = owns ? { group: loc("stayGroup", { label: loc(`kind.${kind}`) }), fades: loc("fades"), stays: loc("stays"), fadesTip: loc("fadesTip"), staysTip: loc("staysTip") } : null;
     const label = loc(`kind.${kind}`);
-    const entriesText = entries.length === 1 ? loc("entriesOne") : loc("entriesMany", { n: entries.length });
-    return { kind, label, balance, expiry, tip, rows, count, stay, shown: owns || entries.length > 0, entriesText, disclosureLabel: loc("disclosureLabel", { label, entries: entriesText }), panelLabel: loc("panelLabel", { label }), amountLabel: loc("amountLabel", { label }), addText: loc("add"), removeText: loc("remove"), addLabel: loc("addLabel", { label: loc(`kind.${kind}`) }), removeLabel: loc("removeLabel", { label: loc(`kind.${kind}`) }), removeStaysLabel: loc("removeStaysLabel", { label: loc(`kind.${kind}`) }), empty: entries.length === 0 };
+    return { kind, label, balance, expiry, tip, rows, count, stay, shown: casts[kind] === true || entries.length > 0 || (kind === POWER_KIND.arcane && classPower === true), disclosureLabel: loc("disclosureLabel", { label, balance }), amountLabel: loc("amountLabel", { label }), addText: loc("add"), removeText: loc("remove"), addLabel: loc("addLabel", { label: loc(`kind.${kind}`) }), removeLabel: loc("removeLabel", { label: loc(`kind.${kind}`) }), removeStaysLabel: loc("removeStaysLabel", { label: loc(`kind.${kind}`) }), empty: entries.length === 0 };
   });
-  return { judge, owns, kinds, any: kinds.some((k) => k.shown), hasEntries: kinds.some((k) => !k.empty), emptyText: loc("empty") };
+  return { judge, owns, kinds, any: kinds.some((k) => k.shown), emptyText: loc("empty") };
 }

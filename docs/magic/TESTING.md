@@ -2087,7 +2087,8 @@ sacrifice slices call. Offline: `tools/test-power-ledger.mjs`. Live:
 ### Fixtures
 
 Kept, found by marker (`gm.fixture` builds them where none carries it): `magic/power-class` (an
-`acks-extras.class` with one vancian casting row, so the strip has a pool), `magic/power-hero`
+`acks-extras.class` with one vancian casting row, so the strip has a pool, and a divine and an
+arcane casting row, since a power shows where its kind is cast), `magic/power-hero`
 (a linked character bound to that class by `flags["acks-extras"].classes.uuid`, owned by the
 Player seat's user) and `magic/power-stranger` (a character whose default ownership is Observer,
 which the Player cannot write). Each step that needs a known shape starts it: both characters'
@@ -2101,15 +2102,23 @@ the steps' below.
 1. **A gain.** The GM seat calls `acksExtras.magic.power.gain`. *Observable:* `{ok, balance}`, one
    entry whose `day` is `dayOfWorldTime(game.time.worldTime)`, not by hand, and whose `user` is the
    GM seat's user id.
-2. **The chip.** Open the hero's sheet, Magic tab. *Observable:* a tag for divine power with the
-   balance and one for arcane power at nothing, a disclosure button beside each reading closed
+2. **The icons.** Open the hero's sheet, Magic tab. *Observable:* one icon button for each power
+   the hero has, `[data-power-toggle][data-power-kind="<kind>"]`, the divine one (hands praying) with
+   the balance over it as a badge (`.acks-extras-classes-powerbadge`, `[data-power-badge]`) and the
+   arcane one (a wizard's hat) with no badge, the balance being nothing; each reads closed
    (`aria-expanded="false"`), both panels `hidden`, and no `id` on the strip but the two panels' and
    those lib's a11y binder mints, each starting with the window's own id, each panel's `id` named by
-   its button's `aria-controls`; the divine tag's tooltip lists the entry with its sign and the page.
-   Open divine. *Observable:* the panel shows and the other stays hidden, nothing is written and the
-   strip is not re-rendered; it carries the Fades / Stays group (Fades pressed), an amount box reading
-   1, Add, Remove and one row for step 1's entry (its name, a picture or a glyph) with its tooltip.
-   Open arcane. *Observable:* its panel carries the one count box.
+   its icon's `aria-controls`; each icon's `aria-label` names the power and its balance, and the
+   divine icon's tooltip lists the entry with its sign and the page. No tag, no chevron and no
+   Sacrifice button stand on the strip line. Open divine by pressing its icon. *Observable:* the
+   panel shows and the other stays hidden, nothing is written and the strip is not re-rendered, and
+   the icon keeps its glyph; its head names the power and reads the balance as text
+   (`[data-power-balance="divine"]`, also at nothing on the arcane panel); it carries the Fades /
+   Stays group (Fades pressed), an amount box reading 1, Add, Remove and one row for step 1's entry
+   (its name, a picture or a glyph) with its tooltip. Open arcane. *Observable:* its panel carries
+   the one count box. A kind the hero does not cast, holds no entry of and has no class power for
+   draws no icon (the stranger, step 6, shows divine alone); a character with no power at all draws
+   no section.
 3. **Add, Remove, Undo.** On a ledger unset first, with divine open, type 2 and press Add.
    *Observable:* one entry of +2 with `by: "judge"` and `user` the GM seat's user id, one write, the
    panel still open and the box still reading 2 after the render (the strip element is a new one). Add
@@ -2125,7 +2134,7 @@ the steps' below.
    one box starts blank with the page in its tooltip, writes `arcane.count` and leaves the entries,
    reads the count again after the render with the panel still open, and a blank writes null.
 5. **A Player's seat, the owner.** The GM seat gains 5 (a plain gain) and 1 by hand on the hero; open
-   the same sheet as the Player, who owns the character. *Observable:* both tags and, with divine
+   the same sheet as the Player, who owns the character. *Observable:* both icons and, with divine
    open, every control (a group, an amount box, Add and Remove on each panel, the count box, Undo on
    each unspent gain), the Player may write the actor. Type 2 and press Add: one entry of +2 with
    `by: "judge"` and `user` the Player's own user id, one write from the Player's seat with no relay,
@@ -2136,9 +2145,9 @@ the steps' below.
 6. **A seat that does not own.** The GM seat sets `system.spells.enabled` on the stranger (the module's
    sheet draws a Magic tab, which hosts the strip, only for a caster, and the stranger has no class)
    and gains 1 on it; the Player opens its sheet.
-   *Observable:* the divine tag, its disclosure and, opened, a panel with the row and the tooltip; no
+   *Observable:* the divine icon with its badge and, opened, a panel with the row and the tooltip; no
    pill, no group, no amount box, no Add, no Remove, no count box, no Undo, no refused line, and no
-   arcane tag or panel. From the Player's seat `gain`, a hand's gain, `undo` and `setCount` on the
+   arcane icon or panel (the stranger casts nothing and holds no arcane entry). From the Player's seat `gain`, a hand's gain, `undo` and `setCount` on the
    stranger each answer `{ok: false, reason: "owner"}` (it came from the GM's client, which a missing
    GM would not give: that is `noGm`), `canUserModify` is false, and nothing is written (the GM
    seat's counter holds).
@@ -2187,7 +2196,13 @@ the steps' below.
 ### Drive mechanics
 
 Each power's controls sit in its panel, `[data-power-panel="<kind>"]`, which is `hidden` until its
-disclosure, `[data-power-toggle][data-power-kind="<kind>"]`, opens it. Add and Remove are found inside
+icon, `[data-power-toggle][data-power-kind="<kind>"]`, opens it; the icon is the disclosure, and the
+balance badge on it is `[data-power-badge="<kind>"]`, present only above nothing, while the panel's head
+reads the balance as text in `[data-power-balance="<kind>"]`. The Sacrifice button, `[data-sacrifice-open]`,
+is inside each shown panel, `[data-power-panel="<kind>"]`, never on the strip line, and is drawn
+only where the sacrifice's own seat rule allows it; where that rule allows it and no power is shown
+the strip draws neither the section nor the button, and the window opens through
+`acksExtras.magic.sacrifice.open(actor)`. Add and Remove are found inside
 the panel by kind, `[data-power-adjust="1|-1"][data-power-kind="<kind>"]`, the Fades / Stays pills as
 `[data-power-stay="0|1"][data-power-kind="<kind>"]`, the amount box as
 `[data-power-amount][data-power-kind="<kind>"]`, the count box as `[data-power-count]` (arcane panel
@@ -2197,7 +2212,7 @@ box's `value` and dispatching `input` with `bubbles: true`: the chip listens for
 text per window, and reads it at the press, so a value set with no event is not what Add sends. A
 real keystroke also sends `change` on blur, which the walk does not send. A press of Add, Remove or
 Undo writes the actor and re-renders the sheet, so the strip element is a new one and every element
-is looked up again after each; a press of a pill or of the disclosure, or a keystroke in the amount
+is looked up again after each; a press of a pill or of an icon, or a keystroke in the amount
 box, writes nothing and does not. What survives the render is on the sheet window (`powerSwitchOf`,
 keyed by the application): per kind the switch, whether the panel is open and the typed amount, so a
 second window is its own; a close ends it (`closeApplicationV2` drops the record), though the document
@@ -2210,7 +2225,8 @@ spy on the socket. The clock is shared by every seat and the walk never moves it
 written in the past (`actor.update` of the kind's `entries`), which is what a gain a lifetime ago is,
 and the balance reads the clock as it stands. A real advance of the clock, the calendar's own weekday
 list for a lifetime counted in weeks (`calendar.days.values`), the chip on the system's own character
-sheet (it is the same `castingStripElement`), and the Sacrifice button beside the tags are not walked.
+sheet (it is the same `castingStripElement`), and the Sacrifice button inside the panels are not walked,
+and the walk script `tools/live/magic-power-ledger.mjs` is parked: this recipe stands without it.
 
 ### Teardown
 

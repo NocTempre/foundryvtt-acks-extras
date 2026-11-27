@@ -1554,10 +1554,17 @@ and refuses a sender who does not own the actor (`reason: "owner"`); an entry it
 records that sender. No GM connected means not written (`reason: "noGm"`).
 
 The chip sits on the casting strip, on the character sheet's Magic tab and on the system's
-sheet alike (`castingStripElement`). A tag for each power carries the balance on its face
-and the entries, the next to fade and the page in its tooltip. Beside it a button with the
-number of entries opens that power's panel (`aria-expanded`, `aria-controls` the panel's
-id, which is built from the window's own id). The panel lists the entries as rows, newest
+sheet alike (`castingStripElement`). It is one icon button for each power the character has,
+for every seat alike: a power is shown where the character's class casts that kind (a casting
+row whose key folds to `divine` or `arcane`), where its ledger holds entries, or, for arcane,
+where the sacrifice record marks the class power (`power-ledger-live.mjs` `chipModelFor`
+reads the three, `castsKind` being the per-kind reader the sacrifice's own divine test shares).
+A character with none draws no ledger. While the balance is above nothing it is drawn over
+the icon as a badge; the icon's tooltip carries the entries, the next to fade and the page,
+and its name (`aria-label`) the power and its balance. The icon is the disclosure of that
+power's panel (`aria-expanded`, `aria-controls` the panel's
+id, which is built from the window's own id). The panel's head names the power and reads its
+balance as text, and the panel lists the entries as rows, newest
 first, each led by its source's picture (else a glyph); an entry by hand is named for the
 user who pressed where the world still has them. A lot that stays is a row led by a pin
 (Font Awesome, where it has no picture of its own) with the caption "stays until removed",
@@ -1568,8 +1575,10 @@ the panel: a Fades / Stays switch, an amount box, Add, Remove and, on the arcane
 arcane count; and Undo on each row the model calls `undoable` (a spend, or a gain none of
 which was spent). A gain partly spent carries no Undo and says why in a line of its own on
 the row (`undoRefused`). A seat that sees the sheet without owning the character reads the
-tags and the rows and no control, and no power that has no entries. Add and Remove send the
-typed amount in one request, marked `by: "judge"`.
+icons, the badges and the rows and no control. Add and Remove send the
+typed amount in one request, marked `by: "judge"`. The Sacrifice button is drawn in the head
+of each shown panel under the sacrifice's own seat rule (see "The opener" below), and nowhere
+on the strip line.
 
 The switch is two pills in a group named for the power, Fades pressed by default, and sets
 what that panel's Add and Remove do. On Fades the Add writes a gain with no mark and the
@@ -1590,7 +1599,7 @@ Fades, closed and an amount of one; two windows on one actor hold two records; a
 record ends when its window closes (`closeApplicationV2`, `forgetPowerSwitch`), since a
 document keeps one sheet instance for as long as the world runs. It is never written to
 the actor, and opening a panel, pressing a pill or typing an amount writes nothing.
-An actor that casts nothing and holds no power draws no ledger. A rest does not touch it.
+A rest does not touch the ledger.
 
 ## Research projects
 
@@ -1809,6 +1818,9 @@ Severity still reads the role (`judge` in `panelModel` and `planOf`): the findin
 and the opener's draw for a GM on every caster is unchanged. Whether a control is drawn reads `editable`, ownership of
 the caster, and nothing else.
 
-**The opener.** A Sacrifice button on the casting strip (`classes/power-chip.mjs`) opens the window: a Judge sees it on every
-caster the strip draws, a Player on a divine, chaotic caster or one whose record marks the class power. The button reads
-the role; the controls in the window it opens read ownership of the caster.
+**The opener.** A Sacrifice button inside each shown power panel on the casting strip (`classes/power-chip.mjs`) opens the
+window: a Judge sees it on every caster the strip draws, a Player on a divine, chaotic caster or one whose record marks the
+class power. The button reads the role; the controls in the window it opens read ownership of the caster. A caster the
+rule allows the button for but who has no power shown (a Judge's seat on a caster whose only casting key is neither
+`arcane` nor `divine`, with no entries and no class power) draws no panel and so no button; the window opens through
+`acksExtras.magic.sacrifice.open(actor)`.

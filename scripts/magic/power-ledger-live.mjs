@@ -7,6 +7,7 @@
  * hosts its chip (`classes/power-chip.mjs`) and reads it through here.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_POWER, POWER_HANDLER } from "./constants.mjs";
+import { castsKind, readRecord } from "./sacrifice-record-live.mjs";
 import { POWER_KIND, POWER_KINDS, POWER_OP, POWER_ROW_PREFIX, powerOps, powerRow, kindOfRow, readLedger, nextExpiry, spanDays, chipModel, checkPowerRequest } from "./power-ledger.mjs";
 import { readDivineLifetime, readArcaneLifetime } from "./research-tables.mjs";
 import { dayOfWorldTime } from "../lib/world-time.mjs";
@@ -110,11 +111,14 @@ export function registerPower() {
  * The chip's model for an actor, as the viewing user sees it: its controls are
  * drawn where the user owns the actor (`isOwner`, which holds for a GM), and an
  * entry by hand is named for the user who pressed where the world still has them.
+ * Which kinds show is the character's own: the traditions its class casts and
+ * the sacrifice record's class-power mark, read here and handed to the model.
  */
 export function chipModelFor(actor) {
   const ledger = ledgerOf(actor);
   const userName = (id) => game.users?.get(id)?.name ?? "";
-  return chipModel({ ledger, today: liveDeps().today(), lifetimes: lifetimesFor(ledger), loc, judge: game.user.isGM === true, owns: actor?.isOwner === true, userName });
+  const casts = Object.fromEntries(POWER_KINDS.map((kind) => [kind, castsKind(actor, kind)]));
+  return chipModel({ ledger, today: liveDeps().today(), lifetimes: lifetimesFor(ledger), loc, judge: game.user.isGM === true, owns: actor?.isOwner === true, userName, casts, classPower: readRecord(actor).power === true });
 }
 
 /** Tell the user what a refused or short write came to. */

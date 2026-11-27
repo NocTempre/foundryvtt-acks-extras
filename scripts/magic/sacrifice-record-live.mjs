@@ -49,8 +49,11 @@ export const storedRecord = (actor) => actor?.flags?.[MODULE_ID]?.[FLAG_MAGIC]?.
 /** The caster's record, cleaned; an empty one where none is open. */
 export const readRecord = (actor) => cleanRecord(storedRecord(actor));
 
-/** Whether a casting tradition of the actor's class is divine, by the tradition's own key. */
-export const castsDivine = (actor) => (classForActor(actor)?.system?.casting ?? []).some((t) => foldKey(t?.key) === "divine");
+/** Whether a casting tradition of the actor's class is of the given kind (`divine` or `arcane`), by the tradition's own key. */
+export const castsKind = (actor, kind) => (classForActor(actor)?.system?.casting ?? []).some((t) => foldKey(t?.key) === kind);
+
+/** Whether a casting tradition of the actor's class is divine. */
+export const castsDivine = (actor) => castsKind(actor, "divine");
 
 /**
  * The GM's client writes the record: it checks who sent the request (a GM, or an owner of the caster), applies the op

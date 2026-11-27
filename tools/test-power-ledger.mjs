@@ -436,19 +436,24 @@ const ledgerOf = (raw) => P.readLedger(raw);
 const lives = (over = {}) => ({ divine: { span: null, lifetime: null, cite: null, byHand: false }, arcane: { span: null, lifetime: null, cite: null, byHand: false }, ...over });
 const model = (raw, o = {}) => P.chipModel({ ledger: ledgerOf(raw), today: 10, lifetimes: lives(), loc: echo, judge: false, ...o });
 
-t("the chip of a seat that owns nothing shows a kind with entries, no controls and no count; an owner's shows both kinds", () => {
+t("a kind is shown to every seat alike where the character casts it, where its ledger has entries, or (arcane) where the class power is marked; the controls and the count are the owner's", () => {
   const raw = { divine: { entries: [e("a", 4, 1, { name: "Sacrifice: bandit chief" })] } };
   const player = model(raw);
-  assert.deepEqual(player.kinds.map((k) => [k.kind, k.shown]), [["divine", true], ["arcane", false]]);
+  assert.deepEqual(player.kinds.map((k) => [k.kind, k.shown]), [["divine", true], ["arcane", false]], "entries show a kind");
   assert.equal(player.any, true);
   assert.equal(player.kinds.find((k) => k.kind === "arcane").count, null);
   const judge = model(raw, { judge: true });
-  assert.deepEqual(judge.kinds.map((k) => k.shown), [true, true]);
+  assert.deepEqual(judge.kinds.map((k) => k.shown), [true, false], "a Judge's seat shows no more than a Player's: owning shows nothing");
   assert.ok(judge.kinds[1].count && judge.kinds[1].count.value === "", "the count is blank until set");
   assert.equal(judge.kinds[0].count, null, "only arcane has a count");
-  assert.equal(model({}).any, false, "a Player with nothing sees no chip");
-  assert.equal(model({}, { judge: true }).any, true);
-  assert.equal(model({}, { judge: true }).hasEntries, false);
+  for (const o of [{}, { judge: true }, { owns: true }]) {
+    assert.equal(model({}, o).any, false, `a non-caster with an empty ledger shows nothing: ${JSON.stringify(o)}`);
+  }
+  assert.deepEqual(model({}, { casts: { divine: true } }).kinds.map((k) => k.shown), [true, false], "a divine caster shows divine");
+  assert.deepEqual(model({}, { casts: { arcane: true } }).kinds.map((k) => k.shown), [false, true], "an arcane caster shows arcane");
+  assert.deepEqual(model({}, { casts: { divine: true, arcane: true }, owns: false }).kinds.map((k) => k.shown), [true, true], "a seat that owns nothing sees what the character has");
+  assert.deepEqual(model({}, { classPower: true }).kinds.map((k) => k.shown), [false, true], "the class power marks arcane only");
+  assert.deepEqual(model({}, { casts: { divine: false, arcane: false } }).kinds.map((k) => k.shown), [false, false]);
 });
 
 t("the tooltip lists the entries, the next fading and the page; an overridden lifetime names no page", () => {
@@ -489,7 +494,7 @@ t("the rows run newest first; a spend carries Undo for an owner alone; an expire
 t("the chip's controls are the owner's: a Player who owns the character gets them, a seat that does not gets none, and a gain partly spent says why it has no Undo", () => {
   const raw = { divine: { entries: [e("a", 4, 1, { name: "Old" }), e("b", 2, 2, { name: "New" }), e("s", -1, 3, { name: "Spent" })] } };
   const owner = model(raw, { owns: true, judge: false });
-  assert.deepEqual(owner.kinds.map((k) => k.shown), [true, true], "an owner sees both kinds, as a Judge does");
+  assert.deepEqual(owner.kinds.map((k) => k.shown), [true, false], "an owner sees the kinds the character has, no more");
   assert.ok(owner.kinds[0].stay && owner.kinds[1].stay, "the Fades / Stays labels");
   assert.ok(owner.kinds[1].count, "the arcane count");
   assert.equal(owner.kinds[0].count, null);
@@ -498,11 +503,11 @@ t("the chip's controls are the owner's: a Player who owns the character gets the
   assert.equal(rows.a.undoRefused, "undoSpent", "the line is the lang group's own");
   assert.deepEqual([rows.s.undoRefused, rows.b.undoRefused], [null, null], "a row that can be undone carries no refusal");
   const viewer = model(raw, { owns: false, judge: false });
-  assert.deepEqual(viewer.kinds.map((k) => k.shown), [true, false]);
+  assert.deepEqual(viewer.kinds.map((k) => k.shown), [true, false], "the same kinds as the owner's");
   assert.deepEqual([viewer.kinds[0].stay, viewer.kinds[1].count], [null, null]);
   assert.equal(viewer.kinds[0].rows.some((r) => r.undoable || r.undoRefused), false, "no undo and no refusal for a seat that owns nothing");
-  assert.equal(model({}, { owns: true, judge: false }).any, true, "an owner's chip stands on an empty ledger");
-  assert.equal(model({}, { owns: false, judge: true }).any, false, "the controls read `owns`, not `judge`");
+  assert.equal(model({}, { owns: true, judge: false }).any, false, "an owner's icon does not stand on an empty ledger of a character with no power");
+  assert.equal(model({}, { owns: false, judge: true, casts: { divine: true } }).kinds[0].stay, null, "the controls read `owns`, not `judge`");
   assert.equal(owner.owns, true);
 });
 
@@ -548,11 +553,21 @@ t("with no table imported nothing expires; the divine lifetime is the imported s
   resetTables();
 });
 
-/** A world actor whose flag and rights this test controls. */
-function worldActor(uuid, { canModify = true, flags = undefined } = {}) {
+/**
+ * A world actor whose flag and rights this test controls. `casting` lists the keys of the
+ * casting traditions its class holds (none: no class), and `classPower` is the sacrifice
+ * record's class-power mark.
+ */
+function worldActor(uuid, { canModify = true, flags = undefined, casting = null, classPower = false } = {}) {
+  const classUuid = `Item.cls-${uuid}`;
+  if (casting) gameState.actors.set(classUuid, { documentName: "Item", uuid: classUuid, type: "acks-extras.class", system: { casting: casting.map((key) => ({ key })) } });
+  const held = {};
+  if (flags) held.power = flags;
+  if (classPower) held.magic = { sacrifice: { power: true } };
   const actor = {
     uuid,
-    flags: flags ? { "acks-extras": { power: flags } } : {},
+    flags: Object.keys(held).length ? { "acks-extras": held } : {},
+    getFlag: (scope, key) => (casting && scope === "acks-extras" && key === "classes" ? { uuid: classUuid } : undefined),
     updates: [],
     canUserModify: () => canModify,
     testUserPermission: (user) => actor.owners?.includes(user?.id) === true,
@@ -646,33 +661,82 @@ await ta("the relay handler authorizes on the sender it was told of, never on th
 
 /* ------------------------------------ the chip ------------------------------------ */
 
-t("the strip's ledger section: a Player sees entries and no control; a Judge sees both kinds, the controls and the count", () => {
+/** The kinds whose icon a strip draws, in order. */
+const iconsOf = (html) => [...html.matchAll(/data-power-toggle="1" data-power-kind="(\w+)"/g)].map((m) => m[1]);
+
+t("the strip's ledger section: an icon for each power the character has, for every seat; the controls and the count are the owner's", () => {
   resetTables();
-  const actor = worldActor("Actor.c1", { flags: { divine: { entries: [e("a", 4, 5, { name: "Sacrifice: <b>chief</b>", img: "icons/svg/skull.svg" }), e("s", -1, 5, { name: "Spent" })] } } });
+  const actor = worldActor("Actor.c1", { casting: ["divine", "arcane"], flags: { divine: { entries: [e("a", 4, 5, { name: "Sacrifice: <b>chief</b>", img: "icons/svg/skull.svg" }), e("s", -1, 5, { name: "Spent" })] } } });
   gameState.isGM = false;
   const player = C.powerSectionHtml(actor, true);
-  assert.ok(player.includes('data-power="divine"') && !player.includes('data-power="arcane"'));
+  assert.deepEqual(iconsOf(player), ["divine", "arcane"], "a Player's seat draws both icons for a character that casts both");
   assert.ok(!player.includes("data-power-adjust") && !player.includes("data-power-undo") && !player.includes("data-power-count"), "a Player's strip draws no button and no count");
   assert.ok(player.includes("&#60;b&#62;chief") && !player.includes("<b>chief"), "a source's name is escaped");
   assert.ok(player.includes('src="icons/svg/skull.svg"') && player.includes("fa-wand-sparkles"), "an entry leads with its source's picture, else a glyph");
-  assert.ok(/<span class="acks-nums">3<\/span>/.test(player), "the balance is on the chip's face");
   gameState.isGM = true;
   const judge = C.powerSectionHtml(actor, true);
-  assert.ok(judge.includes('data-power="arcane"'));
-  assert.equal((judge.match(/data-power-adjust="1"/g) ?? []).length, 2, "a plus on each tag");
+  assert.deepEqual(iconsOf(judge), ["divine", "arcane"]);
+  assert.equal((judge.match(/data-power-adjust="1"/g) ?? []).length, 2, "a plus on each panel");
   assert.equal((judge.match(/data-power-adjust="-1"/g) ?? []).length, 2);
   assert.equal((judge.match(/data-power-undo=/g) ?? []).length, 1, "Undo on the one spend");
   assert.equal((judge.match(/data-power-count/g) ?? []).length, 1, "the count is arcane's alone");
   const ids = [...judge.matchAll(/\sid="([^"]*)"/g)].map((m) => m[1]);
   assert.equal(ids.length, 2, "one id per panel and no other");
   assert.ok(ids.every((id) => /-power-(divine|arcane)$/.test(id)), "each is built from the window's base and its kind");
-  assert.deepEqual([...judge.matchAll(/aria-controls="([^"]+)"/g)].map((m) => m[1]), ids, "each disclosure names the panel drawn for its kind");
+  assert.deepEqual([...judge.matchAll(/aria-controls="([^"]+)"/g)].map((m) => m[1]), ids, "each icon names the panel drawn for its kind");
+  assert.ok(judge.includes(">ACKS-MAGIC.power.empty<"), "a panel with no entries says so");
+  assert.ok(!/\stitle=/.test(judge), "no title attribute");
   const empty = worldActor("Actor.c2");
-  assert.ok(C.powerSectionHtml(empty, true).includes(">ACKS-MAGIC.power.empty<"), "a Judge's casting strip on an empty ledger says so");
-  assert.equal(C.powerSectionHtml(empty, false), "", "an actor that casts nothing and holds no power draws no ledger");
-  assert.ok(C.powerSectionHtml(actor, false).includes('data-power="divine"'), "an actor with power and no pools still draws its chips");
+  assert.equal(C.powerSectionHtml(empty, true), "", "an actor that casts nothing and holds no power draws no ledger, in a Judge's seat");
+  assert.equal(C.powerSectionHtml(empty, false), "");
+  assert.deepEqual(iconsOf(C.powerSectionHtml(actor, false)), ["divine", "arcane"], "the pools do not gate the icons");
   gameState.isGM = false;
-  assert.equal(C.powerSectionHtml(empty, true), "", "a Player sees nothing of an empty ledger");
+  assert.equal(C.powerSectionHtml(empty, true), "", "and none in a Player's");
+  gameState.isGM = true;
+});
+
+t("an icon is drawn for each power the character has: the traditions its class casts, the entries of a ledger, the class power for arcane", () => {
+  resetTables();
+  const entry = { divine: { entries: [e("a", 2, 5, { by: "judge" })] } };
+  const cases = [
+    ["a divine caster", { casting: ["divine"] }, ["divine"]],
+    ["an arcane caster", { casting: ["arcane"] }, ["arcane"]],
+    ["a caster of both", { casting: ["Arcane", "Divine"] }, ["divine", "arcane"]],
+    ["a caster of neither, holding entries", { casting: ["gnosis"], flags: entry }, ["divine"]],
+    ["a non-caster with entries", { flags: entry }, ["divine"]],
+    ["a non-caster with none", {}, []],
+    ["a caster of neither with none", { casting: ["gnosis"] }, []],
+    ["the class power marked", { classPower: true }, ["arcane"]],
+    ["the class power on a divine caster", { casting: ["divine"], classPower: true }, ["divine", "arcane"]],
+  ];
+  for (const isGM of [true, false]) {
+    gameState.isGM = isGM;
+    for (const [what, o, kinds] of cases) {
+      const html = C.powerSectionHtml(worldActor(`Actor.k${what.length}${isGM}`, o), true);
+      assert.deepEqual(iconsOf(html), kinds, `${what}, ${isGM ? "a Judge's seat" : "a Player's seat"}`);
+      if (!kinds.length) assert.equal(html, "", `${what} draws nothing`);
+    }
+  }
+  gameState.isGM = true;
+});
+
+t("an icon wears its balance as a badge while the balance is above zero, and the panel's head reads it as text at any balance", () => {
+  resetTables();
+  gameState.isGM = false;
+  const actor = worldActor("Actor.b1", { casting: ["divine", "arcane"], flags: { divine: { entries: [e("a", 7, 5, { by: "judge" }), e("s", -2, 5, { name: "Spent" })] } } });
+  const html = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "wb" }));
+  const icon = (kind) => html.slice(html.indexOf(`data-power-toggle="1" data-power-kind="${kind}"`), html.indexOf("</button>", html.indexOf(`data-power-kind="${kind}"`)));
+  assert.match(icon("divine"), /<span class="acks-extras-classes-powerbadge acks-nums" data-power-badge="divine" aria-hidden="true">5<\/span>/, "the balance over the glyph");
+  assert.match(icon("divine"), /<i class="fa-solid fa-hands-praying" inert><\/i>/);
+  assert.doesNotMatch(icon("arcane"), /powerbadge/, "no badge at zero");
+  assert.match(icon("arcane"), /<i class="fa-solid fa-hat-wizard" inert><\/i>/, "the icon alone");
+  assert.ok(/aria-label="ACKS-MAGIC\.power\.disclosureLabel\{&#34;label&#34;:&#34;ACKS-MAGIC\.power\.kind\.divine&#34;,&#34;balance&#34;:5\}"/.test(icon("divine")), "the button's name carries the power and its balance");
+  assert.ok(/data-tooltip-text="ACKS-MAGIC\.power\.tipHead\{[^"]*&#34;balance&#34;:5/.test(icon("divine")), "its tooltip is the balance with its parts");
+  assert.ok(/aria-expanded="false" aria-controls="wb-power-divine"/.test(icon("divine")));
+  assert.match(html, /data-power-balance="divine">5<\/span>/, "the divine head reads 5 as text");
+  assert.match(html, /data-power-balance="arcane">0<\/span>/, "the arcane head reads 0 as text, where no badge is drawn");
+  assert.ok(html.includes("ACKS-MAGIC.power.kind.divine <span"), "the head names the power");
+  assert.ok(!html.includes("fa-chevron") && !html.includes("powertag") && !html.includes('powerchip"'), "no tag, no chevron");
   gameState.isGM = true;
 });
 
@@ -849,7 +913,7 @@ await ta("the relay handler runs an owner's request for a lot that stays, refuse
 
 t("the strip draws a Fades / Stays pair for a Judge on each tag, Fades pressed, and none for a Player; a lot that stays shows its pin", () => {
   resetTables();
-  const actor = worldActor("Actor.c4", { flags: { divine: { entries: [e("k", 4, 5, { name: "Kept", by: "judge", stays: true }), e("f", 2, 5, { name: "Faded", by: "judge" })] } } });
+  const actor = worldActor("Actor.c4", { casting: ["divine", "arcane"], flags: { divine: { entries: [e("k", 4, 5, { name: "Kept", by: "judge", stays: true }), e("f", 2, 5, { name: "Faded", by: "judge" })] } } });
   gameState.isGM = false;
   const player = C.powerSectionHtml(actor, true);
   assert.ok(!player.includes("data-power-stay") && !player.includes("powerpill") && !player.includes('role="group"'), "a Player's strip draws no switch");
@@ -1057,7 +1121,7 @@ function wiredStrip(actor, state) {
 await ta("the switch holds across a render: kept per window and per tag, never on the actor, and Fades for a window that has not set it", async () => {
   resetTables();
   gameState.isGM = true;
-  const actor = worldActor("Actor.c6", { flags: {} });
+  const actor = worldActor("Actor.c6", { casting: ["divine", "arcane"], flags: {} });
   const tick = () => new Promise((r) => setTimeout(r, 0));
   const entries = (kind) => actor.flags["acks-extras"].power?.[kind]?.entries ?? [];
   const windowA = {};
@@ -1176,14 +1240,18 @@ await ta("a Player who owns the character presses twice through the API and the 
   assert.equal((await L.powerApi.gain(mine, "divine", { amount: 1, by: "judge" })).amount, 1);
   assert.deepEqual(mine.flags["acks-extras"].power.divine.entries.map((x) => [x.amount, x.user, x.by]), [[2, "pl1", "judge"]], "one entry, the two presses summed");
   const owned = L.chipModelFor(mine);
-  assert.deepEqual([owned.owns, owned.judge, owned.kinds.map((k) => k.shown)], [true, false, [true, true]]);
+  assert.deepEqual([owned.owns, owned.judge, owned.kinds.map((k) => k.shown)], [true, false, [true, false]], "a character with divine entries and no class shows divine alone");
   assert.equal(owned.kinds[0].rows[0].name, "Invented Player");
   assert.equal(owned.kinds[0].rows[0].undoable, true);
   const seen = L.chipModelFor(theirs);
   assert.deepEqual([seen.owns, seen.kinds.map((k) => k.shown), seen.kinds[0].rows[0].undoable], [false, [true, false], false], "a seat that does not own the character sees the entries and no controls");
   gameState.isGM = true;
   const gm = L.chipModelFor(theirs);
-  assert.deepEqual([gm.owns, gm.judge, gm.kinds.map((k) => k.shown)], [true, true, [true, true]], "a Judge owns every character");
+  assert.deepEqual([gm.owns, gm.judge, gm.kinds.map((k) => k.shown)], [true, true, [true, false]], "a Judge owns every character and is shown no more of it");
+  const caster = L.chipModelFor(worldActor("Actor.own3", { casting: ["arcane"], classPower: false }));
+  assert.deepEqual(caster.kinds.map((k) => k.shown), [false, true], "the live model reads the class's casting keys");
+  const marked = L.chipModelFor(worldActor("Actor.own4", { classPower: true }));
+  assert.deepEqual(marked.kinds.map((k) => k.shown), [false, true], "and the sacrifice record's class-power mark");
 });
 
 /* ------------------------------ the disclosure and the panel ------------------------------ */
@@ -1198,7 +1266,7 @@ function disclosureStrip(actor, state) {
   return {
     panels,
     toggle(kind) {
-      const button = { dataset: { powerKind: kind }, expanded: null, setAttribute(name, value) { if (name === "aria-expanded") this.expanded = value; } };
+      const button = { dataset: { powerKind: kind }, expanded: null, glyphTouched: false, setAttribute(name, value) { if (name === "aria-expanded") this.expanded = value; }, querySelector() { this.glyphTouched = true; return null; } };
       handlers.click(event((s) => (s === "[data-power-toggle]" ? button : null)));
       return button;
     },
@@ -1214,30 +1282,31 @@ function disclosureStrip(actor, state) {
 t("each power's panel starts closed with its disclosure named, controlling and collapsed, and the amount starts at one", () => {
   resetTables();
   gameState.isGM = true;
-  const actor = worldActor("Actor.d1", { flags: { divine: { entries: [e("a", 2, 5, { by: "judge" })] } } });
+  const actor = worldActor("Actor.d1", { casting: ["divine", "arcane"], flags: { divine: { entries: [e("a", 2, 5, { by: "judge" })] } } });
   const html = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "win-1" }));
-  assert.equal((html.match(/aria-expanded="false"/g) ?? []).length, 2, "both disclosures read collapsed");
+  assert.equal((html.match(/aria-expanded="false"/g) ?? []).length, 2, "both icons read collapsed");
   assert.equal((html.match(/aria-expanded="true"/g) ?? []).length, 0);
   assert.ok(html.includes('aria-controls="win-1-power-divine"') && html.includes('id="win-1-power-divine" data-power-panel="divine" hidden'), "the panel's id is the window's id and its kind, and it is hidden");
   assert.ok(html.includes('id="win-1-power-arcane" data-power-panel="arcane" hidden'));
-  assert.ok(/aria-label="ACKS-MAGIC\.power\.disclosureLabel[^"]*"/.test(html), "the disclosure is named");
+  assert.ok(/aria-label="ACKS-MAGIC\.power\.disclosureLabel[^"]*"/.test(html), "the icon is named");
   assert.ok(/data-power-amount data-power-kind="divine" value="1"/.test(html), "the amount starts at one");
 });
 
 await ta("the open panel and the typed amount are kept per window across a render, and a second window starts closed", async () => {
   resetTables();
   gameState.isGM = true;
-  const actor = worldActor("Actor.d2", { flags: { divine: { entries: [e("a", 2, 5, { by: "judge" })] } } });
+  const actor = worldActor("Actor.d2", { casting: ["divine", "arcane"], flags: { divine: { entries: [e("a", 2, 5, { by: "judge" })] } } });
   const windowA = { id: "win-a" };
   const windowB = { id: "win-b" };
   const first = disclosureStrip(actor, C.powerSwitchOf(windowA));
   const button = first.toggle("divine");
   assert.deepEqual([button.expanded, first.panels.divine.hidden, first.panels.arcane.hidden], ["true", false, true], "the press opens its own panel only");
+  assert.equal(button.glyphTouched, false, "the press leaves the icon's glyph alone");
   first.type("divine", "3");
   assert.equal(actor.updates.length, 0, "opening a panel and typing an amount write nothing to the actor");
   const again = C.powerSectionHtml(actor, true, C.powerSwitchOf(windowA));
   assert.ok(/id="win-a-power-divine" data-power-panel="divine">/.test(again), "a render draws it open");
-  assert.ok(/aria-expanded="true" aria-controls="win-a-power-divine"/.test(again), "and its disclosure expanded");
+  assert.ok(/aria-expanded="true" aria-controls="win-a-power-divine"/.test(again), "and its icon expanded");
   assert.ok(/data-power-panel="arcane" hidden/.test(again), "the other stays closed");
   assert.ok(/data-power-amount data-power-kind="divine" value="3"/.test(again) && /data-power-amount data-power-kind="arcane" value="1"/.test(again), "the typed amount is drawn back, per kind");
   const other = C.powerSectionHtml(actor, true, C.powerSwitchOf(windowB));
@@ -1260,7 +1329,7 @@ t("an owner's panel carries every control and a seat that does not own the chara
   assert.ok(!owner.slice(owner.indexOf('data-power-panel="divine"'), owner.indexOf('data-power-panel="arcane"')).includes("data-power-count"), "and not in the divine one");
   gameState.isGM = false;
   const viewer = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w" }));
-  assert.ok(viewer.includes('data-power-toggle="1" data-power-kind="divine"') && viewer.includes('data-power-toggle="1" data-power-kind="arcane"'), "the tag and the disclosure of each kind with entries");
+  assert.ok(viewer.includes('data-power-toggle="1" data-power-kind="divine"') && viewer.includes('data-power-toggle="1" data-power-kind="arcane"'), "the icon of each kind with entries");
   assert.ok(viewer.includes("ACKS-MAGIC.power.entryTip"), "and its rows");
   for (const control of ["data-power-stay", "data-power-amount", "data-power-adjust", "data-power-undo", "data-power-count", "is-refused"]) assert.ok(!viewer.includes(control), `a seat that does not own the character draws no ${control}`);
   gameState.isGM = true;
@@ -1268,27 +1337,36 @@ t("an owner's panel carries every control and a seat that does not own the chara
 
 t("a Player who owns the character, and is no Judge, is offered every control; a Player who holds only Observer is offered none", () => {
   resetTables();
-  const actor = worldActor("Actor.d7", { flags: { divine: { entries: [e("g", 4, 5, { by: "judge", user: "pl1" }), e("s", -1, 5, { name: "Spend" })] } } });
+  const actor = worldActor("Actor.d7", { casting: ["arcane"], flags: { divine: { entries: [e("g", 4, 5, { by: "judge", user: "pl1" }), e("s", -1, 5, { name: "Spend" })] } } });
   gameState.isGM = false;
   actor.owners = ["pl1"];
   const html = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w7" }));
   for (const control of ["data-power-stay", "data-power-amount", 'data-power-adjust="1"', 'data-power-adjust="-1"', "data-power-undo", "data-power-count"]) assert.ok(html.includes(control), `an owning Player is offered ${control}`);
-  assert.ok(html.includes("-power-arcane"), "and the arcane panel, though it holds no entry");
+  assert.ok(html.includes("-power-arcane"), "and the arcane panel of a character that casts it, though it holds no entry");
   actor.owners = [];
   const observer = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w7" }));
-  assert.ok(observer.includes('data-power="divine"') && observer.includes("ACKS-MAGIC.power.entryTip"), "an Observer reads the tag and the rows");
+  assert.ok(iconsOf(observer).join() === "divine,arcane" && observer.includes("ACKS-MAGIC.power.entryTip"), "an Observer reads the icon and the rows");
   for (const control of ["data-power-stay", "data-power-amount", "data-power-adjust", "data-power-undo", "data-power-count", "is-refused"]) assert.ok(!observer.includes(control), `and is offered no ${control}`);
   gameState.isGM = true;
 });
 
-t("a kind with no entries is drawn for an owner and not for a seat that does not own the character", () => {
+t("a kind the character does not have is drawn for no seat, an owner's and a Judge's included; one it casts is drawn for all, with no entries", () => {
   resetTables();
   const actor = worldActor("Actor.d4", { flags: { divine: { entries: [e("a", 1, 5, { by: "judge" })] } } });
-  gameState.isGM = false;
-  const viewer = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w" }));
-  assert.ok(viewer.includes('data-power="divine"') && !viewer.includes('data-power="arcane"') && !viewer.includes("-power-arcane"), "no arcane tag, disclosure or panel");
+  const cast = worldActor("Actor.d8", { casting: ["arcane"] });
+  actor.owners = ["pl1"];
+  for (const [seat, isGM] of [["a Judge", true], ["an owning Player", false]]) {
+    gameState.isGM = isGM;
+    const html = C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w" }));
+    assert.ok(iconsOf(html).join() === "divine" && !html.includes("-power-arcane"), `no arcane icon or panel for ${seat}`);
+  }
+  cast.owners = [];
+  for (const isGM of [true, false]) {
+    gameState.isGM = isGM;
+    const html = C.powerSectionHtml(cast, true, C.powerSwitchOf({ id: "w" }));
+    assert.ok(iconsOf(html).join() === "arcane" && html.includes("-power-arcane") && html.includes(">ACKS-MAGIC.power.empty<"), "an arcane caster's icon and an empty panel, in every seat");
+  }
   gameState.isGM = true;
-  assert.ok(C.powerSectionHtml(actor, true, C.powerSwitchOf({ id: "w" })).includes("-power-arcane"), "an owner has it");
 });
 
 await ta("Add and Remove send the typed amount as one request", async () => {

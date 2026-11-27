@@ -1318,7 +1318,7 @@ research ladder), so no figure ships. Rulings made in building it, each with the
   see the Judge's toggles, so the relay authorizes by ownership of the caster and the victim's state, not by the page's
   limits; a Player's own act is already held by them.
 
-## 2026-11-18 — The sacrifice's checks are shared and the strip opens the window (M-s second pass, board 19) — SUPERSEDED IN PART 2026-11-25
+## 2026-11-18 — The sacrifice's checks are shared and the strip opens the window (M-s second pass, board 19) — SUPERSEDED IN PART 2026-11-25, 2026-11-27
 
 The owner approved board 19, A to E as drawn: "Approve, build it". New evidence over the entry above: the owner ruled
 that the Judge's checks are stored and shared, which that entry's "The Judge's toggles are the window's own state" (and
@@ -1713,7 +1713,7 @@ Judge who imports a die later finds copies that keep their own; the sheet shows
 no list of them. A recurring row's die typed at one cast is that cast's alone
 unless it was kept, so a closed window leaves that cast's turns with none.
 
-## 2026-11-25 — The power line opens from a tag, and its controls are the character's owner's (board 1)
+## 2026-11-25 — The power line opens from a tag, and its controls are the character's owner's (board 1) — SUPERSEDED IN PART 2026-11-27
 
 This entry supersedes in part four entries of 2026-11-18, each on the bullets named under
 "Superseded" below. The new evidence, which none of them had:
@@ -2399,5 +2399,25 @@ Read: dismissing is something the concentration does, so once a held cast has no
 **Rejected.** *Keeping the hold to its cap* (magic TESTING step 11 as it stood): the concentration would then guard nothing, and a later loss of it would post a card for a creature already gone. *Ending the hold on any dismissal of the cast*: a cast with a creature still standing is still controlled through the concentration. *Ending it from a token delete hook*: a creature removed by any other route (a hand delete, a death) is not a dismissal, and the ruling names the act.
 
 **Strongest counter, LOW.** A dismissal relayed while the asking client is disconnected before the answer arrives deletes the creature and leaves the hold standing. Held: the status's own toggle ends it, as before this ruling, and the card that follows names no creature.
+
+## 2026-11-27 — Power on the casting strip is an icon per power the character has (T-0923)
+
+The owner, in three messages on 2026-11-27, each refining the one before:
+
+1. "extra power is an optional feature, it should only show up automatically when above 0 or toggled on. A tweak option is fine for now."
+2. "Make icon/button for each power type the character has and clicking it can show current power, the check mark to always show, and the option to run the sacrifice procedure macro"
+3. "In fact, it should show the number over the symbol when there is extra power, no need for an always show option or design."
+
+The third stands. It drops the Tweaks option and the "always show" check mark of the first two, and it waives the design board: "no need for an always show option or design", so the `ui-layout.md` design step was skipped for this row on the owner's word.
+
+**Ruled.** The casting strip draws one icon button for each power the character has, in every seat alike, where it drew a tag and a disclosure for each power an owner's seat could see. A power is one the character has where its class casts that kind (a casting row whose key folds to `arcane` or `divine`), where its ledger holds entries of that kind, or, for arcane, where the sacrifice record marks the class power (the arcane caster that `casterBasis` makes gain arcane power). Example: a divine caster with an empty ledger shows the divine icon with no badge; a fighter with no entries shows nothing; a Judge's seat shows no more than a Player's. The icon is the disclosure of that power's panel. While the balance is above 0 the balance is drawn over the icon as a badge, and at 0 the icon stands alone, so the panel's head also reads the balance as text. The panel keeps the entries and, for a seat that can edit the character, the controls, as before. The Sacrifice button moves from the strip line into each shown panel's head, under the seat rule it already had (`openerVisible`), so a power's panel is where its sacrifice is run. Add, Remove, the Fades / Stays switch, the amount box, Undo and the arcane count stay the owner's by Foundry's own test.
+
+**The edge.** Where the Sacrifice rule allows the button (a Judge's seat on a caster) but no power is shown, as for a caster whose only casting key is neither `arcane` nor `divine` (the importer's `gnosis` rows) with no entries and no class power, the strip draws no section and no button. Reason: the owner asked for an icon per power the character has, and such a character has none, so a section drawn for the button alone would bring back the always-visible strip line the ruling removes. The window stays reachable through `acksExtras.magic.sacrifice.open(actor)`, and a class-power mark or an entry brings the arcane or divine icon and with it the button. *Counter (low):* a Judge cannot open the window from the sheet of such a caster until a mark or an entry exists.
+
+**Supersedes IN PART**, with the new evidence the owner's words above (the 2026-11-25 entry is less than 7 days old): "The power line opens from a tag, and its controls are the character's owner's (board 1)", its bullet "The power line is a tag and a disclosure", and the sentence that a seat that does not own the character reads "the tags and the rows"; and "The sacrifice's checks are shared and the strip opens the window (M-s second pass, board 19)", its bullet "The strip's button", which sat beside the tags. The ownership ruling, the folding of presses and the rest of both entries stand.
+
+**Rejected.** *A Tweaks checkbox* for showing the power, which the first message allowed and the third dropped. *An "Always show" option on the icon*, and the flag it would write: the number over the symbol is the signal, and a power the character has is always drawn. *A design board*, waived by the third message. *Keeping the tags beside the icons*: the icon carries the balance as its badge and its panel head, so a tag repeats it.
+
+*Cost:* a character that casts neither kind, holds no entry and has no class power has no strip control for the ledger at all; a Judge's first add on such a character goes through `acksExtras.magic.power.gain`.
 
 *Cost:* a dismissal now posts a held-end card to the GMs and the caster's owners, one more card per held cast dismissed.
