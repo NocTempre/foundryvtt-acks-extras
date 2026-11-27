@@ -459,10 +459,12 @@ function burstDamage(card, actor, saved) {
 }
 
 /**
- * The defense part of a damage tooltip, worded for the seat that reads it: each defense stage among `steps`, by `stepLine` (the defense named only where `named`, its figures before and after either way). Blank where no stage is among them.
+ * The stage part of a damage tooltip, worded for the seat that reads it: each defense stage among `steps`, then the rounding where it moved the figure, each by `stepLine` (the defense named only where `named`, its figures before and after either way), so the parts end on the figure beside them. Blank where neither is among them.
  */
-function defensePart(steps, named) {
-  return defenseStepsOf(steps).map((step) => loc("itemRun.card.damageTip.defense", { defense: stepLine(step, named) })).join(", ");
+function stagePart(steps, named) {
+  const list = Array.isArray(steps) ? steps : [];
+  const rounding = list.filter((s) => s?.key === "round" && s.before !== s.after);
+  return [...defenseStepsOf(list), ...rounding].map((step) => loc("itemRun.card.damageTip.defense", { defense: stepLine(step, named) })).join(", ");
 }
 
 /** Build the body of a burst card for a seat: a table of the bodies it owns, each row read live, with the presses the entry's state offers it. */
@@ -490,7 +492,7 @@ function burstBody(message, card) {
         // An applied row reads the stages its Apply stored; one with none (written before they were kept) names the defenses by the live read, as a bare word.
         const stored = state === "applied" && Array.isArray(entry.steps);
         const named = namesDefense({ isGM: judgeDeclares(), ownsTarget: owns(fromUuidSync(sub.uuid)) });
-        const defense = state === "applied" && !stored ? "" : defensePart(stored ? entry.steps : damage.steps, named);
+        const defense = state === "applied" && !stored ? "" : stagePart(stored ? entry.steps : damage.steps, named);
         row.damageTip = damageTip({ amount, dice: card.dice, rolled: card.rolled, saved, reduction: card.reduction, defended: !stored && damage.defended && damage.amount === amount, defense, cite, words: damageWords });
       }
     }
@@ -957,4 +959,4 @@ export function installItemRunPresenter() {
   Hooks.on("renderChatMessageHTML", onRender);
 }
 
-export { present as presentUse, onReach as presentReach, onLifted, recheckHere, raisedBody, whisperBody, onceBody, engagedBody, fuseBody, burstBody, defensePart, consumeBody, swigUnknownBody, outcomeBody, cardBody, press, lifeWord, messageIdFor, refusal, saveFigureOf };
+export { present as presentUse, onReach as presentReach, onLifted, recheckHere, raisedBody, whisperBody, onceBody, engagedBody, fuseBody, burstBody, stagePart, consumeBody, swigUnknownBody, outcomeBody, cardBody, press, lifeWord, messageIdFor, refusal, saveFigureOf };

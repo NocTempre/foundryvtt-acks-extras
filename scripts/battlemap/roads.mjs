@@ -279,10 +279,10 @@ export async function armRoadPreset({ surface = ROAD_SURFACES[0], street = undef
   return armed;
 }
 
-/** The armed notice: the surface, and the street kind where the preset carries one. */
+/** The armed notice: the surface, and the street where the preset is an alley, the one street a press arms on purpose. */
 function presetArmedLine(surface, street) {
   const road = roadSurfaceLabel(surface);
-  if (!ROAD_STREETS.includes(street)) return loc("routes.presetArmed", { road });
+  if (street !== "alley") return loc("routes.presetArmed", { road });
   return loc("routes.presetArmedStreet", { road, street: locOr(`${LANG_PREFIX}.routes.street.${street}`, street) });
 }
 

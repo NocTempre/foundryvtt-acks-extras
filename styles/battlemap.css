@@ -46,6 +46,7 @@
 
 .acks-extras-battlemap-cardhead {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 8px;
@@ -63,7 +64,6 @@
   color: var(--acks-ink-faint);
   text-transform: var(--acks-caps);
   letter-spacing: var(--acks-caps-tracking, 0.06em);
-  white-space: nowrap;
 }
 
 /* Full at the top of the "loose" band, so the bar reads as how close to bad. */

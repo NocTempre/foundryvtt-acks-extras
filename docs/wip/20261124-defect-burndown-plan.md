@@ -470,10 +470,13 @@ each landed through `acks-commit` with its full gate. `main`'s version
   - T-0825 (3d642f6d).
   - T-0846 (d279f36e).
   - T-0852 (44d0dd94; its recipe step 8ef907f1).
-  - T-0853 (3ba77031).
+  - T-0853 (3ba77031). The follow-up that lands with this correction names
+    the rounding after the defense, which the resistance probe below found
+    missing.
   - T-0904 (fb6cb8f1).
   - T-0543 (26ca0d1a).
-  - T-0628 and T-0603 (e318e507), on a board
+  - T-0628 and T-0603 (e318e507; the same follow-up wraps the card head and
+    names the street for Alley alone), on a board
     (https://claude.ai/artifact/SxK4Y3zRJxXnw7sXJjnJsF) approved by the
     planning session, not by the owner or this batch, item by item:
     - T-0628: "image px" on the card head, the residual, the box rows and
@@ -503,7 +506,12 @@ kept fixtures:
   tooltip named the defense and the figures it moved, before the page, on the
   GM seat and on the Player seat that owned it. The stored entry kept the
   stage. The tooltip stood after Apply and after the defense was taken off;
-  undefended rows named none, and no cell carried a `title`.
+  undefended rows named none, and no cell carried a `title`. The same probe
+  with a resistance (the world holds the imported figures) passed 13 of 13
+  but read "1 to 0.5" beside a figure of 0: the stored rounding step was not
+  named. After the follow-up a second run passed 13 of 13 and read "then
+  Rounded 0.5 to 0" before the page, on both seats and on the applied row.
+  Both probes wrote the defense flag directly, not through the Defenses tab.
 - A one-off driver for T-0852, through the group sheet's Individuate press.
   The labelled stack stored its figure, the press added no record, and one
   body took the figure once a monster was dropped on the row; a `createActor`
@@ -511,12 +519,14 @@ kept fixtures:
 - A read for T-0543: the one imported city map's after-dark figure equals what
   the landed code recomputes from its table.
 - A look at Map setup and the presets for T-0628 and T-0603. Every new word
-  rendered. At the window's minimum width (200 px) the hex card head wrapped
-  its figure. Its unit stayed on one line, 6 px into the card's 10 px
-  padding, and was not clipped. The size labels and the Measured line
-  wrapped. Each re-glyphed control kept its accessible name, shown by an
-  empty `data-tooltip`. Real presses noticed the paved road, then the paved
-  road with Alley, then Coast.
+  rendered. At the window's minimum width (200 px) the hex card head's unit
+  first overflowed its box, held on one line. After the follow-up the head
+  wraps to two lines at 200 px and three at a 20 px type base, with no
+  overflow. The size labels and the Measured line wrapped. Each re-glyphed
+  control kept its accessible name, shown by an empty `data-tooltip`. Real
+  presses noticed "Paved road.", then "Paved road, Alley.", then "Coast.". On
+  a settlement scene Paved arms an avenue and its notice reads "Paved road."
+  alone.
 
 Deleted and kept:
 
@@ -526,7 +536,8 @@ Deleted and kept:
 - The fuse probe reused the walk's 13 kept fixtures. Its claim-based teardown
   swept nothing, so its one burst card was listed afterwards and swept by
   id. It restored the near body without the defense and the walk's figures
-  without fire.
+  without fire. The two resistance runs left one burst card each, listed and
+  swept by id (removed 2, missing 0, failed 0).
 - T-0852's driver built and kept `lib/labelled-hp-group` and reused
   `lib/org-monster`. The group keeps the one labelled stack and its record.
 - The battlemap look wrote nothing to the world except the GM seat's armed
@@ -542,9 +553,11 @@ Not checked:
 - A square map's card head ("image px cell"). The hex label, the longer of
   the two, was measured.
 - The Measured line on a fitted map. It was seen on the scale-only map only.
-- A resistance on the burst tooltip, which needs an imported figure. The
-  probe used an immunity, which needs none.
+- A defense given through the Defenses tab before a burst; the probes wrote
+  the flag.
 - T-0904 on a real import, since no table holds either alternative.
+- Map setup's apply notices and summary rows still say a bare "px"; the
+  board did not cover them.
 
 To try (approved by the planning session, not the owner; board
 https://claude.ai/artifact/SxK4Y3zRJxXnw7sXJjnJsF):

@@ -373,7 +373,7 @@ await okAsync("the road tool marks the road preset in hand, and the first surfac
   settings.delete("core.wallPreset");
 });
 
-await okAsync("the armed notice names the street kind the preset carries, and the mark tool wears its own glyph", async () => {
+await okAsync("the armed notice names an alley with its surface, and the mark tool wears its own glyph", async () => {
   palette = { SETTING_KEY: "wallPreset" };
   notes.length = 0;
   await armRoadPreset({ surface: "paved", street: null });
@@ -382,6 +382,9 @@ await okAsync("the armed notice names the street kind the preset carries, and th
   await armAlleyPreset();
   assert.deepEqual(notes.at(-1), ["info", `ACKS-BATTLEMAP.routes.presetArmedStreet ${JSON.stringify({ road: "paved", street: "alley" })}`],
     "the alley names the surface it keeps and the street");
+  await armRoadPreset({ surface: "gravel", street: "avenue" });
+  assert.deepEqual(notes.at(-1), ["info", `ACKS-BATTLEMAP.routes.presetArmed ${JSON.stringify({ road: "gravel" })}`],
+    "a city scene's default avenue is not named: only an alley is");
   settings.delete("core.wallPreset");
 
   installRoadControls();
