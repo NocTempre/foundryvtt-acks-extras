@@ -651,19 +651,25 @@ Walked live on `main`, lane A (Gamemaster / Player), kept fixtures:
   held, and the Going without rows read the same. That press came 8 s after
   the first, while the first's day change was still writing. Its
   provisioning, toll card and clock jump all happened, but the counter and
-  log kept the first day's (registered T-0920). A third End day pressed alone
-  moved the counter from 1 to 2 and wrote a second log row at 3 s. It jumped
-  the clock a day and posted the night card at 25 s. A console.error wrapped
-  in for that press recorded nothing. The three End days moved the shared
-  world clock about 60 hours, to a dawn.
+  log kept the first day's (registered T-0920). It is pre-existing by reading
+  only, since nothing was run on the tree from before B14. A third End day
+  pressed alone moved the counter from 1 to 2 and wrote a second log row 3 s
+  after the press. It jumped the clock a day, and the night card came about
+  20 s after the press. A console.error wrapped in for that press recorded
+  nothing. The three End days moved the shared world clock about 60 hours,
+  to a dawn, while a Player seat that was not this session's was connected.
+  The jumps raised two Wages due cards on other sessions' fixtures, which
+  were left in place.
 
 Deleted and kept:
 
 - Kept: `character-sheet/b14-hands`, `formation/b14-provision`,
   `formation/b14-spend-a`, `formation/b14-spend-b`,
-  `formation/b14-camp-party` (with its formation record, now at day 2).
-  The sheet walk left every vessel empty, A's loaf at zero and B's bread
-  unsized, with the ladders as its End days stepped them.
+  `formation/b14-camp-party` (with its formation record, now at day 2 and put
+  back in delve). The sheet walk left every vessel empty, A's loaf at zero and
+  B's bread unsized, with the ladders as its End days stepped them. Their
+  recipe is the formation TESTING section "Provisions spent, held and
+  refilled".
   `b14-press` was swept earlier in the batch.
 - Slice B's walk swept its two posted cards by id (removed 2, missing 0,
   failed 0). The sheet walk swept the seven cards its fixtures posted, by id

@@ -848,8 +848,67 @@ order. Build the record instead.
 
 *Observable:* `mouths` counts the order; `forecast.foodDays` is the POOLED
 supply divided by mouths (a week's rations across two is three whole days);
-`suffering` lists only members off the top rung, localized, carrying any
-Constitution lost. The rendered section carries no raw lang keys.
+`members` lists every member with both rungs, localized, carrying any
+Constitution lost; `vessels` lists each water item a member carries with what
+is left in it. The rendered section carries no raw lang keys.
+
+## Provisions spent, held and refilled (added with T-0911)
+
+Fixtures, kept:
+
+- `formation/b14-spend-a`: a character only the GM owns.
+- `formation/b14-spend-b`: a character the Player seat owns.
+- `formation/b14-camp-party`: an `acks-extras.party` the Player seat
+  observes. Its formation comes from the party's own creation path and holds
+  A and B, seated with `addMember` imported from
+  `scripts/formation/formation-model.mjs`. It is kept in delve; the walk sets
+  journey through the band's `select[name='travel.mode']` (a `change` event)
+  and puts delve back at the end.
+
+At the start, bring the members to a known shape:
+
+- Delete both members' items, and unset their `survival` and `fedOn` flags.
+- Give A a one-unit loaf declared food at one day a unit, and a copy of the
+  imported waterskin (cookbook id `def.equip.waterskinWineskin`) at
+  quantity 5.
+- Give B a food item with no size, and a flask declared water at one day a
+  unit.
+
+Steps, on the party sheet's Wilderness tab
+(`[data-action='tab'][data-tab='mode']`):
+
+1. On the GM seat, press Supplies (`[data-action='consumeRations']`).
+   *Observable:* A's loaf is at 0, and A's `fedOn` equals the formation's
+   `travel.dayCount`. The press card names B as having no rations, and B
+   has no `fedOn`.
+2. Press End day (`[data-action='travelEndDay']`). *Observable:*
+   - `dayCount` is one higher, and A is counted fed (no run moved).
+   - Every vessel's `provision.left` is 0, with its quantity kept.
+   - B's food ladder is held, with no run moved. The whispered toll card
+     names B, the item and the page.
+   - The Camp reads 0 days of each.
+3. Wait for the night card before pressing End day again (see the mechanics
+   below). *Observable:* A's mark is stale, so A is dealt nothing and goes
+   hungry. Both members go dehydrated, and B's food ladder is still held.
+4. On the Player seat, open the same sheet and press Camp → Refill
+   (`[data-action='refillVessels']`). *Observable:* B's flask fills, and A's
+   stack stays empty. Set B's rung select (`select[data-rung-for][data-ladder]`):
+   it writes the rung with the runs at 0 and `handSet` true, and the open
+   table redraws with "set by hand".
+
+Mechanics:
+
+- An item's Provision controls are on its sheet's Details tab. A simple item
+  opens that tab with `[data-action='showDetails']`, after the sheet is armed
+  with `[data-action='edit']`. A field write landed 6 to 10 s after the
+  change in this world (T-0918), so read it back after 10 s.
+- End day moves the shared world clock to the next dawn. In a calendar world
+  the jump starts the day-change settle, one write per formation (about 90
+  here), and the night card lands about 20 s after the press. A second press
+  inside that window loses its counter and log row (T-0920).
+- Teardown is by id: the run lists the press, toll and night cards that
+  speak for its fixtures, then tracks and sweeps them. Keep listening until
+  the night card lands, or it posts after the run has stopped.
 
 ## Deal XP
 
