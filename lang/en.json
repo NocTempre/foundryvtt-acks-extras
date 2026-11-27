@@ -11483,6 +11483,7 @@
   "ACKS-MAGIC.castHeld.cause.time": "Time ran out",
   "ACKS-MAGIC.castHeld.cause.removed": "Removed",
   "ACKS-MAGIC.castHeld.cause.saved": "A passed saving throw",
+  "ACKS-MAGIC.castHeld.cause.dismissed": "Dismissed",
   "ACKS-MAGIC.castHeld.ended": "Ended",
   "ACKS-MAGIC.castHeld.retimed": "Runs on",
   "ACKS-MAGIC.castHeld.open": "Still standing",

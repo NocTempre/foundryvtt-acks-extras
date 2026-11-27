@@ -2387,3 +2387,17 @@ The owner on the five 3c questions, "Take recommendations": **A** yes, every aut
 **Strongest counter, MEDIUM.** The thrown figure is the presser's word, so an owner can post a hit and a high roll without throwing. Held: Foundry trusts an owner's client with its own actor's rolls, the same Player casting from their own sheet writes their own card from their own throw, and the damage a forged figure carries is bounded where it is applied (`checkApplyRequest`) and an Undo by the entry's own reach. What no check can see is a hit claimed on a throw that missed.
 
 *Cost:* with no GM connected the press does nothing and the transport says so. A Revert the GM's client refuses after the presser's own revert ran (a stamp that finds the step already reverted) leaves the caster put back and the card as it was, and the presser is told. The presser's own copy of the card may lag the GM's write by one message, so the apply that follows a throw at a new target reads it a moment late; that is checked live and not offline.
+
+## 2026-11-26 — Dismissing a held conjuration's last creature ends the concentration (T-0899)
+
+The owner, on a conjuration whose creature was dismissed while its caster still held it (T-0899): "If they dismiss that is a concentration action and then the spell ends (nothing to concentrate on)."
+
+Read: dismissing is something the concentration does, so once a held cast has no creature left standing the spell ends at once, with no creature to lose control of. Example: a Player casts a conjure entry, holds it, and dismisses the creature from the character sheet's Magic tab; the creature is removed, the caster's held record is deleted naming `dismissed`, and the held-end card says so with no outcome and no creature. A cast that made two creatures and dismissed one keeps its concentration, since one still stands. The ruling extends "A conjuration's control ends hostile on a loss or a run-out" (2026-11-26), whose dismissal at will said nothing of the hold.
+
+**Built.** Lib's `dismissSummons` fires `SUMMONS_DISMISSED_HOOK` on the asking client once the GM's client has answered, with the casts it took, what it named and how many it refused; lib imports no feature. `cast-held.mjs` ends each held caster record of those casts that has nothing standing (`dismissalEnds`), counting what the dismissal named as gone unless part of it was refused. The funnel, given the cause `dismissed`, reads no creature and asks for no control end, so a token the asking client still draws for a moment is never turned hostile.
+
+**Rejected.** *Keeping the hold to its cap* (magic TESTING step 11 as it stood): the concentration would then guard nothing, and a later loss of it would post a card for a creature already gone. *Ending the hold on any dismissal of the cast*: a cast with a creature still standing is still controlled through the concentration. *Ending it from a token delete hook*: a creature removed by any other route (a hand delete, a death) is not a dismissal, and the ruling names the act.
+
+**Strongest counter, LOW.** A dismissal relayed while the asking client is disconnected before the answer arrives deletes the creature and leaves the hold standing. Held: the status's own toggle ends it, as before this ruling, and the card that follows names no creature.
+
+*Cost:* a dismissal now posts a held-end card to the GMs and the caster's owners, one more card per held cast dismissed.

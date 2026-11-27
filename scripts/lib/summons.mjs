@@ -34,7 +34,7 @@
  * what the check tests there (`sourceReadable`): a seat summons exactly what
  * Foundry lets it observe, and a spell row naming a creature grants nothing.
  */
-import { MODULE_ID, LANG_PREFIX, SUMMONS_PLACED_HOOK, TEMPLATE_TYPE } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, SUMMONS_PLACED_HOOK, SUMMONS_DISMISSED_HOOK, TEMPLATE_TYPE } from "./constants.mjs";
 import { docOf, makeLoc } from "./util.mjs";
 import { centreOfToken, pointGapFeet } from "./distance-units.mjs";
 import * as services from "./services.mjs";
@@ -915,7 +915,11 @@ export async function dismissSummons(summoner, { tokens, entries, held, scene = 
   }
   const payload = { op: "dismiss", summonerUuid: summoner.uuid, tokenUuids: verdict.tokens.map((t) => t.uuid) };
   if (verdict.held.length) payload.held = verdict.held.map(({ partyId, actorId }) => ({ partyId, actorId }));
-  return send(payload);
+  // The casts are read before the send: the tokens that name them are gone once it answers.
+  const castIds = [...new Set([...verdict.tokens.map((t) => summonRecordOf(t.actor)?.castId), ...verdict.held.map((r) => r.summon?.castId)].filter(Boolean))];
+  const answer = await send(payload);
+  if (answer?.ok) Hooks.callAll(SUMMONS_DISMISSED_HOOK, { summonerUuid: summoner.uuid, castIds, tokenUuids: payload.tokenUuids, held: payload.held ?? [], refused: Number(answer.refused) || 0 });
+  return answer;
 }
 
 /** Say why a request was refused, in the seat's own words. */

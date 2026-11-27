@@ -1343,7 +1343,11 @@ and no scene token. Lib reads and ends it through the `party-roster` contract
 (above) and imports no feature; with the contract's v2 members absent, a summon
 is only the scene token it is. A placement announces itself: `acksExtras.summonsPlaced`
 (`SUMMONS_PLACED_HOOK`, constants) is called with `{summonerUuid, sceneId, tokenIds}`
-on the placing GM's client once the tokens stand.
+on the placing GM's client once the tokens stand. A dismissal does too, once the
+GM's client has answered it: `acksExtras.summonsDismissed`
+(`SUMMONS_DISMISSED_HOOK`) is called on the asking client with `{summonerUuid,
+castIds, tokenUuids, held, refused}`, the casts whose creatures it took read
+before the send.
 
 A caster who marches inside a party token (`joiningParty(summoner)`, the
 contract's `summonerParty` for the actor, null where there is none) may have

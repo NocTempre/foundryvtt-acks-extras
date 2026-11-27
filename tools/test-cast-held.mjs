@@ -21,7 +21,7 @@ globalThis.foundry = {
 };
 globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
 
-const { heldStatusOf, heldRecordData, causeOf, heldEndPlan, checkHeldEndRequest, checkRestoreRequest, restoreSplit, restorePlan, restoredAs, runHeldPlan, endHeldCast, heldEndContent, heldEndView, controlLostLine, pressDismiss, bindCard, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
+const { heldStatusOf, heldRecordData, causeOf, heldEndPlan, checkHeldEndRequest, checkRestoreRequest, restoreSplit, restorePlan, restoredAs, runHeldPlan, endHeldCast, heldEndContent, heldEndView, controlLostLine, pressDismiss, bindCard, dismissalEnds, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
 const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 const { conditionChanges } = await import("./core-conditions-fixture.mjs");
 
@@ -73,8 +73,9 @@ t("the cause: the cast's own delete names it, else the loss lib is lifting, else
   assert.equal(causeOf({ "acks-extras": { endCause: "damage" } }, null), "removed", "a seat cannot name a loss in the options");
   assert.equal(causeOf({}, null), "removed");
   assert.equal(causeOf({ "acks-extras": { endCause: "saved" } }, { cause: "damage" }), "saved", "a recurring prompt's passed save names its own cause");
-  assert.ok(HELD_CAUSES.every((c) => ["damage", "save", "cast", "time", "removed", "saved"].includes(c)));
+  assert.ok(HELD_CAUSES.every((c) => ["damage", "save", "cast", "time", "removed", "saved", "dismissed"].includes(c)));
   assert.ok(HELD_CAUSES.includes("saved"));
+  assert.equal(causeOf({ "acks-extras": { endCause: "dismissed" } }, { cause: "damage" }), "dismissed", "a dismissal that left the cast nothing names its own cause");
 });
 
 t("with no tail every recipient the client can write is removed; a tail re-times it from now and keeps the earlier figures; a none tail leaves it open; what it cannot write is relayed", () => {
@@ -344,9 +345,9 @@ await ta("a stashed creature that left its party is listed by the token that sta
   assert.equal("left" in unchanged || "kept" in unchanged, false);
 });
 
-await ta("every cause of a held end asks for the control end alike and the card carries what it answered: a conjuration capped by time ends as one broken by damage, by a save, by a new cast or by a hand", async () => {
+await ta("every cause of a held end but a dismissal asks for the control end alike and the card carries what it answered: a conjuration capped by time ends as one broken by damage, by a save, by a new cast or by a hand", async () => {
   const standing = async () => ({ tokens: [{ name: "Invented Wisp", uuid: "Scene.s1.Token.t1" }], held: [] });
-  for (const cause of HELD_CAUSES) {
+  for (const cause of HELD_CAUSES.filter((c) => c !== "dismissed")) {
     const asked = [];
     const r = funnelDeps({ recipients: [] });
     r.deps.standing = standing;
@@ -356,6 +357,27 @@ await ta("every cause of a held end asks for the control end alike and the card 
     assert.equal(flag.outcome, "hostile", `${cause}: the card carries the outcome`);
     assert.equal(flag.cause, cause);
   }
+});
+
+await ta("a dismissal's end reads no creature and asks for no control end: a token this client still draws is never turned hostile, and the card names the dismissal", async () => {
+  const asked = [];
+  const r = funnelDeps({ recipients: [] });
+  r.deps.standing = async () => (asked.push("standing"), { tokens: [{ name: "Invented Wisp", uuid: "Scene.s1.Token.t1" }], held: [] });
+  r.deps.control = async (req) => (asked.push(req), { ok: true, outcome: "hostile" });
+  const flag = await endHeldCast(held(), { cause: "dismissed", caster, deps: r.deps });
+  assert.deepEqual(asked, []);
+  assert.equal(flag.cause, "dismissed");
+  assert.equal("outcome" in flag || "summons" in flag, false);
+});
+
+t("a dismissal ends a held cast it took creatures from once none of them stands, and no other", () => {
+  const records = [{ id: "e1", castId: "castA" }, { id: "e2", castId: "castB" }, { id: "e3", castId: "castC" }];
+  const left = { castA: 0, castB: 1, castC: 0 };
+  const remaining = (castId) => left[castId];
+  assert.deepEqual(dismissalEnds({ records, castIds: ["castA", "castB"], remaining }), ["e1"], "castB keeps a creature; castC was not dismissed from");
+  assert.deepEqual(dismissalEnds({ records, castIds: [], remaining }), []);
+  assert.deepEqual(dismissalEnds({ records: [], castIds: ["castA"], remaining }), []);
+  assert.deepEqual(dismissalEnds({ records, castIds: ["castA", "castC"], remaining }), ["e1", "e3"]);
 });
 
 await ta("the card lists the standing creatures, a Dismiss on each row and one for all, the page reference once on the control-lost line; every name is escaped", async () => {

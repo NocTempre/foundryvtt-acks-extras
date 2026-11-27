@@ -392,7 +392,7 @@ stands as a hostile token (lib's MODEL, "A temporary ally that turns hostile
 leaves its party"). A creature stamped `hostile` is
 refused to a seat that is no GM (`controlLost`); one that stays is its owner's to
 dismiss as any other is. With no GM connected nothing is applied. It runs at both
-ends of a cast. At the *held end* (every `HELD_CAUSES`) the funnel's card
+ends of a cast. At the *held end* (every `HELD_CAUSES` but `dismissed`) the funnel's card
 (`templates/magic/cast-held-card.hbs`) lists the cast's standing creatures
 (`castSummons`) with a Dismiss each and Dismiss all, drawn for an owner of the
 caster and, after a hostile end, on a GM seat only (display only; the render hook
@@ -1343,13 +1343,23 @@ level the finding is `noSetReaches`. A procedure that wants the line returns
 A pick whose set was lost before a declared cast's turn is dropped with the entry
 (`withoutMissing`), and the pick opens on the lowest set that still reaches the level.
 
+*A dismissal is the concentration's own act.* Dismissing a held cast's
+creatures through lib's `dismissSummons` (the character sheet's Dismiss, a
+card's) fires lib's `SUMMONS_DISMISSED_HOOK` on the asking client with the
+casts it took; `cast-held.mjs` answers there, and each held caster record of
+those casts with no creature left standing (`dismissalEnds`; what the
+dismissal named counts gone unless the GM's client refused part of it) is
+deleted naming `dismissed`. The funnel below then runs with nothing to read:
+no creature, no control end and no outcome, and its card names the cause.
+A held cast with a creature still standing keeps its concentration.
+
 **Concentration's end** (`cast-held.mjs`, registered at `init`). However the
 caster's held record goes (damage or a failed save through lib's loss path, the
-status's own toggle, a hand delete, another cast, the cap running out) the client
-that deleted it ends the cast, in one funnel on `deleteActiveEffect` for its own
+status's own toggle, a hand delete, another cast, the cap running out, a
+dismissal) the client that deleted it ends the cast, in one funnel on `deleteActiveEffect` for its own
 user's delete, because the cause exists only there. The cause, read before
-anything awaits: the cast's own delete names `cast`, `time` or `saved` (a
-recurring prompt's passed save, below) in the operation's
+anything awaits: the cast's own delete names `cast`, `time`, `saved` (a
+recurring prompt's passed save, below) or `dismissed` in the operation's
 options (`{"acks-extras": {endCause}}`); else lib's `lossInFlight(actor)` gives
 `damage` or `save`; else `removed`. `heldEndPlan` sorts the cast's recipient
 records, found by `castId` over every actor and unlinked token, by the caster

@@ -307,7 +307,10 @@ one reading the cast's refusal takes. The relay itself is not exercised.
     *Observable:* one funnel card whose cause reads time and whose flag
     `outcome` is `hostile`; the creature is stamped `lost`, hostile and owned
     by no player. A second cast, dismissed by the Player's sheet before the
-    cap, leaves nothing standing at the cap and its card lists no creature.
+    cap, ends at the dismissal (DECISIONS, "Dismissing a held conjuration's
+    last creature ends the concentration"): the held record is gone at once,
+    one card whose cause reads dismissed carries no outcome and no creature,
+    and nothing is posted at the cap.
 12. The delete path, cast from `magic/summon-spell-gone`, whose row's `controlEnd` is `gone` (duration two hours; the standing spell is first put back to its standing shape).
     The Player casts two creatures; the Judge places by hand a token of the same
     creature (the decoy, which carries no summons record) and the world clock
@@ -388,8 +391,9 @@ one reading the cast's refusal takes. The relay itself is not exercised.
     where the row names none. *Observable:* the cast card reads held and not
     timed, with the printed duration as its cap, and the Player's sheet shows the
     caster concentrating. Then, in three casts: (a) the Player's seat dismisses
-    the creature at will, *Observable:* the creature is removed and the
-    concentration ends with no hostile card; (b) the concentration is ended by
+    the creature at will, *Observable:* the creature is removed, the held record
+    is gone, and the one card that follows reads the cause dismissed with no
+    outcome and no creature; (b) the concentration is ended by
     the status's toggle, *Observable:* the creature stands stamped `lost`, the
     Player's ownership is gone, its disposition is hostile and the Player's
     Dismiss is refused `controlLost`; (c) the world clock is advanced past the

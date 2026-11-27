@@ -5,14 +5,15 @@
  * the kind held and the time its effects outlast it (`tail`), and each recipient
  * of the cast carries a record of its own. However the caster's record goes (the
  * system's hit-point loss path, a failed save, the status's own toggle, a hand
- * delete, another cast, the cap running out) the client that deleted it ends the
+ * delete, another cast, the cap running out, a dismissal that leaves the cast no
+ * creature standing) the client that deleted it ends the
  * cast: one funnel, run on that client because the cause of the end exists
  * nowhere else (`deleteActiveEffect` fires on the deleting client with the
  * operation's options, and lib's loss path holds its cause while it lifts).
  *
  * The cause, first match wins: the cast's own delete names it in the operation's
- * options (`cast`, `time`, or `saved` for a recurring prompt's passed save,
- * `cast-recur.mjs`); else the loss lib is lifting for this actor
+ * options (`cast`, `time`, `saved` for a recurring prompt's passed save,
+ * `cast-recur.mjs`, or `dismissed`); else the loss lib is lifting for this actor
  * (`damage` or `save`); else `removed`. It is read before anything awaits.
  *
  * What the funnel does to a recipient record it can write, by the caster
@@ -57,9 +58,10 @@ import { statusEffectData } from "../lib/held-condition.mjs";
 import { unset } from "../lib/util.mjs";
 import { CONTROL_ENDS } from "../lib/magic-vocab.mjs";
 import { UNDER_CONTROL } from "../lib/summons-logic.mjs";
+import { SUMMONS_DISMISSED_HOOK } from "../lib/constants.mjs";
 
 /** The causes a card names. */
-export const HELD_CAUSES = Object.freeze(["damage", "save", "cast", "time", "removed", "saved"]);
+export const HELD_CAUSES = Object.freeze(["damage", "save", "cast", "time", "removed", "saved", "dismissed"]);
 
 /** The status a held record carries, by the kind of concentration. */
 export const heldStatusOf = (held) => (held === "stationary" ? "concentrating-and-stationary" : "concentrating");
@@ -83,8 +85,8 @@ export function heldRecordData(mark, { held, now, tail, cap }) {
   return spellEffectData({ ...mark, startTime: now, statuses: [heldStatusOf(held)], held, tail, duration: cap });
 }
 
-/** The causes a cast's own delete may name in the operation's options: `saved` is a recurring prompt's pass ending the cast (`cast-recur.mjs`). */
-const NAMED = new Set(["cast", "time", "saved"]);
+/** The causes a cast's own delete may name in the operation's options: `saved` is a recurring prompt's pass ending the cast (`cast-recur.mjs`), `dismissed` a dismissal that left the cast nothing standing (`dismissalEnds`). */
+const NAMED = new Set(["cast", "time", "saved", "dismissed"]);
 
 /** The causes lib's loss path may hold for a concentration. */
 const LOST = new Set(["damage", "save"]);
@@ -94,7 +96,7 @@ const LOST = new Set(["damage", "save"]);
  * loss in flight. Pure: both are passed in.
  * @param {object|undefined} options  the delete hook's options
  * @param {{cause: string}|null} loss  `lossInFlight`'s answer for the caster's actor
- * @returns {"damage"|"save"|"cast"|"time"|"removed"|"saved"}
+ * @returns {"damage"|"save"|"cast"|"time"|"removed"|"saved"|"dismissed"}
  */
 export function causeOf(options, loss) {
   const named = options?.[MODULE_ID]?.endCause;
@@ -280,7 +282,8 @@ export async function endHeldCast(record, { cause, caster, deps }) {
     } else done.open.push(...plan.relay.map((r) => ({ actorUuid: r.actorUuid, id: r.id, name: r.name })));
   }
   // A summons held by concentration loses its control. The card lists its creatures with the ids a Dismiss names, read before the GM's client applies what the spell's row says becomes of them (`deps.control`); Dismiss is the Judge's, and is not drawn for creatures that went.
-  const found = (await deps.standing?.(record)) ?? {};
+  // A dismissal ends a cast only once nothing of it stands, so it has no creatures to read; a token this client has not yet seen removed is never handed a control end.
+  const found = cause === "dismissed" ? {} : ((await deps.standing?.(record)) ?? {});
   const standing = creatureEntries(found);
   // With no GM connected `control` answers null and nothing is applied: the creatures stand, and the card draws no outcome of its own.
   const control = standing.length ? await deps.control?.({ casterUuid: record.casterUuid, castId: record.castId, cause }) : null;
@@ -576,6 +579,50 @@ function onDeleteEffect(effect, options, userId) {
 }
 
 /**
+ * The held records a dismissal ends. Dismissing is an act of the concentration,
+ * so a held cast whose creatures the dismissal took and which has none left
+ * standing has nothing to concentrate on, and ends. A held cast the dismissal
+ * did not touch, or one with a creature still standing, is kept. Pure.
+ *
+ * @param {object} from
+ * @param {Array<{id: string, castId: string}>} from.records  the summoner's held caster records
+ * @param {string[]} from.castIds  the casts whose creatures the dismissal took
+ * @param {(castId: string) => number} from.remaining  how many of a cast's creatures still stand
+ * @returns {string[]} the ids of the records to end
+ */
+export function dismissalEnds({ records = [], castIds = [], remaining }) {
+  const took = new Set(castIds);
+  return records.filter((r) => took.has(r.castId) && remaining(r.castId) === 0).map((r) => r.id);
+}
+
+/**
+ * A dismissal this client asked for (lib's `SUMMONS_DISMISSED_HOOK`): each held
+ * cast it left with nothing standing is ended by deleting its caster record
+ * naming `dismissed`, so the funnel runs here. What the dismissal named is
+ * counted gone even where this client has not yet seen it removed, unless the
+ * GM's client refused part of it, when only what stands here counts.
+ */
+async function onSummonsDismissed({ summonerUuid, castIds = [], tokenUuids = [], held = [], refused = 0 } = {}) {
+  const caster = summonerUuid ? fromUuidSync(summonerUuid) : null;
+  if (!caster?.effects || !castIds.length) return;
+  const records = [];
+  for (const effect of caster.effects) {
+    const record = spellEffectOf(effect);
+    if (record?.role === "caster" && record.held) records.push({ id: effect.id, castId: record.castId });
+  }
+  if (!records.length) return;
+  const { castSummons } = await import("../lib/summons.mjs");
+  const gone = new Set(refused ? [] : tokenUuids);
+  const goneHeld = refused ? [] : held;
+  const remaining = (castId) => {
+    const { tokens, held: stashed } = castSummons(caster, castId, { scenes: game.scenes });
+    return tokens.filter((t) => !gone.has(t.uuid)).length + stashed.filter((h) => !goneHeld.some((d) => d.partyId === h.partyId && d.actorId === h.actorId)).length;
+  };
+  const ids = dismissalEnds({ records, castIds, remaining });
+  if (ids.length) await caster.deleteEmbeddedDocuments("ActiveEffect", ids, { [MODULE_ID]: { endCause: "dismissed" } });
+}
+
+/**
  * End the caster's held casts because the caster is casting again: their
  * records are deleted by id naming the cast as the cause, and this resolves once
  * each end has posted its card, so no record of the new cast is written before.
@@ -763,5 +810,6 @@ export function registerCastHeld() {
   registered = true;
   Hooks.on("deleteActiveEffect", onDeleteEffect);
   Hooks.on("renderChatMessageHTML", bindCard);
+  Hooks.on(SUMMONS_DISMISSED_HOOK, (payload) => void onSummonsDismissed(payload).catch((err) => console.error(`${MODULE_ID} | a dismissal's end of a concentration could not be carried out`, err)));
   void import("../lib/sockets.mjs").then(({ registerHandler }) => registerHandler(HELD_END_HANDLER, magicHeldEnd));
 }

@@ -157,6 +157,15 @@ export const TURN_ENDED_HOOK = `${NAMESPACE}.turnEnded`;
 export const SUMMONS_PLACED_HOOK = `${NAMESPACE}.summonsPlaced`;
 
 /**
+ * Fired with `{summonerUuid, castIds, tokenUuids, held, refused}` once a
+ * dismissal the GM's client carried out has answered, on the client that asked
+ * for it: the casts whose creatures it took, the tokens and held summons it
+ * named, and how many it refused. A feature that keeps state on a cast's
+ * creatures, as a concentration does, listens; lib imports none.
+ */
+export const SUMMONS_DISMISSED_HOOK = `${NAMESPACE}.summonsDismissed`;
+
+/**
  * The Region behavior sub-type of a live reach: config on a Region attached to
  * its bearer's token that says whose item raised it (`aura-reach.mjs`).
  */

@@ -823,7 +823,7 @@ try {
       const ends = await cardsOf(c.card.castId);
       await trackCards(ends);
       check("(a): the creature is removed", left.filter((x) => x.castId === c.card.castId).length === 0, { left: left.filter((x) => x.castId === c.card.castId).length });
-      check("(a): the concentration ends at the dismissal (step 15 (a); step 11 instead reads the record standing to the cap)", recs.filter((r) => r.castId === c.card.castId).length === 0, { records: recs.filter((r) => r.castId === c.card.castId).length });
+      check("(a): the concentration ends at the dismissal (step 15 (a), T-0899)", recs.filter((r) => r.castId === c.card.castId).length === 0, { records: recs.filter((r) => r.castId === c.card.castId).length });
       check("(a): no hostile card was posted for the cast", !ends.some((e) => e.outcome === "hostile"), { cards: ends.length, outcomes: ends.map((e) => e.outcome === "hostile") });
       const adv = await run(gm, P.pastCap, { value: c.card.capValue, units: c.card.capUnits });
       const recsAfter = await run(gm, P.records, { actorId: casterId });

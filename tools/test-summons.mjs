@@ -712,11 +712,17 @@ await t("the seat's dismissSummons takes entries of tokens and held summons, and
     { tokenId: null, held: { partyId: "pty", actorId: "h1" } },
     { tokenId: null, held: { partyId: "pty", actorId: "h2" } },
   ];
+  hookCalls.length = 0;
   const out = await dismissSummons(summoner, { entries, castId: "c1", confirm: false });
   assert.deepEqual(out, { ok: true, deleted: 3, refused: 0 });
+  assert.equal(hookCalls.length, 1, "an answered dismissal announces itself once");
+  assert.equal(hookCalls[0].name, "acksExtras.summonsDismissed");
+  assert.deepEqual(hookCalls[0].payload, { summonerUuid: summoner.uuid, castIds: ["c1"], tokenUuids: [plain.uuid, dep.uuid], held: [{ partyId: "pty", actorId: "h1" }], refused: 0 });
   assert.deepEqual(parties.get("pty").map((m) => m.actorId), ["h2"]);
   assert.equal(scene.tokens.has(otherCast.id), true, "another cast stays");
+  hookCalls.length = 0;
   assert.deepEqual(await dismissSummons(summoner, { entries: [], confirm: false }), { ok: false, reason: "none" });
+  assert.deepEqual(hookCalls, [], "a refusal announces nothing");
   const rest = await dismissSummons(summoner, { confirm: false });
   assert.deepEqual(rest, { ok: true, deleted: 2, refused: 0 }, "with nothing named: the scene's tokens and every held one");
   delete globalThis.canvas;
