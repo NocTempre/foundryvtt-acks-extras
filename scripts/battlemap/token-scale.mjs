@@ -196,11 +196,37 @@ export async function resetSelectedFootprints() {
   return count;
 }
 
+const isNumber = (v) => typeof v === "number" && Number.isFinite(v);
+const sameNumber = (a, b) => Math.abs(a - b) <= EPSILON;
+
+/**
+ * Whether a token being created keeps the size it arrives with. A hand's size
+ * differs from the prototype's, and differs from the module's own last write,
+ * which the token carries as its `sizeStamp`; a size that matches the stamp is
+ * the module's and is fitted again, and so is the prototype's own size (a fresh
+ * placement). A token with no stamp and an off-prototype size was never sized by
+ * the module, so the size is a hand's. Without numbers for both the stored size
+ * and the prototype's there is nothing to compare, and the token is fitted.
+ * @param {{width: number, height: number}} stored  the created token's stored size
+ * @param {{width: number, height: number}|null} proto  its actor's prototype token size
+ * @param {{width: number, height: number}|null} [stamp]  the token's `sizeStamp`, where it has one
+ * @returns {boolean} true to leave the size alone
+ */
+export function keepsCreatedSize(stored, proto, stamp = null) {
+  if (!isNumber(stored?.width) || !isNumber(stored?.height) || !isNumber(proto?.width) || !isNumber(proto?.height)) return false;
+  if (sameNumber(stored.width, proto.width) && sameNumber(stored.height, proto.height)) return false;
+  const stamped = isNumber(stamp?.width) && isNumber(stamp?.height);
+  return !stamped || !sameNumber(stored.width, stamp.width) || !sameNumber(stored.height, stamp.height);
+}
+
 /**
  * Auto-size tokens as they are placed on scenes that opted in (the assistant
  * sets the scene's autoScale flag on apply; the scene-config row toggles it).
  * preCreateToken runs on the initiating client, so the mutation lands before
- * the document is created — redeploys and drags both flow through here.
+ * the document is created — redeploys and drags both flow through here. A token
+ * whose size a hand set (`keepsCreatedSize`) is left as it is, which is how a
+ * token that formation or a paste re-creates keeps the size set in its Token
+ * Config; the base actor's prototype is the size a fresh placement carries.
  */
 export function installTokenAutoScale() {
   Hooks.on("preCreateToken", (doc, _createData, _options, userId) => {
@@ -208,6 +234,9 @@ export function installTokenAutoScale() {
     const scene = doc.parent;
     if (!autoScaleEnabled(scene)) return;
     const size = sizeForToken(doc, scene);
-    if (size && changed(doc, size)) doc.updateSource({ ...size, ...stampOf(size) });
+    if (!size || !changed(doc, size)) return;
+    const proto = (doc.baseActor ?? game.actors?.get?.(doc.actorId))?.prototypeToken;
+    if (keepsCreatedSize(doc._source ?? doc, proto, doc.getFlag(MODULE_ID, FLAG_SIZE_STAMP))) return;
+    doc.updateSource({ ...size, ...stampOf(size) });
   });
 }

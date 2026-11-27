@@ -433,7 +433,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   // The tokens the scene would resize and the ones its table cannot: a token
   // with a category the table lacks keeps its size and is counted; a token
   // with no category, a locked one and a marker are not.
-  const { sizeForToken, unsizedTokenCount, rescaleSceneTokens, resetSelectedFootprints, installTokenAutoScale } = await import("../scripts/battlemap/token-scale.mjs");
+  const { sizeForToken, unsizedTokenCount, rescaleSceneTokens, resetSelectedFootprints, installTokenAutoScale, keepsCreatedSize } = await import("../scripts/battlemap/token-scale.mjs");
   const scene = { grid: { distance: SQUARE, units: "ft" } };
   const tokenOf = (sizeKey, { locked = false, type = "monster" } = {}) => ({
     getFlag: (_ns, key) => (key === "footprintLock" ? locked || undefined : key === "extras" ? (sizeKey ? { size: sizeKey } : undefined) : undefined),
@@ -512,9 +512,49 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
     written.length = 0;
     hooks.preCreateToken(lockedDoc, {}, {}, "u1");
     assert.deepEqual(written, [], "preCreateToken leaves a locked token alone");
+
+    // A re-created or pasted token whose size a hand set keeps it: the stored
+    // size is off the base actor's prototype and off the token's stamp (or it has none).
+    const protoOf = (width, height) => ({ prototypeToken: { width, height } });
+    const created = (id, size, proto, stamp, extra = {}) => {
+      const base = tokenOf(null);
+      return stored(id, size, size, {
+        getFlag: (ns, key) => (key === "sizeStamp" ? stamp : base.getFlag(ns, key)),
+        baseActor: proto,
+        ...extra,
+      });
+    };
+    const fires = (doc) => {
+      written.length = 0;
+      hooks.preCreateToken(doc, {}, {}, "u1");
+      return written.map((w) => w.id);
+    };
+    assert.deepEqual(fires(created("hand-nostamp", 2, protoOf(1, 1), undefined)), [], "an off-prototype size with no stamp is a hand's and is kept");
+    assert.deepEqual(fires(created("hand-offstamp", 2, protoOf(1, 1), { width: 0.5, height: 0.5 })), [], "an off-prototype size that differs from the stamp is kept");
+    assert.deepEqual(fires(created("module-sized", 2, protoOf(1, 1), { width: 2, height: 2 })), ["module-sized"], "a size equal to the stamp is the module's and is fitted again");
+    assert.deepEqual(fires(created("fresh-placement", 1, protoOf(1, 1), undefined)), ["fresh-placement"], "a size equal to the prototype's is auto-sized");
+    assert.deepEqual(fires(created("no-proto-numbers", 2, { prototypeToken: {} }, undefined)), ["no-proto-numbers"], "a prototype with no size is auto-sized as before");
+    assert.deepEqual(fires(created("no-actor", 2, undefined, undefined)), ["no-actor"], "a token with no actor is auto-sized as before");
+    const byId = created("by-id", 2, undefined, undefined, { actorId: "a1" });
+    globalThis.game = { userId: "u1", actors: { get: (id) => (id === "a1" ? protoOf(1, 1) : undefined) } };
+    assert.deepEqual(fires(byId), [], "the prototype is read through the actor id where the token has no base actor");
   } finally {
     Object.assign(globalThis, savedGlobals);
     for (const key of Object.keys(savedGlobals)) if (savedGlobals[key] === undefined) delete globalThis[key];
+  }
+
+  // The keep test: off the prototype, and not the module's own last write.
+  const sz = (width, height) => ({ width, height });
+  assert.equal(keepsCreatedSize(sz(2, 2), sz(1, 1), null), true, "off the prototype with no stamp: kept");
+  assert.equal(keepsCreatedSize(sz(2, 2), sz(1, 1)), true, "an absent stamp is no stamp");
+  assert.equal(keepsCreatedSize(sz(2, 2), sz(1, 1), sz(0.5, 0.5)), true, "off the prototype and off the stamp: kept");
+  assert.equal(keepsCreatedSize(sz(2, 1), sz(1, 1), sz(2, 2)), true, "one axis off the stamp is enough");
+  assert.equal(keepsCreatedSize(sz(2, 2), sz(1, 1), sz(2, 2)), false, "off the prototype but equal to the stamp: fitted again");
+  assert.equal(keepsCreatedSize(sz(2 + 1e-9, 2), sz(1, 1), sz(2, 2)), false, "the comparison tolerates float noise");
+  assert.equal(keepsCreatedSize(sz(1, 1), sz(1, 1), null), false, "the prototype's own size is fitted");
+  assert.equal(keepsCreatedSize(sz(1, 1), sz(1, 1), sz(0.5, 0.5)), false, "on the prototype is fitted whatever the stamp");
+  for (const bad of [[null, sz(1, 1)], [sz(2, 2), null], [sz(2, 2), sz(undefined, 1)], [sz(2, NaN), sz(1, 1)], [sz(2, 2), { width: "1", height: 1 }], [undefined, undefined]]) {
+    assert.equal(keepsCreatedSize(...bad), false, `no numbers to compare: ${JSON.stringify(bad)}`);
   }
   resetTables();
 }

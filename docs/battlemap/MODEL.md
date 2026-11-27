@@ -498,6 +498,14 @@ Auto-size tokens toggles it. At a mile or more a cell the Token sizes section
 is one line saying tokens are not sized to footprints there. Formation
 redeploys create tokens and therefore flow through the same hook.
 
+The placement hook leaves a created token's size alone when it differs from the
+base actor's prototype token and either differs from the token's `sizeStamp` or
+the token has none (`keepsCreatedSize`). A fresh placement carries the
+prototype's size and is fitted; a re-created token the module sized carries a
+matching stamp and is fitted again; a token a formation or a paste re-creates
+keeps a size set in Token Config. The size chips' reset and Map setup's "Rescale
+tokens on scene" re-fit it on the Judge's ask.
+
 **The not-to-scale mark** (`scale-mark.mjs`). A token whose stored size is not
 its footprint at the scene's scale carries a frame drawn as a magnifying
 glass: a rim along the token's own shape, clear of core's border, and a short

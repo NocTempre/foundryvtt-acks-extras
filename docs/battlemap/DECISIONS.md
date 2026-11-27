@@ -654,3 +654,25 @@ engagement is ruled the adjacent square of the book, not the footprint's unit.
 Browser by what a layer holds and never by an outstanding list, so a world that
 never held one cannot reach the override there.
 
+## 2026-11-27 — The placement auto-size keeps a re-created token's hand size
+
+The preCreate auto-size ran over every created token, so a token that formation
+re-creates from its stashed `toObject()` (combat start and end, join, leave,
+disband, an orphan prune), or that is pasted, lost a width and height a hand set
+in Token Config. The owner's design principle is override: a hand's value wins
+over automation, and the explicit re-fit stays the Judge's.
+
+**Ruled.** The hook keeps a created token's size where it differs from its base
+actor's prototype token and either differs from the token's `sizeStamp` or the
+token has none. The size chips' reset and Map setup's "Rescale tokens on scene"
+remain the explicit ways to re-fit.
+
+**Rejected.**
+- Stamping formation's snapshot instead: a Token Config resize writes no stamp,
+  so the snapshot could not tell a hand's size on a token the module never sized.
+- Locking every re-created body: a lock outlives the gather and stops later
+  re-fits.
+
+**Cost.** A token placed at a prototype size that the prototype later changed
+keeps the old size through a re-create, until Rescale or the reset chip re-fits it.
+
